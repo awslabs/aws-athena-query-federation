@@ -42,6 +42,8 @@ import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufUtils;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
@@ -84,7 +86,7 @@ public abstract class AbstractTableProviderTest
 
     private BlockAllocator allocator;
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     private String idField = getIdField();
     private String idValue = getIdValue();
     private String expectedQuery = "queryId";
@@ -177,9 +179,9 @@ public abstract class AbstractTableProviderTest
     @Test
     public void readTableTest()
     {
-        GetTableRequest request = new GetTableRequest(identity, expectedQuery, expectedCatalog, expectedTableName);
+        GetTableRequest request = GetTableRequest.newBuilder().setIdentity(identity).setQueryId(expectedQuery).setCatalogName(expectedCatalog).setTableName(expectedTableName).build();
         GetTableResponse response = provider.getTable(allocator, request);
-        assertTrue(response.getSchema().getFields().size() > 1);
+        assertTrue(ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()).getFields().size() > 1);
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
@@ -189,25 +191,24 @@ public abstract class AbstractTableProviderTest
 
         Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
 
-        ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, response.getSchema(), constraints);
+        ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()), constraints);
 
-        S3SpillLocation spillLocation = S3SpillLocation.newBuilder()
-                .withBucket("bucket")
-                .withPrefix("prefix")
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
+        SpillLocation spillLocation = SpillLocation.newBuilder()
+                .setBucket("bucket")
+                .setKey(ProtobufUtils.buildS3SpillLocationKey("prefix", UUID.randomUUID().toString(), UUID.randomUUID().toString()))
+                .setDirectory(true)
                 .build();
 
-        ReadRecordsRequest readRequest = new ReadRecordsRequest(identity,
-                expectedCatalog,
-                "queryId",
-                expectedTableName,
-                response.getSchema(),
-                Split.newBuilder(spillLocation, keyFactory.create()).build(),
-                constraints,
-                100_000_000,
-                100_000_000);
+        ReadRecordsRequest readRequest = ReadRecordsRequest.newBuilder()
+            .setIdentity(identity)
+            .setCatalogName(expectedCatalog)
+            .setQueryId("queryId")
+            .setSchema(response.getSchema())
+            .setSplit(Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(keyFactory.create()).build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
+            .setMaxBlockSize(100_000_000)
+            .setMaxInlineBlockSize(100_000_000)
+            .build();
 
         SpillConfig spillConfig = SpillConfig.newBuilder()
                 .withSpillLocation(spillLocation)
@@ -219,10 +220,10 @@ public abstract class AbstractTableProviderTest
 
         setUpRead();
 
-        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, response.getSchema(), evaluator, com.google.common.collect.ImmutableMap.of());
-        provider.readWithConstraint(spiller, readRequest, queryStatusChecker);
+        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()), evaluator, com.google.common.collect.ImmutableMap.of());
+        provider.readWithConstraint(allocator, spiller, readRequest, queryStatusChecker);
 
-        validateRead(response.getSchema(), blockSpillReader, spiller.getSpillLocations(), spillConfig.getEncryptionKey());
+        validateRead(ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()), blockSpillReader, spiller.getSpillLocations(), spillConfig.getEncryptionKey());
     }
 
     protected void validateRead(Schema schema, S3BlockSpillReader reader, List<SpillLocation> locations, EncryptionKey encryptionKey)
@@ -230,7 +231,7 @@ public abstract class AbstractTableProviderTest
         int blockNum = 0;
         int rowNum = 0;
         for (SpillLocation next : locations) {
-            S3SpillLocation spillLocation = (S3SpillLocation) next;
+            SpillLocation spillLocation = (SpillLocation) next;
             try (Block block = reader.read(spillLocation, encryptionKey, schema)) {
                 logger.info("validateRead: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
 

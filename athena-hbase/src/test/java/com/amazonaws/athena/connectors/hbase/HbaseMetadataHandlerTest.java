@@ -36,9 +36,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.connection.ResultProcessor;
@@ -119,7 +118,7 @@ public class HbaseMetadataHandlerTest
                 mockConnFactory,
                 "spillBucket",
                 "spillPrefix",
-                com.google.common.collect.ImmutableMap.of());
+                com.google.common.collect.ImmutableMap.of(DEFAULT_CATALOG, "asdfCatalogConnection"));
 
         when(mockConnFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
@@ -144,15 +143,15 @@ public class HbaseMetadataHandlerTest
 
         when(mockClient.listNamespaceDescriptors()).thenReturn(schemaNames);
 
-        ListSchemasRequest req = new ListSchemasRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG);
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).build();
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
 
-        logger.info("doListSchemas - {}", res.getSchemas());
+        logger.info("doListSchemas - {}", res.getSchemasList());
         Set<String> expectedSchemaName = new HashSet<>();
         expectedSchemaName.add("schema1");
         expectedSchemaName.add("schema2");
         expectedSchemaName.add("schema3");
-        assertEquals(expectedSchemaName, new HashSet<>(res.getSchemas()));
+        assertEquals(expectedSchemaName, new HashSet<>(res.getSchemasList()));
 
         logger.info("doListSchemaNames: exit");
     }
@@ -177,16 +176,15 @@ public class HbaseMetadataHandlerTest
         tableNames.add("table3");
 
         when(mockClient.listTableNamesByNamespace(eq(schema))).thenReturn(tables);
-        ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, schema,
-                null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesRequest req = ListTablesRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setSchemaName(schema).setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
         ListTablesResponse res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res.getTables());
+        logger.info("doListTables - {}", res.getTablesList());
 
-        for (TableName next : res.getTables()) {
+        for (TableName next : res.getTablesList()) {
             assertEquals(schema, next.getSchemaName());
             assertTrue(tableNames.contains(next.getTableName()));
         }
-        assertEquals(tableNames.size(), res.getTables().size());
+        assertEquals(tableNames.size(), res.getTablesList().size());
     }
 
     /**
@@ -206,7 +204,7 @@ public class HbaseMetadataHandlerTest
             return processor.scan(mockScanner);
         });
 
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setTableName(TABLE_NAME).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
@@ -214,25 +212,18 @@ public class HbaseMetadataHandlerTest
                 .addField(HbaseSchemaUtils.ROW_COLUMN_NAME, Types.MinorType.VARCHAR.getType())
                 .build();
 
-        assertEquals(expectedSchema.getFields().size(), res.getSchema().getFields().size());
+        assertEquals(expectedSchema.getFields().size(), ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).getFields().size());
     }
 
     @Test
     public void doGetTableLayout()
             throws Exception
     {
-        GetTableLayoutRequest req = new GetTableLayoutRequest(IDENTITY,
-                QUERY_ID,
-                DEFAULT_CATALOG,
-                TABLE_NAME,
-                new Constraints(new HashMap<>()),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET);
-
+        GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setTableName(TABLE_NAME).build();
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
         logger.info("doGetTableLayout - {}", res);
-        Block partitions = res.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions());
         for (int row = 0; row < partitions.getRowCount() && row < 10; row++) {
             logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
         }
@@ -256,29 +247,17 @@ public class HbaseMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY,
-                QUERY_ID,
-                DEFAULT_CATALOG,
-                TABLE_NAME,
-                partitions,
-                partitionCols,
-                new Constraints(new HashMap<>()),
-                null);
-
-        GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setTableName(TABLE_NAME).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionCols(partitionCols).build();
 
         logger.info("doGetSplits: req[{}]", req);
 
-        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
         continuationToken = response.getContinuationToken();
 
         logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]",
-                new Object[] {continuationToken, response.getSplits().size()});
+                new Object[] {continuationToken, response.getSplitsList().size()});
 
-        assertTrue("Continuation criteria violated", response.getSplits().size() == 4);
-        assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
+        assertTrue("Continuation criteria violated", response.getSplitsList().size() == 4);
+        assertFalse("Continuation criteria violated", response.hasContinuationToken());
     }
 }

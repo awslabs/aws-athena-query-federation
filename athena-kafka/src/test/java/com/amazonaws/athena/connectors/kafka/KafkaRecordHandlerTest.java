@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.*;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
@@ -30,6 +31,7 @@ import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.kafka.dto.*;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
@@ -78,7 +80,6 @@ public class KafkaRecordHandlerTest {
     @Mock
     private AmazonAthena athena;
 
-    @Mock
     FederatedIdentity federatedIdentity;
 
     @Mock
@@ -91,12 +92,7 @@ public class KafkaRecordHandlerTest {
     KafkaRecordHandler kafkaRecordHandler;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private EncryptionKey encryptionKey = keyFactory.create();
-    private S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder()
-            .withBucket(UUID.randomUUID().toString())
-            .withSplitId(UUID.randomUUID().toString())
-            .withQueryId(UUID.randomUUID().toString())
-            .withIsDirectory(true)
-            .build();
+    private SpillLocation s3SpillLocation = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
     private MockedStatic<KafkaUtils> mockedKafkaUtils;
 
     @Before
@@ -124,6 +120,7 @@ public class KafkaRecordHandlerTest {
                 .build();
         allocator = new BlockAllocatorImpl();
         mockedKafkaUtils = Mockito.mockStatic(KafkaUtils.class, Mockito.CALLS_REAL_METHODS);
+        federatedIdentity = FederatedIdentity.newBuilder().build();
         kafkaRecordHandler = new KafkaRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
     }
 
@@ -154,7 +151,7 @@ public class KafkaRecordHandlerTest {
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
-        kafkaRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
+        kafkaRecordHandler.readWithConstraint(allocator, spiller, request, queryStatusChecker);
     }
 
     @Test
@@ -178,7 +175,7 @@ public class KafkaRecordHandlerTest {
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
 
-        kafkaRecordHandler.readWithConstraint(null, request, queryStatusChecker);
+        kafkaRecordHandler.readWithConstraint(allocator, null, request, queryStatusChecker);
     }
 
     @Test
@@ -200,7 +197,7 @@ public class KafkaRecordHandlerTest {
         mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
         ReadRecordsRequest request = createReadRecordsRequest(schema);
-        kafkaRecordHandler.readWithConstraint(null, request, null);
+        kafkaRecordHandler.readWithConstraint(allocator, null, request, null);
     }
 
     @Test
@@ -225,27 +222,27 @@ public class KafkaRecordHandlerTest {
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
-        kafkaRecordHandler.readWithConstraint(null, request, queryStatusChecker);
+        kafkaRecordHandler.readWithConstraint(allocator, null, request, queryStatusChecker);
     }
 
     private ReadRecordsRequest createReadRecordsRequest(Schema schema) {
-        return new ReadRecordsRequest(
-                federatedIdentity,
-                "testCatalog",
-                "queryId",
-                new TableName("testSchema", "testTable"),
-                schema,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket("bucket")
-                                .withPrefix("prefix")
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP),
-                0,
-                0);
+        return ReadRecordsRequest.newBuilder()
+            .setIdentity(federatedIdentity)
+            .setCatalogName("testCatalog")
+            .setQueryId("queryId")
+            .setTableName(TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+            .setSplit(Split.newBuilder().setSpillLocation(
+                SpillLocation.newBuilder()
+                                .setBucket("bucket")
+                                .setKey(UUID.randomUUID().toString() + '/' + UUID.randomUUID().toString())
+                                .setDirectory(true)
+                            .build()
+                ).setEncryptionKey(keyFactory.create())
+            .build())
+            .setMaxBlockSize(0)
+            .setMaxInlineBlockSize(0)
+            .build();
     }
 
     private ConsumerRecord<String, TopicResultSet> createConsumerRecord(String topic, int partition, String key, TopicResultSet data) throws Exception {

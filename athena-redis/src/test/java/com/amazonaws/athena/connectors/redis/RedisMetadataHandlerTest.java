@@ -29,9 +29,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
@@ -150,16 +149,14 @@ public class RedisMetadataHandlerTest
     {
         Schema schema = SchemaBuilder.newBuilder().build();
 
-        GetTableLayoutRequest req = new GetTableLayoutRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG,
-                TABLE_NAME,
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                schema,
-                new HashSet<>());
-
+        GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG)
+            .setTableName(TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+            .build();
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
         logger.info("doGetTableLayout - {}", res);
-        Block partitions = res.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions());
         for (int row = 0; row < partitions.getRowCount() && row < 10; row++) {
             logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
         }
@@ -227,30 +224,24 @@ public class RedisMetadataHandlerTest
         partitions.setRowCount(1);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY,
-                QUERY_ID,
-                DEFAULT_CATALOG,
-                TABLE_NAME,
-                partitions,
-                partitionCols,
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                null);
-
-        GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
-
+        GetSplitsRequest req = GetSplitsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setQueryId(QUERY_ID)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setTableName(TABLE_NAME)
+            .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addAllPartitionCols(partitionCols)
+            .build();
         logger.info("doGetSplitsPrefix: req[{}]", req);
 
-        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
         continuationToken = response.getContinuationToken();
 
         logger.info("doGetSplitsPrefix: continuationToken[{}] - numSplits[{}]",
-                new Object[] {continuationToken, response.getSplits().size()});
+                new Object[] {continuationToken, response.getSplitsList().size()});
 
-        assertEquals("Continuation criteria violated", 120, response.getSplits().size());
-        assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
+        assertEquals("Continuation criteria violated", 120, response.getSplitsList().size());
+        assertFalse("Continuation criteria violated", response.hasContinuationToken());
 
         verify(mockSyncCommands, times(6)).scan(nullable(ScanCursor.class), nullable(ScanArgs.class));
     }
@@ -280,29 +271,22 @@ public class RedisMetadataHandlerTest
         partitions.setRowCount(1);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY,
-                QUERY_ID,
-                DEFAULT_CATALOG,
-                TABLE_NAME,
-                partitions,
-                new ArrayList<>(),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                null);
-
-        GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
-
+        GetSplitsRequest req = GetSplitsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setQueryId(QUERY_ID)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setTableName(TABLE_NAME)
+            .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .build();
         logger.info("doGetSplitsPrefix: req[{}]", req);
 
-        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
         continuationToken = response.getContinuationToken();
 
         logger.info("doGetSplitsPrefix: continuationToken[{}] - numSplits[{}]",
-                new Object[] {continuationToken, response.getSplits().size()});
+                new Object[] {continuationToken, response.getSplitsList().size()});
 
-        assertTrue("Continuation criteria violated", response.getSplits().size() == 3);
-        assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
+        assertTrue("Continuation criteria violated", response.getSplitsList().size() == 3);
+        assertFalse("Continuation criteria violated", response.hasContinuationToken());
     }
 }

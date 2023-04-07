@@ -23,9 +23,9 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -36,8 +36,10 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.teradata.tpcds.Table;
 import com.teradata.tpcds.column.Column;
@@ -45,7 +47,6 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -121,10 +122,10 @@ public class TPCDSMetadataHandler
         logger.info("doListTables: enter - " + request);
 
         List<TableName> tables = Table.getBaseTables().stream()
-                .map(next -> new TableName(request.getSchemaName(), next.getName()))
+                .map(next -> TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(next.getName()).build())
                 .collect(Collectors.toList());
 
-        return new ListTablesResponse(request.getCatalogName(), tables, null);
+        return ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tables).build();
     }
 
     /**
@@ -145,10 +146,7 @@ public class TPCDSMetadataHandler
             schemaBuilder.addField(TPCDSUtils.convertColumn(nextCol));
         }
 
-        return new GetTableResponse(request.getCatalogName(),
-                request.getTableName(),
-                schemaBuilder.build(),
-                Collections.EMPTY_SET);
+        return GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(request.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaBuilder.build())).build();
     }
 
     /**
@@ -182,20 +180,20 @@ public class TPCDSMetadataHandler
         logger.info("doGetSplits: Generating {} splits for {} at scale factor {}",
                 totalSplits, request.getTableName(), scaleFactor);
 
-        int nextSplit = request.getContinuationToken() == null ? 0 : Integer.parseInt(request.getContinuationToken());
+        int nextSplit = Strings.isNullOrEmpty(request.getContinuationToken()) ? 0 : Integer.parseInt(request.getContinuationToken());
         Set<Split> splits = new HashSet<>();
         for (int i = nextSplit; i < totalSplits; i++) {
-            splits.add(Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                    .add(SPLIT_NUMBER_FIELD, String.valueOf(i))
-                    .add(SPLIT_TOTAL_NUMBER_FIELD, String.valueOf(totalSplits))
-                    .add(SPLIT_SCALE_FACTOR_FIELD, String.valueOf(scaleFactor))
+            splits.add(Split.newBuilder().setSpillLocation(makeSpillLocation(request.getQueryId())).setEncryptionKey(makeEncryptionKey())
+                    .putProperties(SPLIT_NUMBER_FIELD, String.valueOf(i))
+                    .putProperties(SPLIT_TOTAL_NUMBER_FIELD, String.valueOf(totalSplits))
+                    .putProperties(SPLIT_SCALE_FACTOR_FIELD, String.valueOf(scaleFactor))
                     .build());
             if (splits.size() >= 1000) {
-                return new GetSplitsResponse(catalogName, splits, String.valueOf(i + 1));
+                return GetSplitsResponse.newBuilder().setCatalogName(catalogName).addAllSplits(splits).setContinuationToken(String.valueOf(i + 1)).build();
             }
         }
 
         logger.info("doGetSplits: exit - " + splits.size());
-        return new GetSplitsResponse(catalogName, splits);
+        return GetSplitsResponse.newBuilder().setCatalogName(catalogName).addAllSplits(splits).build();
     }
 }

@@ -74,6 +74,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.apache.commons.codec.Charsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -114,6 +116,7 @@ import java.util.Map;
 public class BlockUtils
 {
     public static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
+    private static final Logger logger = LoggerFactory.getLogger(BlockUtils.class);
 
     /**
      * Creates a new Block with a single column and populated with the provided values.
@@ -415,7 +418,7 @@ public class BlockUtils
 
         StringBuilder sb = new StringBuilder();
         for (FieldReader nextReader : block.getFieldReaders()) {
-            try {
+            
                 nextReader.setPosition(row);
                 if (sb.length() > 0) {
                     sb.append(", ");
@@ -425,10 +428,7 @@ public class BlockUtils
                 sb.append(" : ");
                 sb.append(fieldToString(nextReader));
                 sb.append("]");
-            }
-            catch (RuntimeException ex) {
-                throw new RuntimeException("Error processing field " + nextReader.getField().getName(), ex);
-            }
+            
         }
 
         return sb.toString();

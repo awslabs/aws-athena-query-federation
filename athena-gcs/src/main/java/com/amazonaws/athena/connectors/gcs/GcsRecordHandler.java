@@ -22,12 +22,14 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
-import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -110,24 +112,24 @@ public class GcsRecordHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
+    protected void readWithConstraint(BlockAllocator blockAllocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker) throws Exception
     {
         invoker.setBlockSpiller(spiller);
         TableName tableInfo = recordsRequest.getTableName();
-        Schema schema = recordsRequest.getSchema();
+        Schema schema = ProtobufMessageConverter.fromProtoSchema(blockAllocator, recordsRequest.getSchema());
         LOGGER.info("Reading records from the table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
         Split split = recordsRequest.getSplit();
         List<String> fileList = new ObjectMapper()
-            .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8), new TypeReference<List<String>>(){});
-        String classification = split.getProperty(FILE_FORMAT);
+            .readValue(split.getPropertiesMap().get(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8), new TypeReference<List<String>>(){});
+        String classification = split.getPropertiesMap().get(FILE_FORMAT);
         FileFormat format = FileFormat.valueOf(classification.toUpperCase());
         List<Field> partitionColumns = schema.getFields().stream().filter(field -> split.getProperties().containsKey(field.getName().toLowerCase())).collect(Collectors.toList());
         for (String file : fileList) {
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
             Optional<String[]> selectedColumns =
-                getSchemaFromSource(uri, classification).map(schemaFromSource -> getSelectedColumnNames(schemaFromSource, recordsRequest.getSchema()));
+                getSchemaFromSource(uri, classification).map(schemaFromSource -> getSelectedColumnNames(schemaFromSource, schema));
             ScanOptions options = new ScanOptions(BATCH_SIZE, selectedColumns);
             try (
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
@@ -183,7 +185,7 @@ public class GcsRecordHandler
             boolean isMatched = true;
             // offer value for partition column
             for (Field field : partitionColumns) {
-                isMatched &= block.offerValue(field.getName().toLowerCase(), rowNum, split.getProperty(field.getName().toLowerCase()));
+                isMatched &= block.offerValue(field.getName().toLowerCase(), rowNum, split.getPropertiesMap().get(field.getName().toLowerCase()));
             }
 
             for (FieldVector vector : gcsFieldVectors) {

@@ -36,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -98,8 +99,8 @@ public class SqlServerMetadataHandlerTest
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
-        this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        this.sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of("spill_bucket", "asdf_spill_bucket_loc"));
+        this.federatedIdentity = FederatedIdentity.newBuilder().build();
         this.allocator = new BlockAllocatorImpl();
     }
 
@@ -120,7 +121,7 @@ public class SqlServerMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.sqlServerMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
 
         PreparedStatement rowCountPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.ROW_COUNT_QUERY)).thenReturn(rowCountPreparedStatement);
@@ -145,15 +146,15 @@ public class SqlServerMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = this.sqlServerMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         List<String> actualValues = new ArrayList<>();
-        for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
-            actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
+        for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount(); i++) {
+            actualValues.add(BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()), i));
         }
         Assert.assertEquals(Arrays.asList("[PARTITION_NUMBER : 1:::pf:::pc]","[PARTITION_NUMBER : 2:::pf:::pc]","[PARTITION_NUMBER : 3:::pf:::pc]"), actualValues);
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
-        Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
+        Assert.assertEquals(expectedSchema, ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, getTableLayoutRequest.getTableName().getSchemaName() + "." +
@@ -169,7 +170,7 @@ public class SqlServerMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.sqlServerMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
@@ -188,18 +189,18 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
         GetTableLayoutResponse getTableLayoutResponse = this.sqlServerMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
-        Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
+        Assert.assertEquals(values.length, ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount());
 
         List<String> actualValues = new ArrayList<>();
-        for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
-            actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
+        for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount(); i++) {
+            actualValues.add(BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()), i));
         }
         Assert.assertEquals(Arrays.asList("[PARTITION_NUMBER : 0]"), actualValues);
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
-        Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
+        Assert.assertEquals(expectedSchema, ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, getTableLayoutRequest.getTableName().getSchemaName() + "." +
@@ -214,7 +215,7 @@ public class SqlServerMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.sqlServerMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
@@ -261,12 +262,12 @@ public class SqlServerMetadataHandlerTest
 
         Schema partitionSchema = this.sqlServerMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
 
         GetTableLayoutResponse getTableLayoutResponse = this.sqlServerMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
@@ -282,8 +283,8 @@ public class SqlServerMetadataHandlerTest
                 sqlServerMetadataHandler.PARTITION_NUMBER, "3",
                 "PARTITIONING_COLUMN", "pc",
                 "PARTITION_FUNCTION", "pf"));
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
-        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
+        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplitsList().size());
+        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplitsList().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }
 
@@ -318,18 +319,18 @@ public class SqlServerMetadataHandlerTest
 
         Schema partitionSchema = this.sqlServerMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
 
         GetTableLayoutResponse getTableLayoutResponse = this.sqlServerMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
         expectedSplits.add(Collections.singletonMap(sqlServerMetadataHandler.PARTITION_NUMBER, "0"));
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
-        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
+        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplitsList().size());
+        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplitsList().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }
 
@@ -342,7 +343,7 @@ public class SqlServerMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.sqlServerMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
 
         PreparedStatement rowCountPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.ROW_COUNT_QUERY)).thenReturn(rowCountPreparedStatement);
@@ -368,7 +369,7 @@ public class SqlServerMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = this.sqlServerMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, "2");
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("2").build();
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
@@ -376,7 +377,7 @@ public class SqlServerMetadataHandlerTest
                 sqlServerMetadataHandler.PARTITION_NUMBER, "3",
                 "PARTITIONING_COLUMN", "pc",
                 "PARTITION_FUNCTION", "pf"));
-        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
+        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplitsList().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }
 
@@ -403,8 +404,8 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
         GetTableResponse getTableResponse = this.sqlServerMetadataHandler.doGetTable(
-                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
-        Assert.assertEquals(expected, getTableResponse.getSchema());
+                blockAllocator, GetTableRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalog").setTableName(inputTableName).build());
+        Assert.assertEquals(expected, ProtobufMessageConverter.fromProtoSchema(blockAllocator, getTableResponse.getSchema()));
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
@@ -413,9 +414,8 @@ public class SqlServerMetadataHandlerTest
     public void doListSchemaNames()
             throws Exception
     {
-        ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
-        Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("fakedatabase");
-        Assert.assertEquals(new ListSchemasResponse("schemas", Collections.emptyList()).toString(),
-                sqlServerMetadataHandler.doListSchemaNames(this.allocator, listSchemasRequest).toString());
+        ListSchemasRequest listSchemasRequest = ListSchemasRequest.newBuilder().setCatalogName("fakedatabase").build();
+        Assert.assertEquals(ListSchemasResponse.newBuilder().setCatalogName("fakedatabase").build(),
+                sqlServerMetadataHandler.doListSchemaNames(this.allocator, listSchemasRequest));
     }
 }

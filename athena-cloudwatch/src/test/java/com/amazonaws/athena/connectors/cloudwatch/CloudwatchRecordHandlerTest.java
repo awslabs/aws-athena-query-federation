@@ -33,11 +33,11 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.logs.AWSLogs;
 import com.amazonaws.services.logs.model.GetLogEventsRequest;
@@ -51,6 +51,8 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.Message;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -84,7 +86,7 @@ public class CloudwatchRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudwatchRecordHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     private List<ByteHolder> mockS3Storage;
     private CloudwatchRecordHandler handler;
     private S3BlockSpillReader spillReader;
@@ -199,32 +201,33 @@ public class CloudwatchRecordHandlerTest
         constraintsMap.put("time", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
                 ImmutableList.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 100L)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("schema", "table"),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L,
-                100_000_000_000L//100GB don't expect this to spill
-        );
-
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName("schema").setTableName("table").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(Split.newBuilder().setSpillLocation(
+                SpillLocation.newBuilder()
+                                .setBucket(UUID.randomUUID().toString())
+                                .setKey(UUID.randomUUID().toString() + '/' + UUID.randomUUID().toString())
+                                .setDirectory(true)
+                            .build()
+                ).setEncryptionKey(keyFactory.create())
+                .putProperties(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table")
+            .build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertTrue(response.getRecords().getRowCount() == 3);
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() == 3);
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
 
         logger.info("doReadRecordsNoSpill: exit");
     }
@@ -239,43 +242,43 @@ public class CloudwatchRecordHandlerTest
         constraintsMap.put("time", SortedRangeSet.of(
                 Range.range(allocator, Types.MinorType.BIGINT.getType(), 100L, true, 100_000_000L, true)));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("schema", "table"),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                1_500_000L, //~1.5MB so we should see some spill
-                0
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName("schema").setTableName("table").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(Split.newBuilder().setSpillLocation(
+                SpillLocation.newBuilder()
+                                .setBucket(UUID.randomUUID().toString())
+                                .setKey(UUID.randomUUID().toString() + '/' + UUID.randomUUID().toString())
+                                .setDirectory(true)
+                            .build()
+                ).setEncryptionKey(keyFactory.create())
+                .putProperties(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table")
+            .build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(1_500_000L)
+            .setMaxInlineBlockSize(0)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
+        RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocksList().size());
 
-        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
-            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+        assertTrue(response.getRemoteBlocksList().size() > 1);
 
-            assertTrue(response.getNumberBlocks() > 1);
+        int blockNum = 0;
+        for (SpillLocation next : response.getRemoteBlocksList()) {
+            SpillLocation spillLocation = (SpillLocation) next;
+            try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()))) {
 
-            int blockNum = 0;
-            for (SpillLocation next : response.getRemoteBlocks()) {
-                S3SpillLocation spillLocation = (S3SpillLocation) next;
-                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
+                logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
 
-                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
-                    // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
-
-                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
-                    assertNotNull(BlockUtils.rowToString(block, 0));
-                }
+                logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                assertNotNull(BlockUtils.rowToString(block, 0));
             }
         }
 

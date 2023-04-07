@@ -21,9 +21,11 @@ package com.amazonaws.athena.connectors.msk;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
@@ -82,7 +84,7 @@ public class AmazonMskRecordHandler
         LOGGER.info("[kafka] {} RecordHandler running", splitParameters);
 
         // Initiate new KafkaConsumer that MUST not belong to any consumer group.
-        try (Consumer<String, TopicResultSet> kafkaConsumer = AmazonMskUtils.getKafkaConsumer(recordsRequest.getSchema(), configOptions)) {
+        try (Consumer<String, TopicResultSet> kafkaConsumer = AmazonMskUtils.getKafkaConsumer(ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()), configOptions)) {
             // Set which topic and partition we are going to read.
             TopicPartition partition = new TopicPartition(splitParameters.topic, splitParameters.partition);
             Collection<TopicPartition> partitions = com.google.common.collect.ImmutableList.of(partition);

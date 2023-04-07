@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.timestream;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
@@ -32,11 +33,12 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
-import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.athena.connectors.timestream.query.SelectQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -120,13 +122,13 @@ public class TimestreamRecordHandler
 
         String query = queryBuilder.withDatabaseName(tableName.getSchemaName())
                 .withTableName(tableName.getTableName())
-                .withProjection(recordsRequest.getSchema())
-                .withConjucts(recordsRequest.getConstraints())
+                .withProjection(ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()))
+                .withConjucts(ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()))
                 .build();
 
         logger.info("readWithConstraint: query[{}]", query);
 
-        GeneratedRowWriter rowWriter = buildRowWriter(recordsRequest);
+        GeneratedRowWriter rowWriter = buildRowWriter(allocator, recordsRequest);
         String nextToken = null;
         long numRows = 0;
 
@@ -144,12 +146,12 @@ public class TimestreamRecordHandler
         } while (nextToken != null && !nextToken.isEmpty());
     }
 
-    private GeneratedRowWriter buildRowWriter(ReadRecordsRequest request)
+    private GeneratedRowWriter buildRowWriter(BlockAllocator allocator, ReadRecordsRequest request)
     {
-        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(request.getConstraints());
+        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()));
 
         int fieldNum = 0;
-        for (Field nextField : request.getSchema().getFields()) {
+        for (Field nextField : ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema()).getFields()) {
             int curFieldNum = fieldNum++;
             switch (Types.getMinorTypeForArrowType(nextField.getType())) {
                 case VARCHAR:

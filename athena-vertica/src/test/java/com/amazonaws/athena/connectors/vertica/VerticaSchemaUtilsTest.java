@@ -48,7 +48,7 @@ public class VerticaSchemaUtilsTest extends TestBase
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         this.databaseMetaData = Mockito.mock(DatabaseMetaData.class);
         VerticaConnectionFactory verticaConnectionFactory = Mockito.mock(VerticaConnectionFactory.class);
-        this.tableName = Mockito.mock(TableName.class);
+        this.tableName = TableName.newBuilder().build();
 
         Mockito.when(verticaConnectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData()).thenReturn(databaseMetaData);

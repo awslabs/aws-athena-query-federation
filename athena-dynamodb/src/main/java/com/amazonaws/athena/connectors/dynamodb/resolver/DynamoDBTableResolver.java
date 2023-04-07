@@ -76,7 +76,7 @@ public class DynamoDBTableResolver
     {
         return listTablesInternal().stream()
                 .map(table -> table.toLowerCase(Locale.ENGLISH)) // lowercase for compatibility
-                .map(table -> new TableName(DEFAULT_SCHEMA, table))
+                .map(table -> TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(table).build())
                 .collect(Collectors.toList());
     }
 

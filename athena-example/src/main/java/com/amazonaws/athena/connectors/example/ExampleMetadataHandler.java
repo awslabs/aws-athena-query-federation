@@ -312,7 +312,7 @@ public class ExampleMetadataHandler
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
 
-        Block partitions = request.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, request.getPartitions());
 
         FieldReader day = partitions.getFieldReader("day");
         FieldReader month = partitions.getFieldReader("month");

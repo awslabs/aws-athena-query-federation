@@ -30,7 +30,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
@@ -147,7 +146,7 @@ public class ExampleRecordHandlerTest
             ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
                     "catalog",
                     "queryId-" + System.currentTimeMillis(),
-                    new TableName("schema", "table"),
+                    TableName.newBuilder().setSchemaName("schema").setTableName("table").build(),
                     schemaForRead,
                     Split.newBuilder(makeSpillLocation(), null)
                             .add("year", "2017")
@@ -159,14 +158,14 @@ public class ExampleRecordHandlerTest
                     100_000_000_000L
             );
 
-            RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+            Message rawResponse = handler.doReadRecords(allocator, request);
             assertTrue(rawResponse instanceof ReadRecordsResponse);
 
             ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-            logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+            logger.info("doReadRecordsNoSpill: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-            assertTrue(response.getRecords().getRowCount() > 0);
-            logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+            assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() > 0);
+            logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()));
         }
     }
 
@@ -190,7 +189,7 @@ public class ExampleRecordHandlerTest
 
     private static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+        return FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     }
 
     private SpillLocation makeSpillLocation()

@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.*;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
@@ -30,6 +31,8 @@ import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufUtils;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -85,11 +88,10 @@ public class BigQueryRecordHandlerTest
     private EncryptionKey encryptionKey = keyFactory.create();
     private SpillConfig spillConfig;
     private String queryId = UUID.randomUUID().toString();
-    private S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder()
-            .withBucket(UUID.randomUUID().toString())
-            .withSplitId(UUID.randomUUID().toString())
-            .withQueryId(queryId)
-            .withIsDirectory(true)
+    private SpillLocation spillLocation = SpillLocation.newBuilder()
+            .setBucket(UUID.randomUUID().toString())
+            .setKey(UUID.randomUUID().toString() + "/" + queryId)
+            .setDirectory(true)
             .build();
     private FederatedIdentity federatedIdentity;
 
@@ -102,7 +104,8 @@ public class BigQueryRecordHandlerTest
         logger.info("Starting init.");
         mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
         mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
-        federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        federatedIdentity = FederatedIdentity.newBuilder().build();
+
         allocator = new BlockAllocatorImpl();
         amazonS3 = mock(AmazonS3.class);
 
@@ -116,7 +119,7 @@ public class BigQueryRecordHandlerTest
                 //Async Writing.
                 .withNumSpillThreads(0)
                 .withRequestId(UUID.randomUUID().toString())
-                .withSpillLocation(s3SpillLocation)
+                .withSpillLocation(spillLocation)
                 .build();
 
         schemaForRead = new Schema(BigQueryTestUtils.getTestSchemaFieldsArrow());
@@ -144,57 +147,65 @@ public class BigQueryRecordHandlerTest
     public void testReadWithConstraint()
             throws Exception
     {
-        try (ReadRecordsRequest request = new ReadRecordsRequest(
-                federatedIdentity,
-                BigQueryTestUtils.PROJECT_1_NAME,
-                "queryId",
-                new TableName("dataset1", "table1"),
-                BigQueryTestUtils.getBlockTestSchema(),
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(bucket)
-                                .withPrefix(prefix)
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP),
-                0,          //This is ignored when directly calling readWithConstraints.
-                0)) {   //This is ignored when directly calling readWithConstraints.
-            //Always return try for the evaluator to keep all rows.
-            ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(federatedIdentity)
+            .setCatalogName(BigQueryTestUtils.PROJECT_1_NAME)
+            .setQueryId("queryId")
+            .setTableName(TableName.newBuilder().setSchemaName("dataset1").setTableName("table1").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(BigQueryTestUtils.getBlockTestSchema()))
+            .setSplit(
+                Split.newBuilder()
+                    .setSpillLocation(
+                        SpillLocation.newBuilder()
+                        .setBucket(bucket)
+                        .setKey(ProtobufUtils.buildS3SpillLocationKey(prefix, UUID.randomUUID().toString(), UUID.randomUUID().toString()))
+                        .setDirectory(true)
+                        .build())
+                    .setEncryptionKey(keyFactory.create())
+                .build())
+            .setMaxBlockSize(0L) //This is ignored when directly calling readWithConstraints.
+            .setMaxInlineBlockSize(0L) //This is ignored when directly calling readWithConstraints.
+            .build();        
+        //Always return try for the evaluator to keep all rows.
+        ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
+        when(evaluator.apply(nullable(String.class), any())).thenAnswer(
+                (InvocationOnMock invocationOnMock) -> {
+                    return true;
+                }
+        );
 
-            //Populate the schema and data that the mocked Google BigQuery client will return.
-            com.google.cloud.bigquery.Schema tableSchema = BigQueryTestUtils.getTestSchema();
-            List<FieldValueList> tableRows = Arrays.asList(
-                    BigQueryTestUtils.getBigQueryFieldValueList(false, 1000, "test1", 123123.12312),
-                    BigQueryTestUtils.getBigQueryFieldValueList(true, 500, "test2", 5345234.22111),
-                    BigQueryTestUtils.getBigQueryFieldValueList(false, 700, "test3", 324324.23423),
-                    BigQueryTestUtils.getBigQueryFieldValueList(true, 900, null, null),
-                    BigQueryTestUtils.getBigQueryFieldValueList(null, null, "test5", 2342.234234),
-                    BigQueryTestUtils.getBigQueryFieldValueList(true, 1200, "test6", 1123.12312),
-                    BigQueryTestUtils.getBigQueryFieldValueList(false, 100, "test7", 1313.12312),
-                    BigQueryTestUtils.getBigQueryFieldValueList(true, 120, "test8", 12313.1312),
-                    BigQueryTestUtils.getBigQueryFieldValueList(false, 300, "test9", 12323.1312)
-            );
-            Page<FieldValueList> fieldValueList = new BigQueryPage<>(tableRows);
-            TableResult result = new TableResult(tableSchema, tableRows.size(), fieldValueList);
+        //Populate the schema and data that the mocked Google BigQuery client will return.
+        com.google.cloud.bigquery.Schema tableSchema = BigQueryTestUtils.getTestSchema();
+        List<FieldValueList> tableRows = Arrays.asList(
+                BigQueryTestUtils.getBigQueryFieldValueList(false, 1000, "test1", 123123.12312),
+                BigQueryTestUtils.getBigQueryFieldValueList(true, 500, "test2", 5345234.22111),
+                BigQueryTestUtils.getBigQueryFieldValueList(false, 700, "test3", 324324.23423),
+                BigQueryTestUtils.getBigQueryFieldValueList(true, 900, null, null),
+                BigQueryTestUtils.getBigQueryFieldValueList(null, null, "test5", 2342.234234),
+                BigQueryTestUtils.getBigQueryFieldValueList(true, 1200, "test6", 1123.12312),
+                BigQueryTestUtils.getBigQueryFieldValueList(false, 100, "test7", 1313.12312),
+                BigQueryTestUtils.getBigQueryFieldValueList(true, 120, "test8", 12313.1312),
+                BigQueryTestUtils.getBigQueryFieldValueList(false, 300, "test9", 12323.1312)
+        );
+        Page<FieldValueList> fieldValueList = new BigQueryPage<>(tableRows);
+        TableResult result = new TableResult(tableSchema, tableRows.size(), fieldValueList);
 
-            //Mock out the Google BigQuery Job.
-            Job mockBigQueryJob = mock(Job.class);
-            when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
-            when(mockBigQueryJob.getQueryResults()).thenReturn(result);
-            when(bigQuery.create(nullable(JobInfo.class))).thenReturn(mockBigQueryJob);
+        //Mock out the Google BigQuery Job.
+        Job mockBigQueryJob = mock(Job.class);
+        when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
+        when(mockBigQueryJob.getQueryResults()).thenReturn(result);
+        when(bigQuery.create(nullable(JobInfo.class))).thenReturn(mockBigQueryJob);
 
-            QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-            when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
-            //Execute the test
-            bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
+        //Execute the test
+        bigQueryRecordHandler.readWithConstraint(allocator, spillWriter, request, queryStatusChecker);
+        logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
 
-            //Ensure that there was a spill so that we can read the spilled block.
-            assertTrue(spillWriter.spilled());
-        }
+        //Ensure that there was a spill so that we can read the spilled block.
+        assertTrue(spillWriter.spilled());
+    
     }
 
     @Test
@@ -207,52 +218,62 @@ public class BigQueryRecordHandlerTest
                 .addStringField("timestampcol")
                 .build();
 
-        try (ReadRecordsRequest request = new ReadRecordsRequest(
-                federatedIdentity,
-                BigQueryTestUtils.PROJECT_1_NAME,
-                "queryId",
-                new TableName("dataset1", "table1"),
-                testSchema,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(bucket)
-                                .withPrefix(prefix)
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP),
-                0,          //This is ignored when directly calling readWithConstraints.
-                0)) {   //This is ignored when directly calling readWithConstraints.
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(federatedIdentity)
+            .setCatalogName(BigQueryTestUtils.PROJECT_1_NAME)
+            .setQueryId("queryId")
+            .setTableName(TableName.newBuilder().setSchemaName("dataset1").setTableName("table1").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(testSchema))
+            .setSplit(
+                Split.newBuilder()
+                    .setSpillLocation(
+                        SpillLocation.newBuilder()
+                        .setBucket(bucket)
+                        .setKey(ProtobufUtils.buildS3SpillLocationKey(prefix, UUID.randomUUID().toString(), UUID.randomUUID().toString()))
+                        .setDirectory(true)
+                        .build())
+                    .setEncryptionKey(keyFactory.create())
+                .build())
+            .setMaxBlockSize(0L) //This is ignored when directly calling readWithConstraints.
+            .setMaxInlineBlockSize(0L) //This is ignored when directly calling readWithConstraints.
+            .build();
+        //Always return try for the evaluator to keep all rows.
+        ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
+        when(evaluator.apply(nullable(String.class), any())).thenAnswer(
+                (InvocationOnMock invocationOnMock) -> {
+                    return true;
+                }
+        );
 
-            // added schema with columns datecol, datetimecol, timestampcol
-            List<com.google.cloud.bigquery.Field> testSchemaFields = Arrays.asList(com.google.cloud.bigquery.Field.of("datecol", LegacySQLTypeName.DATE),
-                    com.google.cloud.bigquery.Field.of("datetimecol", LegacySQLTypeName.DATETIME),
-                    com.google.cloud.bigquery.Field.of("timestampcol", LegacySQLTypeName.TIMESTAMP));
-            com.google.cloud.bigquery.Schema tableSchema = com.google.cloud.bigquery.Schema.of(testSchemaFields);
+        // added schema with columns datecol, datetimecol, timestampcol
+        List<com.google.cloud.bigquery.Field> testSchemaFields = Arrays.asList(com.google.cloud.bigquery.Field.of("datecol", LegacySQLTypeName.DATE),
+                com.google.cloud.bigquery.Field.of("datetimecol", LegacySQLTypeName.DATETIME),
+                com.google.cloud.bigquery.Field.of("timestampcol", LegacySQLTypeName.TIMESTAMP));
+        com.google.cloud.bigquery.Schema tableSchema = com.google.cloud.bigquery.Schema.of(testSchemaFields);
 
-            // mocked table rows
-            List<FieldValue> firstRowValues = Arrays.asList(FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2016-02-05"),
-                    FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2021-10-30T10:10:10"),
-                    FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2014-12-03T12:30:00.450Z"));
-            FieldValueList firstRow = FieldValueList.of(firstRowValues,FieldList.of(testSchemaFields));
-            List<FieldValueList> tableRows = Arrays.asList(firstRow);
+        // mocked table rows
+        List<FieldValue> firstRowValues = Arrays.asList(FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2016-02-05"),
+                FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2021-10-30T10:10:10"),
+                FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2014-12-03T12:30:00.450Z"));
+        FieldValueList firstRow = FieldValueList.of(firstRowValues,FieldList.of(testSchemaFields));
+        List<FieldValueList> tableRows = Arrays.asList(firstRow);
 
-            Page<FieldValueList> fieldValueList = new BigQueryPage<>(tableRows);
-            TableResult result = new TableResult(tableSchema, tableRows.size(), fieldValueList);
+        Page<FieldValueList> fieldValueList = new BigQueryPage<>(tableRows);
+        TableResult result = new TableResult(tableSchema, tableRows.size(), fieldValueList);
 
-            //Mock out the Google BigQuery Job.
-            Job mockBigQueryJob = mock(Job.class);
-            when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
-            when(mockBigQueryJob.getQueryResults()).thenReturn(result);
-            when(bigQuery.create(nullable(JobInfo.class))).thenReturn(mockBigQueryJob);
+        //Mock out the Google BigQuery Job.
+        Job mockBigQueryJob = mock(Job.class);
+        when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
+        when(mockBigQueryJob.getQueryResults()).thenReturn(result);
+        when(bigQuery.create(nullable(JobInfo.class))).thenReturn(mockBigQueryJob);
 
-            QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-            when(queryStatusChecker.isQueryRunning()).thenReturn(true);
-            //Execute the test
-            bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
-        }
+        //Execute the test
+        bigQueryRecordHandler.readWithConstraint(allocator, spillWriter, request, queryStatusChecker);
+        logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
+
     }
 
     private class ByteHolder

@@ -20,12 +20,12 @@
  */
 package com.amazonaws.athena.connectors.saphana;
 
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -87,7 +87,7 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
         }
         tableName.append(quote(table));
 
-        String partitionName = split.getProperty(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME);
+        String partitionName = split.getPropertiesMap().get(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME);
 
         String query;
         //no partition
@@ -104,7 +104,7 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
             return query;
         }
         Set<String> partitionValues = split.getProperties().keySet();
-        String partValue = split.getProperty(partitionValues.iterator().next());
+        String partValue = split.getPropertiesMap().get(partitionValues.iterator().next());
 
         // Sample query to fetch data for a partition, e.g., 1
         // SELECT * FROM ATHENA.COVID19_HASHHASHPARTITION  PARTITION (1)
@@ -118,7 +118,7 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
     protected List<String> getPartitionWhereClauses(Split split)
     {
         LOGGER.debug("SaphanaQueryStringBuilder:getPartitionWhereClauses returning empty string. Partition name {}",
-                split.getProperty(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME));
+                split.getPropertiesMap().get(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME));
         return Collections.emptyList();
     }
 

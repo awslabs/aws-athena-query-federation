@@ -53,8 +53,8 @@ public class TeradataQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        if (!split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
-            return Collections.singletonList(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME + " = " + split.getProperty(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME));
+        if (!split.getPropertiesMap().get(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
+            return Collections.singletonList(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME + " = " + split.getPropertiesMap().get(TeradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME));
         }
 
         return Collections.emptyList();

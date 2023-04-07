@@ -51,8 +51,8 @@ public class ImpalaQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        if (!split.getProperty(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
-            return Collections.singletonList(split.getProperty(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME));
+        if (!split.getPropertiesMap().get(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
+            return Collections.singletonList(split.getPropertiesMap().get(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME));
         }
         return Collections.emptyList();
     }

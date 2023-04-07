@@ -22,10 +22,12 @@ package com.amazonaws.athena.connectors.cloudwatch.metrics;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
@@ -128,29 +130,29 @@ public class MetricsRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
+    protected void readWithConstraint(BlockAllocator allocator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
             throws TimeoutException
     {
         invoker.setBlockSpiller(blockSpiller);
         if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_TABLE.getName())) {
-            readMetricsWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
+            readMetricsWithConstraint(allocator, blockSpiller, readRecordsRequest, queryStatusChecker);
         }
         else if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_DATA_TABLE.getName())) {
-            readMetricSamplesWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
+            readMetricSamplesWithConstraint(allocator, blockSpiller, readRecordsRequest, queryStatusChecker);
         }
     }
 
     /**
      * Handles retrieving the list of available metrics when the METRICS_TABLE is queried by listing metrics in Cloudwatch Metrics.
      */
-    private void readMetricsWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
+    private void readMetricsWithConstraint(BlockAllocator allocator, BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
             throws TimeoutException
     {
         ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
-        MetricUtils.pushDownPredicate(request.getConstraints(), listMetricsRequest);
+        MetricUtils.pushDownPredicate(ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()), listMetricsRequest);
         String prevToken;
         Set<String> requiredFields = new HashSet<>();
-        request.getSchema().getFields().stream().forEach(next -> requiredFields.add(next.getName()));
+        ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema()).getFields().stream().forEach(next -> requiredFields.add(next.getName()));
         ValueSet dimensionNameConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()).getSummary().get(DIMENSION_NAME_FIELD);
         ValueSet dimensionValueConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()).getSummary().get(DIMENSION_VALUE_FIELD);
         do {
@@ -201,10 +203,10 @@ public class MetricsRecordHandler
     /**
      * Handles retrieving the samples for a specific metric from Cloudwatch Metrics.
      */
-    private void readMetricSamplesWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
+    private void readMetricSamplesWithConstraint(BlockAllocator allocator, BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
             throws TimeoutException
     {
-        GetMetricDataRequest dataRequest = MetricUtils.makeGetMetricDataRequest(request);
+        GetMetricDataRequest dataRequest = MetricUtils.makeGetMetricDataRequest(allocator, request);
         Map<String, MetricDataQuery> queries = new HashMap<>();
         for (MetricDataQuery query : dataRequest.getMetricDataQueries()) {
             queries.put(query.getId(), query);

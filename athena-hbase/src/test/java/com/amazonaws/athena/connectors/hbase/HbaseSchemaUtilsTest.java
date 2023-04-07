@@ -97,7 +97,7 @@ public class HbaseSchemaUtilsTest
         String table = "table";
         String schema = "schema";
         String expected = "schema:table";
-        String actual = HbaseSchemaUtils.getQualifiedTableName(TableName.newBuilder().setSchemaName(schema).setTableName(table)).build();
+        String actual = HbaseSchemaUtils.getQualifiedTableName(TableName.newBuilder().setSchemaName(schema).setTableName(table).build());
         assertEquals(expected, actual);
     }
 
@@ -107,7 +107,7 @@ public class HbaseSchemaUtilsTest
         String table = "table";
         String schema = "schema";
         org.apache.hadoop.hbase.TableName expected = org.apache.hadoop.hbase.TableName.valueOf(schema + ":" + table);
-        org.apache.hadoop.hbase.TableName actual = HbaseSchemaUtils.getQualifiedTable(TableName.newBuilder().setSchemaName(schema).setTableName(table)).build();
+        org.apache.hadoop.hbase.TableName actual = HbaseSchemaUtils.getQualifiedTable(TableName.newBuilder().setSchemaName(schema).setTableName(table).build());
         assertEquals(expected, actual);
     }
 

@@ -30,10 +30,12 @@ import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -61,6 +63,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -106,7 +109,7 @@ public class JdbcRecordHandlerTest
                 return jdbcConnection.prepareStatement("someSql");
             }
         };
-        this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        this.federatedIdentity = FederatedIdentity.newBuilder().build();
     }
     @Test
     public void readWithConstraint()
@@ -123,12 +126,12 @@ public class JdbcRecordHandlerTest
         Schema fieldSchema = expectedSchemaBuilder.build();
 
         BlockAllocator allocator = new BlockAllocatorImpl();
-        S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder().withIsDirectory(true).build();
+        SpillLocation s3SpillLocation = SpillLocation.newBuilder().setDirectory(true).build();
 
-        Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
-                .add("testPartitionCol", String.valueOf("testPartitionValue"));
+        Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(s3SpillLocation)
+                .putProperties("testPartitionCol", String.valueOf("testPartitionValue"));
 
-        Constraints constraints = Mockito.mock(Constraints.class, Mockito.RETURNS_DEEP_STUBS);
+        Constraints constraints = new Constraints(new HashMap<>());
 
         String[] schema = {"testCol1", "testCol2"};
         int[] columnTypes = {Types.INTEGER, Types.VARCHAR};
@@ -140,7 +143,16 @@ public class JdbcRecordHandlerTest
         SpillConfig spillConfig = Mockito.mock(SpillConfig.class);
         Mockito.when(spillConfig.getSpillLocation()).thenReturn(s3SpillLocation);
         BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator, com.google.common.collect.ImmutableMap.of());
-        ReadRecordsRequest readRecordsRequest = new ReadRecordsRequest(this.federatedIdentity, "testCatalog", "testQueryId", inputTableName, fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
+        ReadRecordsRequest readRecordsRequest = ReadRecordsRequest.newBuilder()
+            .setIdentity(this.federatedIdentity)
+            .setCatalogName("testCatalog")
+            .setQueryId("testQueryId")
+            .setTableName(inputTableName)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(fieldSchema))
+            .setSplit(splitBuilder.build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
+            .setMaxBlockSize(1024)
+            .setMaxInlineBlockSize(1024)
+            .build();
 
         Mockito.when(amazonS3.putObject(any())).thenAnswer((Answer<PutObjectResult>) invocation -> {
             ByteArrayInputStream byteArrayInputStream = (ByteArrayInputStream) ((PutObjectRequest) invocation.getArguments()[0]).getInputStream();
@@ -152,7 +164,7 @@ public class JdbcRecordHandlerTest
             return new PutObjectResult();
         });
 
-        this.jdbcRecordHandler.readWithConstraint(s3Spiller, readRecordsRequest, queryStatusChecker);
+        this.jdbcRecordHandler.readWithConstraint(allocator, s3Spiller, readRecordsRequest, queryStatusChecker);
     }
     @Test
     public void makeExtractor()

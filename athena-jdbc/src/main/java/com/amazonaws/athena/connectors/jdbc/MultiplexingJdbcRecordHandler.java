@@ -20,10 +20,11 @@
 package com.amazonaws.athena.connectors.jdbc;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -86,12 +87,13 @@ public class MultiplexingJdbcRecordHandler
 
     @Override
     public void readWithConstraint(
+            final BlockAllocator allocator,
             final BlockSpiller blockSpiller,
             final ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         validateMultiplexer(readRecordsRequest.getCatalogName());
-        this.recordHandlerMap.get(readRecordsRequest.getCatalogName()).readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
+        this.recordHandlerMap.get(readRecordsRequest.getCatalogName()).readWithConstraint(allocator, blockSpiller, readRecordsRequest, queryStatusChecker);
     }
 
     @Override

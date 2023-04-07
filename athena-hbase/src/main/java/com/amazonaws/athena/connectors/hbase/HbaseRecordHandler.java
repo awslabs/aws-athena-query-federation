@@ -21,12 +21,14 @@ package com.amazonaws.athena.connectors.hbase;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -111,33 +113,33 @@ public class HbaseRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
+    protected void readWithConstraint(BlockAllocator allocator, BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
             throws IOException
     {
-        Schema projection = request.getSchema();
+        Schema projection = ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema());
         Split split = request.getSplit();
-        String conStr = split.getProperty(HBASE_CONN_STR);
+        String conStr = split.getPropertiesMap().get(HBASE_CONN_STR);
         boolean isNative = projection.getCustomMetadata().get(HBASE_NATIVE_STORAGE_FLAG) != null;
 
         //setup the scan so that we only read the key range associated with the region represented by our Split.
-        Scan scan = new Scan(split.getProperty(START_KEY_FIELD).getBytes(), split.getProperty(END_KEY_FIELD).getBytes());
+        Scan scan = new Scan(split.getPropertiesMap().get(START_KEY_FIELD).getBytes(), split.getPropertiesMap().get(END_KEY_FIELD).getBytes());
 
         //attempts to push down a partial predicate using HBase Filters
-        scan.setFilter(pushdownPredicate(isNative, request.getConstraints()));
+        scan.setFilter(pushdownPredicate(isNative, ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints())));
 
         //setup the projection so we only pull columns/families that we need
-        for (Field next : request.getSchema().getFields()) {
+        for (Field next : ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema()).getFields()) {
             addToProjection(scan, next);
         }
 
         getOrCreateConn(conStr).scanTable(HbaseSchemaUtils.getQualifiedTable(request.getTableName()),
                 scan,
-                (ResultScanner scanner) -> scanFilterProject(scanner, request, blockSpiller, queryStatusChecker));
+                (ResultScanner scanner) -> scanFilterProject(allocator, scanner, request, blockSpiller, queryStatusChecker));
     }
 
-    private boolean scanFilterProject(ResultScanner scanner, ReadRecordsRequest request, BlockSpiller blockSpiller, QueryStatusChecker queryStatusChecker)
+    private boolean scanFilterProject(BlockAllocator allocator, ResultScanner scanner, ReadRecordsRequest request, BlockSpiller blockSpiller, QueryStatusChecker queryStatusChecker)
     {
-        Schema projection = request.getSchema();
+        Schema projection = ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema());
         boolean isNative = projection.getCustomMetadata().get(HBASE_NATIVE_STORAGE_FLAG) != null;
 
         for (Result row : scanner) {

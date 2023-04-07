@@ -22,11 +22,11 @@ package com.amazonaws.athena.connectors.elasticsearch;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -36,8 +36,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -53,8 +53,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+<<<<<<< HEAD
 import java.util.Arrays;
 import java.util.Collections;
+=======
+import java.util.ArrayList;
+import java.util.HashSet;
+>>>>>>> caebfdd6 (Changes to make all modules build)
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -190,7 +195,7 @@ public class ElasticsearchMetadataHandler
         List<TableName> tableNames = Stream.concat(indicesStream, getDataStreamNames(client))
                 .map(tableName -> TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(tableName).build())
                 .collect(Collectors.toList());
-        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
+        return ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tableNames).build();
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
@@ -212,7 +217,7 @@ public class ElasticsearchMetadataHandler
         // Look at GLUE catalog first.
         try {
             if (awsGlue != null) {
-                schema = super.doGetTable(allocator, request).getSchema();
+                schema = ProtobufMessageConverter.fromProtoSchema(allocator, super.doGetTable(allocator, request).getSchema());
                 logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
             }
         }
@@ -237,9 +242,12 @@ public class ElasticsearchMetadataHandler
                         index + "): " + error.getMessage(), error);
             }
         }
-
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(),
-                (schema == null) ? SchemaBuilder.newBuilder().build() : schema, Collections.emptySet());
+        
+        GetTableResponse.Builder builder = GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(request.getTableName());
+        if (schema != null) {
+            builder.setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema));
+        }
+        return builder.build();
     }
 
     /**
@@ -280,15 +288,15 @@ public class ElasticsearchMetadataHandler
         // We send index request in case the table name is a data stream, a data stream can contains multiple indices which are created by ES
         // For non data stream, index name is same as table name
         GetIndexResponse indexResponse = client.indices().get(new GetIndexRequest(request.getTableName().getTableName()), RequestOptions.DEFAULT);
-
+        SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
         Set<Split> splits = Arrays.stream(indexResponse.getIndices())
                 .flatMap(index -> getShardsIDsFromES(client, index) // get all shards for an index.
                         .stream()
-                        .map(shardId -> new Split(makeSpillLocation(request), makeEncryptionKey(), ImmutableMap.of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString(), INDEX_KEY, index))) // make split for each (index + shardId) combination
+                        .map(shardId -> Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey()).putAllProperties(ImmutableMap.of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString())).build())
                 )
                 .collect(Collectors.toSet());
 
-        return new GetSplitsResponse(request.getCatalogName(), splits);
+        return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSplits(splits).build();
     }
 
     /**

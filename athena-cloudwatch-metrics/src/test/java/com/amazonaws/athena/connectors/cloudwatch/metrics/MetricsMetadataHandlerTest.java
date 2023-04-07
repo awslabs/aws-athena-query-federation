@@ -39,16 +39,17 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
 import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
 import com.amazonaws.services.cloudwatch.model.Metric;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.base.Strings;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -74,6 +75,7 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.ME
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -85,7 +87,7 @@ public class MetricsMetadataHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(MetricsMetadataHandlerTest.class);
 
     private final String defaultSchema = "default";
-    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private final FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
 
     private MetricsMetadataHandler handler;
     private BlockAllocator allocator;
@@ -119,12 +121,12 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doListSchemas - enter");
 
-        ListSchemasRequest req = new ListSchemasRequest(identity, "queryId", "default");
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").build();
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
-        logger.info("doListSchemas - {}", res.getSchemas());
+        logger.info("doListSchemas - {}", res.getSchemasList());
 
-        assertTrue(res.getSchemas().size() == 1);
-        assertEquals(defaultSchema, res.getSchemas().iterator().next());
+        assertTrue(res.getSchemasList().size() == 1);
+        assertEquals(defaultSchema, res.getSchemasList().iterator().next());
 
         logger.info("doListSchemas - exit");
     }
@@ -134,14 +136,13 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doListTables - enter");
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema,
-                null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesRequest req = ListTablesRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").setSchemaName(defaultSchema).setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
         ListTablesResponse res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res.getTables());
+        logger.info("doListTables - {}", res.getTablesList());
 
-        assertEquals(2, res.getTables().size());
-        assertTrue(res.getTables().contains(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics"))).build();
-        assertTrue(res.getTables().contains(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples"))).build();
+        assertEquals(2, res.getTablesList().size());
+        assertTrue(res.getTablesList().contains(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics").build()));
+        assertTrue(res.getTablesList().contains(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples").build()));
 
         logger.info("doListTables - exit");
     }
@@ -151,13 +152,13 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doGetMetricsTable - enter");
 
-        GetTableRequest metricsTableReq = new GetTableRequest(identity, "queryId", "default", TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics")).build();
+        GetTableRequest metricsTableReq = GetTableRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics")).build();
         GetTableResponse metricsTableRes = handler.doGetTable(allocator, metricsTableReq);
         logger.info("doGetMetricsTable - {} {}", metricsTableRes.getTableName(), metricsTableRes.getSchema());
 
-        assertEquals(TableName.newBuilder().setSchemaName(defaultSchema, "metrics")).setTableName(metricsTableRes.getTableName()).build();
+        assertEquals(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics").build(), metricsTableRes.getTableName());
         assertNotNull(metricsTableRes.getSchema());
-        assertEquals(6, metricsTableRes.getSchema().getFields().size());
+        assertEquals(6, ProtobufMessageConverter.fromProtoSchema(allocator, metricsTableRes.getSchema()).getFields().size());
 
         logger.info("doGetMetricsTable - exit");
     }
@@ -167,17 +168,13 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doGetMetricSamplesTable - enter");
 
-        GetTableRequest metricsTableReq = new GetTableRequest(identity,
-                "queryId",
-                "default",
-                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples")).build();
-
+        GetTableRequest metricsTableReq = GetTableRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples")).build();
         GetTableResponse metricsTableRes = handler.doGetTable(allocator, metricsTableReq);
         logger.info("doGetMetricSamplesTable - {} {}", metricsTableRes.getTableName(), metricsTableRes.getSchema());
 
-        assertEquals(TableName.newBuilder().setSchemaName(defaultSchema, "metric_samples")).setTableName(metricsTableRes.getTableName()).build();
+        assertEquals(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples").build(), metricsTableRes.getTableName());
         assertNotNull(metricsTableRes.getSchema());
-        assertEquals(9, metricsTableRes.getSchema().getFields().size());
+        assertEquals(9, ProtobufMessageConverter.fromProtoSchema(allocator, metricsTableRes.getSchema()).getFields().size());
 
         logger.info("doGetMetricSamplesTable - exit");
     }
@@ -194,20 +191,17 @@ public class MetricsMetadataHandlerTest
                 EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
                         .add("MyMetric").build());
 
-        GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
-                "queryId",
-                "default",
-                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics").build(),
-                new Constraints(constraintsMap),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET);
-
+        GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default")
+            .setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics").build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+            .build();
+        
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
         logger.info("doGetTableLayout - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout - {}", res.getPartitions());
 
-        assertTrue(res.getPartitions().getRowCount() == 1);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions()).getRowCount() == 1);
 
         logger.info("doGetTableLayout - exit");
     }
@@ -225,33 +219,32 @@ public class MetricsMetadataHandlerTest
         partitions.setRowCount(1);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "queryId",
-                "catalog_name",
-                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics").build(),
-                partitions,
-                Collections.singletonList("partitionId"),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                continuationToken);
+        GetSplitsRequest originalReq = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("catalog_name")
+            .setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics").build())
+            .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addPartitionCols("partitionId")
+            .build();
         int numContinuations = 0;
         do {
-            GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+            GetSplitsRequest.Builder reqBuilder = originalReq.toBuilder();
+            if (!Strings.isNullOrEmpty(continuationToken))
+            {
+                reqBuilder.setContinuationToken(continuationToken);
+            }
+            GetSplitsRequest req = reqBuilder.build();
             logger.info("doGetMetricsSplits: req[{}]", req);
 
-            MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-            assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-            GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+            GetSplitsResponse response = handler.doGetSplits(allocator, req);
             continuationToken = response.getContinuationToken();
 
-            logger.info("doGetMetricsSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
-            assertEquals(1, response.getSplits().size());
+            logger.info("doGetMetricsSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplitsList().size());
+            assertEquals(1, response.getSplitsList().size());
 
-            if (continuationToken != null) {
+            if (!Strings.isNullOrEmpty(continuationToken)) {
                 numContinuations++;
             }
         }
-        while (continuationToken != null);
+        while (!Strings.isNullOrEmpty(continuationToken));
 
         assertEquals(0, numContinuations);
 
@@ -299,37 +292,39 @@ public class MetricsMetadataHandlerTest
                         .add(statistic).build());
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "queryId",
-                "catalog_name",
-                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples").build(),
-                partitions,
-                Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                continuationToken);
+
+        GetSplitsRequest originalReq = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("catalog_name")
+            .setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples").build())
+            .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addPartitionCols("partitionId")
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .build();
 
         int numContinuations = 0;
         do {
-            GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+            GetSplitsRequest.Builder reqBuilder = originalReq.toBuilder();
+            if (!Strings.isNullOrEmpty(continuationToken))
+            {
+                reqBuilder.setContinuationToken(continuationToken);
+            }
+            GetSplitsRequest req = reqBuilder.build();
             logger.info("doGetMetricSamplesSplits: req[{}]", req);
 
-            MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-            assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-            GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+            GetSplitsResponse response = handler.doGetSplits(allocator, req);
+            
             continuationToken = response.getContinuationToken();
 
-            logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
-            assertEquals(3, response.getSplits().size());
-            for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
+            logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplitsList().size());
+            assertEquals(3, response.getSplitsList().size());
+            for (Split nextSplit : response.getSplitsList()) {
+                assertNotNull(nextSplit.getPropertiesMap().get(SERIALIZED_METRIC_STATS_FIELD_NAME));
             }
 
-            if (continuationToken != null) {
+            if (!Strings.isNullOrEmpty(continuationToken)) {
                 numContinuations++;
             }
         }
-        while (continuationToken != null);
+        while (!Strings.isNullOrEmpty(continuationToken));
 
         assertEquals(1, numContinuations);
 
@@ -366,24 +361,18 @@ public class MetricsMetadataHandlerTest
                 EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
                         .add(invalidNamespaceFilter).build());
 
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "queryId",
-                "catalog_name",
-                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples").build(),
-                partitions,
-                Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                null);
 
-        GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
+        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("catalog_name")
+            .setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples").build())
+            .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addPartitionCols("partitionId")
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .build();
         logger.info("doGetMetricSamplesSplitsEmptyMetrics: req[{}]", req);
 
-        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
-
-        assertEquals(0, response.getSplits().size());
-        assertEquals(null, response.getContinuationToken());
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
+        
+        assertEquals(0, response.getSplitsList().size());
+        assertFalse(response.hasContinuationToken());
     }
 }

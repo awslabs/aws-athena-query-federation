@@ -121,9 +121,9 @@ public class ExampleRecordHandler
          * TODO: Extract information about what we need to read from the split. If you are following the tutorial
          *  this is basically the partition column values for year, month, day.
          *
-         splitYear = split.getPropertyAsInt("year");
-         splitMonth = split.getPropertyAsInt("month");
-         splitDay = split.getPropertyAsInt("day");
+         splitYear = split.getPropertiesMap().getAsInt("year");
+         splitMonth = split.getPropertiesMap().getAsInt("month");
+         splitDay = split.getPropertiesMap().getAsInt("day");
          *
          */
 
@@ -143,7 +143,7 @@ public class ExampleRecordHandler
             return;
         }
 
-        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()));
 
         /**
          * Pushing down constraints is going to be very specific to your connector's means of communicating with

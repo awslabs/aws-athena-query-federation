@@ -127,11 +127,11 @@ public class MultiplexingJdbcMetadataHandler
     }
 
     @Override
-    public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(final BlockAllocator allocator, final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         validateMultiplexer(getTableLayoutRequest.getCatalogName());
-        this.metadataHandlerMap.get(getTableLayoutRequest.getCatalogName()).getPartitions(blockWriter, getTableLayoutRequest, queryStatusChecker);
+        this.metadataHandlerMap.get(getTableLayoutRequest.getCatalogName()).getPartitions(allocator, blockWriter, getTableLayoutRequest, queryStatusChecker);
     }
 
     @Override

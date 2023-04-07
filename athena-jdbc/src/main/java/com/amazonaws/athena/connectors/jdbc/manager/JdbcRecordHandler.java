@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
@@ -43,12 +44,13 @@ import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWrit
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
-import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
@@ -136,7 +138,7 @@ public abstract class JdbcRecordHandler
     }
 
     @Override
-    public void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
+    public void readWithConstraint(BlockAllocator allocator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
@@ -144,12 +146,12 @@ public abstract class JdbcRecordHandler
         try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
-                    readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
+                    ProtobufMessageConverter.fromProtoSchema(allocator, readRecordsRequest.getSchema()), ProtobufMessageConverter.fromProtoConstraints(allocator, readRecordsRequest.getConstraints()), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
                 Map<String, String> partitionValues = readRecordsRequest.getSplit().getProperties();
 
-                GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(readRecordsRequest.getConstraints());
-                for (Field next : readRecordsRequest.getSchema().getFields()) {
+                GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(ProtobufMessageConverter.fromProtoConstraints(allocator, readRecordsRequest.getConstraints()));
+                for (Field next : ProtobufMessageConverter.fromProtoSchema(allocator, readRecordsRequest.getSchema()).getFields()) {
                     if (next.getType() instanceof ArrowType.List) {
                         rowWriterBuilder.withFieldWriterFactory(next.getName(), makeFactory(next));
                     }

@@ -35,10 +35,10 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.connection.ResultProcessor;
@@ -55,6 +55,8 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.Message;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.hbase.client.Connection;
@@ -197,40 +199,36 @@ public class HbaseRecordHandlerTest
         constraintsMap.put("family1:col3", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
                 ImmutableList.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 1L)), false));
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create())
-                .add(HBASE_CONN_STR, "fake_con_str")
-                .add(START_KEY_FIELD, "fake_start_key")
-                .add(END_KEY_FIELD, "fake_end_key")
-                .add(REGION_ID_FIELD, "fake_region_id")
-                .add(REGION_NAME_FIELD, "fake_region_name");
+        Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create())
+                .putProperties(HBASE_CONN_STR, "fake_con_str")
+                .putProperties(START_KEY_FIELD, "fake_start_key")
+                .putProperties(END_KEY_FIELD, "fake_end_key")
+                .putProperties(REGION_ID_FIELD, "fake_region_id")
+                .putProperties(REGION_NAME_FIELD, "fake_region_name");
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForRead,
-                splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE).build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(splitBuilder.build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertTrue(response.getRecords().getRowCount() == 1);
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() == 1);
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -250,52 +248,49 @@ public class HbaseRecordHandlerTest
         constraintsMap.put("family1:col3", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.BIGINT.getType(), 0L)), true));
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create())
-                .add(HBASE_CONN_STR, "fake_con_str")
-                .add(START_KEY_FIELD, "fake_start_key")
-                .add(END_KEY_FIELD, "fake_end_key")
-                .add(REGION_ID_FIELD, "fake_region_id")
-                .add(REGION_NAME_FIELD, "fake_region_name");
+        Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create())
+                .putProperties(HBASE_CONN_STR, "fake_con_str")
+                .putProperties(START_KEY_FIELD, "fake_start_key")
+                .putProperties(END_KEY_FIELD, "fake_end_key")
+                .putProperties(REGION_ID_FIELD, "fake_region_id")
+                .putProperties(REGION_NAME_FIELD, "fake_region_name");
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForRead,
-                splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                1_500_000L, //~1.5MB so we should see some spill
-                0L
-        );
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE).build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(splitBuilder.build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(1_500_000L)
+            .setMaxInlineBlockSize(0L)
+            .build();
+
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 
-        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
-            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+        RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocksList().size());
 
-            assertTrue(response.getNumberBlocks() > 1);
+        assertTrue(response.getRemoteBlocksList().size() > 1);
 
-            int blockNum = 0;
-            for (SpillLocation next : response.getRemoteBlocks()) {
-                S3SpillLocation spillLocation = (S3SpillLocation) next;
-                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
+        int blockNum = 0;
+        for (SpillLocation next : response.getRemoteBlocksList()) {
+            SpillLocation spillLocation = (SpillLocation) next;
+            try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()))) {
 
-                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
-                    // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
+                logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                // assertTrue(++blockNum < response.getRemoteBlocksList().size() && block.getRowCount() > 10_000);
 
-                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
-                    assertNotNull(BlockUtils.rowToString(block, 0));
-                }
+                logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                assertNotNull(BlockUtils.rowToString(block, 0));
             }
         }
+        
     }
 
     private class ByteHolder

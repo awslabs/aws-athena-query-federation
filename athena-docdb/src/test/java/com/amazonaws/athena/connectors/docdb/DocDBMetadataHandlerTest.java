@@ -36,9 +36,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -112,7 +111,7 @@ public class DocDBMetadataHandlerTest
 
         when(connectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
-        handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
+        handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of(DEFAULT_CATALOG, "asdfConnectionString"));
         allocator = new BlockAllocatorImpl();
     }
 
@@ -134,11 +133,11 @@ public class DocDBMetadataHandlerTest
 
         when(mockClient.listDatabaseNames()).thenReturn(StubbingCursor.iterate(schemaNames));
 
-        ListSchemasRequest req = new ListSchemasRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG);
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).build();
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
 
-        logger.info("doListSchemas - {}", res.getSchemas());
-        assertEquals(schemaNames, new ArrayList<>(res.getSchemas()));
+        logger.info("doListSchemas - {}", res.getSchemasList());
+        assertEquals(schemaNames, new ArrayList<>(res.getSchemasList()));
     }
 
     @Test
@@ -153,16 +152,15 @@ public class DocDBMetadataHandlerTest
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
         when(mockDatabase.listCollectionNames()).thenReturn(StubbingCursor.iterate(tableNames));
 
-        ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, DEFAULT_SCHEMA,
-                null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesRequest req = ListTablesRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setSchemaName(DEFAULT_SCHEMA).setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
         ListTablesResponse res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res.getTables());
+        logger.info("doListTables - {}", res.getTablesList());
 
-        for (TableName next : res.getTables()) {
+        for (TableName next : res.getTablesList()) {
             assertEquals(DEFAULT_SCHEMA, next.getSchemaName());
             assertTrue(tableNames.contains(next.getTableName()));
         }
-        assertEquals(tableNames.size(), res.getTables().size());
+        assertEquals(tableNames.size(), res.getTablesList().size());
     }
 
     /**
@@ -207,37 +205,37 @@ public class DocDBMetadataHandlerTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setTableName(TABLE_NAME).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
-        assertEquals(9, res.getSchema().getFields().size());
+        assertEquals(9, ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).getFields().size());
 
-        Field stringCol = res.getSchema().findField("stringCol");
+        Field stringCol = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("stringCol");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(stringCol.getType()));
 
-        Field stringCol2 = res.getSchema().findField("stringCol2");
+        Field stringCol2 = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("stringCol2");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(stringCol2.getType()));
 
-        Field intCol = res.getSchema().findField("intCol");
+        Field intCol = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("intCol");
         assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(intCol.getType()));
 
-        Field intCol2 = res.getSchema().findField("intCol2");
+        Field intCol2 = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("intCol2");
         assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(intCol2.getType()));
 
-        Field doubleCol = res.getSchema().findField("doubleCol");
+        Field doubleCol = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("doubleCol");
         assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(doubleCol.getType()));
 
-        Field doubleCol2 = res.getSchema().findField("doubleCol2");
+        Field doubleCol2 = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("doubleCol2");
         assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(doubleCol2.getType()));
 
-        Field longCol = res.getSchema().findField("longCol");
+        Field longCol = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("longCol");
         assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(longCol.getType()));
 
-        Field longCol2 = res.getSchema().findField("longCol2");
+        Field longCol2 = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("longCol2");
         assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(longCol2.getType()));
 
-        Field unsupported = res.getSchema().findField("unsupported");
+        Field unsupported = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("unsupported");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(unsupported.getType()));
     }
 
@@ -246,18 +244,14 @@ public class DocDBMetadataHandlerTest
             throws Exception
     {
         Schema schema = SchemaBuilder.newBuilder().build();
-        GetTableLayoutRequest req = new GetTableLayoutRequest(IDENTITY,
-                QUERY_ID,
-                DEFAULT_CATALOG,
-                TABLE_NAME,
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                schema,
-                Collections.EMPTY_SET);
-
+        GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG)
+        .setTableName(TABLE_NAME).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(new HashMap<>())))
+        .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+        .build();
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
         logger.info("doGetTableLayout - {}", res);
-        Block partitions = res.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions());
         for (int row = 0; row < partitions.getRowCount() && row < 10; row++) {
             logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
         }
@@ -273,29 +267,21 @@ public class DocDBMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(allocator, PARTITION_ID, Types.MinorType.INT.getType(), 0);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY,
-                QUERY_ID,
-                DEFAULT_CATALOG,
-                TABLE_NAME,
-                partitions,
-                partitionCols,
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                null);
-
-        GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
-
+        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG)
+        .setTableName(TABLE_NAME)
+        .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+        .addAllPartitionCols(partitionCols)
+        .build();
+        
         logger.info("doGetSplits: req[{}]", req);
 
-        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
         continuationToken = response.getContinuationToken();
 
         logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]",
-                new Object[] {continuationToken, response.getSplits().size()});
+                new Object[] {continuationToken, response.getSplitsList().size()});
 
-        assertTrue("Continuation criteria violated", response.getSplits().size() == 1);
-        assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
+        assertTrue("Continuation criteria violated", response.getSplitsList().size() == 1);
+        assertFalse("Continuation criteria violated", response.hasContinuationToken());
     }
 }

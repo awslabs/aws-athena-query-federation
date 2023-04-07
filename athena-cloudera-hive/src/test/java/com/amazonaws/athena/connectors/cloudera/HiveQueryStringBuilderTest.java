@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_CHARACTER;
@@ -32,9 +31,8 @@ import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_
 @RunWith(MockitoJUnitRunner.class)
 public class HiveQueryStringBuilderTest
 {
-	
-	@Mock
-	Split split;
+
+	Split split = Split.newBuilder().build();
 	
 	@Test
 	public void testQueryBuilder()

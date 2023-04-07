@@ -38,7 +38,9 @@ public class SnowflakeQueryStringBuilderTest
     @Test
     public void testQueryBuilderNew()
     {
-        Split split = Mockito.mock(Split.class);
+        Split split = Split.newBuilder()
+            .putProperties("partition", "p1-p2-p3-p4-p5")
+            .build();
         SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p1-p2-p3-p4-p5");

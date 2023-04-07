@@ -20,16 +20,20 @@
 package com.amazonaws.athena.connectors.aws.cmdb;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
@@ -58,7 +62,7 @@ public class AwsCmdbRecordHandlerTest
     private String bucket = "bucket";
     private String prefix = "prefix";
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
 
     @Mock
     private AmazonS3 mockS3;
@@ -68,6 +72,9 @@ public class AwsCmdbRecordHandlerTest
 
     @Mock
     private ConstraintEvaluator mockEvaluator;
+
+    @Mock
+    private BlockAllocator mockBlockAllocator;
 
     @Mock
     private BlockSpiller mockBlockSpiller;
@@ -91,7 +98,7 @@ public class AwsCmdbRecordHandlerTest
             throws Exception
     {
         when(mockTableProviderFactory.getTableProviders())
-                .thenReturn(Collections.singletonMap(TableName.newBuilder().setSchemaName("schema", "table")).setTableName(mockTableProvider)).build();
+                .thenReturn(Collections.singletonMap(TableName.newBuilder().setSchemaName("schema").setTableName("table").build(), mockTableProvider));
 
         handler = new AwsCmdbRecordHandler(mockS3, mockSecretsManager, mockAthena, mockTableProviderFactory, com.google.common.collect.ImmutableMap.of());
 
@@ -104,22 +111,26 @@ public class AwsCmdbRecordHandlerTest
     @Test
     public void readWithConstraint()
     {
-        ReadRecordsRequest request = new ReadRecordsRequest(identity, "catalog",
-                "queryId",
-                TableName.newBuilder().setSchemaName("schema").setTableName("table").build(),
-                SchemaBuilder.newBuilder().build(),
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                        .withBucket(bucket)
-                        .withSplitId(UUID.randomUUID().toString())
-                        .withQueryId(UUID.randomUUID().toString())
-                        .withIsDirectory(true)
-                        .build(), keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000,
-                100_000);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(identity)
+            .setCatalogName("catalog")
+            .setQueryId("queryId")
+            .setTableName(TableName.newBuilder().setSchemaName("schema").setTableName("table").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+            .setSplit(Split.newBuilder()
+            .setSpillLocation(SpillLocation.newBuilder()
+                    .setBucket(bucket)
+                    .setKey(ProtobufUtils.buildS3SpillLocationKey(prefix, UUID.randomUUID().toString(), UUID.randomUUID().toString()))
+                    .setDirectory(true)
+                    .build()
+                ).setEncryptionKey(keyFactory.create())
+                .build())
+            .setMaxInlineBlockSize(100_000)
+            .setMaxBlockSize(100_000)
+            .build();
 
-        handler.readWithConstraint(mockBlockSpiller, request, queryStatusChecker);
+        handler.readWithConstraint(mockBlockAllocator, mockBlockSpiller, request, queryStatusChecker);
 
-        verify(mockTableProvider, times(1)).readWithConstraint(nullable(BlockSpiller.class), eq(request), eq(queryStatusChecker));
+        verify(mockTableProvider, times(1)).readWithConstraint(nullable(BlockAllocator.class), nullable(BlockSpiller.class), eq(request), eq(queryStatusChecker));
     }
 }

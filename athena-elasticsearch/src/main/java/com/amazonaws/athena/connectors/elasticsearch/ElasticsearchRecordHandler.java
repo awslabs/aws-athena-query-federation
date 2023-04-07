@@ -21,11 +21,13 @@ package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -129,32 +131,32 @@ public class ElasticsearchRecordHandler
      * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
      */
     @Override
-    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
+    protected void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker)
             throws RuntimeException
     {
         logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}",
                 recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
-                recordsRequest.getSchema());
+                ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()));
 
         String domain = recordsRequest.getTableName().getSchemaName();
-        String endpoint = recordsRequest.getSplit().getProperty(domain);
-        String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
-        String index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
+        String endpoint = recordsRequest.getSplit().getPropertiesMap().get(domain);
+        String index = recordsRequest.getSplit().getPropertiesMap().get(ElasticsearchMetadataHandler.INDEX_KEY);
+        String shard = recordsRequest.getSplit().getPropertiesMap().get(ElasticsearchMetadataHandler.SHARD_KEY);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
             AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
                 // Create field extractors for all data types in the schema.
-                GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);
+                GeneratedRowWriter rowWriter = createFieldExtractors(allocator, recordsRequest);
 
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
                 SearchSourceBuilder searchSource = new SearchSourceBuilder()
                         .size(QUERY_BATCH_SIZE)
                         .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
-                        .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
-                        .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints()));
+                        .fetchSource(ElasticsearchQueryUtils.getProjection(ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema())))
+                        .query(ElasticsearchQueryUtils.getQuery(ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()).getSummary()));
 
                 //init scroll
                 Scroll scroll = new Scroll(TimeValue.timeValueSeconds(this.scrollTimeout));
@@ -205,12 +207,12 @@ public class ElasticsearchRecordHandler
      * @param recordsRequest Details of the read request that include the constraints and list of fields in the schema.
      * @return GeneratedRowWriter which includes all field extractors used for processing of retrieved documents.
      */
-    private GeneratedRowWriter createFieldExtractors(ReadRecordsRequest recordsRequest)
+    private GeneratedRowWriter createFieldExtractors(BlockAllocator allocator, ReadRecordsRequest recordsRequest)
     {
         GeneratedRowWriter.RowWriterBuilder builder =
-                GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+                GeneratedRowWriter.newBuilder(ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()));
 
-        for (Field field : recordsRequest.getSchema().getFields()) {
+        for (Field field : ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()).getFields()) {
             Extractor extractor = typeUtils.makeExtractor(field);
             if (extractor != null) {
                 // Simple data types (e.g. INT, BIGINT, etc...)

@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -95,8 +96,8 @@ public class Db2MetadataHandlerTest extends TestBase {
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
-        this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of("spill_bucket", "asdf_spill_bucket_loc"));
+        this.federatedIdentity = FederatedIdentity.newBuilder().build();
         this.blockAllocator = new BlockAllocatorImpl();
     }
 
@@ -117,7 +118,7 @@ public class Db2MetadataHandlerTest extends TestBase {
 
         Schema schema = this.db2MetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> cols = schema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, schema, cols);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).addAllPartitionCols(cols).build();
 
         PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Db2Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
@@ -127,13 +128,13 @@ public class Db2MetadataHandlerTest extends TestBase {
         GetTableLayoutResponse getTableLayoutResponse = this.db2MetadataHandler.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(cols), constraints, null);
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(cols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
         expectedSplits.add(Collections.singletonMap(db2MetadataHandler.PARTITION_NUMBER, "0"));
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
-        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
+        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplitsList().size());
+        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplitsList().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }
 
@@ -158,12 +159,12 @@ public class Db2MetadataHandlerTest extends TestBase {
 
         Schema partitionSchema = this.db2MetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
 
         GetTableLayoutResponse getTableLayoutResponse = this.db2MetadataHandler.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
@@ -177,8 +178,8 @@ public class Db2MetadataHandlerTest extends TestBase {
                 db2MetadataHandler.PARTITION_NUMBER, "2",
                 db2MetadataHandler.PARTITIONING_COLUMN, "PC"));
 
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
-        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
+        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplitsList().size());
+        Set<Map<String, String>> actualSplits = getSplitsResponse.getSplitsList().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }
 
@@ -223,9 +224,9 @@ public class Db2MetadataHandlerTest extends TestBase {
 
         TableName inputTableName = TableName.newBuilder().setSchemaName("TESTSCHEMA").setTableName("TESTTABLE").build();
         GetTableResponse getTableResponse = this.db2MetadataHandler.doGetTable(
-                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
-        Assert.assertEquals(expected, getTableResponse.getSchema());
-        Assert.assertEquals(TableName.newBuilder().setSchemaName(schemaName, tableName)).setTableName(getTableResponse.getTableName()).build();
+                this.blockAllocator, GetTableRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalog").setTableName(inputTableName).build());
+        Assert.assertEquals(expected, ProtobufMessageConverter.fromProtoSchema(blockAllocator, getTableResponse.getSchema()));
+        Assert.assertEquals(TableName.newBuilder().setSchemaName(schemaName).setTableName(tableName).build(), getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 
@@ -249,7 +250,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName inputTableName = TableName.newBuilder().setSchemaName(schemaName).setTableName(tableName).build();
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.db2MetadataHandler.doGetTable(this.blockAllocator, GetTableRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalog").setTableName(inputTableName).build());
     }
 
     @Test(expected = SQLException.class)
@@ -271,7 +272,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName inputTableName = TableName.newBuilder().setSchemaName(schemaName).setTableName(tableName).build();
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.db2MetadataHandler.doGetTable(this.blockAllocator, GetTableRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalog").setTableName(inputTableName).build());
     }
 
     @Test(expected = SQLException.class)
@@ -293,7 +294,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName inputTableName = TableName.newBuilder().setSchemaName(schemaName).setTableName(tableName).build();
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.db2MetadataHandler.doGetTable(this.blockAllocator, GetTableRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalog").setTableName(inputTableName).build());
     }
 
     @Test(expected = SQLException.class)
@@ -315,12 +316,12 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName inputTableName = TableName.newBuilder().setSchemaName(schemaName).setTableName(tableName).build();
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.db2MetadataHandler.doGetTable(this.blockAllocator, GetTableRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalog").setTableName(inputTableName).build());
     }
 
     @Test
     public void doListSchemaNames() throws Exception {
-        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, "queryId", "testCatalog");
+        ListSchemasRequest listSchemasRequest = ListSchemasRequest.newBuilder().setIdentity(federatedIdentity).setQueryId("queryId").setCatalogName("testCatalog").build();
 
         Statement statement = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement);
@@ -330,13 +331,13 @@ public class Db2MetadataHandlerTest extends TestBase {
 
         ListSchemasResponse listSchemasResponse = this.db2MetadataHandler.doListSchemaNames(this.blockAllocator, listSchemasRequest);
         String[] expectedSchemas = {"TESTSCHEMA", "testschema", "testSCHEMA"};
-        Assert.assertEquals(Arrays.toString(expectedSchemas), listSchemasResponse.getSchemas().toString());
+        Assert.assertEquals(Arrays.toString(expectedSchemas), listSchemasResponse.getSchemasList().toString());
     }
 
     @Test
     public void doListTables() throws Exception {
         String schemaName = "TESTSCHEMA";
-        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 0);
+        ListTablesRequest listTablesRequest = ListTablesRequest.newBuilder().setIdentity(federatedIdentity).setQueryId("queryId").setCatalogName("testCatalog").setSchemaName(schemaName).setPageSize(0).build();
 
         PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS)).thenReturn(stmt);
@@ -347,7 +348,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName[] expectedTables = {TableName.newBuilder().setSchemaName("TESTSCHEMA").setTableName("TESTTABLE").build(),
                 TableName.newBuilder().setSchemaName("TESTSCHEMA").setTableName("testtable").build(),
                 TableName.newBuilder().setSchemaName("TESTSCHEMA").setTableName("testTABLE").build()};
-        Assert.assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTables().toString());
+        Assert.assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTablesList().toString());
     }
 }
 

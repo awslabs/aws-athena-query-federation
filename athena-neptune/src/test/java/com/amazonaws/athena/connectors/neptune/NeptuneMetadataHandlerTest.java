@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
@@ -86,7 +87,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         allocator = new BlockAllocatorImpl();
         handler = new NeptuneMetadataHandler(glue,neptuneConnection,
                 new LocalKeyFactory(), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "spill-bucket",
-                "spill-prefix", com.google.common.collect.ImmutableMap.of());
+                "spill-prefix", com.google.common.collect.ImmutableMap.of("glue_database_name", "asdf_db"));
         logger.info("setUpBefore - exit");
     }
 
@@ -98,11 +99,11 @@ public class NeptuneMetadataHandlerTest extends TestBase {
     @Test
     public void doListSchemaNames() {
         logger.info("doListSchemas - enter");
-        ListSchemasRequest req = new ListSchemasRequest(IDENTITY, "queryId", "default");
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setIdentity(IDENTITY).setQueryId("queryId").setCatalogName("default").build();
 
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
-        logger.info("doListSchemas - {}", res.getSchemas());
-        assertFalse(res.getSchemas().isEmpty());
+        logger.info("doListSchemas - {}", res.getSchemasList());
+        assertFalse(res.getSchemasList().isEmpty());
         logger.info("doListSchemas - exit");
     }
 
@@ -126,14 +127,13 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         GetTablesResult tableResult = new GetTablesResult();
         tableResult.setTableList(tables);
 
-        ListTablesRequest req = new ListTablesRequest(IDENTITY, "queryId", "default",
-                "default", null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesRequest req = ListTablesRequest.newBuilder().setIdentity(IDENTITY).setQueryId("queryId").setCatalogName("default").setSchemaName("default").setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
         when(glue.getTables(nullable(GetTablesRequest.class))).thenReturn(tableResult);
 
         ListTablesResponse res = handler.doListTables(allocator, req);
 
-        logger.info("doListTables - {}", res.getTables());
-        assertFalse(res.getTables().isEmpty());
+        logger.info("doListTables - {}", res.getTablesList());
+        assertFalse(res.getTablesList().isEmpty());
         logger.info("doListTables - exit");
     }
 
@@ -165,7 +165,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         storageDescriptor.setColumns(columns);
         table.setStorageDescriptor(storageDescriptor);
 
-        GetTableRequest req = new GetTableRequest(IDENTITY, "queryId", "default", TableName.newBuilder().setSchemaName("schema1").setTableName("table1")).build();
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(IDENTITY).setQueryId("queryId").setCatalogName("default").setTableName(TableName.newBuilder().setSchemaName("schema1").setTableName("table1")).build();
 
         GetTableResult getTableResult = new GetTableResult();
         getTableResult.setTable(table);
@@ -174,7 +174,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
 
         GetTableResponse res = handler.doGetTable(allocator, req);
 
-        assertTrue(res.getSchema().getFields().size() > 0);
+        assertTrue(ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).getFields().size() > 0);
 
         logger.info("doGetTable - {}", res);
         logger.info("doGetTable - exit");

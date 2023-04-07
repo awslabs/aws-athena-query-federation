@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QUOTE_CHARACTER;
@@ -34,8 +33,7 @@ import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QU
 public class ImpalaQueryStringBuilderTest
 {
 	
-	@Mock
-	Split split;
+	Split split = Split.newBuilder().build();
 	
 	@Test
 	public void testQueryBuilder()

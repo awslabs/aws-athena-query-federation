@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.neptune;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
@@ -106,7 +107,7 @@ public class NeptuneRecordHandler extends RecordHandler
      *       performance.
      */
     @Override
-    protected void readWithConstraint(final BlockSpiller spiller, final ReadRecordsRequest recordsRequest, 
+    protected void readWithConstraint(final BlockAllocator allocator, final BlockSpiller spiller, final ReadRecordsRequest recordsRequest, 
      final QueryStatusChecker queryStatusChecker) throws Exception 
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
@@ -120,7 +121,7 @@ public class NeptuneRecordHandler extends RecordHandler
         try {
             switch(graphType){
                 case PROPERTYGRAPH:
-                    (new PropertyGraphHandler(neptuneConnection)).executeQuery(recordsRequest, queryStatusChecker, spiller, configOptions);
+                    (new PropertyGraphHandler(neptuneConnection)).executeQuery(allocator, recordsRequest, queryStatusChecker, spiller, configOptions);
                     break;
 
                 case RDF:

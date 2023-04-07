@@ -31,6 +31,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
@@ -150,9 +151,9 @@ public class DynamoDBRecordHandler
     protected void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws ExecutionException
     {
-        Split split = ProtobufMessageConverter.fromProtoSplit(recordsRequest.getSplit());
+        Split split = recordsRequest.getSplit();
         // use the property instead of the request table name because of case sensitivity
-        String tableName = split.getProperty(TABLE_METADATA);
+        String tableName = split.getPropertiesMap().get(TABLE_METADATA);
         invokerCache.get(tableName).setBlockSpiller(spiller);
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()));
 
@@ -243,14 +244,14 @@ public class DynamoDBRecordHandler
     {
         validateExpectedMetadata(split.getProperties());
         // prepare filters
-        String rangeKeyFilter = split.getProperty(RANGE_KEY_FILTER_METADATA);
-        String nonKeyFilter = split.getProperty(NON_KEY_FILTER_METADATA);
+        String rangeKeyFilter = split.getPropertiesMap().get(RANGE_KEY_FILTER_METADATA);
+        String nonKeyFilter = split.getPropertiesMap().get(NON_KEY_FILTER_METADATA);
         Map<String, String> expressionAttributeNames = new HashMap<>();
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
         if (rangeKeyFilter != null || nonKeyFilter != null) {
             try {
-                expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
-                expressionAttributeValues.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_VALUES_METADATA), ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE));
+                expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getPropertiesMap().get(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
+                expressionAttributeValues.putAll(Jackson.getObjectMapper().readValue(split.getPropertiesMap().get(EXPRESSION_VALUES_METADATA), ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE));
             }
             catch (IOException e) {
                 throw new RuntimeException(e);
@@ -267,19 +268,19 @@ public class DynamoDBRecordHandler
                 })
                 .collect(Collectors.joining(","));
 
-        boolean isQuery = split.getProperty(SEGMENT_ID_PROPERTY) == null;
+        boolean isQuery = split.getPropertiesMap().get(SEGMENT_ID_PROPERTY) == null;
 
         if (isQuery) {
             // prepare key condition expression
-            String indexName = split.getProperty(INDEX_METADATA);
-            String hashKeyName = split.getProperty(HASH_KEY_NAME_METADATA);
+            String indexName = split.getPropertiesMap().get(INDEX_METADATA);
+            String hashKeyName = split.getPropertiesMap().get(HASH_KEY_NAME_METADATA);
             String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName);
             String keyConditionExpression = hashKeyAlias + " = " + HASH_KEY_VALUE_ALIAS;
             if (rangeKeyFilter != null) {
                 keyConditionExpression += " AND " + rangeKeyFilter;
             }
             expressionAttributeNames.put(hashKeyAlias, hashKeyName);
-            expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class));
+            expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getPropertiesMap().get(hashKeyName), AttributeValue.class));
 
             QueryRequest queryRequest = new QueryRequest()
                     .withTableName(tableName)
@@ -295,8 +296,8 @@ public class DynamoDBRecordHandler
             return queryRequest;
         }
         else {
-            int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
-            int segmentCount = Integer.parseInt(split.getProperty(SEGMENT_COUNT_METADATA));
+            int segmentId = Integer.parseInt(split.getPropertiesMap().get(SEGMENT_ID_PROPERTY));
+            int segmentCount = Integer.parseInt(split.getPropertiesMap().get(SEGMENT_COUNT_METADATA));
 
             ScanRequest scanRequest = new ScanRequest()
                     .withTableName(tableName)

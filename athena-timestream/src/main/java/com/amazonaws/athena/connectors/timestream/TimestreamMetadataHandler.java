@@ -23,9 +23,9 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
-import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -61,7 +62,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 public class TimestreamMetadataHandler
         extends GlueMetadataHandler
@@ -139,7 +139,7 @@ public class TimestreamMetadataHandler
         catch (com.amazonaws.services.timestreamwrite.model.ResourceNotFoundException ex) {
             // If it fails then we will retry after resolving the schema name by ignoring the casing
             String resolvedSchemaName = findSchemaNameIgnoringCase(request.getSchemaName());
-            request = new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(), resolvedSchemaName, request.getNextToken(), request.getPageSize());
+            request = ListTablesRequest.newBuilder().setIdentity(request.getIdentity()).setQueryId(request.getQueryId()).setCatalogName(request.getCatalogName()).setSchemaName(resolvedSchemaName).setNextToken(request.getNextToken()).setPageSize(request.getPageSize()).build();
             return doListTablesInternal(blockAllocator, request);
         }
     }
@@ -162,7 +162,7 @@ public class TimestreamMetadataHandler
                 throw new RuntimeException(
                     String.format("Exceeded maximum result size. Current doListTables result size: %d", allTableNames.size()));
             }
-            ListTablesResponse result = new ListTablesResponse(request.getCatalogName(), allTableNames, null);
+            ListTablesResponse result = ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(allTableNames).build();
             logger.debug("doListTables result: {}", result);
             return result;
         }
@@ -171,14 +171,11 @@ public class TimestreamMetadataHandler
         ListTablesResult timestreamResults = doListTablesOnePage(request.getSchemaName(), request.getNextToken());
         List<TableName> tableNames = timestreamResults.getTables()
             .stream()
-            .map(table -> new TableName(request.getSchemaName(), table.getTableName()))
+            .map(table -> TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(table.getTableName()).build())
             .collect(Collectors.toList());
 
         // Pass through whatever token we got from Glue to the user
-        ListTablesResponse result = new ListTablesResponse(
-            request.getCatalogName(),
-            tableNames,
-            timestreamResults.getNextToken());
+        ListTablesResponse result = ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tableNames).setNextToken(timestreamResults.getNextToken()).build();
         logger.debug("doListTables [paginated] result: {}", result);
         return result;
     }
@@ -197,7 +194,7 @@ public class TimestreamMetadataHandler
     {
         return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(schemaName, pageToken), ListTablesResult::getNextToken)
             .flatMap(currResult -> currResult.getTables().stream())
-            .map(table -> new TableName(schemaName, table.getTableName()));
+            .map(table -> TableName.newBuilder().setSchemaName(schemaName).setTableName(table.getTableName()).build());
     }
 
     private String findSchemaNameIgnoringCase(String schemaNameInsensitive)
@@ -217,7 +214,7 @@ public class TimestreamMetadataHandler
         // based on AmazonMskMetadataHandler::findGlueRegistryNameIgnoringCasing
         return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(caseInsenstiveSchemaNameMatch, pageToken), ListTablesResult::getNextToken)
             .flatMap(result -> result.getTables().stream())
-            .map(tbl -> new TableName(caseInsenstiveSchemaNameMatch, tbl.getTableName()))
+            .map(tbl -> TableName.newBuilder().setSchemaName(caseInsenstiveSchemaNameMatch).setTableName(tbl.getTableName()).build())
             .filter(tbl -> tbl.getTableName().equalsIgnoreCase(getTableRequest.getTableName().getTableName()))
             .findAny()
             .orElseThrow(() -> new RuntimeException(String.format("Could not find a case-insensitive match for table name %s", getTableRequest.getTableName().getTableName())));
@@ -293,7 +290,7 @@ public class TimestreamMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker
+    public void getPartitions(BlockAllocator blockAllocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker
             queryStatusChecker)
             throws Exception
     {
@@ -306,7 +303,7 @@ public class TimestreamMetadataHandler
     {
         //Since we do not support connector level parallelism for this source at the moment, we generate a single
         //basic split.
-        Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey()).build();
-        return new GetSplitsResponse(request.getCatalogName(), split);
+        Split split = Split.newBuilder().setSpillLocation(makeSpillLocation(request.getQueryId())).setEncryptionKey(makeEncryptionKey()).build();
+        return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addSplits(split).build();
     }
 }

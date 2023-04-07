@@ -21,10 +21,12 @@ package com.amazonaws.athena.connectors.redis;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
@@ -134,14 +136,14 @@ public class RedisRecordHandler
     {
         Split split = recordsRequest.getSplit();
         ScanCursor keyCursor = null;
-        boolean sslEnabled = Boolean.parseBoolean(split.getProperty(REDIS_SSL_FLAG));
-        boolean isCluster = Boolean.parseBoolean(split.getProperty(REDIS_CLUSTER_FLAG));
-        String dbNumber = split.getProperty(REDIS_DB_NUMBER);
-        ValueType valueType = ValueType.fromId(split.getProperty(VALUE_TYPE_TABLE_PROP));
-        List<Field> fieldList = recordsRequest.getSchema().getFields().stream()
+        boolean sslEnabled = Boolean.parseBoolean(split.getPropertiesMap().get(REDIS_SSL_FLAG));
+        boolean isCluster = Boolean.parseBoolean(split.getPropertiesMap().get(REDIS_CLUSTER_FLAG));
+        String dbNumber = split.getPropertiesMap().get(REDIS_DB_NUMBER);
+        ValueType valueType = ValueType.fromId(split.getPropertiesMap().get(VALUE_TYPE_TABLE_PROP));
+        List<Field> fieldList = ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()).getFields().stream()
                 .filter((Field next) -> !KEY_COLUMN_NAME.equals(next.getName())).collect(Collectors.toList());
 
-        RedisConnectionWrapper<String, String> connection = getOrCreateClient(split.getProperty(REDIS_ENDPOINT_PROP),
+        RedisConnectionWrapper<String, String> connection = getOrCreateClient(split.getPropertiesMap().get(REDIS_ENDPOINT_PROP),
                                                                               sslEnabled, isCluster, dbNumber);
         RedisCommandsWrapper<String, String> syncCommands = connection.sync();
 
@@ -185,11 +187,11 @@ public class RedisRecordHandler
     private ScanCursor loadKeys(RedisCommandsWrapper<String, String> syncCommands, Split split,
                                         ScanCursor redisCursor, Set<String> keys)
     {
-        KeyType keyType = KeyType.fromId(split.getProperty(KEY_TYPE));
-        String keyPrefix = split.getProperty(KEY_PREFIX_TABLE_PROP);
+        KeyType keyType = KeyType.fromId(split.getPropertiesMap().get(KEY_TYPE));
+        String keyPrefix = split.getPropertiesMap().get(KEY_PREFIX_TABLE_PROP);
         if (keyType == KeyType.ZSET) {
-            long start = Long.valueOf(split.getProperty(SPLIT_START_INDEX));
-            long end = Long.valueOf(split.getProperty(SPLIT_END_INDEX));
+            long start = Long.valueOf(split.getPropertiesMap().get(SPLIT_START_INDEX));
+            long end = Long.valueOf(split.getPropertiesMap().get(SPLIT_END_INDEX));
             keys.addAll(syncCommands.zrange(keyPrefix, start, end));
             return FINISHED;
         }
@@ -197,7 +199,7 @@ public class RedisRecordHandler
             ScanCursor cursor = (redisCursor == null) ? INITIAL : redisCursor;
             ScanArgs scanArgs = new ScanArgs();
             scanArgs.limit(SCAN_COUNT_SIZE);
-            scanArgs.match(split.getProperty(KEY_PREFIX_TABLE_PROP));
+            scanArgs.match(split.getPropertiesMap().get(KEY_PREFIX_TABLE_PROP));
 
             KeyScanCursor<String> newCursor = syncCommands.scan(cursor, scanArgs);
             keys.addAll(newCursor.getKeys());

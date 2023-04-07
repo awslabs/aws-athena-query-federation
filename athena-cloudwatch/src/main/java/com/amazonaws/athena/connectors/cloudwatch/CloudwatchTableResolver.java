@@ -250,7 +250,7 @@ public class CloudwatchTableResolver
         String actualSchema = validateSchema(tableName.getSchemaName());
         CloudwatchTableName actual = null;
         try {
-            actual = tableCache.get(TableName.newBuilder().setSchemaName(actualSchema).setTableName(tableName.getTableName())).build();
+            actual = tableCache.get(TableName.newBuilder().setSchemaName(actualSchema).setTableName(tableName.getTableName()).build());
             if (actual == null) {
                 throw new IllegalArgumentException("Unknown table[" + tableName + "]");
             }

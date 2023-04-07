@@ -22,10 +22,11 @@ package com.amazonaws.athena.connectors.docdb;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -35,9 +36,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
-import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
@@ -110,9 +110,9 @@ public class DocDBMetadataHandler
         this.connectionFactory = connectionFactory;
     }
 
-    private MongoClient getOrCreateConn(MetadataRequest request)
+    private MongoClient getOrCreateConn(String catalogName)
     {
-        String endpoint = resolveSecrets(getConnStr(request));
+        String endpoint = resolveSecrets(getConnStr(catalogName));
         return connectionFactory.getOrCreateConn(endpoint);
     }
 
@@ -120,12 +120,12 @@ public class DocDBMetadataHandler
      * Retrieves the DocDB connection details from an env variable matching the catalog name, if no such
      * env variable exists we fall back to the default env variable defined by DEFAULT_DOCDB.
      */
-    private String getConnStr(MetadataRequest request)
+    private String getConnStr(String catalogName)
     {
-        String conStr = configOptions.get(request.getCatalogName());
+        String conStr = configOptions.get(catalogName);
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
-                    request.getCatalogName(), DEFAULT_DOCDB);
+                    catalogName, DEFAULT_DOCDB);
             conStr = configOptions.get(DEFAULT_DOCDB);
         }
         return conStr;
@@ -140,7 +140,7 @@ public class DocDBMetadataHandler
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
     {
         List<String> schemas = new ArrayList<>();
-        MongoClient client = getOrCreateConn(request);
+        MongoClient client = getOrCreateConn(request.getCatalogName());
         try (MongoCursor<String> itr = client.listDatabaseNames().iterator()) {
             while (itr.hasNext()) {
                 schemas.add(itr.next());
@@ -159,15 +159,15 @@ public class DocDBMetadataHandler
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
-        MongoClient client = getOrCreateConn(request);
+        MongoClient client = getOrCreateConn(request.getQueryId());
         List<TableName> tables = new ArrayList<>();
 
         try (MongoCursor<String> itr = client.getDatabase(request.getSchemaName()).listCollectionNames().iterator()) {
             while (itr.hasNext()) {
-                tables.add(TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(itr.next())).build();
+                tables.add(TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(itr.next()).build());
             }
 
-            return new ListTablesResponse(request.getCatalogName(), tables, null);
+            return ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tables).build();
         }
     }
 
@@ -187,7 +187,7 @@ public class DocDBMetadataHandler
         Schema schema = null;
         try {
             if (glue != null) {
-                schema = super.doGetTable(blockAllocator, request, TABLE_FILTER).getSchema();
+                schema = ProtobufMessageConverter.fromProtoSchema(blockAllocator, super.doGetTable(blockAllocator, request, TABLE_FILTER).getSchema());
                 logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
             }
         }
@@ -200,7 +200,7 @@ public class DocDBMetadataHandler
 
         if (schema == null) {
             logger.info("doGetTable: Inferring schema for table[{}].", request.getTableName());
-            MongoClient client = getOrCreateConn(request);
+            MongoClient client = getOrCreateConn(request.getQueryId());
             schema = SchemaUtils.inferSchema(client, request.getTableName(), SCHEMA_INFERRENCE_NUM_DOCS);
         }
         return GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(request.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).build();
@@ -228,13 +228,17 @@ public class DocDBMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
     {
         //Every split must have a unique location if we wish to spill to avoid failures
-        SpillLocation spillLocation = makeSpillLocation(request);
+        SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
 
         //Since our connector does not support parallel reads we return a fixed split.
-        return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(DOCDB_CONN_STR, getConnStr(request))
-                        .build());
+        return GetSplitsResponse.newBuilder()
+            .setCatalogName(request.getCatalogName())
+            .addSplits(
+                Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey())
+                .putProperties(DOCDB_CONN_STR, getConnStr(request.getCatalogName()))
+                .build()
+            )
+            .build();
     }
 
     /**

@@ -21,12 +21,14 @@ package com.amazonaws.athena.connectors.docdb;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
-import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -103,7 +105,7 @@ public class DocDBRecordHandler
      */
     private MongoClient getOrCreateConn(Split split)
     {
-        String conStr = split.getProperty(DOCDB_CONN_STR);
+        String conStr = split.getPropertiesMap().get(DOCDB_CONN_STR);
         if (conStr == null) {
             throw new RuntimeException(DOCDB_CONN_STR + " Split property is null! Unable to create connection.");
         }
@@ -134,18 +136,18 @@ public class DocDBRecordHandler
     {
         TableName tableNameObj = recordsRequest.getTableName();
         String schemaName = tableNameObj.getSchemaName();
-        String tableName = recordsRequest.getSchema().getCustomMetadata().getOrDefault(
+        String tableName = ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()).getCustomMetadata().getOrDefault(
             SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
 
         logger.info("Resolved tableName to: {}", tableName);
 
-        Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
+        Map<String, ValueSet> constraintSummary = ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()).getSummary();
 
         MongoClient client = getOrCreateConn(recordsRequest.getSplit());
         MongoDatabase db = client.getDatabase(schemaName);
         MongoCollection<Document> table = db.getCollection(tableName);
 
-        Document query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+        Document query = QueryUtils.makeQuery(ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()), constraintSummary);
 
         String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
         boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
@@ -156,7 +158,7 @@ public class DocDBRecordHandler
         // https://www.mongodb.com/docs/manual/core/index-case-insensitive/
         // Once AWS DocumentDB supports collation, then projections do not have to be disabled anymore because case
         // insensitive indexes allows for case insensitive projections.
-        Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
+        Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()));
 
         logger.info("readWithConstraint: query[{}] projection[{}]", query, projection);
 
@@ -172,7 +174,7 @@ public class DocDBRecordHandler
             spiller.writeRows((Block block, int rowNum) -> {
                 Map<String, Object> doc = documentAsMap(iterable.next(), disableProjectionAndCasing);
                 boolean matched = true;
-                for (Field nextField : recordsRequest.getSchema().getFields()) {
+                for (Field nextField : ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()).getFields()) {
                     Object value = TypeUtils.coerce(nextField, doc.get(nextField.getName()));
                     Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
                     try {

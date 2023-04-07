@@ -25,10 +25,10 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -39,6 +39,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.logs.AWSLogs;
 import com.amazonaws.services.logs.AWSLogsClientBuilder;
@@ -48,6 +49,7 @@ import com.amazonaws.services.logs.model.DescribeLogStreamsRequest;
 import com.amazonaws.services.logs.model.DescribeLogStreamsResult;
 import com.amazonaws.services.logs.model.LogStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.base.Strings;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
@@ -57,7 +59,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -208,10 +209,10 @@ public class CloudwatchMetadataHandler
         if (nextToken == null) {
             //We add a special table that represents all log streams. This is helpful depending on how
             //you have your logs organized.
-            tables.add(TableName.newBuilder().setSchemaName(listTablesRequest.getSchemaName()).setTableName(ALL_LOG_STREAMS_TABLE)).build();
+            tables.add(TableName.newBuilder().setSchemaName(listTablesRequest.getSchemaName()).setTableName(ALL_LOG_STREAMS_TABLE).build());
+            return ListTablesResponse.newBuilder().setCatalogName(listTablesRequest.getCatalogName()).addAllTables(tables).build();
         }
-
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
+        return ListTablesResponse.newBuilder().setCatalogName(listTablesRequest.getCatalogName()).addAllTables(tables).setNextToken(nextToken).build();
     }
 
     /**
@@ -224,11 +225,13 @@ public class CloudwatchMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         TableName tableName = getTableRequest.getTableName();
-        CloudwatchTableName cwTableName = tableResolver.validateTable(tableName);
-        return new GetTableResponse(getTableRequest.getCatalogName(),
-                cwTableName.toTableName(),
-                CLOUDWATCH_SCHEMA,
-                Collections.singleton(LOG_STREAM_FIELD));
+        tableResolver.validateTable(tableName);
+        return GetTableResponse.newBuilder()
+            .setCatalogName(getTableRequest.getCatalogName())
+            .setTableName(getTableRequest.getTableName())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(CLOUDWATCH_SCHEMA))
+            .addPartitionColumns(LOG_STREAM_FIELD)
+            .build();
     }
 
     /**
@@ -292,7 +295,7 @@ public class CloudwatchMetadataHandler
     {
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();
-        Block partitions = request.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, request.getPartitions());
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             FieldReader logStreamReader = partitions.getFieldReader(LOG_STREAM_FIELD);
             logStreamReader.setPosition(curPartition);
@@ -304,25 +307,22 @@ public class CloudwatchMetadataHandler
             sizeReader.setPosition(curPartition);
 
             //Every split must have a unique location if we wish to spill to avoid failures
-            SpillLocation spillLocation = makeSpillLocation(request);
+            SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
 
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(CloudwatchMetadataHandler.LOG_GROUP_FIELD, String.valueOf(logGroupReader.readText()))
-                    .add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, String.valueOf(logStreamReader.readText()))
-                    .add(CloudwatchMetadataHandler.LOG_STREAM_SIZE_FIELD, String.valueOf(sizeReader.readLong()));
+            Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey())
+                    .putProperties(CloudwatchMetadataHandler.LOG_GROUP_FIELD, String.valueOf(logGroupReader.readText()))
+                    .putProperties(CloudwatchMetadataHandler.LOG_STREAM_FIELD, String.valueOf(logStreamReader.readText()))
+                    .putProperties(CloudwatchMetadataHandler.LOG_STREAM_SIZE_FIELD, String.valueOf(sizeReader.readLong()));
 
             splits.add(splitBuilder.build());
 
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide
                 //a continuation token.
-                return new GetSplitsResponse(request.getCatalogName(),
-                        splits,
-                        encodeContinuationToken(curPartition));
+                return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSplits(splits).setContinuationToken(encodeContinuationToken(curPartition)).build();
             }
         }
-
-        return new GetSplitsResponse(request.getCatalogName(), splits, null);
+        return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSplits(splits).build();
     }
 
     /**
@@ -332,7 +332,7 @@ public class CloudwatchMetadataHandler
      */
     private int decodeContinuationToken(GetSplitsRequest request)
     {
-        if (request.hasContinuationToken()) {
+        if (request.hasContinuationToken() && !Strings.isNullOrEmpty(request.getContinuationToken())) {
             return Integer.valueOf(request.getContinuationToken());
         }
 

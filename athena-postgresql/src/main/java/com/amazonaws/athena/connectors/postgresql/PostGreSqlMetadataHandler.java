@@ -36,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -146,7 +147,7 @@ public class PostGreSqlMetadataHandler
     }
 
     @Override
-    public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(final BlockAllocator blockAllocator, final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         LOGGER.info("{}: Catalog {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
@@ -191,7 +192,7 @@ public class PostGreSqlMetadataHandler
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         Set<Split> splits = new HashSet<>();
-        Block partitions = getSplitsRequest.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(blockAllocator, getSplitsRequest.getPartitions());
 
         boolean splitterUsed = false;
         if (partitions.getRowCount() == 1) {
@@ -205,9 +206,9 @@ public class PostGreSqlMetadataHandler
                     //Every split must have a unique location if we wish to spill to avoid failures
                     SpillLocation spillLocation = makeSpillLocation(getSplitsRequest.getQueryId());
 
-                    Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                            .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
-                            .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(splitClause));
+                    Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey())
+                            .putProperties(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
+                            .putProperties(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(splitClause));
 
                     splits.add(splitBuilder.build());
 
@@ -231,15 +232,15 @@ public class PostGreSqlMetadataHandler
                 SpillLocation spillLocation = makeSpillLocation(getSplitsRequest.getQueryId());
 
                 LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), String.valueOf(partitionsFieldReader.readText()));
-                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
-                        .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(partitionsFieldReader.readText()));
+                Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey())
+                        .putProperties(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
+                        .putProperties(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(partitionsFieldReader.readText()));
 
                 splits.add(splitBuilder.build());
 
                 if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                     //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
-                    return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, encodeContinuationToken(curPartition + 1));
+                    return GetSplitsResponse.newBuilder().setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).setContinuationToken(encodeContinuationToken(curPartition + 1)).build();
                 }
             }
         }

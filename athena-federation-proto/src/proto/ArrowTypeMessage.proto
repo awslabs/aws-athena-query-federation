@@ -10,7 +10,9 @@ enum UnionMode { // constructor arg for ArrowType.Union
   Sparse = 1;
 }
 
-// This message supports every Arrow subtype supported by Athena Federation as of April 2023. This includes:
+// This message supports every Arrow subtype supported by Athena Federation as of April 2023.
+
+// These types are the ones our SerDe already had options for:
 // Null, Struct, List, FixedSizeList, Map, Union, Int, FloatingPoint, Utf8, Binary, FixedSizeBinary, Bool, Decimal, Date, Time, Timestamp, Interval
 message ArrowTypeMessage {
   optional string type = 1 [json_name="@type"];

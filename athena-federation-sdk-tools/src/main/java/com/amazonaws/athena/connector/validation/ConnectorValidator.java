@@ -21,9 +21,9 @@ package com.amazonaws.athena.connector.validation;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
@@ -31,6 +31,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.google.common.collect.Sets;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -44,7 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -112,13 +113,13 @@ public class ConnectorValidator
        * DESCRIBE TABLE
        */
       final TableName table = testConfig.getTableId().isPresent()
-                                      ? new TableName(db, testConfig.getTableId().get())
+                                      ? TableName.newBuilder().setSchemaName(db).setTableName(testConfig.getTableId().get()).build()
                                       : getRandomElement(tables);
       log.info("Using table {}", toQualifiedTableName(table));
       logTestQuery("DESCRIBE " + toQualifiedTableName(table));
       GetTableResponse tableResponse = describeTable(testConfig, table);
-      final Schema schema = tableResponse.getSchema();
-      final Set<String> partitionColumns = tableResponse.getPartitionColumns();
+      final Schema schema = ProtobufMessageConverter.fromProtoSchema(BLOCK_ALLOCATOR, tableResponse.getSchema());
+      final Set<String> partitionColumns = new HashSet<>(tableResponse.getPartitionColumnsList());
 
       /*
        * SELECT
@@ -134,7 +135,7 @@ public class ConnectorValidator
                                                    null);
 
       if (!testConfig.isPlanningOnly()) {
-        readRecords(testConfig, table, schema, splitsResponse.getSplits());
+        readRecords(testConfig, table, schema, splitsResponse.getSplitsList());
       }
       else {
         log.info("Skipping record reading because the arguments indicated that only the planning should be validated.");
@@ -156,7 +157,7 @@ public class ConnectorValidator
                                  splitsResponse.getContinuationToken());
 
       if (!testConfig.isPlanningOnly()) {
-        readRecords(testConfig, table, schema, splitsResponse.getSplits());
+        readRecords(testConfig, table, schema, splitsResponse.getSplitsList());
       }
       else {
         log.info("Skipping record reading because the arguments indicated that only the planning should be validated.");
@@ -177,7 +178,7 @@ public class ConnectorValidator
     ListSchemasResponse schemasResponse = LambdaMetadataProvider.listSchemas(testConfig.getCatalogId(),
                                                                              testConfig.getMetadataFunction(),
                                                                              testConfig.getIdentity());
-    final Collection<String> schemas = schemasResponse.getSchemas();
+    final Collection<String> schemas = schemasResponse.getSchemasList();
     log.info("Found databases: " + schemas);
     requireNonNull(schemas, "Returned collection of schemas was null!");
     checkState(!schemas.isEmpty(), "No schemas were returned!");
@@ -193,15 +194,15 @@ public class ConnectorValidator
                                                                           db,
                                                                           testConfig.getMetadataFunction(),
                                                                           testConfig.getIdentity());
-    final Collection<TableName> tables = tablesResponse.getTables();
+    final Collection<TableName> tables = tablesResponse.getTablesList();
     log.info("Found tables: " + tables.stream()
                                         .map(t -> toQualifiedTableName(t))
                                         .collect(Collectors.toList()));
     requireNonNull(tables, "Returned collection of tables was null!");
     if (!testConfig.isAllowEmptyTables()) {
       checkState(!tables.isEmpty(), "No tables were returned!");
-      List<String> notLower = tables.stream().filter(t -> !t.equals(new TableName(t.getSchemaName().toLowerCase(),
-              t.getTableName().toLowerCase()))).limit(5)
+      List<String> notLower = tables.stream().filter(t -> !t.equals(TableName.newBuilder().setSchemaName(t.getSchemaName().toLowerCase()).setTableName(t.getTableName().toLowerCase())))
+              .limit(5)
               .map(t -> toQualifiedTableName(t))
               .collect(Collectors.toList());
       checkState(notLower.isEmpty(),
@@ -223,19 +224,19 @@ public class ConnectorValidator
     checkState(table.equals(returnedTableName), "Returned table name did not match the requested table name!"
                                                         + " Expected " + toQualifiedTableName(table)
                                                         + " but found " + toQualifiedTableName(returnedTableName));
-    List<String> notLower = tableResponse.getSchema().getFields()
+    List<String> notLower = ProtobufMessageConverter.fromProtoSchema(BLOCK_ALLOCATOR, tableResponse.getSchema()).getFields()
                                     .stream()
                                     .map(Field::getName)
                                     .filter(f -> !f.equals(f.toLowerCase()))
                                     .collect(Collectors.toList());
     checkState(notLower.isEmpty(),
                              "All returned columns must be lowercase! Found these non-lowercase columns: " + notLower);
-    checkState(tableResponse.getSchema().getFields()
+    checkState(ProtobufMessageConverter.fromProtoSchema(BLOCK_ALLOCATOR, tableResponse.getSchema()).getFields()
                        .stream().map(Field::getName)
-                       .anyMatch(f -> !tableResponse.getPartitionColumns().contains(f)),
+                       .anyMatch(f -> !tableResponse.getPartitionColumnsList().contains(f)),
                              "Table must have at least one non-partition column!");
-    Set<String> fields = tableResponse.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toSet());
-    Sets.SetView<String> difference = Sets.difference(tableResponse.getPartitionColumns(), fields);
+    Set<String> fields = ProtobufMessageConverter.fromProtoSchema(BLOCK_ALLOCATOR, tableResponse.getSchema()).getFields().stream().map(Field::getName).collect(Collectors.toSet());
+    Sets.SetView<String> difference = Sets.difference(new HashSet<>(tableResponse.getPartitionColumnsList()), fields);
     checkState(difference.isEmpty(), "Table column list must include all partition columns! "
                                              + "Found these partition columns which are not in the table's fields: "
                                              + difference);
@@ -255,8 +256,8 @@ public class ConnectorValidator
                                                         partitionColumns,
                                                         testConfig.getMetadataFunction(),
                                                         testConfig.getIdentity());
-    log.info("Found " + tableLayout.getPartitions().getRowCount() + " partitions.");
-    checkState(tableLayout.getPartitions().getRowCount() > 0,
+    log.info("Found " + ProtobufMessageConverter.fromProtoBlock(BLOCK_ALLOCATOR, tableLayout.getPartitions()) + " partitions.");
+    checkState(ProtobufMessageConverter.fromProtoBlock(BLOCK_ALLOCATOR, tableLayout.getPartitions()).getRowCount() > 0,
                              "Table " + toQualifiedTableName(table)
                        + " did not return any partitions. This can happen if the table"
                        + " is empty but could also indicate an issue."
@@ -275,21 +276,21 @@ public class ConnectorValidator
     GetSplitsResponse splitsResponse = LambdaMetadataProvider.getSplits(testConfig.getCatalogId(),
                                             table,
                                             constraints,
-                                            tableLayout.getPartitions(),
+                                            ProtobufMessageConverter.fromProtoBlock(BLOCK_ALLOCATOR, tableLayout.getPartitions()),
                                             new ArrayList<>(partitionColumns),
                                             continuationToken,
                                             testConfig.getMetadataFunction(),
                                             testConfig.getIdentity());
-    log.info("Found " + splitsResponse.getSplits().size() + " splits in batch.");
+    log.info("Found " + splitsResponse.getSplitsList().size() + " splits in batch.");
     if (continuationToken == null) {
-      checkState(!splitsResponse.getSplits().isEmpty(),
+      checkState(!splitsResponse.getSplitsList().isEmpty(),
                                "Table " + toQualifiedTableName(table)
                          + " did not return any splits. This can happen if the table"
                          + " is empty but could also indicate an issue."
                          + " Please populate the table or specify a different table.");
     }
     else {
-      checkState(!splitsResponse.getSplits().isEmpty(),
+      checkState(!splitsResponse.getSplitsList().isEmpty(),
                                "Table " + toQualifiedTableName(table)
                          + " did not return any splits in the second batch despite returning"
                          + " a continuation token with the first batch.");
@@ -312,23 +313,23 @@ public class ConnectorValidator
                                                                    split,
                                                                    testConfig.getRecordFunction(),
                                                                    testConfig.getIdentity());
-    log.info("Received " + records.getRecordCount() + " records.");
-    checkState(records.getRecordCount() > 0,
+    log.info("Received " + ProtobufMessageConverter.fromProtoBlock(BLOCK_ALLOCATOR, records.getRecords()).getRowCount() + " records.");
+    checkState(ProtobufMessageConverter.fromProtoBlock(BLOCK_ALLOCATOR, records.getRecords()).getRowCount() > 0,
                              "Table " + toQualifiedTableName(table)
                        + " did not return any rows in the tested split, even though an empty constraint was used."
                        + " This can happen if the table is empty but could also indicate an issue."
                        + " Please populate the table or specify a different table.");
     log.info("Discovered columns: "
-                     + records.getSchema().getFields()
+                     + ProtobufMessageConverter.fromProtoBlock(BLOCK_ALLOCATOR, records.getRecords()).getFields()
                                .stream()
                                .map(f -> f.getName() + ":" + f.getType().getTypeID())
                                .collect(Collectors.toList()));
 
-    if (records.getRecordCount() == 0) {
+    if (ProtobufMessageConverter.fromProtoBlock(BLOCK_ALLOCATOR, records.getRecords()).getRowCount() == 0) {
       return records;
     }
 
-    log.info("First row of split: " + rowToString(records.getRecords(), 0));
+    log.info("First row of split: " + rowToString(ProtobufMessageConverter.fromProtoBlock(BLOCK_ALLOCATOR, records.getRecords()), 0));
 
     return records;
   }
@@ -410,10 +411,7 @@ public class ConnectorValidator
       this.constraints = constraints;
       this.planningOnly = planningOnly;
       this.allowEmptyTables = allowEmptyTables;
-      this.identity = new FederatedIdentity("VALIDATION_ARN",
-                                            "VALIDATION_ACCOUNT",
-                                            Collections.emptyMap(),
-                                            Collections.emptyList());
+      this.identity = FederatedIdentity.newBuilder().setArn("VALIDATION_ARN").setAccount("VALIDATION_ACCOUNT").build();
     }
 
     public FederatedIdentity getIdentity()

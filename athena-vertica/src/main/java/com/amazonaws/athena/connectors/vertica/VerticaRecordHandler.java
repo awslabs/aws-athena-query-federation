@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.vertica;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
@@ -32,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCha
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -100,11 +102,11 @@ public class VerticaRecordHandler
     {
         logger.info("readWithConstraint: schema[{}] tableName[{}]", recordsRequest.getSchema(), recordsRequest.getTableName());
 
-        Schema schemaName = recordsRequest.getSchema();
+        Schema schemaName = ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema());
         Split split = recordsRequest.getSplit();
-        String id = split.getProperty("query_id");
-        String exportBucket = split.getProperty("exportBucket");
-        String s3ObjectKey = split.getProperty("s3ObjectKey");
+        String id = split.getPropertiesMap().get("query_id");
+        String exportBucket = split.getPropertiesMap().get("exportBucket");
+        String s3ObjectKey = split.getPropertiesMap().get("s3ObjectKey");
 
         if(!s3ObjectKey.isEmpty()) {
             //get column name and type from the Schema
@@ -122,8 +124,8 @@ public class VerticaRecordHandler
             final RowContext rowContext = new RowContext(id);
 
             //Generating the RowWriter and Extractor
-            GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
-            for (Field next : recordsRequest.getSchema().getFields()) {
+            GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()));
+            for (Field next : ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()).getFields()) {
                 Extractor extractor = makeExtractor(next, mapOfNamesAndTypes, mapOfCols);
                 builder.withExtractor(next.getName(), extractor);
             }

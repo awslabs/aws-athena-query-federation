@@ -74,7 +74,7 @@ public class SnowflakeQueryStringBuilder
     {
         String xLimit = "";
         String xOffset = "";
-        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next()); //p-limit-3000-offset-0
+        String partitionVal = split.getPropertiesMap().get(split.getProperties().keySet().iterator().next()); //p-limit-3000-offset-0
         if (!partitionVal.contains("-")) {
             return EMPTY_STRING;
         }

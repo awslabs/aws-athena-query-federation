@@ -51,8 +51,8 @@ public class HiveQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        if (!split.getProperty(HiveConstants.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
-            return Collections.singletonList(split.getProperty(HiveConstants.BLOCK_PARTITION_COLUMN_NAME));
+        if (!split.getPropertiesMap().get(HiveConstants.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
+            return Collections.singletonList(split.getPropertiesMap().get(HiveConstants.BLOCK_PARTITION_COLUMN_NAME));
         }
         return Collections.emptyList();
     }

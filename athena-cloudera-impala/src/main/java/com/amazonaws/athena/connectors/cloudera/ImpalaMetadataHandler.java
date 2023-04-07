@@ -42,6 +42,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufUtils;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -145,7 +147,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
      * @throws Exception An Exception should be thrown for database connection failures , query syntax errors and so on.
      **/
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest getTableLayoutRequest,
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest getTableLayoutRequest,
                               QueryStatusChecker queryStatusChecker)
             throws Exception
     {
@@ -153,11 +155,11 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              Statement stmt = connection.createStatement();
-             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
+             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase())) {
             Map<String, String> columnHashMap = getMetadataForGivenTable(psmt);
             String tableType = columnHashMap.get("TableType");
             if (tableType == null) {
-                ResultSet partitionRs = stmt.executeQuery("show files in " + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase());
+                ResultSet partitionRs = stmt.executeQuery("show files in " + ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase());
                 Set<String> partition = new HashSet<>();
                 while (partitionRs != null && partitionRs.next()) {
                     String partitionString = partitionRs.getString("Partition");
@@ -245,18 +247,17 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                 getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         Set<Split> splits = new HashSet<>();
-        Block partitions = getSplitsRequest.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(blockAllocator, getSplitsRequest.getPartitions());
 
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             FieldReader locationReader = partitions.getFieldReader(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME);
             locationReader.setPosition(curPartition);
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest.getQueryId());
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
+            Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey())
+                    .putProperties(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
             splits.add(splitBuilder.build());
             if (splits.size() >= ImpalaConstants.MAX_SPLITS_PER_REQUEST) {
-                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits,
-                        encodeContinuationToken(curPartition));
+                return GetSplitsResponse.newBuilder().setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).setContinuationToken(encodeContinuationToken(curPartition)).build();
             }
         }
         return GetSplitsResponse.newBuilder().setType("GetSplitsResponse").setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).build();
@@ -289,9 +290,10 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(),
-                    getSchema(connection, getTableRequest.getTableName(), partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            return GetTableResponse.newBuilder().setCatalogName(getTableRequest.getCatalogName()).setTableName(getTableRequest.getTableName())
+                .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(getSchema(connection, getTableRequest.getTableName(), partitionSchema)))
+                .addAllPartitionColumns(partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()))
+                .build();
         }
     }
 
@@ -309,7 +311,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement psmt = connection.prepareStatement(
-                GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
+                GET_METADATA_QUERY + ProtobufUtils.getQualifiedTableName(tableName).toUpperCase())) {
                 Map<String, String> hashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),

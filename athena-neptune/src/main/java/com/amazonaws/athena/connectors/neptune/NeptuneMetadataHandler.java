@@ -22,10 +22,11 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -35,8 +36,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTablesRequest;
@@ -155,10 +156,10 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         List<Table> glueTableList = getTablesResult.getTableList();
         String schemaName = request.getSchemaName();
         glueTableList.forEach(e -> {
-            tables.add(TableName.newBuilder().setSchemaName(schemaName).setTableName(e.getName())).build();
+            tables.add(TableName.newBuilder().setSchemaName(schemaName).setTableName(e.getName()).build());
         });
 
-        return new ListTablesResponse(request.getCatalogName(), tables, null);
+        return ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tables).build();
     }
 
     /**
@@ -182,7 +183,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         Schema tableSchema = null;
         try {
             if (glue != null) {
-                tableSchema = super.doGetTable(blockAllocator, request).getSchema();        
+                tableSchema = ProtobufMessageConverter.fromProtoSchema(blockAllocator, super.doGetTable(blockAllocator, request).getSchema());
                 logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
             }
         } 
@@ -198,7 +199,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
      * this method a NoOp.
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request,
+    public void getPartitions(BlockAllocator blockAllocator, BlockWriter blockWriter, GetTableLayoutRequest request,
             QueryStatusChecker queryStatusChecker) throws Exception 
     {
         // No implemenation as connector doesn't support partitioning
@@ -231,11 +232,10 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request) 
     {
         // Every split must have a unique location if we wish to spill to avoid failures
-        SpillLocation spillLocation = makeSpillLocation(request);
+        SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
 
         // Since our connector does not support parallel reads we return a fixed split.
-        return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey()).build());
+        return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addSplits(Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey()).build()).build();
     }
 
     @Override

@@ -38,7 +38,9 @@ public class SaphanaQueryStringBuilderTest
     @Test
     public void testQueryBuilder()
     {
-        Split split = Mockito.mock(Split.class);
+        Split split = Split.newBuilder()
+            .putProperties(BLOCK_PARTITION_COLUMN_NAME, "p0")
+            .build();
         String expectedString1 = " FROM \"default\".\"table\" PARTITION (p0) ";
         String expectedString2 = " FROM \"default\".\"schema\".\"table\" PARTITION (p0) ";
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "p0"));
@@ -53,9 +55,9 @@ public class SaphanaQueryStringBuilderTest
     public void testGetPartitionWhereClauses()
     {
         List<String> expectedPartitionWhereClauseList1 = new ArrayList<>();
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "p0"));
-        Mockito.when(split.getProperty(Mockito.eq(BLOCK_PARTITION_COLUMN_NAME))).thenReturn("p0");
+        Split split = Split.newBuilder()
+            .putProperties(BLOCK_PARTITION_COLUMN_NAME, "p0")
+            .build();
 
         SaphanaQueryStringBuilder builder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
         List<String> partitionWhereClauseList1 = builder.getPartitionWhereClauses(split);

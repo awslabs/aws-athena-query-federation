@@ -31,6 +31,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.DimensionFilter;
 import com.amazonaws.services.cloudwatch.model.GetMetricDataRequest;
@@ -64,7 +65,7 @@ import static org.junit.Assert.*;
 
 public class MetricUtilsTest
 {
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     private String catalog = "default";
     private BlockAllocator allocator;
 
@@ -171,12 +172,12 @@ public class MetricUtilsTest
                 .withPeriod(60)
                 .withStat(statistic));
 
-        Split split = Split.newBuilder(null, null)
-                .add(NAMESPACE_FIELD, namespace)
-                .add(METRIC_NAME_FIELD, metricName)
-                .add(PERIOD_FIELD, String.valueOf(period))
-                .add(STATISTIC_FIELD, statistic)
-                .add(SERIALIZED_METRIC_STATS_FIELD_NAME, MetricStatSerDe.serialize(metricStats))
+        Split split = Split.newBuilder()
+                .putProperties(NAMESPACE_FIELD, namespace)
+                .putProperties(METRIC_NAME_FIELD, metricName)
+                .putProperties(PERIOD_FIELD, String.valueOf(period))
+                .putProperties(STATISTIC_FIELD, statistic)
+                .putProperties(SERIALIZED_METRIC_STATS_FIELD_NAME, MetricStatSerDe.serialize(metricStats))
                 .build();
 
         Schema schemaForRead = SchemaBuilder.newBuilder().addStringField(METRIC_NAME_FIELD).build();
@@ -186,18 +187,19 @@ public class MetricUtilsTest
         constraintsMap.put(TIMESTAMP_FIELD, SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.BIGINT.getType(), 1L)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                catalog,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(schema, table),
-                schemaForRead,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
 
-        GetMetricDataRequest actual = MetricUtils.makeGetMetricDataRequest(request);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(identity)
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName(schema).setTableName(table).build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
+        GetMetricDataRequest actual = MetricUtils.makeGetMetricDataRequest(allocator, request);
         assertEquals(1, actual.getMetricDataQueries().size());
         assertNotNull(actual.getMetricDataQueries().get(0).getId());
         MetricStat metricStat = actual.getMetricDataQueries().get(0).getMetricStat();

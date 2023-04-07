@@ -70,11 +70,11 @@ public class Db2QueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        String column = split.getProperty(Db2MetadataHandler.PARTITIONING_COLUMN);
+        String column = split.getPropertiesMap().get(Db2MetadataHandler.PARTITIONING_COLUMN);
         if (column != null) {
             LOGGER.debug("Fetching data using Partition");
             //example query: select * from EMP_TABLE WHERE DATAPARTITIONNUM(EMP_NO) = 0
-            return Collections.singletonList(" DATAPARTITIONNUM(" + column + ") = " + split.getProperty(Db2MetadataHandler.PARTITION_NUMBER));
+            return Collections.singletonList(" DATAPARTITIONNUM(" + column + ") = " + split.getPropertiesMap().get(Db2MetadataHandler.PARTITION_NUMBER));
         }
         else {
             LOGGER.debug("Fetching data without Partition");

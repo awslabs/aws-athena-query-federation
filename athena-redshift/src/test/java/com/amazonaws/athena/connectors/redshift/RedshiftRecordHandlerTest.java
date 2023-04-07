@@ -114,11 +114,10 @@ public class RedshiftRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(ImmutableMap.of("partition_schema_name", "s0", "partition_name", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME))).thenReturn("s0");
-        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn("p0");
-
+        Split split = Split.newBuilder()
+            .putProperties(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME, "s0")
+            .putProperties(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, "p0")
+            .build();
         Range range1a = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range1a.isSingleValue()).thenReturn(true);
         Mockito.when(range1a.getLow().getValue()).thenReturn(1);
@@ -187,11 +186,10 @@ public class RedshiftRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(ImmutableMap.of("partition_schema_name", "s0", "partition_name", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME))).thenReturn("s0");
-        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn("p0");
-
+        Split split = Split.newBuilder()
+            .putProperties(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME, "s0")
+            .putProperties(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, "p0")
+            .build();
         final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2020-01-05").getTime());
         ValueSet valueSet = getSingleValueSet(dateDays);
 

@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
@@ -35,10 +36,11 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.s3.AmazonS3;
@@ -49,6 +51,7 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.Message;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -253,33 +256,29 @@ public class DocDBRecordHandlerTest
         constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
                 ImmutableList.of(Range.equal(allocator, Types.MinorType.FLOAT8.getType(), 22.0D)), false));
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                TABLE_NAME,
-                schemaForRead,
-                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create())
+                .putProperties(DOCDB_CONN_STR, CONNECTION_STRING)
+            .build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
+        Message rawResponse = handler.doReadRecords(allocator, request);
         assertTrue(rawResponse instanceof ReadRecordsResponse);
-
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertTrue(response.getRecords().getRowCount() == 2);
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() == 2);
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -307,43 +306,40 @@ public class DocDBRecordHandlerTest
         constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), -10000D)), false));
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                TABLE_NAME,
-                schemaForRead,
-                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                1_500_000L, //~1.5MB so we should see some spill
-                0L
-        );
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create())
+                .putProperties(DOCDB_CONN_STR, CONNECTION_STRING)
+            .build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(1_500_000L)
+            .setMaxInlineBlockSize(0L)
+            .build();
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 
-        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
-            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+        RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocksList().size());
 
-            assertTrue(response.getNumberBlocks() > 1);
+        assertTrue(response.getRemoteBlocksList().size() > 1);
 
-            int blockNum = 0;
-            for (SpillLocation next : response.getRemoteBlocks()) {
-                S3SpillLocation spillLocation = (S3SpillLocation) next;
-                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
+        int blockNum = 0;
+        for (SpillLocation next : response.getRemoteBlocksList()) {
+            SpillLocation spillLocation = (SpillLocation) next;
+            try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()))) {
 
-                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
-                    // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
+                logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                // assertTrue(++blockNum < response.getRemoteBlocksList().size() && block.getRowCount() > 10_000);
 
-                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
-                    assertNotNull(BlockUtils.rowToString(block, 0));
-                }
+                logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                assertNotNull(BlockUtils.rowToString(block, 0));
             }
         }
     }
@@ -390,7 +386,7 @@ public class DocDBRecordHandlerTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setTableName(TABLE_NAME).build();
         GetTableResponse res = mdHandler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
@@ -407,38 +403,35 @@ public class DocDBRecordHandlerTest
 
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                TABLE_NAME,
-                res.getSchema(),
-                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TABLE_NAME)
+            .setSchema(res.getSchema())
+            .setSplit(Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create())
+                .putProperties(DOCDB_CONN_STR, CONNECTION_STRING)
+            .build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
+        
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        assertTrue(response.getRecordCount() == 1);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() == 1);
         String expectedString = "[ComplexStruct : {[SomeList : {{[SomeSubStruct : someSubStruct1]," +
                 "[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]}," +
                 "{[SomeSubStruct : someSubStruct1],[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]}}]," +
                 "[SimpleSubStruct : {[SomeSimpleSubStruct : someSimpleSubStruct]}]," +
                 "[SimpleSubStructNullList : {[SomeNullList : null]}]}], [SimpleStruct : {[SomeSimpleStruct : someSimpleStruct]}]";
-        assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(expectedString, BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     private class ByteHolder

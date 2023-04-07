@@ -25,15 +25,16 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
@@ -50,6 +51,8 @@ import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.Message;
+
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.ScoredValue;
@@ -219,18 +222,13 @@ public class RedisRecordHandlerTest
         when(mockSyncCommands.get(nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split split = Split.newBuilder(splitLoc, keyFactory.create())
-                .add(REDIS_ENDPOINT_PROP, endpoint)
-                .add(KEY_TYPE, KeyType.PREFIX.getId())
-                .add(KEY_PREFIX_TABLE_PROP, "key-*")
-                .add(VALUE_TYPE_TABLE_PROP, ValueType.LITERAL.getId())
+        Split split = Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create())
+                .putProperties(REDIS_ENDPOINT_PROP, endpoint)
+                .putProperties(KEY_TYPE, KeyType.PREFIX.getId())
+                .putProperties(KEY_PREFIX_TABLE_PROP, "key-*")
+                .putProperties(VALUE_TYPE_TABLE_PROP, ValueType.LITERAL.getId())
                 .build();
 
         Schema schemaForRead = SchemaBuilder.newBuilder()
@@ -242,32 +240,33 @@ public class RedisRecordHandlerTest
         constraintsMap.put("intcol", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                TABLE_NAME,
-                schemaForRead,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+        .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsLiteral: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsLiteral: arows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        logger.info("doReadRecordsLiteral: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        assertTrue(response.getRecords().getRowCount() == 2);
+        logger.info("doReadRecordsLiteral: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() == 2);
 
-        FieldReader keyReader = response.getRecords().getFieldReader(KEY_COLUMN_NAME);
+        FieldReader keyReader = ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getFieldReader(KEY_COLUMN_NAME);
         keyReader.setPosition(0);
         assertNotNull(keyReader.readText().toString());
 
-        FieldReader intCol = response.getRecords().getFieldReader("intcol");
+        FieldReader intCol = ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getFieldReader("intcol");
         intCol.setPosition(0);
         assertNotNull(intCol.readInteger());
     }
@@ -317,18 +316,13 @@ public class RedisRecordHandlerTest
         Mockito.lenient().when(mockSyncCommands.get(nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split split = Split.newBuilder(splitLoc, keyFactory.create())
-                .add(REDIS_ENDPOINT_PROP, endpoint)
-                .add(KEY_TYPE, KeyType.PREFIX.getId())
-                .add(KEY_PREFIX_TABLE_PROP, "key-*")
-                .add(VALUE_TYPE_TABLE_PROP, ValueType.HASH.getId())
+        Split split = Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create())
+                .putProperties(REDIS_ENDPOINT_PROP, endpoint)
+                .putProperties(KEY_TYPE, KeyType.PREFIX.getId())
+                .putProperties(KEY_PREFIX_TABLE_PROP, "key-*")
+                .putProperties(VALUE_TYPE_TABLE_PROP, ValueType.HASH.getId())
                 .build();
 
         Schema schemaForRead = SchemaBuilder.newBuilder()
@@ -341,37 +335,38 @@ public class RedisRecordHandlerTest
         constraintsMap.put("intcol", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                TABLE_NAME,
-                schemaForRead,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsHash: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsHash: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        logger.info("doReadRecordsHash: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        assertTrue(response.getRecords().getRowCount() == 5);
-        assertTrue(response.getRecords().getFields().size() == schemaForRead.getFields().size());
+        logger.info("doReadRecordsHash: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() == 5);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getFields().size() == schemaForRead.getFields().size());
 
-        FieldReader keyReader = response.getRecords().getFieldReader(KEY_COLUMN_NAME);
+        FieldReader keyReader = ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getFieldReader(KEY_COLUMN_NAME);
         keyReader.setPosition(0);
         assertNotNull(keyReader.readText());
 
-        FieldReader intCol = response.getRecords().getFieldReader("intcol");
+        FieldReader intCol = ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getFieldReader("intcol");
         intCol.setPosition(0);
         assertNotNull(intCol.readInteger());
 
-        FieldReader stringCol = response.getRecords().getFieldReader("stringcol");
+        FieldReader stringCol = ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getFieldReader("stringcol");
         stringCol.setPosition(0);
         assertNotNull(stringCol.readText());
     }
@@ -432,18 +427,13 @@ public class RedisRecordHandlerTest
         Mockito.lenient().when(mockSyncCommands.get(nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split split = Split.newBuilder(splitLoc, keyFactory.create())
-                .add(REDIS_ENDPOINT_PROP, endpoint)
-                .add(KEY_TYPE, KeyType.PREFIX.getId())
-                .add(KEY_PREFIX_TABLE_PROP, "key-*")
-                .add(VALUE_TYPE_TABLE_PROP, ValueType.ZSET.getId())
+        Split split = Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create())
+                .putProperties(REDIS_ENDPOINT_PROP, endpoint)
+                .putProperties(KEY_TYPE, KeyType.PREFIX.getId())
+                .putProperties(KEY_PREFIX_TABLE_PROP, "key-*")
+                .putProperties(VALUE_TYPE_TABLE_PROP, ValueType.ZSET.getId())
                 .build();
 
         Schema schemaForRead = SchemaBuilder.newBuilder()
@@ -455,32 +445,33 @@ public class RedisRecordHandlerTest
         constraintsMap.put("intcol", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                TABLE_NAME,
-                schemaForRead,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(IDENTITY)
+            .setCatalogName(DEFAULT_CATALOG)
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsZset: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsZset: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        logger.info("doReadRecordsZset: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        assertTrue(response.getRecords().getRowCount() == 12);
+        logger.info("doReadRecordsZset: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() == 12);
 
-        FieldReader keyReader = response.getRecords().getFieldReader(KEY_COLUMN_NAME);
+        FieldReader keyReader = ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getFieldReader(KEY_COLUMN_NAME);
         keyReader.setPosition(0);
         assertNotNull(keyReader.readText());
 
-        FieldReader intCol = response.getRecords().getFieldReader("intcol");
+        FieldReader intCol = ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getFieldReader("intcol");
         intCol.setPosition(0);
         assertNotNull(intCol.readInteger());
     }

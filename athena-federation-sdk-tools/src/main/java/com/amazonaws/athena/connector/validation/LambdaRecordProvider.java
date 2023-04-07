@@ -19,12 +19,13 @@
  */
 package com.amazonaws.athena.connector.validation;
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,23 +71,20 @@ public class LambdaRecordProvider
     String queryId = generateQueryId();
     log.info("Submitting ReadRecordsRequest with ID " + queryId);
 
-    try (ReadRecordsRequest request =
-                 new ReadRecordsRequest(identity,
-                                        queryId,
-                                        catalog,
-                                        tableName,
-                                        schema,
-                                        split,
-                                        constraints,
-                                        MAX_BLOCK_SIZE,
-                                        MAX_INLINE_BLOCK_SIZE)) {
-      log.info("Submitting request: {}", request);
-      ReadRecordsResponse response = (ReadRecordsResponse) getService(recordFunction, identity, catalog).call(request);
-      log.info("Received response: {}", response);
-      return response;
-    }
-    catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+        .setIdentity(identity)
+        .setQueryId(queryId)
+        .setCatalogName(catalog)
+        .setTableName(tableName)
+        .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+        .setSplit(split)
+        .setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
+        .setMaxBlockSize(MAX_BLOCK_SIZE)
+        .setMaxInlineBlockSize(MAX_INLINE_BLOCK_SIZE)
+        .build();
+    log.info("Submitting request: {}", request);
+    ReadRecordsResponse response = (ReadRecordsResponse) getService(recordFunction, identity, catalog).call(request);
+    log.info("Received response: {}", response);
+    return response;
   }
 }

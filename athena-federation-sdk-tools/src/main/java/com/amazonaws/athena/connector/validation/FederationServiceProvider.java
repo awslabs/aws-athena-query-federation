@@ -20,9 +20,8 @@
 package com.amazonaws.athena.connector.validation;
 
 import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
-import com.amazonaws.athena.connector.lambda.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
 import com.amazonaws.services.lambda.invoke.LambdaFunction;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionNameResolver;
@@ -37,7 +36,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_VERSION;
-import static com.amazonaws.athena.connector.validation.ConnectorValidator.BLOCK_ALLOCATOR;
 
 public class FederationServiceProvider
 {
@@ -61,11 +59,11 @@ public class FederationServiceProvider
 
         service = LambdaInvokerFactory.builder()
                 .lambdaClient(AWSLambdaClientBuilder.defaultClient())
-                .objectMapper(VersionedObjectMapperFactory.create(BLOCK_ALLOCATOR))
+                // .objectMapper(VersionedObjectMapperFactory.create(BLOCK_ALLOCATOR))
                 .lambdaFunctionNameResolver(new Mapper(lambdaFunction))
                 .build(FederationService.class);
 
-        PingRequest pingRequest = new PingRequest(identity, catalog, generateQueryId());
+        PingRequest pingRequest = PingRequest.newBuilder().setIdentity(identity).setCatalogName(catalog).setQueryId(generateQueryId()).build();
         PingResponse pingResponse = (PingResponse) service.call(pingRequest);
 
         int actualSerDeVersion = pingResponse.getSerDeVersion();
@@ -74,7 +72,7 @@ public class FederationServiceProvider
         if (actualSerDeVersion != SERDE_VERSION) {
             service = LambdaInvokerFactory.builder()
                     .lambdaClient(AWSLambdaClientBuilder.defaultClient())
-                    .objectMapper(VersionedObjectMapperFactory.create(BLOCK_ALLOCATOR, actualSerDeVersion))
+                    // .objectMapper(VersionedObjectMapperFactory.create(BLOCK_ALLOCATOR, actualSerDeVersion))
                     .lambdaFunctionNameResolver(new Mapper(lambdaFunction))
                     .build(FederationService.class);
         }

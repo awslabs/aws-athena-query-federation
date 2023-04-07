@@ -26,11 +26,11 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -229,13 +229,9 @@ public class DynamoDBMetadataHandler
         if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
             combinedTables.addAll(
                 tableResolver.listTables()
-                    .stream()
-                    .map(ProtobufMessageConverter::toTableName)
-                    .collect(Collectors.toList())
             );
         }
         return ListTablesResponse.newBuilder()
-            .setType("ListTablesResponse")
             .setCatalogName(request.getCatalogName())
             .addAllTables(combinedTables)
             .build();
@@ -267,7 +263,6 @@ public class DynamoDBMetadataHandler
         // ignore database/schema name since there are no databases/schemas in DDB
         Schema schema = tableResolver.getTableSchema(request.getTableName().getTableName());
         return GetTableResponse.newBuilder()
-            .setType("GetTableResponse")
             .setCatalogName(request.getCatalogName())
             .setTableName(request.getTableName())
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
@@ -456,45 +451,21 @@ public class DynamoDBMetadataHandler
                 String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
                 splitMetadata.put(hashKeyName, hashKeyValueJSON);
 
-                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
+                splits.add(Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey()).putAllProperties(splitMetadata).build());
 
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != partitions.getRowCount() - 1) {
                     // We've reached max page size and this is not the last partition
                     // so send the page back
                     return GetSplitsResponse.newBuilder()
-                        .setType("GetSplitsResponse")
                         .setCatalogName(request.getCatalogName())
-                        .addAllSplits(splits.stream()
-                            .map(s -> com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
-                                .setEncryptionKey(
-                                    com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey.newBuilder()
-                                        .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
-                                        .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
-                                    .build()
-                                ).setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
-                                .putAllProperties(s.getProperties())
-                                .build()
-                            ).collect(Collectors.toList())
-                        )
+                        .addAllSplits(splits)
                         .setContinuationToken(encodeContinuationToken(curPartition))
                         .build();
                 }
             }
             return GetSplitsResponse.newBuilder()
-                .setType("GetSplitsResponse")
                 .setCatalogName(request.getCatalogName())
-                .addAllSplits(splits.stream()
-                    .map(s -> com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
-                        .setEncryptionKey(
-                            com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey.newBuilder()
-                                .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
-                                .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
-                            .build()
-                        ).setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
-                        .putAllProperties(s.getProperties())
-                        .build()
-                    ).collect(Collectors.toList())
-                )
+                .addAllSplits(splits)
                 .build();
         }
         else if (SCAN_PARTITION_TYPE.equals(partitionType)) {
@@ -510,45 +481,21 @@ public class DynamoDBMetadataHandler
                 splitMetadata.put(SEGMENT_ID_PROPERTY, String.valueOf(curPartition));
                 splitMetadata.put(SEGMENT_COUNT_METADATA, String.valueOf(segmentCount));
 
-                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
+                splits.add(Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey()).putAllProperties(splitMetadata).build());
 
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != segmentCount - 1) {
                     // We've reached max page size and this is not the last partition
                     // so send the page back
                     return GetSplitsResponse.newBuilder()
-                        .setType("GetSplitsResponse")
                         .setCatalogName(request.getCatalogName())
-                        .addAllSplits(splits.stream()
-                            .map(s -> com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
-                                .setEncryptionKey(
-                                    com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey.newBuilder()
-                                        .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
-                                        .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
-                                    .build()
-                                ).setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
-                                .putAllProperties(s.getProperties())
-                                .build()
-                            ).collect(Collectors.toList())
-                        )
+                        .addAllSplits(splits)
                         .setContinuationToken(encodeContinuationToken(curPartition))
                         .build();
                 }
             }
             return GetSplitsResponse.newBuilder()
-                        .setType("GetSplitsResponse")
                         .setCatalogName(request.getCatalogName())
-                        .addAllSplits(splits.stream()
-                            .map(s -> com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
-                                .setEncryptionKey(
-                                    com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey.newBuilder()
-                                        .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
-                                        .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
-                                    .build()
-                                ).setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
-                                .putAllProperties(s.getProperties())
-                                .build()
-                            ).collect(Collectors.toList())
-                        )
+                        .addAllSplits(splits)
                         .build();
         }
         else {

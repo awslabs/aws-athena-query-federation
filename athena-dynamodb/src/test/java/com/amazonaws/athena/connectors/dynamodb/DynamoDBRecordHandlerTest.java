@@ -105,11 +105,10 @@ public class DynamoDBRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBRecordHandlerTest.class);
 
-    private static final SpillLocation SPILL_LOCATION = S3SpillLocation.newBuilder()
-            .withBucket(UUID.randomUUID().toString())
-            .withSplitId(UUID.randomUUID().toString())
-            .withQueryId(UUID.randomUUID().toString())
-            .withIsDirectory(true)
+    private static final SpillLocation SPILL_LOCATION = SpillLocation.newBuilder()
+            .setBucket(UUID.randomUUID().toString())
+            .setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString())
+            .setDirectory(true)
             .build();
 
     private BlockAllocator allocator;
@@ -150,19 +149,19 @@ public class DynamoDBRecordHandlerTest
     public void testReadScanSplit()
             throws Exception
     {
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
                     .setIdentity(PROTO_TEST_IDENTITY)
                     .setCatalogName(TEST_CATALOG_NAME)
                     .setQueryId(TEST_QUERY_ID)
-                    .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_NAME))
+                    .setTableName(TEST_TABLE_NAME)
                     .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-                    .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+                    .setSplit(split)
                     .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
                     .setMaxBlockSize(100_000_000_000L)
                     .setMaxInlineBlockSize(100_000_000_000L)
@@ -248,22 +247,22 @@ public class DynamoDBRecordHandlerTest
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_6", "col_6");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(0), ":v1", toAttributeValue(1));
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
-                .add(NON_KEY_FILTER_METADATA, "NOT #col_6 IN (:v0,:v1)")
-                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
+                .putProperties(NON_KEY_FILTER_METADATA, "NOT #col_6 IN (:v0,:v1)")
+                .putProperties(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .putProperties(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
                     .setIdentity(PROTO_TEST_IDENTITY)
                     .setCatalogName(TEST_CATALOG_NAME)
                     .setQueryId(TEST_QUERY_ID)
-                    .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_NAME))
+                    .setTableName(TEST_TABLE_NAME)
                     .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-                    .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+                    .setSplit(split)
                     .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
                     .setMaxBlockSize(100_000_000_000L)
                     .setMaxInlineBlockSize(100_000_000_000L)
@@ -283,22 +282,22 @@ public class DynamoDBRecordHandlerTest
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE)
-                .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(toAttributeValue("test_str_0")))
-                .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
-                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE)
+                .putProperties(HASH_KEY_NAME_METADATA, "col_0")
+                .putProperties("col_0", toJsonString(toAttributeValue("test_str_0")))
+                .putProperties(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
+                .putProperties(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .putProperties(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
                     .setIdentity(PROTO_TEST_IDENTITY)
                     .setCatalogName(TEST_CATALOG_NAME)
                     .setQueryId(TEST_QUERY_ID)
-                    .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_NAME))
+                    .setTableName(TEST_TABLE_NAME)
                     .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-                    .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+                    .setSplit(split)
                     .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
                     .setMaxBlockSize(100_000_000_000L)
                     .setMaxInlineBlockSize(100_000_000_000L)
@@ -355,22 +354,22 @@ public class DynamoDBRecordHandlerTest
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE)
-                .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(toAttributeValue("test_str_999999")))
-                .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
-                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE)
+                .putProperties(HASH_KEY_NAME_METADATA, "col_0")
+                .putProperties("col_0", toJsonString(toAttributeValue("test_str_999999")))
+                .putProperties(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
+                .putProperties(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .putProperties(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
                     .setIdentity(PROTO_TEST_IDENTITY)
                     .setCatalogName(TEST_CATALOG_NAME)
                     .setQueryId(TEST_QUERY_ID)
-                    .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_NAME))
+                    .setTableName(TEST_TABLE_NAME)
                     .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-                    .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+                    .setSplit(split)
                     .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
                     .setMaxBlockSize(100_000_000_000L)
                     .setMaxInlineBlockSize(100_000_000_000L)
@@ -414,7 +413,7 @@ public class DynamoDBRecordHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(tableName))
+            .setTableName(tableName)
             .build();
 
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
@@ -423,19 +422,19 @@ public class DynamoDBRecordHandlerTest
 
         Schema schema3 = ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema());
 
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE3)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE3)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setCatalogName(TEST_CATALOG_NAME)
             .setQueryId(TEST_QUERY_ID)
-            .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_3_NAME))
+            .setTableName(TEST_TABLE_3_NAME)
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema3))
-            .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+            .setSplit(split)
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
             .setMaxBlockSize(100_000_000_000L)
             .setMaxInlineBlockSize(100_000_000_000L)
@@ -478,7 +477,7 @@ public class DynamoDBRecordHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(tableName))
+            .setTableName(tableName)
             .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
@@ -493,19 +492,19 @@ public class DynamoDBRecordHandlerTest
             }
         }
 
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE4)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE4)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setCatalogName(TEST_CATALOG_NAME)
             .setQueryId(TEST_QUERY_ID)
-            .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_4_NAME))
+            .setTableName(TEST_TABLE_4_NAME)
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema4))
-            .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+            .setSplit(split)
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
             .setMaxBlockSize(100_000_000_000L)
             .setMaxInlineBlockSize(100_000_000_000L)
@@ -531,7 +530,7 @@ public class DynamoDBRecordHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(tableName))
+            .setTableName(tableName)
             .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
@@ -544,19 +543,19 @@ public class DynamoDBRecordHandlerTest
                 assertTrue(f.getType() instanceof ArrowType.Struct);
             }
         }
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE4)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE4)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setCatalogName(TEST_CATALOG_NAME)
             .setQueryId(TEST_QUERY_ID)
-            .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_4_NAME))
+            .setTableName(TEST_TABLE_4_NAME)
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema4))
-            .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+            .setSplit(split)
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
             .setMaxBlockSize(100_000_000_000L)
             .setMaxInlineBlockSize(100_000_000_000L)
@@ -599,7 +598,7 @@ public class DynamoDBRecordHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(tableName))
+            .setTableName(tableName)
             .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testMapWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
@@ -607,19 +606,19 @@ public class DynamoDBRecordHandlerTest
 
         Schema schema5 = ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema());
 
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE5)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE5)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setCatalogName(TEST_CATALOG_NAME)
             .setQueryId(TEST_QUERY_ID)
-            .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_5_NAME))
+            .setTableName(TEST_TABLE_5_NAME)
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema5))
-            .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+            .setSplit(split)
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
             .setMaxBlockSize(100_000_000_000L)
             .setMaxInlineBlockSize(100_000_000_000L)
@@ -657,7 +656,7 @@ public class DynamoDBRecordHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(tableName))
+            .setTableName(tableName)
             .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
@@ -665,19 +664,19 @@ public class DynamoDBRecordHandlerTest
 
         Schema schema = ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema());
 
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE6)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE6)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setCatalogName(TEST_CATALOG_NAME)
             .setQueryId(TEST_QUERY_ID)
-            .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_6_NAME))
+            .setTableName(TEST_TABLE_6_NAME)
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-            .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+            .setSplit(split)
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
             .setMaxBlockSize(100_000_000_000L)
             .setMaxInlineBlockSize(100_000_000_000L)
@@ -717,7 +716,7 @@ public class DynamoDBRecordHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(tableName))
+            .setTableName(tableName)
             .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testListWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
@@ -725,19 +724,19 @@ public class DynamoDBRecordHandlerTest
 
         Schema schema = ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema());
 
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE7)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE7)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setCatalogName(TEST_CATALOG_NAME)
             .setQueryId(TEST_QUERY_ID)
-            .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_7_NAME))
+            .setTableName(TEST_TABLE_7_NAME)
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-            .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+            .setSplit(split)
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
             .setMaxBlockSize(100_000_000_000L)
             .setMaxInlineBlockSize(100_000_000_000L)
@@ -802,7 +801,7 @@ public class DynamoDBRecordHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(tableName))
+            .setTableName(tableName)
             .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testNumMapWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
@@ -810,19 +809,19 @@ public class DynamoDBRecordHandlerTest
 
         Schema schema = ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema());
 
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE8)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE8)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setCatalogName(TEST_CATALOG_NAME)
             .setQueryId(TEST_QUERY_ID)
-            .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_8_NAME))
+            .setTableName(TEST_TABLE_8_NAME)
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-            .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+            .setSplit(split)
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
             .setMaxBlockSize(100_000_000_000L)
             .setMaxInlineBlockSize(100_000_000_000L)
@@ -871,7 +870,7 @@ public class DynamoDBRecordHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(tableName))
+            .setTableName(tableName)
             .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testNumStructWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
@@ -879,19 +878,19 @@ public class DynamoDBRecordHandlerTest
 
         Schema schema = ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema());
 
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE8)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE8)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
         ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setCatalogName(TEST_CATALOG_NAME)
             .setQueryId(TEST_QUERY_ID)
-            .setTableName(ProtobufMessageConverter.toTableName(TEST_TABLE_8_NAME))
+            .setTableName(TEST_TABLE_8_NAME)
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-            .setSplit(ProtobufMessageConverter.toProtoSplit(split))
+            .setSplit(split)
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of())))
             .setMaxBlockSize(100_000_000_000L)
             .setMaxInlineBlockSize(100_000_000_000L)

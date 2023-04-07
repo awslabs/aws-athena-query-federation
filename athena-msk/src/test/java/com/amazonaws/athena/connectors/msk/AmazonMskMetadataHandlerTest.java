@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.metadata.*;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.GetSchemaResult;
@@ -54,6 +55,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -79,7 +81,7 @@ public class AmazonMskMetadataHandlerTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         blockAllocator = new BlockAllocatorImpl();
-        federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        federatedIdentity = FederatedIdentity.newBuilder().build();
         partitions = Mockito.mock(Block.class);
         partitionCols = Mockito.mock(List.class);
         constraints = Mockito.mock(Constraints.class);
@@ -90,7 +92,9 @@ public class AmazonMskMetadataHandlerTest {
             "secret_manager_msk_creds_name", "testSecret",
             "kafka_endpoint", "12.207.18.179:9092",
             "certificates_s3_reference", "s3://msk-connector-test-bucket/mskfiles/",
-            "secrets_manager_secret", "AmazonMSK_afq");
+            "secrets_manager_secret", "AmazonMSK_afq",
+            "spill_bucket", "asdf_spill_bucket_loc"
+            );
 
         consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
         Map<TopicPartition, Long> partitionsStart = new HashMap<>();
@@ -126,10 +130,10 @@ public class AmazonMskMetadataHandlerTest {
           (new RegistryListItem()).withRegistryName("Asdf").withDescription("something something {AthenaFederationMSK} something"))
         );
 
-        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, QUERY_ID, "default");
+        ListSchemasRequest listSchemasRequest = ListSchemasRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName("default").build();
         ListSchemasResponse listSchemasResponse = amazonMskMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
 
-        assertEquals(new ArrayList(com.google.common.collect.ImmutableList.of("Asdf")), new ArrayList(listSchemasResponse.getSchemas()));
+        assertEquals(new ArrayList(com.google.common.collect.ImmutableList.of("Asdf")), new ArrayList(listSchemasResponse.getSchemasList()));
     }
 
     @Test(expected = RuntimeException.class)
@@ -165,9 +169,9 @@ public class AmazonMskMetadataHandlerTest {
                 "}");
         Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
         Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
-        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "kafka", TableName.newBuilder().setSchemaName("default").setTableName("testtable")).build();
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName("kafka").setTableName(TableName.newBuilder().setSchemaName("default").setTableName("testtable")).build();
         GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
-        assertEquals(1, getTableResponse.getSchema().getFields().size());
+        assertEquals(1, ProtobufMessageConverter.fromProtoSchema(blockAllocator, getTableResponse.getSchema()).getFields().size());
     }
 
     @Test
@@ -196,32 +200,21 @@ public class AmazonMskMetadataHandlerTest {
         Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
         Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
 
-        GetSplitsRequest request = new GetSplitsRequest(
-                federatedIdentity,
-                QUERY_ID,
-                "kafka",
-                TableName.newBuilder().setSchemaName("default").setTableName("testTopic").build(),
-                Mockito.mock(Block.class),
-                new ArrayList<>(),
-                Mockito.mock(Constraints.class),
-                null 
-        );
+        GetSplitsRequest request = GetSplitsRequest.newBuilder()
+            .setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName("kafka").setTableName(TableName.newBuilder().setSchemaName("default").setTableName("testTopic").build())
+            .setPartitions(com.amazonaws.athena.connector.lambda.proto.data.Block.newBuilder().build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(Mockito.mock(Constraints.class)))
+            .build();
 
         GetSplitsResponse response = amazonMskMetadataHandler.doGetSplits(blockAllocator, request);
-        assertEquals(1000, response.getSplits().size());
+        assertEquals(1000, response.getSplitsList().size());
         assertEquals("1000", response.getContinuationToken());
-        request = new GetSplitsRequest(
-                federatedIdentity,
-                QUERY_ID,
-                "kafka",
-                TableName.newBuilder().setSchemaName("default").setTableName("testTopic").build(),
-                Mockito.mock(Block.class),
-                new ArrayList<>(),
-                Mockito.mock(Constraints.class),
-                response.getContinuationToken()
-        );
+        request = GetSplitsRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName("kafka").setTableName(TableName.newBuilder().setSchemaName("default").setTableName("testTopic").build())
+            .setPartitions(com.amazonaws.athena.connector.lambda.proto.data.Block.newBuilder().build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(Mockito.mock(Constraints.class)))
+            .setContinuationToken(response.getContinuationToken()).build();
         response = amazonMskMetadataHandler.doGetSplits(blockAllocator, request);
-        assertEquals(500, response.getSplits().size());
-        assertNull(response.getContinuationToken());
+        assertEquals(500, response.getSplitsList().size());
+        assertFalse(response.hasContinuationToken());
     }
 }

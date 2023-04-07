@@ -26,9 +26,10 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -38,8 +39,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
@@ -196,11 +197,11 @@ public class RedisMetadataHandler
         GetTableResponse response = super.doGetTable(blockAllocator, request);
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        response.getSchema().getFields().forEach((Field field) ->
+        ProtobufMessageConverter.fromProtoSchema(blockAllocator, response.getSchema()).getFields().forEach((Field field) ->
                 schemaBuilder.addField(field.getName(), field.getType(), field.getChildren())
         );
 
-        response.getSchema().getCustomMetadata().entrySet().forEach((Map.Entry<String, String> meta) ->
+        ProtobufMessageConverter.fromProtoSchema(blockAllocator, response.getSchema()).getCustomMetadata().entrySet().forEach((Map.Entry<String, String> meta) ->
                 schemaBuilder.addMetadata(meta.getKey(), meta.getValue()));
 
         schemaBuilder.addField(KEY_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
@@ -229,7 +230,7 @@ public class RedisMetadataHandler
     public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        Map<String, String> properties = request.getSchema().getCustomMetadata();
+        Map<String, String> properties = ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema()).getCustomMetadata();
         blockWriter.writeRows((Block block, int rowNum) -> {
             block.setValue(REDIS_ENDPOINT_PROP, rowNum, properties.get(REDIS_ENDPOINT_PROP));
             block.setValue(VALUE_TYPE_TABLE_PROP, rowNum, properties.get(VALUE_TYPE_TABLE_PROP));
@@ -251,11 +252,11 @@ public class RedisMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
     {
-        if (request.getPartitions().getRowCount() != 1) {
+        if (ProtobufMessageConverter.fromProtoBlock(blockAllocator, request.getPartitions()).getRowCount() != 1) {
             throw new RuntimeException("Unexpected number of partitions encountered.");
         }
 
-        Block partitions = request.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(blockAllocator, request.getPartitions());
         String redisEndpoint = getValue(partitions, 0, REDIS_ENDPOINT_PROP);
         String redisValueType = getValue(partitions, 0, VALUE_TYPE_TABLE_PROP);
         boolean sslEnabled = Boolean.parseBoolean(getValue(partitions, 0, REDIS_SSL_FLAG));
@@ -313,7 +314,7 @@ public class RedisMetadataHandler
                                      isCluster, dbNumber));
         }
 
-        return new GetSplitsResponse(request.getCatalogName(), splits, null);
+        return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSplits(splits).build();
     }
 
     /**
@@ -351,18 +352,18 @@ public class RedisMetadataHandler
             }
 
             //Every split must have a unique location if we wish to spill to avoid failures
-            SpillLocation spillLocation = makeSpillLocation(request);
+            SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
 
-            Split split = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(KEY_PREFIX_TABLE_PROP, keyPrefix)
-                    .add(KEY_TYPE, keyType.getId())
-                    .add(VALUE_TYPE_TABLE_PROP, valueType)
-                    .add(REDIS_ENDPOINT_PROP, endpoint)
-                    .add(SPLIT_START_INDEX, String.valueOf(startIndex))
-                    .add(SPLIT_END_INDEX, String.valueOf(endIndex))
-                    .add(REDIS_SSL_FLAG, String.valueOf(sslEnabled))
-                    .add(REDIS_CLUSTER_FLAG, String.valueOf(isCluster))
-                    .add(REDIS_DB_NUMBER, dbNumber)
+            Split split = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey())
+                    .putProperties(KEY_PREFIX_TABLE_PROP, keyPrefix)
+                    .putProperties(KEY_TYPE, keyType.getId())
+                    .putProperties(VALUE_TYPE_TABLE_PROP, valueType)
+                    .putProperties(REDIS_ENDPOINT_PROP, endpoint)
+                    .putProperties(SPLIT_START_INDEX, String.valueOf(startIndex))
+                    .putProperties(SPLIT_END_INDEX, String.valueOf(endIndex))
+                    .putProperties(REDIS_SSL_FLAG, String.valueOf(sslEnabled))
+                    .putProperties(REDIS_CLUSTER_FLAG, String.valueOf(isCluster))
+                    .putProperties(REDIS_DB_NUMBER, dbNumber)
                     .build();
 
             splits.add(split);

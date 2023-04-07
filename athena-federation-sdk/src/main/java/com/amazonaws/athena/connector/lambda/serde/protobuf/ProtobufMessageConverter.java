@@ -44,6 +44,8 @@ import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.UnionMode;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -62,6 +64,8 @@ public class ProtobufMessageConverter
     private static final String ALL_OR_NONE_VALUE_SET_TYPE = "@AllOrNoneValueSet";
     private static final String EQUATABLE_VALUE_SET_TYPE = "@EquatableValueSet";
     private static final String SORTED_RANGE_SET_TYPE = "@SortedRangeSet";
+
+    private static final Logger logger = LoggerFactory.getLogger(ProtobufMessageConverter.class);
 
     private ProtobufMessageConverter()
     {
@@ -350,7 +354,8 @@ public class ProtobufMessageConverter
             }
         }
         catch (IOException ie) {
-            // whatever for now
+            logger.error("IO EXCEPTION CAUGHT. {}", ie);
+            throw new RuntimeException(ie);
         }
         return com.amazonaws.athena.connector.lambda.proto.data.Block.newBuilder()
             .setAId(block.getAllocatorId())

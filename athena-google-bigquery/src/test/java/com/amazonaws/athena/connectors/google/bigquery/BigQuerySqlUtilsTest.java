@@ -47,7 +47,7 @@ import static org.junit.Assert.assertEquals;
 public class BigQuerySqlUtilsTest
 {
     static final TableName tableName = TableName.newBuilder().setSchemaName("schema").setTableName("table").build();
-    static final Split split = Mockito.mock(Split.class);
+    static final Split split = Split.newBuilder().build();
 
     static final ArrowType BOOLEAN_TYPE = ArrowType.Bool.INSTANCE;
     static final ArrowType INT_TYPE = new ArrowType.Int(32, true);
@@ -84,8 +84,6 @@ public class BigQuerySqlUtilsTest
         constraintMap.put("stringRange", stringRangeSet);
         constraintMap.put("booleanRange", booleanRangeSet);
         constraintMap.put("integerInRange", integerInRangeSet);
-
-        Mockito.when(split.getProperties()).thenReturn(Collections.emptyMap());
 
         final List<QueryParameterValue> expectedParameterValues = ImmutableList.of(QueryParameterValue.int64(10), QueryParameterValue.int64(20),
                 QueryParameterValue.string("a_low"), QueryParameterValue.string("z_high"),

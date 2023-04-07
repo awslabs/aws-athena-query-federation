@@ -20,13 +20,13 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
-import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;

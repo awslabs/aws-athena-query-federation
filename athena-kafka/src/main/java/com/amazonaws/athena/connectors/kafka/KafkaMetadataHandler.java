@@ -23,10 +23,10 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.kafka.dto.SplitParameters;
 import com.amazonaws.athena.connectors.kafka.dto.TopicPartitionPiece;
 import com.amazonaws.athena.connectors.kafka.dto.TopicSchema;
@@ -50,6 +51,7 @@ import com.amazonaws.services.glue.model.ListSchemasResult;
 import com.amazonaws.services.glue.model.RegistryId;
 import com.amazonaws.services.glue.model.RegistryListItem;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -175,7 +177,7 @@ public class KafkaMetadataHandler extends MetadataHandler
                 .flatMap(currentResult ->
                     currentResult.getSchemas().stream()
                         .map(schemaListItem -> schemaListItem.getSchemaName())
-                        .map(glueSchemaName -> new TableName(glueRegistryNameResolved, glueSchemaName))
+                        .map(glueSchemaName -> TableName.newBuilder().setSchemaName(glueRegistryNameResolved).setTableName(glueSchemaName).build())
                 )
                 .limit(MAX_RESULTS + 1)
                 .collect(Collectors.toList());
@@ -184,7 +186,7 @@ public class KafkaMetadataHandler extends MetadataHandler
                 throw new RuntimeException(
                     String.format("Exceeded maximum result size. Current doListTables result size: %d", allTableNames.size()));
             }
-            ListTablesResponse result = new ListTablesResponse(federationListTablesRequest.getCatalogName(), allTableNames, null);
+            ListTablesResponse result = ListTablesResponse.newBuilder().setCatalogName(federationListTablesRequest.getCatalogName()).addAllTables(allTableNames).build();
             LOGGER.debug("doListTables result: {}", result);
             return result;
         }
@@ -199,13 +201,14 @@ public class KafkaMetadataHandler extends MetadataHandler
         List<TableName> tableNames = listSchemasResultFromGlue.getSchemas()
             .stream()
             .map(schemaListItem -> schemaListItem.getSchemaName())
-            .map(glueSchemaName -> new TableName(glueRegistryNameResolved, glueSchemaName))
+            .map(glueSchemaName -> TableName.newBuilder().setSchemaName(glueRegistryNameResolved).setTableName(glueSchemaName).build())
             .collect(Collectors.toList());
         // Pass through whatever token we got from Glue to the user
-        ListTablesResponse result = new ListTablesResponse(
-            federationListTablesRequest.getCatalogName(),
-            tableNames,
-            listSchemasResultFromGlue.getNextToken());
+        ListTablesResponse.Builder resultBuilder = ListTablesResponse.newBuilder().setCatalogName(federationListTablesRequest.getCatalogName()).addAllTables(tableNames);
+        if (listSchemasResultFromGlue.getNextToken() != null) {
+            resultBuilder.setNextToken(listSchemasResultFromGlue.getNextToken());
+        }
+        ListTablesResponse result = resultBuilder.build();
         LOGGER.debug("doListTables [paginated] result: {}", result);
         return result;
     }
@@ -266,12 +269,7 @@ public class KafkaMetadataHandler extends MetadataHandler
             String glueSchemaNameResolved = findGlueSchemaNameIgnoringCasing(glueRegistryNameResolved, getTableRequest.getTableName().getTableName());
             tableSchema = getSchema(glueRegistryNameResolved, glueSchemaNameResolved);
         }
-        GetTableResponse result = new GetTableResponse(
-            getTableRequest.getCatalogName(),
-            new TableName(
-                tableSchema.getCustomMetadata().get("glueRegistryName"),
-                tableSchema.getCustomMetadata().get("glueSchemaName")),
-            tableSchema);
+        GetTableResponse result = GetTableResponse.newBuilder().setCatalogName(getTableRequest.getCatalogName()).setTableName(TableName.newBuilder().setSchemaName(tableSchema.getCustomMetadata().get("glueRegistryName")).setTableName(tableSchema.getCustomMetadata().get("glueSchemaName"))).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(tableSchema)).build();
         LOGGER.info("doGetTable result: {}", result);
         return result;
     }
@@ -360,8 +358,8 @@ public class KafkaMetadataHandler extends MetadataHandler
         }
 
         Set<Split> splits = new HashSet<>();
-        SpillLocation spillLocation = makeSpillLocation(request);
-        int continuationToken = request.getContinuationToken() == null ? 0 : Integer.parseInt(request.getContinuationToken());
+        SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
+        int continuationToken = !request.hasContinuationToken() || Strings.isNullOrEmpty(request.getContinuationToken()) ? 0 : Integer.parseInt(request.getContinuationToken());
         for (
             int partitionIndex = continuationToken;
             partitionIndex < topicPartitions.size();
@@ -385,11 +383,11 @@ public class KafkaMetadataHandler extends MetadataHandler
                 // In split, we are putting parameters so that later, in RecordHandler we know
                 // for which topic and for which partition we will initiate a kafka consumer
                 // as well as to consume data from which start offset to which end offset.
-                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(SplitParameters.TOPIC, partition.topic())
-                        .add(SplitParameters.PARTITION, Integer.toString(partition.partition()))
-                        .add(SplitParameters.START_OFFSET, Long.toString(topicPartitionPiece.startOffset))
-                        .add(SplitParameters.END_OFFSET, Long.toString(topicPartitionPiece.endOffset));
+                Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey())
+                        .putProperties(SplitParameters.TOPIC, partition.topic())
+                        .putProperties(SplitParameters.PARTITION, Integer.toString(partition.partition()))
+                        .putProperties(SplitParameters.START_OFFSET, Long.toString(topicPartitionPiece.startOffset))
+                        .putProperties(SplitParameters.END_OFFSET, Long.toString(topicPartitionPiece.endOffset));
                 splits.add(splitBuilder.build());
             }
 
@@ -397,11 +395,11 @@ public class KafkaMetadataHandler extends MetadataHandler
             if (splits.size() >= MAX_SPLITS_PER_REQUEST && partitionIndex < topicPartitions.size() - 1) { 
                 LOGGER.debug("[kafka] Total split created {} exceeded MAX_SPLITS_PER_REQUEST, sending paginated response", splits.size());
                 String encodedContinuationToken = String.valueOf(partitionIndex + 1);
-                return new GetSplitsResponse(request.getCatalogName(), splits, encodedContinuationToken);
+                return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSplits(splits).setContinuationToken(encodedContinuationToken).build();
             }
         }
         LOGGER.debug("[kafka] Total split created {} ", splits.size());
-        return new GetSplitsResponse(request.getCatalogName(), splits);
+        return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSplits(splits).build();
     }
 
     /**

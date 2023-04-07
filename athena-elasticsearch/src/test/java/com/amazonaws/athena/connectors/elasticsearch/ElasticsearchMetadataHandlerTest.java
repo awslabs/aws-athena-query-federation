@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.metadata.*;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -124,7 +125,7 @@ public class ElasticsearchMetadataHandlerTest
 
         // Generate hard-coded response with 3 domains.
         ListSchemasResponse mockDomains =
-                ListSchemasResponse.newBuilder().setCatalogName("elasticsearch", ImmutableList.of("domain2", "domain3").addAllSchemas("domain1")).build();
+                ListSchemasResponse.newBuilder().setCatalogName("elasticsearch").addAllSchemas(ImmutableList.of("domain1", "domain2", "domain3")).build();
 
         // Get real response from doListSchemaNames().
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("domain1", "endpoint1",
@@ -133,16 +134,16 @@ public class ElasticsearchMetadataHandlerTest
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
                 "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, com.google.common.collect.ImmutableMap.of());
 
-        ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "elasticsearch");
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setIdentity(fakeIdentity()).setQueryId("queryId").setCatalogName("elasticsearch").build();
         ListSchemasResponse realDomains = handler.doListSchemaNames(allocator, req);
 
-        logger.info("doListSchemaNames - {}", realDomains.getSchemas());
+        logger.info("doListSchemaNames - {}", realDomains.getSchemasList());
 
         // Test 1 - Real domain list should NOT be empty.
-        assertFalse("Real domain list has no domain names!", realDomains.getSchemas().isEmpty());
+        assertFalse("Real domain list has no domain names!", realDomains.getSchemasList().isEmpty());
         // Test 2 - Real and mocked responses should have the same domains.
         assertTrue("Real and mocked domain responses have different domains!",
-                domainsEqual(realDomains.getSchemas(), mockDomains.getSchemas()));
+                domainsEqual(realDomains.getSchemasList(), mockDomains.getSchemasList()));
 
         logger.info("doListSchemaNames - exit");
     }
@@ -206,9 +207,8 @@ public class ElasticsearchMetadataHandlerTest
         when(mockClient.indices()).thenReturn(indices);
 
         when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
-        ListTablesRequest req = new ListTablesRequest(fakeIdentity(),
-                "queryId", "elasticsearch", "movies", null, UNLIMITED_PAGE_SIZE_VALUE);
-        Collection<TableName> realIndices = handler.doListTables(allocator, req).getTables();
+        ListTablesRequest req = ListTablesRequest.newBuilder().setIdentity(fakeIdentity()).setQueryId("queryId").setCatalogName("elasticsearch").setSchemaName("movies").setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
+        Collection<TableName> realIndices = handler.doListTables(allocator, req).getTablesList();
 
         logger.info("doListTables - {}", realIndices);
 
@@ -376,10 +376,9 @@ public class ElasticsearchMetadataHandlerTest
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
                 "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, com.google.common.collect.ImmutableMap.of());
-        GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
-                TableName.newBuilder().setSchemaName("movies").setTableName("mishmash")).build();
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(fakeIdentity()).setQueryId("queryId").setCatalogName("elasticsearch").setTableName(TableName.newBuilder().setSchemaName("movies").setTableName("mishmash")).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
-        Schema realMapping = res.getSchema();
+        Schema realMapping = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema());
 
         logger.info("doGetTable - {}", res);
 
@@ -407,17 +406,7 @@ public class ElasticsearchMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(fakeIdentity(),
-                "queryId",
-                "elasticsearch",
-                TableName.newBuilder().setSchemaName("movies").setTableName(index).build(),
-                partitions,
-                partitionCols,
-                new Constraints(new HashMap<>()),
-                null);
-
-        GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
-
+        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(fakeIdentity()).setQueryId("queryId").setCatalogName("elasticsearch").setTableName(TableName.newBuilder().setSchemaName("movies").setTableName(index).build()).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionCols(partitionCols).build();
         logger.info("doGetSplits: req[{}]", req);
 
         // Setup domain and endpoint
@@ -439,42 +428,36 @@ public class ElasticsearchMetadataHandlerTest
                 "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, com.google.common.collect.ImmutableMap.of());
 
         // Call doGetSplits()
-        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
         continuationToken = response.getContinuationToken();
 
         logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]",
-                new Object[] {continuationToken, response.getSplits().size()});
+                new Object[] {continuationToken, response.getSplitsList().size()});
 
         // Response should contain 2 splits.
-        assertEquals("Response has invalid number of splits", 3, response.getSplits().size());
+        assertEquals("Response has invalid number of splits", 3, response.getSplitsList().size());
 
         Set<String> shardIds = new HashSet<>(2);
         shardIds.add("_shards:0");
         shardIds.add("_shards:1");
         shardIds.add("_shards:2");
-        response.getSplits().forEach(split -> {
-            assertEquals(endpoint, split.getProperty(domain));
-            String shard = split.getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
+        response.getSplitsList().forEach(split -> {
+            assertEquals(endpoint, split.getPropertiesMap().get(domain));
+            String shard = split.getPropertiesMap().get(ElasticsearchMetadataHandler.SHARD_KEY);
             assertTrue("Split contains invalid shard: " + shard, shardIds.contains(shard));
             String actualIndex = split.getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
             assertEquals("Split contains invalid index:" + index, index, actualIndex);
             shardIds.remove(shard);
         });
 
-        assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
+        assertFalse("Continuation criteria violated", response.hasContinuationToken());
 
         logger.info("doGetSplits: exit");
     }
 
     private static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("access_key_id",
-            "principle",
-            Collections.emptyMap(),
-            Collections.emptyList());
+        return FederatedIdentity.newBuilder().setArn("access_key_id").setAccount("principle").build();
     }
 
     @Test

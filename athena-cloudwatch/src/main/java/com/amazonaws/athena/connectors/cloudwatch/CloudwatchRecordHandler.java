@@ -22,15 +22,17 @@ package com.amazonaws.athena.connectors.cloudwatch;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
-import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.logs.AWSLogs;
@@ -108,11 +110,11 @@ public class CloudwatchRecordHandler
         do {
             final String actualContinuationToken = continuationToken;
             GetLogEventsResult logEventsResult = invoker.invoke(() -> awsLogs.getLogEvents(
-                    pushDownConstraints(recordsRequest.getConstraints(),
+                    pushDownConstraints(allocator, recordsRequest.getConstraints(),
                             new GetLogEventsRequest()
-                                    .withLogGroupName(split.getProperty(LOG_GROUP_FIELD))
+                                    .withLogGroupName(split.getPropertiesMap().get(LOG_GROUP_FIELD))
                                     //We use the property instead of the table name because of the special all_streams table
-                                    .withLogStreamName(split.getProperty(LOG_STREAM_FIELD))
+                                    .withLogStreamName(split.getPropertiesMap().get(LOG_STREAM_FIELD))
                                     .withNextToken(actualContinuationToken)
                                     // must be set to use nextToken correctly
                                     .withStartFromHead(true)
@@ -128,7 +130,7 @@ public class CloudwatchRecordHandler
             for (OutputLogEvent ole : logEventsResult.getEvents()) {
                 spiller.writeRows((Block block, int rowNum) -> {
                     boolean matched = true;
-                    matched &= block.offerValue(LOG_STREAM_FIELD, rowNum, split.getProperty(LOG_STREAM_FIELD));
+                    matched &= block.offerValue(LOG_STREAM_FIELD, rowNum, split.getPropertiesMap().get(LOG_STREAM_FIELD));
                     matched &= block.offerValue(LOG_TIME_FIELD, rowNum, ole.getTimestamp());
                     matched &= block.offerValue(LOG_MSG_FIELD, rowNum, ole.getMessage());
                     return matched ? 1 : 0;
@@ -150,9 +152,9 @@ public class CloudwatchRecordHandler
      * @return The decorated Cloudwatch Logs request.
      * @note This impl currently only pushing down SortedRangeSet filters (>=, =<, between) on the log time column.
      */
-    private GetLogEventsRequest pushDownConstraints(Constraints constraints, GetLogEventsRequest request)
+    private GetLogEventsRequest pushDownConstraints(BlockAllocator allocator, Constraints constraints, GetLogEventsRequest request)
     {
-        ValueSet timeConstraint = constraints.getSummary().get(LOG_TIME_FIELD);
+        ValueSet timeConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, constraints).getSummary().get(LOG_TIME_FIELD);
         if (timeConstraint instanceof SortedRangeSet && !timeConstraint.isNullAllowed()) {
             //SortedRangeSet is how >, <, between is represented which are easiest and most common when
             //searching logs so we attempt to push that down here as an optimization. SQL can represent complex

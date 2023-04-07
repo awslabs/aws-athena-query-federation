@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.sqlserver;
 
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import org.junit.Test;
-import org.mockito.Mockito;
 import org.testng.Assert;
 
 import java.util.ArrayList;
@@ -38,7 +37,7 @@ public class SqlServerQueryStringBuilderTest
     @Test
     public void testQueryBuilder()
     {
-        Split split = Mockito.mock(Split.class);
+        Split split = Split.newBuilder().putProperties("partition", "p0").build();
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
         SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
@@ -51,15 +50,14 @@ public class SqlServerQueryStringBuilderTest
     {
         SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
 
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("0");
+        Split split = Split.newBuilder().putProperties("partition", "0").build();
         Assert.assertEquals(new ArrayList<>(), builder.getPartitionWhereClauses(split));
 
-        Split split1 = Mockito.mock(Split.class);
-        Mockito.when(split1.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn("pf");
-        Mockito.when(split1.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn("col");
-        Mockito.when(split1.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER)).thenReturn("1");
+        Split split1 = Split.newBuilder()
+            .putProperties(SqlServerMetadataHandler.PARTITION_FUNCTION, "pf")
+            .putProperties(SqlServerMetadataHandler.PARTITIONING_COLUMN, "col")
+            .putProperties(SqlServerMetadataHandler.PARTITION_NUMBER, "1")
+            .build();
         Assert.assertEquals(Collections.singletonList(" $PARTITION.pf(col) = 1"), builder.getPartitionWhereClauses(split1));
 
     }

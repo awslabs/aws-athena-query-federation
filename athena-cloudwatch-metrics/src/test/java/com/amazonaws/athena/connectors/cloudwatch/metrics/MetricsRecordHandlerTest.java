@@ -25,14 +25,15 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
@@ -54,6 +55,8 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.Message;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -103,7 +106,7 @@ public class MetricsRecordHandlerTest
     private static final TableName METRICS_TABLE_NAME = TableName.newBuilder().setSchemaName("default").setTableName(METRIC_TABLE.getName()).build();
     private static final TableName METRIC_SAMPLES_TABLE_NAME = TableName.newBuilder().setSchemaName("default").setTableName(METRIC_DATA_TABLE.getName()).build();
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     private List<ByteHolder> mockS3Storage;
     private MetricsRecordHandler handler;
     private S3BlockSpillReader spillReader;
@@ -200,35 +203,36 @@ public class MetricsRecordHandlerTest
         constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, dimName));
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, dimValue));
 
-        S3SpillLocation spillLocation = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
+        SpillLocation spillLocation = SpillLocation.newBuilder()
+                .setBucket(UUID.randomUUID().toString())
+                .setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString())
+                .setDirectory(true)
                 .build();
 
-        Split split = Split.newBuilder(spillLocation, keyFactory.create()).build();
+        Split split = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(keyFactory.create()).build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                METRICS_TABLE_NAME,
-                METRIC_TABLE.getSchema(),
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L,
-                100_000_000_000L//100GB don't expect this to spill
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(identity)
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(METRICS_TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(METRIC_TABLE.getSchema()))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("readMetricsWithConstraint: rows[{}]", response.getRecordCount());
+        logger.info("readMetricsWithConstraint: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertEquals(numCalls.get() * numMetrics, response.getRecords().getRowCount());
-        logger.info("readMetricsWithConstraint: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(numCalls.get() * numMetrics, ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        logger.info("readMetricsWithConstraint: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
 
         logger.info("readMetricsWithConstraint: exit");
     }
@@ -261,11 +265,10 @@ public class MetricsRecordHandlerTest
         constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, dimName));
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, dimValue));
 
-        S3SpillLocation spillLocation = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
+        SpillLocation spillLocation = SpillLocation.newBuilder()
+                .setBucket(UUID.randomUUID().toString())
+                .setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString())
+                .setDirectory(true)
                 .build();
 
         List<MetricStat> metricStats = new ArrayList<>();
@@ -277,34 +280,35 @@ public class MetricsRecordHandlerTest
                 .withPeriod(60)
                 .withStat(statistic));
 
-        Split split = Split.newBuilder(spillLocation, keyFactory.create())
-                .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, MetricStatSerDe.serialize(metricStats))
-                .add(METRIC_NAME_FIELD, metricName)
-                .add(NAMESPACE_FIELD, namespace)
-                .add(STATISTIC_FIELD, statistic)
-                .add(PERIOD_FIELD, period)
-                .build();
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(identity)
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(METRIC_SAMPLES_TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(METRIC_DATA_TABLE.getSchema()))
+            .setSplit(
+                Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(keyFactory.create())
+                    .putProperties(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, MetricStatSerDe.serialize(metricStats))
+                    .putProperties(METRIC_NAME_FIELD, metricName)
+                    .putProperties(NAMESPACE_FIELD, namespace)
+                    .putProperties(STATISTIC_FIELD, statistic)
+                    .putProperties(PERIOD_FIELD, period)
+                .build()
+            )
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                METRIC_SAMPLES_TABLE_NAME,
-                METRIC_DATA_TABLE.getSchema(),
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L,
-                100_000_000_000L//100GB don't expect this to spill
-        );
-
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("readMetricSamplesWithConstraint: rows[{}]", response.getRecordCount());
+        logger.info("readMetricSamplesWithConstraint: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertEquals(numCalls.get() * numMetrics * numSamples, response.getRecords().getRowCount());
-        logger.info("readMetricSamplesWithConstraint: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(numCalls.get() * numMetrics * numSamples, ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        logger.info("readMetricSamplesWithConstraint: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
 
         logger.info("readMetricSamplesWithConstraint: exit");
     }

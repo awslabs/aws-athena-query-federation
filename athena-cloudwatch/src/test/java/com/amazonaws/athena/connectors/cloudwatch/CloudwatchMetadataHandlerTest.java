@@ -39,10 +39,9 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.logs.AWSLogs;
 import com.amazonaws.services.logs.model.DescribeLogGroupsRequest;
@@ -55,6 +54,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.assertj.core.util.Strings;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -87,7 +87,7 @@ public class CloudwatchMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudwatchMetadataHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     private CloudwatchMetadataHandler handler;
     private BlockAllocator allocator;
 
@@ -163,11 +163,11 @@ public class CloudwatchMetadataHandlerTest
             return result;
         });
 
-        ListSchemasRequest req = new ListSchemasRequest(identity, "queryId", "default");
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").build();
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
-        logger.info("doListSchemas - {}", res.getSchemas());
+        logger.info("doListSchemas - {}", res.getSchemasList());
 
-        assertTrue(res.getSchemas().size() == 30);
+        assertTrue(res.getSchemasList().size() == 30);
         verify(mockAwsLogs, times(4)).describeLogGroups(nullable(DescribeLogGroupsRequest.class));
         verifyNoMoreInteractions(mockAwsLogs);
 
@@ -213,14 +213,13 @@ public class CloudwatchMetadataHandlerTest
             return result;
         });
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default",
-                "schema-1", null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesRequest req = ListTablesRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").setSchemaName("schema-1").setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
         ListTablesResponse res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res.getTables());
+        logger.info("doListTables - {}", res.getTablesList());
 
-        assertTrue(res.getTables().contains(TableName.newBuilder().setSchemaName("schema-1").setTableName("all_log_streams"))).build();
+        assertTrue(res.getTablesList().contains(TableName.newBuilder().setSchemaName("schema-1").setTableName("all_log_streams").build()));
 
-        assertTrue(res.getTables().size() == 31);
+        assertTrue(res.getTablesList().size() == 31);
 
         verify(mockAwsLogs, times(4)).describeLogStreams(nullable(DescribeLogStreamsRequest.class));
         verify(mockAwsLogs, times(1)).describeLogGroups(nullable(DescribeLogGroupsRequest.class));
@@ -269,11 +268,11 @@ public class CloudwatchMetadataHandlerTest
             return result;
         });
 
-        GetTableRequest req = new GetTableRequest(identity, "queryId", "default", TableName.newBuilder().setSchemaName(expectedSchema).setTableName("table-9")).build();
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").setTableName(TableName.newBuilder().setSchemaName(expectedSchema).setTableName("table-9")).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {} {}", res.getTableName(), res.getSchema());
 
-        assertEquals(TableName.newBuilder().setSchemaName(expectedSchema, "table-9")).setTableName(res.getTableName()).build();
+        assertEquals(TableName.newBuilder().setSchemaName(expectedSchema).setTableName("table-9").build(), res.getTableName());
         assertTrue(res.getSchema() != null);
 
         verify(mockAwsLogs, times(1)).describeLogStreams(nullable(DescribeLogStreamsRequest.class));
@@ -330,21 +329,18 @@ public class CloudwatchMetadataHandlerTest
 
         Schema schema = SchemaBuilder.newBuilder().addStringField("log_stream").build();
 
-        GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
-                "queryId",
-                "default",
-                TableName.newBuilder().setSchemaName("schema-1").setTableName("all_log_streams").build(),
-                new Constraints(constraintsMap),
-                schema,
-                Collections.singleton("log_stream"));
-
+        GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default1")
+        .setTableName(TableName.newBuilder().setSchemaName("schema-1").setTableName("all_log_streams").build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+        .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+        .addPartitionCols("log_stream")
+        .build();
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
         logger.info("doGetTableLayout - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout - {}", res.getPartitions());
 
-        assertTrue(res.getPartitions().getSchema().findField("log_stream") != null);
-        assertTrue(res.getPartitions().getRowCount() == 1);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions()).getSchema().findField("log_stream") != null);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions()).getRowCount() == 1);
 
         verify(mockAwsLogs, times(4)).describeLogStreams(nullable(DescribeLogStreamsRequest.class));
 
@@ -373,38 +369,34 @@ public class CloudwatchMetadataHandlerTest
         partitions.setRowCount(num_partitions);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "queryId",
-                "catalog_name",
-                TableName.newBuilder().setSchemaName("schema").setTableName("all_log_streams").build(),
-                partitions,
-                Collections.singletonList(CloudwatchMetadataHandler.LOG_STREAM_FIELD),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                continuationToken);
+        GetSplitsRequest originalReq = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("catalog_name")
+            .setTableName(TableName.newBuilder().setSchemaName("schema").setTableName("all_log_streams").build())
+            .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addPartitionCols(CloudwatchMetadataHandler.LOG_GROUP_FIELD)
+            .build();
         int numContinuations = 0;
         do {
-            GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+            GetSplitsRequest.Builder reqBuilder = originalReq.toBuilder();
+            if (!Strings.isNullOrEmpty(continuationToken)) reqBuilder.setContinuationToken(continuationToken);
+            GetSplitsRequest req = reqBuilder.build();
             logger.info("doGetSplits: req[{}]", req);
 
-            MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-            assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-            GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+            GetSplitsResponse response = handler.doGetSplits(allocator, req);
             continuationToken = response.getContinuationToken();
 
-            logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+            logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplitsList().size());
 
-            for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty(CloudwatchMetadataHandler.LOG_STREAM_SIZE_FIELD));
-                assertNotNull(nextSplit.getProperty(CloudwatchMetadataHandler.LOG_STREAM_FIELD));
-                assertNotNull(nextSplit.getProperty(CloudwatchMetadataHandler.LOG_GROUP_FIELD));
+            for (Split nextSplit : response.getSplitsList()) {
+                assertNotNull(nextSplit.getPropertiesMap().get(CloudwatchMetadataHandler.LOG_STREAM_SIZE_FIELD));
+                assertNotNull(nextSplit.getPropertiesMap().get(CloudwatchMetadataHandler.LOG_STREAM_FIELD));
+                assertNotNull(nextSplit.getPropertiesMap().get(CloudwatchMetadataHandler.LOG_GROUP_FIELD));
             }
 
-            if (continuationToken != null) {
+            if (!Strings.isNullOrEmpty(continuationToken)) {
                 numContinuations++;
             }
         }
-        while (continuationToken != null);
+        while (!Strings.isNullOrEmpty(continuationToken));
 
         assertTrue(numContinuations > 0);
 

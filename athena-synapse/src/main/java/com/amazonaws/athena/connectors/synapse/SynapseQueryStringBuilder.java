@@ -60,11 +60,11 @@ public class SynapseQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        String column = split.getProperty(SynapseMetadataHandler.PARTITION_COLUMN);
+        String column = split.getPropertiesMap().get(SynapseMetadataHandler.PARTITION_COLUMN);
         if (column != null) {
             LOGGER.debug("Fetching data using Partition");
-            String from = split.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_FROM);
-            String to = split.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_TO);
+            String from = split.getPropertiesMap().get(SynapseMetadataHandler.PARTITION_BOUNDARY_FROM);
+            String to = split.getPropertiesMap().get(SynapseMetadataHandler.PARTITION_BOUNDARY_TO);
             List<String> whereClause;
 
             LOGGER.debug("PARTITION_COLUMN: {}", column);

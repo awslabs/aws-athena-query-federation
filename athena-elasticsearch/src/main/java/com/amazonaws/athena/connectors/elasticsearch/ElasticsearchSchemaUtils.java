@@ -221,7 +221,7 @@ class ElasticsearchSchemaUtils
         for (Field field1 : mapping1.getFields()) {
             Field field2 = mapping2.findField(field1.getName());
             // Corresponding fields must have the same Arrow types or the Schemas are deemed not equal.
-            if (field2 == null || field1.getType() != field2.getType()) {
+            if (field2 == null || !field1.getType().equals(field2.getType())) {
                 logger.warn("Fields' types do not match - Field1: {}, Field2: {}",
                         field1.getType(), field2 == null ? "null" : field2.getType());
                 return false;
@@ -272,7 +272,7 @@ class ElasticsearchSchemaUtils
         for (Field field1 : list1) {
             // Corresponding fields must have the same Arrow types or the Schemas are deemed not equal.
             Field field2 = fields.get(field1.getName());
-            if (field2 == null || field1.getType() != field2.getType()) {
+            if (field2 == null || !field1.getType().equals(field2.getType())) {
                 logger.warn("Fields' types do not match - Field1: {}, Field2: {}",
                         field1.getType(), field2 == null ? "null" : field2.getType());
                 return false;

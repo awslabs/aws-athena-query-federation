@@ -25,7 +25,7 @@ import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import java.util.Collections;
 
 public class TestBase {
-    protected static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    protected static final FederatedIdentity IDENTITY = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     protected static final String QUERY_ID = "query_id";
     protected static final String PARTITION_ID = "partition_id";
     protected static final String DEFAULT_CATALOG = "default";

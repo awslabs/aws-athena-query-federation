@@ -23,12 +23,12 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
-import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -39,6 +39,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
@@ -172,8 +173,8 @@ public class MetricsMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         List<TableName> tables = new ArrayList<>();
-        TABLES.keySet().stream().forEach(next -> tables.add(TableName.newBuilder().setSchemaName(SCHEMA_NAME).setTableName(next))).build();
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
+        TABLES.keySet().stream().forEach(next -> tables.add(TableName.newBuilder().setSchemaName(SCHEMA_NAME).setTableName(next).build()));
+        return ListTablesResponse.newBuilder().setCatalogName(listTablesRequest.getCatalogName()).addAllTables(tables).build();
     }
 
     /**
@@ -186,10 +187,7 @@ public class MetricsMetadataHandler
     {
         validateTable(getTableRequest.getTableName());
         Table table = TABLES.get(getTableRequest.getTableName().getTableName());
-        return new GetTableResponse(getTableRequest.getCatalogName(),
-                getTableRequest.getTableName(),
-                table.getSchema(),
-                table.getPartitionColumns());
+        return GetTableResponse.newBuilder().setCatalogName(getTableRequest.getCatalogName()).setTableName(getTableRequest.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(table.getSchema())).addAllPartitionColumns(table.getPartitionColumns()).build();
     }
 
     /**
@@ -227,19 +225,19 @@ public class MetricsMetadataHandler
         //Handle requests for the METRIC_TABLE which requires only 1 split to list available metrics.
         if (METRIC_TABLE_NAME.equals(getSplitsRequest.getTableName().getTableName())) {
             //The request is just for meta-data about what metrics exist.
-            Split metricsSplit = Split.newBuilder(makeSpillLocation(getSplitsRequest.getQueryId()), makeEncryptionKey()).build();
-            return new GetSplitsResponse(getSplitsRequest.getCatalogName(), metricsSplit);
+            Split metricsSplit = Split.newBuilder().setSpillLocation(makeSpillLocation(getSplitsRequest.getQueryId())).setEncryptionKey(makeEncryptionKey()).build();
+            return GetSplitsResponse.newBuilder().setCatalogName(getSplitsRequest.getCatalogName()).addSplits(metricsSplit).build();
         }
 
         //handle generating splits for reading actual metrics data.
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(blockAllocator,
                 METRIC_DATA_TABLE.getSchema(),
-                getSplitsRequest.getConstraints())) {
+                ProtobufMessageConverter.fromProtoConstraints(blockAllocator, getSplitsRequest.getConstraints()))) {
             ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
-            MetricUtils.pushDownPredicate(getSplitsRequest.getConstraints(), listMetricsRequest);
-            listMetricsRequest.setNextToken(getSplitsRequest.getContinuationToken());
+            MetricUtils.pushDownPredicate(ProtobufMessageConverter.fromProtoConstraints(blockAllocator, getSplitsRequest.getConstraints()), listMetricsRequest);
+            listMetricsRequest.setNextToken(getSplitsRequest.hasContinuationToken() ? getSplitsRequest.getContinuationToken() : null);
 
-            String period = getPeriodFromConstraint(getSplitsRequest.getConstraints());
+            String period = getPeriodFromConstraint(ProtobufMessageConverter.fromProtoConstraints(blockAllocator, getSplitsRequest.getConstraints()));
             Set<Split> splits = new HashSet<>();
             ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
 
@@ -266,18 +264,22 @@ public class MetricsMetadataHandler
             List<List<MetricStat>> partitions = Lists.partition(metricStats, calculateSplitSize(metricStats.size()));
             for (List<MetricStat> partition : partitions) {
                 String serializedMetricStats = MetricStatSerDe.serialize(partition);
-                splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest.getQueryId()), makeEncryptionKey())
-                        .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, serializedMetricStats)
-                        .build());
+                splits.add(Split.newBuilder().
+                    setSpillLocation(makeSpillLocation(getSplitsRequest.getQueryId()))
+                    .setEncryptionKey(makeEncryptionKey())
+                    .putProperties(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, serializedMetricStats)
+                    .build());
+                    
             }
 
             String continuationToken = null;
             if (result.getNextToken() != null &&
                     !result.getNextToken().equalsIgnoreCase(listMetricsRequest.getNextToken())) {
                 continuationToken = result.getNextToken();
+                return GetSplitsResponse.newBuilder().setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).setContinuationToken(continuationToken).build();
             }
 
-            return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);
+            return GetSplitsResponse.newBuilder().setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).build();
         }
     }
 

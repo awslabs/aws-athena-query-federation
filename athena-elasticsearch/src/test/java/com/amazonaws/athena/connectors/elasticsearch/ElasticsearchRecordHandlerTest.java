@@ -33,9 +33,10 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufUtils;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -47,6 +48,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.Message;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -305,9 +308,9 @@ public class ElasticsearchRecordHandlerTest
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
         split = Split.newBuilder(makeSpillLocation(), null)
-                .add("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
-                .add(ElasticsearchMetadataHandler.SHARD_KEY, "_shards:5")
-                .add(ElasticsearchMetadataHandler.INDEX_KEY, "index1")
+                .putProperties("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
+                .putProperties(ElasticsearchMetadataHandler.SHARD_KEY, "_shards:5")
+                .putProperties(ElasticsearchMetadataHandler.INDEX_KEY, "index1")
                 .build();
 
         when(clientFactory.getOrCreateClient(nullable(String.class))).thenReturn(mockClient);
@@ -350,18 +353,19 @@ public class ElasticsearchRecordHandlerTest
         mapping.getFields().forEach(field -> expectedProjection.add(field.getName()));
         String expectedPredicate = "(_exists_:myshort) AND myshort:({1955 TO 1972])";
 
-        ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
-                "elasticsearch",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("movies", "mishmash"),
-                mapping,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(fakeIdentity())
+            .setCatalogName("elasticsearch")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName("movies").setTableName("mishmash").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(mapping))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         // Capture the SearchRequest object from the call to client.getDocuments().
         // The former contains information such as the projection and predicate.
@@ -378,12 +382,12 @@ public class ElasticsearchRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertEquals(2, response.getRecords().getRowCount());
-        for (int i = 0; i < response.getRecords().getRowCount(); ++i) {
-            logger.info("doReadRecordsNoSpill - Row: {}, {}", i, BlockUtils.rowToString(response.getRecords(), i));
-            assertEquals(expectedDocuments[i], BlockUtils.rowToString(response.getRecords(), i));
+        assertEquals(2, ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount(); ++i) {
+            logger.info("doReadRecordsNoSpill - Row: {}, {}", i, BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), i));
+            assertEquals(expectedDocuments[i], BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), i));
         }
 
         logger.info("doReadRecordsNoSpill: exit");
@@ -416,36 +420,36 @@ public class ElasticsearchRecordHandlerTest
                 ImmutableList.of(Range.range(allocator, Types.MinorType.SMALLINT.getType(),
                         (short) 1955, false, (short) 1972, true)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
-                "elasticsearch",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("movies", "mishmash"),
-                mapping,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                10_000L, //10KB Expect this to spill
-                0L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(fakeIdentity())
+            .setCatalogName("elasticsearch")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName("movies").setTableName("mishmash").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(mapping))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(10_000L)
+            .setMaxInlineBlockSize(0L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 
-        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
-            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+        RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocksList().size());
 
-            assertEquals(1, response.getNumberBlocks());
+        assertEquals(1, response.getRemoteBlocksList().size());
 
-            int blockNum = 0;
-            for (SpillLocation next : response.getRemoteBlocks()) {
-                S3SpillLocation spillLocation = (S3SpillLocation) next;
-                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
-                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
-                    assertEquals(expectedDocuments.length, block.getRowCount());
-                    for (int rowCount = 0; rowCount < block.getRowCount(); rowCount++) {
-                        logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, rowCount));
-                        assertEquals(expectedDocuments[rowCount], BlockUtils.rowToString(block, rowCount));
-                    }
+        int blockNum = 0;
+        for (SpillLocation next : response.getRemoteBlocksList()) {
+            SpillLocation spillLocation = (SpillLocation) next;
+            try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()))) {
+                logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                assertEquals(expectedDocuments.length, block.getRowCount());
+                for (int rowCount = 0; rowCount < block.getRowCount(); rowCount++) {
+                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, rowCount));
+                    assertEquals(expectedDocuments[rowCount], BlockUtils.rowToString(block, rowCount));
                 }
             }
         }
@@ -470,20 +474,15 @@ public class ElasticsearchRecordHandlerTest
 
     private static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("access_key_id",
-            "principle",
-            Collections.emptyMap(),
-            Collections.emptyList());
+        return FederatedIdentity.newBuilder().setArn("access_key_id").setAccount("principle").build();
     }
 
     private SpillLocation makeSpillLocation()
     {
-        return S3SpillLocation.newBuilder()
-                .withBucket("shurvitz-federation-spill-1")
-                .withPrefix("lambda-spill")
-                .withQueryId(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
+        return SpillLocation.newBuilder()
+                .setBucket("shurvitz-federation-spill-1")
+                .setKey(ProtobufUtils.buildS3SpillLocationKey("lambda-spill", UUID.randomUUID().toString(), UUID.randomUUID().toString()))
+                .setDirectory(true)
                 .build();
     }
 }

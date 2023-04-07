@@ -52,8 +52,8 @@ public class PostGreSqlQueryStringBuilder
         }
         tableName.append(quote(table));
 
-        String partitionSchemaName = split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME);
-        String partitionName = split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
+        String partitionSchemaName = split.getPropertiesMap().get(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME);
+        String partitionName = split.getPropertiesMap().get(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
 
         if (PostGreSqlMetadataHandler.ALL_PARTITIONS.equals(partitionSchemaName) || PostGreSqlMetadataHandler.ALL_PARTITIONS.equals(partitionName)) {
             // No partitions
@@ -66,9 +66,9 @@ public class PostGreSqlQueryStringBuilder
     @Override
     protected List<String> getPartitionWhereClauses(final Split split)
     {
-        if (split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME).equals("*")
-                && !split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
-            return Collections.singletonList(split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME));
+        if (split.getPropertiesMap().get(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME).equals("*")
+                && !split.getPropertiesMap().get(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
+            return Collections.singletonList(split.getPropertiesMap().get(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME));
         }
 
         return Collections.emptyList();

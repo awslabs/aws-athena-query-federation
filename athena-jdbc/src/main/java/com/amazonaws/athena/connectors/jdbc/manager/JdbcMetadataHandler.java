@@ -25,8 +25,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
-import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -36,6 +36,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
@@ -109,7 +111,7 @@ public abstract class JdbcMetadataHandler
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
-        super(null, secretsManager, athena, databaseConnectionConfig.getEngine(), null, null, configOptions);
+        super(new LocalKeyFactory(), secretsManager, athena, databaseConnectionConfig.getEngine(), configOptions.getOrDefault("spill_bucket", null), configOptions.getOrDefault("spill_prefix", null), configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }
@@ -162,8 +164,7 @@ public abstract class JdbcMetadataHandler
     {
         try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List table names for Catalog {}, Table {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-            return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                    listTables(connection, listTablesRequest.getSchemaName()), null);
+            return ListTablesResponse.newBuilder().setCatalogName(listTablesRequest.getCatalogName()).addAllTables(listTables(connection, listTablesRequest.getSchemaName())).build();
         }
     }
 
@@ -194,9 +195,8 @@ public abstract class JdbcMetadataHandler
     private TableName getSchemaTableName(final ResultSet resultSet)
             throws SQLException
     {
-        return new TableName(
-                resultSet.getString("TABLE_SCHEM"),
-                resultSet.getString("TABLE_NAME"));
+        // this TABLE_SCHEM looks like a typo, but I'm not addressing bugs in this commit.
+        return TableName.newBuilder().setSchemaName(resultSet.getString("TABLE_SCHEM")).setTableName(resultSet.getString("TABLE_NAME")).build();
     }
 
     protected String escapeNamePattern(final String name, final String escape)
@@ -218,8 +218,8 @@ public abstract class JdbcMetadataHandler
     {
         try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), getSchema(connection, getTableRequest.getTableName(), partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            return GetTableResponse.newBuilder().setCatalogName(getTableRequest.getCatalogName()).setTableName(getTableRequest.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(getSchema(connection, getTableRequest.getTableName(), partitionSchema)))
+                .addAllPartitionColumns(partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet())).build();
         }
     }
 
@@ -289,6 +289,7 @@ public abstract class JdbcMetadataHandler
 
     @Override
     public abstract void getPartitions(
+            final BlockAllocator allocator,
             final BlockWriter blockWriter,
             final GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception;

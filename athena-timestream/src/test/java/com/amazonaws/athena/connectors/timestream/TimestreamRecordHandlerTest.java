@@ -34,11 +34,11 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -50,6 +50,8 @@ import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
 import com.amazonaws.services.timestreamquery.model.QueryRequest;
 import com.amazonaws.services.timestreamquery.model.QueryResult;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.Message;
+
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -94,7 +96,7 @@ public class TimestreamRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TimestreamRecordHandlerTest.class);
 
-    private static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private static final FederatedIdentity IDENTITY = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
 
     private TimestreamRecordHandler handler;
     private BlockAllocator allocator;
@@ -211,39 +213,23 @@ public class TimestreamRecordHandlerTest
                 .add("us-east-1a")
                 .add("us-east-1b").build());
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create());
+        Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForRead,
-                splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder().setIdentity(IDENTITY).setCatalogName(DEFAULT_CATALOG).setQueryId("queryId-" + System.currentTimeMillis()).setTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead)).setSplit(splitBuilder.build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap))).setMaxBlockSize(100_000_000_000L).setMaxInlineBlockSize(100_000_000_000L).build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertTrue(response.getRecords().getRowCount() > 0);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() > 0);
 
         //ensure we actually filtered something out
-        assertTrue(response.getRecords().getRowCount() < numRowsGenerated);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() < numRowsGenerated);
 
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -266,45 +252,27 @@ public class TimestreamRecordHandlerTest
                 .add("us-east-1a")
                 .add("us-east-1b").build());
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create());
+        Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForRead,
-                splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                1_500_000L, //~1.5MB so we should see some spill
-                0L
-        );
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder().setIdentity(IDENTITY).setCatalogName(DEFAULT_CATALOG).setQueryId("queryId-" + System.currentTimeMillis()).setTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead)).setSplit(splitBuilder.build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap))).setMaxBlockSize(1_500_000L).setMaxInlineBlockSize(0L).build();
+        Message rawResponse = handler.doReadRecords(allocator, request);
+        RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocksList().size());
 
-        assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
+        assertTrue(response.getRemoteBlocksList().size() > 1);
 
-        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
-            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+        int blockNum = 0;
+        for (SpillLocation next : response.getRemoteBlocksList()) {
+            SpillLocation spillLocation = (SpillLocation) next;
+            try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()))) {
 
-            assertTrue(response.getNumberBlocks() > 1);
+                logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                // assertTrue(++blockNum < response.getRemoteBlocksList().size() && block.getRowCount() > 10_000);
 
-            int blockNum = 0;
-            for (SpillLocation next : response.getRemoteBlocks()) {
-                S3SpillLocation spillLocation = (S3SpillLocation) next;
-                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
-
-                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
-                    // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
-
-                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
-                    assertNotNull(BlockUtils.rowToString(block, 0));
-                }
+                logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                assertNotNull(BlockUtils.rowToString(block, 0));
             }
         }
     }
@@ -335,38 +303,24 @@ public class TimestreamRecordHandlerTest
                         }
                 );
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split split = Split.newBuilder(splitLoc, null).build();
+        Split split = Split.newBuilder().setSpillLocation(splitLoc).build();
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("az", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
                 .add("us-east-1a")
                 .add("us-east-1b").build());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                "default",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_VIEW),
-                schemaForReadView,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder().setIdentity(IDENTITY).setCatalogName("default").setQueryId("queryId-" + System.currentTimeMillis()).setTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_VIEW)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForReadView)).setSplit(split).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap))).setMaxBlockSize(100_000_000_000L).setMaxInlineBlockSize(100_000_000_000L).build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("readRecordsView: rows[{}]", response.getRecordCount());
+        logger.info("readRecordsView: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        for (int i = 0; i < response.getRecordCount() && i < 10; i++) {
-            logger.info("readRecordsView: {}", BlockUtils.rowToString(response.getRecords(), i));
+        for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() && i < 10; i++) {
+            logger.info("readRecordsView: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), i));
         }
 
         logger.info("readRecordsView - exit");
@@ -402,39 +356,23 @@ public class TimestreamRecordHandlerTest
                         }
                 );
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split split = Split.newBuilder(splitLoc, null)
-                .build();
+        Split split = Split.newBuilder().setSpillLocation(splitLoc).build();
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("az", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
                 .add("us-east-1a")
                 .add("us-east-1b").build());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                "default",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForReadView,
-                split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder().setIdentity(IDENTITY).setCatalogName("default").setQueryId("queryId-" + System.currentTimeMillis()).setTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForReadView)).setSplit(split).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap))).setMaxBlockSize(100_000_000_000L).setMaxInlineBlockSize(100_000_000_000L).build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
+        Message rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("readRecordsTimeSeriesView: rows[{}]", response.getRecordCount());
+        logger.info("readRecordsTimeSeriesView: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        for (int i = 0; i < response.getRecordCount() && i < 10; i++) {
-            logger.info("readRecordsTimeSeriesView: {}", BlockUtils.rowToString(response.getRecords(), i));
+        for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() && i < 10; i++) {
+            logger.info("readRecordsTimeSeriesView: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), i));
         }
 
         logger.info("readRecordsTimeSeriesView - exit");
@@ -461,43 +399,27 @@ public class TimestreamRecordHandlerTest
         constraintsMap.put("az", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
                 .add("us-east-1a").build());
 
-        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
-                .withBucket(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withQueryId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
+        SpillLocation splitLoc = SpillLocation.newBuilder().setBucket(UUID.randomUUID().toString()).setKey(UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()).setDirectory(true).build();
 
-        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create());
+        Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(splitLoc).setEncryptionKey(keyFactory.create());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
-                DEFAULT_CATALOG,
-                "queryId-" + System.currentTimeMillis(),
-                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
-                schemaForRead,
-                splitBuilder.build(),
-                new Constraints(constraintsMap),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder().setIdentity(IDENTITY).setCatalogName(DEFAULT_CATALOG).setQueryId("queryId-" + System.currentTimeMillis()).setTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead)).setSplit(splitBuilder.build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap))).setMaxBlockSize(100_000_000_000L).setMaxInlineBlockSize(100_000_000_000L).build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertTrue(response.getRecords().getRowCount() > 0);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() > 0);
 
-        Block block = response.getRecords();
+        Block block = ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords());
         FieldReader time = block.getFieldReader("time");
-        for (int i = 0; i < response.getRecordCount() && i < numRows; i++) {
+        for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() && i < numRows; i++) {
             time.setPosition(i);
             assertTrue(time.readObject() instanceof LocalDateTime);
             assertEquals(TestUtils.startDate.plusDays(i).truncatedTo(ChronoUnit.MILLIS), time.readObject());
         }
 
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 }

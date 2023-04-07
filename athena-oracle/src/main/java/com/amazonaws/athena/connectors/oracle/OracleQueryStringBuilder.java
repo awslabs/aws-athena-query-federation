@@ -53,7 +53,7 @@ public class OracleQueryStringBuilder
         }
         tableName.append(quote(table));
 
-        String partitionName = split.getProperty(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
+        String partitionName = split.getPropertiesMap().get(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
 
         if (OracleMetadataHandler.ALL_PARTITIONS.equals(partitionName)) {
             // No partitions
@@ -61,7 +61,7 @@ public class OracleQueryStringBuilder
         }
 
         Set<String> partitionVals = split.getProperties().keySet();
-        String partValue = split.getProperty(partitionVals.iterator().next());
+        String partValue = split.getPropertiesMap().get(partitionVals.iterator().next());
         return String.format(" FROM %s ", tableName + " " + "PARTITION " + "(" + partValue + ")");
     }
 

@@ -19,12 +19,11 @@
  */
 package com.amazonaws.athena.connector.validation;
 
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
-import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.services.lambda.invoke.LambdaFunction;
+import com.google.protobuf.Message;
 
 public interface FederationService
 {
     @LambdaFunction
-    FederationResponse call(final FederationRequest request);
+    Message call(final Message request);
 }

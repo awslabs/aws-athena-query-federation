@@ -64,7 +64,7 @@ public class SchemaUtilsTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
 
-        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test", "test")).setTableName(10).build();
+        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test").setTableName("test").build(), 10);
         assertEquals(1, schema.getFields().size());
 
         Map<String, Field> fields = new HashMap<>();
@@ -127,7 +127,7 @@ public class SchemaUtilsTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
 
-        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test", "test")).setTableName(10).build();
+        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test").setTableName("test").build(), 10);
         assertEquals(6, schema.getFields().size());
 
         Map<String, Field> fields = new HashMap<>();
@@ -179,7 +179,7 @@ public class SchemaUtilsTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
 
-        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test", "test")).setTableName(10).build();
+        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test").setTableName("test").build(), 10);
         assertEquals(4, schema.getFields().size());
 
         Map<String, Field> fields = new HashMap<>();

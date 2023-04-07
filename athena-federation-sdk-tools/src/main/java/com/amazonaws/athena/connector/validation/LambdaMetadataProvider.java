@@ -20,8 +20,8 @@
 package com.amazonaws.athena.connector.validation;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -33,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,16 +72,12 @@ public class LambdaMetadataProvider
     String queryId = generateQueryId();
     log.info("Submitting ListSchemasRequest with ID " + queryId);
 
-    try (ListSchemasRequest request =
-                 new ListSchemasRequest(identity, queryId, catalog)) {
-      log.info("Submitting request: {}", request);
-      ListSchemasResponse response = (ListSchemasResponse) getService(metadataFunction, identity, catalog).call(request);
-      log.info("Received response: {}", response);
-      return response;
-    }
-    catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    ListSchemasRequest request =
+        ListSchemasRequest.newBuilder().setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).build();
+    log.info("Submitting request: {}", request);
+    ListSchemasResponse response = (ListSchemasResponse) getService(metadataFunction, identity, catalog).call(request);
+    log.info("Received response: {}", response);
+    return response;
   }
 
   /**
@@ -103,16 +100,12 @@ public class LambdaMetadataProvider
     /**
      * TODO: Add logic to ensure that the connector supports pagination.
      */
-    try (ListTablesRequest request =
-                 new ListTablesRequest(identity, queryId, catalog, schema, null, UNLIMITED_PAGE_SIZE_VALUE)) {
-      log.info("Submitting request: {}", request);
-      ListTablesResponse response = (ListTablesResponse) getService(metadataFunction, identity, catalog).call(request);
-      log.info("Received response: {}", response);
-      return response;
-    }
-    catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    ListTablesRequest request = ListTablesRequest.newBuilder()
+        .setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).setSchemaName(schema).setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
+    log.info("Submitting request: {}", request);
+    ListTablesResponse response = (ListTablesResponse) getService(metadataFunction, identity, catalog).call(request);
+    log.info("Received response: {}", response);
+    return response;
   }
 
   /**
@@ -132,16 +125,12 @@ public class LambdaMetadataProvider
     String queryId = generateQueryId();
     log.info("Submitting GetTableRequest with ID " + queryId);
 
-    try (GetTableRequest request =
-                 new GetTableRequest(identity, queryId, catalog, tableName)) {
+    GetTableRequest request =
+        GetTableRequest.newBuilder().setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).setTableName(tableName).build();
       log.info("Submitting request: {}", request);
       GetTableResponse response = (GetTableResponse) getService(metadataFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);
       return response;
-    }
-    catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 
   /**
@@ -167,16 +156,12 @@ public class LambdaMetadataProvider
     String queryId = generateQueryId();
     log.info("Submitting GetTableLayoutRequest with ID " + queryId);
 
-    try (GetTableLayoutRequest request =
-                 new GetTableLayoutRequest(identity, queryId, catalog, tableName, constraints, schema, partitionCols)) {
-      log.info("Submitting request: {}", request);
-      GetTableLayoutResponse response = (GetTableLayoutResponse) getService(metadataFunction, identity, catalog).call(request);
-      log.info("Received response: {}", response);
-      return response;
-    }
-    catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    GetTableLayoutRequest request =
+                GetTableLayoutRequest.newBuilder().setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).addAllPartitionCols(partitionCols).build();
+    log.info("Submitting request: {}", request);
+    GetTableLayoutResponse response = (GetTableLayoutResponse) getService(metadataFunction, identity, catalog).call(request);
+    log.info("Received response: {}", response);
+    return response;
   }
 
   /**
@@ -204,15 +189,12 @@ public class LambdaMetadataProvider
     String queryId = generateQueryId();
     log.info("Submitting GetSplitsRequest with ID " + queryId);
 
-    try (GetSplitsRequest request =
-                 new GetSplitsRequest(identity, queryId, catalog, tableName, partitions, partitionCols, constraints, contToken)) {
-      log.info("Submitting request: {}", request);
-      GetSplitsResponse response = (GetSplitsResponse) getService(metadataFunction, identity, catalog).call(request);
-      log.info("Received response: {}", response);
-      return response;
-    }
-    catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    GetSplitsRequest request =
+        GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).setTableName(tableName).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionCols(partitionCols).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken(contToken).build();
+    log.info("Submitting request: {}", request);
+    GetSplitsResponse response = (GetSplitsResponse) getService(metadataFunction, identity, catalog).call(request);
+    log.info("Received response: {}", response);
+    return response;
+    
   }
 }

@@ -470,7 +470,7 @@ public class S3BlockSpiller
             throw new RuntimeException("Split's SpillLocation must be a directory because multiple blocks may be spilled.");
         }
         String blockKey = splitSpillLocation.getKey() + "." + spillNumber.getAndIncrement();
-        return SpillLocation.newBuilder().setBucket(splitSpillLocation.getBucket()).setKey(blockKey).setDirectory(false).build();
+        return SpillLocation.newBuilder().setType("S3SpillLocation").setBucket(splitSpillLocation.getBucket()).setKey(blockKey).setDirectory(false).build();
     }
 
     /**

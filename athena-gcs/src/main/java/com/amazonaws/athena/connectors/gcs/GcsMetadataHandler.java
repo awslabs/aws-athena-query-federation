@@ -23,10 +23,10 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -141,8 +142,8 @@ public class GcsMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request) throws Exception
     {
         return super.doListTables(allocator,
-                new ListTablesRequest(request.getIdentity(), request.getQueryId(),
-                        request.getCatalogName(), request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
+                ListTablesRequest.newBuilder().setIdentity(request.getIdentity()).setQueryId(request.getQueryId()).setCatalogName(request.getCatalogName())
+                    .setSchemaName(request.getSchemaName()).setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build(),
                 TABLE_FILTER);
     }
 
@@ -163,7 +164,7 @@ public class GcsMetadataHandler
         GetTableResponse response = super.doGetTable(blockAllocator, request);
         //check whether schema added by user
         //return if schema present else fetch from files(dataset api)
-        if (response != null && response.getSchema() != null && checkGlueSchema(response)) {
+        if (response != null && ProtobufMessageConverter.fromProtoSchema(blockAllocator, response.getSchema()) != null && checkGlueSchema(blockAllocator, response)) {
             return response;
         }
         else {
@@ -177,15 +178,15 @@ public class GcsMetadataHandler
             List<Column> partitionKeys = table.getPartitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.getPartitionKeys();
             Set<String> partitionCols = partitionKeys.stream()
                 .map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
-            return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema, partitionCols);
+            return GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(request.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).addAllPartitionColumns(partitionCols).build();
         }
     }
     /**
      * Used to check whether user has added schema other than partition column.
      */
-    private boolean checkGlueSchema(GetTableResponse response)
+    private boolean checkGlueSchema(BlockAllocator blockAllocator, GetTableResponse response)
     {
-        return (response.getSchema().getFields().stream().count() - response.getPartitionColumns().stream().count()) > 0;
+        return (ProtobufMessageConverter.fromProtoSchema(blockAllocator, response.getSchema()).getFields().stream().count() - response.getPartitionColumnsList().stream().count()) > 0;
     }
 
     /**
@@ -196,11 +197,11 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException
+    public void getPartitions(BlockAllocator blockAllocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-        List<Map<String, String>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
+        List<Map<String, String>> partitionFolders = datasource.getPartitionFolders(ProtobufMessageConverter.fromProtoSchema(blockAllocator, request.getSchema()), tableInfo, ProtobufMessageConverter.fromProtoConstraints(blockAllocator, request.getConstraints()), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         for (Map<String, String> folder : partitionFolders) {
             blockWriter.writeRows((Block block, int rowNum) ->
@@ -228,7 +229,7 @@ public class GcsMetadataHandler
      * 2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws Exception
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request) throws Exception
     {
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         int partitionContd = decodeContinuationToken(request);
@@ -236,7 +237,7 @@ public class GcsMetadataHandler
         Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
-        Block partitions = request.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(blockAllocator, request.getPartitions());
 
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             //getting the partition folder name with bucket and file type
@@ -245,16 +246,16 @@ public class GcsMetadataHandler
 
             //getting storage file list
             List<String> fileList = datasource.getStorageSplits(locationUri);
-            SpillLocation spillLocation = makeSpillLocation(request);
+            SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
             LOGGER.info("Split list for {}.{} is \n{}", table.getDatabaseName(), table.getName(), fileList);
 
             //creating splits based folder
             String storageSplitJson = new ObjectMapper().writeValueAsString(fileList);
             LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
                     storageSplitJson);
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(FILE_FORMAT, table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM))
-                    .add(STORAGE_SPLIT_JSON, storageSplitJson);
+            Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey())
+                    .putProperties(FILE_FORMAT, table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM))
+                    .putProperties(STORAGE_SPLIT_JSON, storageSplitJson);
 
             // set partition column name and value in split
             for (FieldVector fieldVector : partitions.getFieldVectors()) {
@@ -262,18 +263,18 @@ public class GcsMetadataHandler
                 if (fieldVector.getName().equalsIgnoreCase(FILE_FORMAT) || fieldVector.getName().equalsIgnoreCase(STORAGE_SPLIT_JSON)) {
                     throw new RuntimeException("column name is same as metadata");
                 }
-                splitBuilder.add(fieldVector.getName(), fieldVector.getReader().readObject().toString());
+                splitBuilder.putProperties(fieldVector.getName(), fieldVector.getReader().readObject().toString());
             }
             splits.add(splitBuilder.build());
 
             if (splits.size() >= GcsConstants.MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
-                return new GetSplitsResponse(request.getCatalogName(), splits, String.valueOf(curPartition + 1));
+                return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSplits(splits).setContinuationToken(String.valueOf(curPartition + 1)).build();
             }
             LOGGER.info("Splits created {}", splits);
         }
         LOGGER.info("doGetSplits: exit - {}", splits.size());
-        return new GetSplitsResponse(catalogName, splits);
+        return GetSplitsResponse.newBuilder().setCatalogName(catalogName).addAllSplits(splits).build();
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)

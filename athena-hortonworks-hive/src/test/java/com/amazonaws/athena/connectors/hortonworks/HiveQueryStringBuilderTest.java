@@ -33,8 +33,7 @@ import static com.amazonaws.athena.connectors.hortonworks.HiveConstants.HIVE_QUO
 public class HiveQueryStringBuilderTest
 {
 	
-	@Mock
-	Split split;
+	Split split = Split.newBuilder().build();
 	
 	@Test
 	public void testQueryBuilder()

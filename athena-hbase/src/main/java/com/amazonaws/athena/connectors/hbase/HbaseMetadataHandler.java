@@ -23,8 +23,9 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -34,9 +35,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
-import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -126,9 +126,9 @@ public class HbaseMetadataHandler
         this.connectionFactory = connectionFactory;
     }
 
-    private HBaseConnection getOrCreateConn(MetadataRequest request)
+    private HBaseConnection getOrCreateConn(String catalogName)
     {
-        String endpoint = resolveSecrets(getConnStr(request));
+        String endpoint = resolveSecrets(getConnStr(catalogName));
         return connectionFactory.getOrCreateConn(endpoint);
     }
 
@@ -136,12 +136,12 @@ public class HbaseMetadataHandler
      * Retrieves the HBase connection details from an env variable matching the catalog name, if no such
      * env variable exists we fall back to the default env variable defined by DEFAULT_HBASE.
      */
-    private String getConnStr(MetadataRequest request)
+    private String getConnStr(String catalogName)
     {
-        String conStr = configOptions.get(request.getCatalogName());
+        String conStr = configOptions.get(catalogName);
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
-                    request.getCatalogName(), DEFAULT_HBASE);
+                    catalogName, DEFAULT_HBASE);
             conStr = configOptions.get(DEFAULT_HBASE);
         }
         return conStr;
@@ -157,7 +157,7 @@ public class HbaseMetadataHandler
             throws IOException
     {
         List<String> schemas = new ArrayList<>();
-        NamespaceDescriptor[] namespaces = getOrCreateConn(request).listNamespaceDescriptors();
+        NamespaceDescriptor[] namespaces = getOrCreateConn(request.getCatalogName()).listNamespaceDescriptors();
         for (int i = 0; i < namespaces.length; i++) {
             NamespaceDescriptor namespace = namespaces[i];
             schemas.add(namespace.getName());
@@ -175,14 +175,13 @@ public class HbaseMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
             throws IOException
     {
-        List<com.amazonaws.athena.connector.lambda.domain.TableName> tableNames = new ArrayList<>();
-        TableName[] tables = getOrCreateConn(request).listTableNamesByNamespace(request.getSchemaName());
+        List<com.amazonaws.athena.connector.lambda.proto.domain.TableName> tableNames = new ArrayList<>();
+        TableName[] tables = getOrCreateConn(request.getCatalogName()).listTableNamesByNamespace(request.getSchemaName());
         for (int i = 0; i < tables.length; i++) {
             TableName tableName = tables[i];
-            tableNames.add(new com.amazonaws.athena.connector.lambda.domain.TableName(request.getSchemaName(),
-                    tableName.getNameAsString().replace(request.getSchemaName() + ":", "")));
+            tableNames.add(com.amazonaws.athena.connector.lambda.proto.domain.TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(tableName.getNameAsString().replace(request.getSchemaName() + ":", "")).build());
         }
-        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
+        return ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tableNames).build();
     }
 
     /**
@@ -201,7 +200,7 @@ public class HbaseMetadataHandler
         Schema origSchema = null;
         try {
             if (awsGlue != null) {
-                origSchema = super.doGetTable(blockAllocator, request, TABLE_FILTER).getSchema();
+                origSchema = ProtobufMessageConverter.fromProtoSchema(blockAllocator, super.doGetTable(blockAllocator, request, TABLE_FILTER).getSchema());
             }
         }
         catch (RuntimeException ex) {
@@ -212,7 +211,7 @@ public class HbaseMetadataHandler
         }
 
         if (origSchema == null) {
-            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), request.getTableName(), NUM_ROWS_TO_SCAN);
+            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request.getCatalogName()), request.getTableName(), NUM_ROWS_TO_SCAN);
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -256,18 +255,18 @@ public class HbaseMetadataHandler
         Set<Split> splits = new HashSet<>();
 
         //We can read each region in parallel
-        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseSchemaUtils.getQualifiedTable(request.getTableName()))) {
-            Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                    .add(HBASE_CONN_STR, getConnStr(request))
-                    .add(START_KEY_FIELD, new String(info.getStartKey()))
-                    .add(END_KEY_FIELD, new String(info.getEndKey()))
-                    .add(REGION_ID_FIELD, String.valueOf(info.getRegionId()))
-                    .add(REGION_NAME_FIELD, info.getRegionNameAsString());
+        for (HRegionInfo info : getOrCreateConn(request.getCatalogName()).getTableRegions(HbaseSchemaUtils.getQualifiedTable(request.getTableName()))) {
+            Split.Builder splitBuilder = Split.newBuilder().setSpillLocation(makeSpillLocation(request.getQueryId())).setEncryptionKey(makeEncryptionKey())
+                    .putProperties(HBASE_CONN_STR, getConnStr(request.getCatalogName()))
+                    .putProperties(START_KEY_FIELD, new String(info.getStartKey()))
+                    .putProperties(END_KEY_FIELD, new String(info.getEndKey()))
+                    .putProperties(REGION_ID_FIELD, String.valueOf(info.getRegionId()))
+                    .putProperties(REGION_NAME_FIELD, info.getRegionNameAsString());
 
             splits.add(splitBuilder.build());
         }
 
-        return new GetSplitsResponse(request.getCatalogName(), splits, null);
+        return GetSplitsResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSplits(splits).build();
     }
 
     /**

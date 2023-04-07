@@ -95,7 +95,6 @@
         <module>athena-docdb</module>
         <module>athena-redis</module>
         <module>athena-hbase</module>
-        <module>athena-example</module>
         <module>athena-elasticsearch</module>
         <module>athena-tpcds</module>
         <module>athena-jdbc</module>

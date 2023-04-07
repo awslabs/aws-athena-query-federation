@@ -224,10 +224,10 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Setting up DB Schema: {}", redshiftDbName);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils jdbcUtils = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(redshiftDbName, redshiftTableMovies), environmentVars, null).setTableName(REDSHIFT_NAME).build();
+        JdbcTableUtils jdbcUtils = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(redshiftDbName).setTableName(redshiftTableMovies).build(), environmentVars, null, REDSHIFT_NAME);
         jdbcUtils.createDbSchema(databaseConnectionInfo);
 
-        jdbcUtils = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, null).setTableName(REDSHIFT_NAME).build();
+        jdbcUtils = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME).setTableName(TEST_DATATYPES_TABLE_NAME).build(), environmentVars, null, REDSHIFT_NAME);
         jdbcUtils.createDbSchema(databaseConnectionInfo);
     }
 
@@ -293,7 +293,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", redshiftTableMovies);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(redshiftDbName, redshiftTableMovies), environmentVars, null).setTableName(REDSHIFT_NAME).build();
+        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(redshiftDbName).setTableName(redshiftTableMovies).build(), environmentVars, null, REDSHIFT_NAME);
         moviesTable.createTable("year int, title varchar, director varchar, lead varchar", databaseConnectionInfo);
         moviesTable.insertRow("2014, 'Interstellar', 'Christopher Nolan', 'Matthew McConaughey'", databaseConnectionInfo);
         moviesTable.insertRow("1986, 'Aliens', 'James Cameron', 'Sigourney Weaver'", databaseConnectionInfo);
@@ -311,7 +311,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("----------------------------------------------------");
 
         JdbcTableUtils bdayTable = new JdbcTableUtils(lambdaFunctionName,
-                TableName.newBuilder().setSchemaName(redshiftDbName, redshiftTableBday), environmentVars, null).setTableName(REDSHIFT_NAME).build();
+                TableName.newBuilder().setSchemaName(redshiftDbName).setTableName(redshiftTableBday).build(), environmentVars, null, REDSHIFT_NAME);
         bdayTable.createTable("first_name varchar, last_name varchar, birthday date", databaseConnectionInfo);
         bdayTable.insertRow("'Joe', 'Schmoe', date('2002-05-05')", databaseConnectionInfo);
         bdayTable.insertRow("'Jane', 'Doe', date('2005-10-12')", databaseConnectionInfo);
@@ -328,7 +328,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", TEST_DATATYPES_TABLE_NAME);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, null).setTableName(REDSHIFT_NAME).build();
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME).setTableName(TEST_DATATYPES_TABLE_NAME).build(), environmentVars, null, REDSHIFT_NAME);
         datatypesTable.createTable("int_type INTEGER, smallint_type SMALLINT, bigint_type BIGINT, varchar_type CHARACTER VARYING(255), boolean_type BOOLEAN, float4_type REAL, float8_type DOUBLE PRECISION, date_type DATE, timestamp_type TIMESTAMP, byte_type VARBYTE(4)", databaseConnectionInfo);
         String row = String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s",
                 TEST_DATATYPES_INT_VALUE,
@@ -360,7 +360,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", TEST_NULL_TABLE_NAME);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME, TEST_NULL_TABLE_NAME), environmentVars, null).setTableName(REDSHIFT_NAME).build();
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME).setTableName(TEST_NULL_TABLE_NAME).build(), environmentVars, null, REDSHIFT_NAME);
         datatypesTable.createTable("int_type INTEGER", databaseConnectionInfo);
         datatypesTable.insertRow("NULL", databaseConnectionInfo);
     }
@@ -375,7 +375,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", TEST_EMPTY_TABLE_NAME);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME, TEST_EMPTY_TABLE_NAME), environmentVars, null).setTableName(REDSHIFT_NAME).build();
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME).setTableName(TEST_EMPTY_TABLE_NAME).build(), environmentVars, null, REDSHIFT_NAME);
         datatypesTable.createTable("int_type INTEGER", databaseConnectionInfo);
     }
 

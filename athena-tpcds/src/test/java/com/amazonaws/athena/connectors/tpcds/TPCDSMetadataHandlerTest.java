@@ -40,10 +40,12 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.assertj.core.util.Strings;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -69,7 +71,7 @@ public class TPCDSMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TPCDSMetadataHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     private TPCDSMetadataHandler handler;
     private BlockAllocator allocator;
 
@@ -99,11 +101,11 @@ public class TPCDSMetadataHandlerTest
     {
         logger.info("doListSchemas - enter");
 
-        ListSchemasRequest req = new ListSchemasRequest(identity, "queryId", "default");
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").build();
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
-        logger.info("doListSchemas - {}", res.getSchemas());
+        logger.info("doListSchemas - {}", res.getSchemasList());
 
-        assertTrue(res.getSchemas().size() == 5);
+        assertTrue(res.getSchemasList().size() == 5);
         logger.info("doListSchemas - exit");
     }
 
@@ -112,14 +114,13 @@ public class TPCDSMetadataHandlerTest
     {
         logger.info("doListTables - enter");
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default",
-                "tpcds1", null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesRequest req = ListTablesRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").setSchemaName("tpcds1").setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
         ListTablesResponse res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res.getTables());
+        logger.info("doListTables - {}", res.getTablesList());
 
-        assertTrue(res.getTables().contains(TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer"))).build();
+        assertTrue(res.getTablesList().contains(TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer").build()));
 
-        assertTrue(res.getTables().size() == 25);
+        assertTrue(res.getTablesList().size() == 25);
 
         logger.info("doListTables - exit");
     }
@@ -130,15 +131,11 @@ public class TPCDSMetadataHandlerTest
         logger.info("doGetTable - enter");
         String expectedSchema = "tpcds1";
 
-        GetTableRequest req = new GetTableRequest(identity,
-                "queryId",
-                "default",
-                TableName.newBuilder().setSchemaName(expectedSchema).setTableName("customer")).build();
-
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").setTableName(TableName.newBuilder().setSchemaName(expectedSchema).setTableName("customer")).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {} {}", res.getTableName(), res.getSchema());
 
-        assertEquals(TableName.newBuilder().setSchemaName(expectedSchema, "customer")).setTableName(res.getTableName()).build();
+        assertEquals(TableName.newBuilder().setSchemaName(expectedSchema).setTableName("customer").build(), res.getTableName());
         assertTrue(res.getSchema() != null);
 
         logger.info("doGetTable - exit");
@@ -154,20 +151,17 @@ public class TPCDSMetadataHandlerTest
 
         Schema schema = SchemaBuilder.newBuilder().build();
 
-        GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
-                "queryId",
-                "default",
-                TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer").build(),
-                new Constraints(constraintsMap),
-                schema,
-                Collections.EMPTY_SET);
-
+        GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default")
+            .setTableName(TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer").build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+            .build();
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
         logger.info("doGetTableLayout - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout - {}", res.getPartitions());
 
-        assertTrue(res.getPartitions().getRowCount() == 1);
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions()).getRowCount() == 1);
 
         logger.info("doGetTableLayout - exit");
     }
@@ -184,39 +178,35 @@ public class TPCDSMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 1);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "queryId",
-                "catalog_name",
-                TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer").build(),
-                partitions,
-                Collections.EMPTY_LIST,
-                new Constraints(new HashMap<>()),
-                continuationToken);
-
+        GetSplitsRequest originalReq = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("catalog_name")
+            .setTableName(TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer").build())
+            .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .build();
         int numContinuations = 0;
         do {
-            GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+            GetSplitsRequest.Builder reqBuilder = originalReq.toBuilder();
+            if (!Strings.isNullOrEmpty(continuationToken)) {
+                reqBuilder.setContinuationToken(continuationToken);
+            }
+            GetSplitsRequest req = reqBuilder.build();
             logger.info("doGetSplits: req[{}]", req);
 
-            MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-            assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-            GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+            GetSplitsResponse response = handler.doGetSplits(allocator, req);
             continuationToken = response.getContinuationToken();
 
-            logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+            logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplitsList().size());
 
-            for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty(SPLIT_NUMBER_FIELD));
-                assertNotNull(nextSplit.getProperty(SPLIT_TOTAL_NUMBER_FIELD));
-                assertNotNull(nextSplit.getProperty(SPLIT_SCALE_FACTOR_FIELD));
+            for (Split nextSplit : response.getSplitsList()) {
+                assertNotNull(nextSplit.getPropertiesMap().get(SPLIT_NUMBER_FIELD));
+                assertNotNull(nextSplit.getPropertiesMap().get(SPLIT_TOTAL_NUMBER_FIELD));
+                assertNotNull(nextSplit.getPropertiesMap().get(SPLIT_SCALE_FACTOR_FIELD));
             }
 
-            if (continuationToken != null) {
+            if (!Strings.isNullOrEmpty(continuationToken)) {
                 numContinuations++;
             }
         }
-        while (continuationToken != null);
+        while (!Strings.isNullOrEmpty(continuationToken));
 
         assertTrue(numContinuations == 0);
 

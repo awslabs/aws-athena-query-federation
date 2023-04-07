@@ -38,12 +38,10 @@ public class DataLakeQueryStringBuilderTest
     @Test
     public void testQueryBuilder()
     {
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
-        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
-        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        Split split = Split.newBuilder().putProperties("partition", "p0").build();
+        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder("'");
+        Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test
@@ -51,9 +49,7 @@ public class DataLakeQueryStringBuilderTest
     {
         DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
 
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
+        Split split = Split.newBuilder().putProperties("partition", "p0").build();
         Assert.assertEquals(new ArrayList<>(), builder.getPartitionWhereClauses(split));
     }
 }

@@ -36,10 +36,9 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
@@ -92,7 +91,7 @@ public class TimestreamMetadataHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(TimestreamMetadataHandlerTest.class);
 
     private final String defaultSchema = "default";
-    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private final FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     private TimestreamMetadataHandler handler;
     private BlockAllocator allocator;
 
@@ -164,13 +163,13 @@ public class TimestreamMetadataHandlerTest
             return new ListDatabasesResult().withDatabases(databases).withNextToken(newNextToken);
         });
 
-        ListSchemasRequest req = new ListSchemasRequest(identity, "queryId", "default");
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").build();
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
-        logger.info("doListSchemaNames - {}", res.getSchemas());
+        logger.info("doListSchemaNames - {}", res.getSchemasList());
 
-        assertEquals(1000, res.getSchemas().size());
+        assertEquals(1000, res.getSchemasList().size());
         verify(mockTsMeta, times(3)).listDatabases(nullable(ListDatabasesRequest.class));
-        Iterator<String> schemaItr = res.getSchemas().iterator();
+        Iterator<String> schemaItr = res.getSchemasList().iterator();
         for (int i = 0; i < 1000; i++) {
             assertEquals("database_" + i, schemaItr.next());
         }
@@ -213,16 +212,15 @@ public class TimestreamMetadataHandlerTest
                     return new ListTablesResult().withTables(tables).withNextToken(newNextToken);
                 });
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema,
-                null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesRequest req = ListTablesRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default").setSchemaName(defaultSchema).setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build();
         ListTablesResponse res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res.getTables());
+        logger.info("doListTables - {}", res.getTablesList());
 
-        assertEquals(1000, res.getTables().size());
+        assertEquals(1000, res.getTablesList().size());
         verify(mockTsMeta, times(3))
                 .listTables(nullable(com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class));
 
-        Iterator<TableName> schemaItr = res.getTables().iterator();
+        Iterator<TableName> schemaItr = res.getTablesList().iterator();
         for (int i = 0; i < 1000; i++) {
             TableName tableName = schemaItr.next();
             assertEquals(defaultSchema, tableName.getSchemaName());
@@ -263,26 +261,22 @@ public class TimestreamMetadataHandlerTest
             return new QueryResult().withRows(rows);
         });
 
-        GetTableRequest req = new GetTableRequest(identity,
-                "query-id",
-                "default",
-                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
-
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(identity).setQueryId("query-id").setCatalogName("default").setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
-        assertEquals(4, res.getSchema().getFields().size());
+        assertEquals(4, ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).getFields().size());
 
-        Field measureName = res.getSchema().findField("measure_name");
+        Field measureName = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("measure_name");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(measureName.getType()));
 
-        Field measureValue = res.getSchema().findField("measure_value");
+        Field measureValue = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("measure_value");
         assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(measureValue.getType()));
 
-        Field availabilityZone = res.getSchema().findField("availability_zone");
+        Field availabilityZone = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("availability_zone");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(availabilityZone.getType()));
 
-        Field time = res.getSchema().findField("time");
+        Field time = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("time");
         assertEquals(Types.MinorType.DATEMILLI, Types.getMinorTypeForArrowType(time.getType()));
 
         logger.info("doGetTable - exit");
@@ -313,23 +307,19 @@ public class TimestreamMetadataHandlerTest
             return new GetTableResult().withTable(table);
         });
 
-        GetTableRequest req = new GetTableRequest(identity,
-                "query-id",
-                "default",
-                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
-
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(identity).setQueryId("query-id").setCatalogName("default").setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
-        assertEquals(2, res.getSchema().getFields().size());
+        assertEquals(2, ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).getFields().size());
 
-        Field measureName = res.getSchema().findField("col1");
+        Field measureName = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("col1");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(measureName.getType()));
 
-        Field measureValue = res.getSchema().findField("col2");
+        Field measureValue = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("col2");
         assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(measureValue.getType()));
 
-        assertEquals("view text", res.getSchema().getCustomMetadata().get(VIEW_METADATA_FIELD));
+        assertEquals("view text", ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).getCustomMetadata().get(VIEW_METADATA_FIELD));
 
         logger.info("doGetTable - exit");
     }
@@ -361,26 +351,22 @@ public class TimestreamMetadataHandlerTest
             return new GetTableResult().withTable(table);
         });
 
-        GetTableRequest req = new GetTableRequest(identity,
-                "query-id",
-                "default",
-                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
-
+        GetTableRequest req = GetTableRequest.newBuilder().setIdentity(identity).setQueryId("query-id").setCatalogName("default").setTableName(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
-        assertEquals(4, res.getSchema().getFields().size());
+        assertEquals(4, ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).getFields().size());
 
-        Field measureName = res.getSchema().findField("az");
+        Field measureName = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("az");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(measureName.getType()));
 
-        Field hostname = res.getSchema().findField("hostname");
+        Field hostname = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("hostname");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(hostname.getType()));
 
-        Field region = res.getSchema().findField("region");
+        Field region = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("region");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(region.getType()));
 
-        Field cpuUtilization = res.getSchema().findField("cpu_utilization");
+        Field cpuUtilization = ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).findField("cpu_utilization");
         assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(cpuUtilization.getType()));
 
         Field timeseries = cpuUtilization.getChildren().get(0);
@@ -393,7 +379,7 @@ public class TimestreamMetadataHandlerTest
         assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(value.getType()));
 
         assertEquals("SELECT az, hostname, region, cpu_utilization FROM TIMESERIES(metrics_table,'cpu_utilization')",
-                res.getSchema().getCustomMetadata().get(VIEW_METADATA_FIELD));
+                ProtobufMessageConverter.fromProtoSchema(allocator, res.getSchema()).getCustomMetadata().get(VIEW_METADATA_FIELD));
 
         logger.info("doGetTimeSeriesTableGlue - exit");
     }
@@ -405,18 +391,14 @@ public class TimestreamMetadataHandlerTest
         logger.info("doGetTableLayout - enter");
 
         Schema schema = SchemaBuilder.newBuilder().build();
-        GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
-                "query-id",
-                defaultSchema,
-                TableName.newBuilder().setSchemaName("database1").setTableName("table1").build(),
-                new Constraints(new HashMap<>()),
-                schema,
-                Collections.EMPTY_SET);
-
+        GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder().setIdentity(identity).setQueryId("query-id").setCatalogName(defaultSchema)
+        .setTableName(TableName.newBuilder().setSchemaName("database1").setTableName("table1").build())
+        .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+        .build();
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
         logger.info("doGetTableLayout - {}", res);
-        Block partitions = res.getPartitions();
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions());
         for (int row = 0; row < partitions.getRowCount() && row < 10; row++) {
             logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
         }
@@ -436,30 +418,18 @@ public class TimestreamMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(allocator, "partition_id", Types.MinorType.INT.getType(), 0);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "query-id",
-                defaultSchema,
-                TableName.newBuilder().setSchemaName("database1").setTableName("table1").build(),
-                partitions,
-                partitionCols,
-                new Constraints(new HashMap<>()),
-                null);
-
-        GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("query-id").setCatalogName(defaultSchema).setTableName(TableName.newBuilder().setSchemaName("database1").setTableName("table1").build()).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionCols(partitionCols).build();
 
         logger.info("doGetSplits: req[{}]", req);
 
-        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
         continuationToken = response.getContinuationToken();
 
         logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]",
-                new Object[] {continuationToken, response.getSplits().size()});
+                new Object[] {continuationToken, response.getSplitsList().size()});
 
-        assertTrue("Continuation criteria violated", response.getSplits().size() == 1);
-        assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
+        assertTrue("Continuation criteria violated", response.getSplitsList().size() == 1);
+        assertFalse("Continuation criteria violated", response.hasContinuationToken());
 
         logger.info("doGetSplits - exit");
     }

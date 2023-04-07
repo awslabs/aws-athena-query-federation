@@ -40,6 +40,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -176,7 +177,7 @@ public class GcsMetadataHandlerTest
         Mockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
         gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", awsGlue, allocator, ImmutableMap.of());
         blockAllocator = new BlockAllocatorImpl();
-        federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        federatedIdentity = FederatedIdentity.newBuilder().build();
     }
 
     @After
@@ -195,14 +196,13 @@ public class GcsMetadataHandlerTest
         GetDatabasesResult result = new GetDatabasesResult().withDatabaseList(
                 new Database().withName(DATABASE_NAME).withLocationUri(S3_GOOGLE_CLOUD_STORAGE_FLAG),
                 new Database().withName(DATABASE_NAME1).withLocationUri(S3_GOOGLE_CLOUD_STORAGE_FLAG));
-        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity,
-                QUERY_ID, CATALOG);
-        Mockito.when(awsGlue.getDatabases(any())).thenReturn(result);
+        ListSchemasRequest listSchemasRequest = ListSchemasRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName(CATALOG).build();
+        PowerMockito.when(awsGlue.getDatabases(any())).thenReturn(result);
         ListSchemasResponse schemaNamesResponse = gcsMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
         List<String> expectedSchemaNames = new ArrayList<>();
         expectedSchemaNames.add(DATABASE_NAME);
         expectedSchemaNames.add(DATABASE_NAME1);
-        assertEquals(expectedSchemaNames, new ArrayList<>(schemaNamesResponse.getSchemas()));
+        assertEquals(expectedSchemaNames, new ArrayList<>(schemaNamesResponse.getSchemasList()));
     }
 
     @Test(expected = RuntimeException.class)
@@ -228,10 +228,10 @@ public class GcsMetadataHandlerTest
                         .withLocation(LOCATION)
                         .withParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET))));
         getTablesResult.setTableList(tableList);
-        Mockito.when(awsGlue.getTables(any())).thenReturn(getTablesResult);
-        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, TEST_TOKEN, 50);
+        PowerMockito.when(awsGlue.getTables(any())).thenReturn(getTablesResult);
+        ListTablesRequest listTablesRequest = ListTablesRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName(CATALOG).setSchemaName(SCHEMA_NAME).setNextToken(TEST_TOKEN).setPageSize(50).build();
         ListTablesResponse tableNamesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
-        assertEquals(2, tableNamesResponse.getTables().size());
+        assertEquals(2, tableNamesResponse.getTablesList().size());
     }
 
     @Test(expected = RuntimeException.class)
@@ -251,7 +251,7 @@ public class GcsMetadataHandlerTest
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", PARQUET);
         Schema schema = new Schema(asList(field), metadataSchema);
-        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "gcs", TableName.newBuilder().setSchemaName(SCHEMA_NAME).setTableName("testtable")).build();
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName("gcs").setTableName(TableName.newBuilder().setSchemaName(SCHEMA_NAME).setTableName("testtable")).build();
         Table table = new Table();
         table.setName(TABLE_1);
         table.setDatabaseName(DATABASE_NAME);
@@ -270,7 +270,7 @@ public class GcsMetadataHandlerTest
         FieldUtils.writeField(gcsMetadataHandler, "datasource", storageMetadata, true);
         Mockito.when(storageMetadata.buildTableSchema(any(), any())).thenReturn(schema);
         GetTableResponse res = gcsMetadataHandler.doGetTable(blockAllocator, getTableRequest);
-        Field expectedField = res.getSchema().findField("name");
+        Field expectedField = ProtobufMessageConverter.fromProtoSchema(blockAllocator, res.getSchema()).findField("name");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(expectedField.getType()));
     }
 
@@ -298,15 +298,13 @@ public class GcsMetadataHandlerTest
         table.setPartitionKeys(columns);
         GetTableResult getTableResult = new GetTableResult();
         getTableResult.setTable(table);
-        Mockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
-        GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
-        Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(TableName.newBuilder().setSchemaName(DATABASE_NAME).setTableName(TABLE_1)).build();
-        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn(CATALOG_NAME);
-        Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
+        PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), 2000));
-        Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(constraints);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setCatalogName(CATALOG_NAME).setTableName(TableName.newBuilder().setSchemaName(DATABASE_NAME).setTableName(TABLE_1).build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).build();
         BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
-        gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, null);
+        gcsMetadataHandler.getPartitions(blockAllocator, blockWriter, getTableLayoutRequest, null);
         verify(blockWriter, times(1)).writeRows(any());
     }
 
@@ -314,9 +312,8 @@ public class GcsMetadataHandlerTest
     public void testDoGetSplits() throws Exception
     {
         Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.VARCHAR.getType(), 2000, 2001);
-        GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
-                QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("year"), new Constraints(new HashMap<>()), null);
+        GetSplitsRequest request = GetSplitsRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName(CATALOG).setTableName(TABLE_NAME).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addPartitionCols("year").build();
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
@@ -331,8 +328,8 @@ public class GcsMetadataHandlerTest
         );
 
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
-        assertEquals(2, response.getSplits().size());
-        assertEquals(ImmutableList.of("2000", "2001"), response.getSplits().stream().map(split -> split.getProperties().get("year")).sorted().collect(Collectors.toList()));
+        assertEquals(2, response.getSplitsList().size());
+        assertEquals(ImmutableList.of("2000", "2001"), response.getSplitsList().stream().map(split -> split.getProperties().get("year")).sorted().collect(Collectors.toList()));
     }
 
     @Test
@@ -351,9 +348,8 @@ public class GcsMetadataHandlerTest
             BlockUtils.setValue(partitions.getFieldVector("monthCol"), i, (i % 12) + 1);
         }
         partitions.setRowCount(num_partitions);
-        GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
-                QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("yearCol", "monthCol"), new Constraints(new HashMap<>()), null);
+        GetSplitsRequest request = GetSplitsRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName(CATALOG).setTableName(TABLE_NAME).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addAllPartitionCols(com.google.common.collect.ImmutableList.of("yearCol", "monthCol")).build();
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
@@ -368,18 +364,17 @@ public class GcsMetadataHandlerTest
                 createColumn("monthCol", "varchar")
         );
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
-        assertEquals(4, response.getSplits().size());
-        assertEquals(ImmutableList.of("2016", "2017", "2018", "2019"), response.getSplits().stream().map(split -> split.getProperties().get("yearCol")).sorted().collect(Collectors.toList()));
-        assertEquals(ImmutableList.of("1", "2", "3", "4"), response.getSplits().stream().map(split -> split.getProperties().get("monthCol")).sorted().collect(Collectors.toList()));
+        assertEquals(4, response.getSplitsList().size());
+        assertEquals(ImmutableList.of("2016", "2017", "2018", "2019"), response.getSplitsList().stream().map(split -> split.getProperties().get("yearCol")).sorted().collect(Collectors.toList()));
+        assertEquals(ImmutableList.of("1", "2", "3", "4"), response.getSplitsList().stream().map(split -> split.getProperties().get("monthCol")).sorted().collect(Collectors.toList()));
     }
 
     @Test(expected = RuntimeException.class)
     public void testDoGetSplitsException() throws Exception
     {
         Block partitions = BlockUtils.newBlock(blockAllocator, "gcs_file_format", Types.MinorType.VARCHAR.getType(), 2000, 2001);
-        GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
-                QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("gcs_file_format"), new Constraints(new HashMap<>()), null);
+        GetSplitsRequest request = GetSplitsRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName(CATALOG).setTableName(TABLE_NAME).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addPartitionCols("gc_file_format").build();
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);

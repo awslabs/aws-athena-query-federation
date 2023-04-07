@@ -32,6 +32,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.proto.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -103,18 +104,18 @@ public class VerticaMetadataHandler
         this.amazonS3 = amazonS3;
     }
 
-    private Connection getConnection(MetadataRequest request) {
-        String endpoint = resolveSecrets(getConnStr(request));
+    private Connection getConnection(String catalogName) {
+        String endpoint = resolveSecrets(getConnStr(catalogName));
         return connectionFactory.getOrCreateConn(endpoint);
 
     }
 
-    private String getConnStr(MetadataRequest request)
+    private String getConnStr(String catalogName)
     {
-        String conStr = configOptions.get(request.getCatalogName());
+        String conStr = configOptions.get(catalogName);
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
-                    request.getCatalogName(), DEFAULT_VERTICA);
+                catalogName, DEFAULT_VERTICA);
             conStr = configOptions.get(DEFAULT_VERTICA);
         }
         logger.info("exit getConnStr in VerticaMetadataHandler with conStr as {}",conStr);
@@ -135,7 +136,7 @@ public class VerticaMetadataHandler
     {
         logger.info("doListSchemaNames: " + request.getCatalogName());
         List<String> schemas = new ArrayList<>();
-        try (Connection client = getConnection(request)) {
+        try (Connection client = getConnection(request.getCatalogName())) {
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet rs  = dbMetadata.getTables(null, null, null, TABLE_TYPES);
 
@@ -164,14 +165,14 @@ public class VerticaMetadataHandler
     {
         logger.info("doListTables: " + request);
         List<TableName> tables = new ArrayList<>();
-        try (Connection client = getConnection(request)) {
+        try (Connection client = getConnection(request.getCatalogName())) {
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet table = dbMetadata.getTables(null, request.getSchemaName(),null, TABLE_TYPES);
             while (table.next()){
-                tables.add(TableName.newBuilder().setSchemaName(table.getString(TABLE_SCHEMA)).setTableName(table.getString(TABLE_NAME))).build();
+                tables.add(TableName.newBuilder().setSchemaName(table.getString(TABLE_SCHEMA)).setTableName(table.getString(TABLE_NAME)).build());
             }
         }
-        return new ListTablesResponse(request.getCatalogName(), tables, null);
+        return ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tables).build();
 
     }
 
@@ -191,16 +192,12 @@ public class VerticaMetadataHandler
     {
         logger.info("doGetTable: " + request.getTableName());
         Set<String> partitionCols = new HashSet<>();
-        Connection connection = getConnection(request);
+        Connection connection = getConnection(request.getCatalogName());
 
         //build the schema as per columns in Vertica
         Schema schema = verticaSchemaUtils.buildTableSchema(connection, request.getTableName());
 
-        return new GetTableResponse(request.getCatalogName(),
-                request.getTableName(),
-                schema,
-                partitionCols
-                );
+        return GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(request.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).addAllPartitionColumns(partitionCols).build();
     }
 
     /**
@@ -231,9 +228,9 @@ public class VerticaMetadataHandler
         public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws SQLException {
         logger.info("in getPartitions: "+ request);
 
-        Schema schemaName = request.getSchema();
+        Schema schemaName = ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema());
         TableName tableName = request.getTableName();
-        Constraints constraints  = request.getConstraints();
+        Constraints constraints  = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints());
         //get the bucket where export results wll be uploaded
         String s3ExportBucket = getS3ExportBucket();
         //Appending a random int to the query id to support multiple federated queries within a single query
@@ -242,7 +239,7 @@ public class VerticaMetadataHandler
         String queryID = request.getQueryId().replace("-","").concat(randomStr);
 
         //Build the SQL query
-        Connection connection = getConnection(request);
+        Connection connection = getConnection(request.getCatalogName());
         DatabaseMetaData dbMetadata = connection.getMetaData();
         ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
 
@@ -290,7 +287,7 @@ public class VerticaMetadataHandler
     {
         //ToDo: implement use of a continuation token to use in case of larger queries
 
-        Connection connection = getConnection(request);
+        Connection connection = getConnection(request.getCatalogName());
         Set<Split> splits = new HashSet<>();
         String exportBucket = getS3ExportBucket();
         String queryId = request.getQueryId().replace("-","");
@@ -299,14 +296,15 @@ public class VerticaMetadataHandler
         testAccess(connection, request.getTableName());
 
         //get the SQL statement which was created in getPartitions
-        FieldReader fieldReaderPS = request.getPartitions().getFieldReader("preparedStmt");
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, request.getPartitions());
+        FieldReader fieldReaderPS = partitions.getFieldReader("preparedStmt");
         String sqlStatement  = fieldReaderPS.readText().toString();
         String catalogName = request.getCatalogName();
 
-        FieldReader fieldReaderQid = request.getPartitions().getFieldReader("queryId");
+        FieldReader fieldReaderQid = partitions.getFieldReader("queryId");
         String queryID  = fieldReaderQid.readText().toString();
 
-        FieldReader fieldReaderAwsRegion = request.getPartitions().getFieldReader("awsRegionSql");
+        FieldReader fieldReaderAwsRegion = partitions.getFieldReader("awsRegionSql");
         String awsRegionSql  = fieldReaderAwsRegion.readText().toString();
 
 
@@ -323,31 +321,31 @@ public class VerticaMetadataHandler
         {
             for (S3ObjectSummary objectSummary : s3ObjectSummaries)
             {
-                split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                        .add("query_id", queryID)
-                        .add(VERTICA_CONN_STR, getConnStr(request))
-                        .add("exportBucket", exportBucket)
-                        .add("s3ObjectKey", objectSummary.getKey())
+                split = Split.newBuilder().setSpillLocation(makeSpillLocation(request.getQueryId())).setEncryptionKey(makeEncryptionKey())
+                        .putProperties("query_id", queryID)
+                        .putProperties(VERTICA_CONN_STR, getConnStr(request.getCatalogName()))
+                        .putProperties("exportBucket", exportBucket)
+                        .putProperties("s3ObjectKey", objectSummary.getKey())
                         .build();
                 splits.add(split);
 
             }
             logger.info("doGetSplits: exit - " + splits.size());
-            return new GetSplitsResponse(catalogName, splits);
+            return GetSplitsResponse.newBuilder().setCatalogName(catalogName).addAllSplits(splits).build();
         }
         else
             {
                 //No records were exported by Vertica for the issued query, creating a "empty" split
                 logger.info("No records were exported by Vertica");
-                split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                        .add("query_id", queryID)
-                        .add(VERTICA_CONN_STR, getConnStr(request))
-                        .add("exportBucket", exportBucket)
-                        .add("s3ObjectKey", EMPTY_STRING)
+                split = Split.newBuilder().setSpillLocation(makeSpillLocation(request.getQueryId())).setEncryptionKey(makeEncryptionKey())
+                        .putProperties("query_id", queryID)
+                        .putProperties(VERTICA_CONN_STR, getConnStr(request.getCatalogName()))
+                        .putProperties("exportBucket", exportBucket)
+                        .putProperties("s3ObjectKey", EMPTY_STRING)
                         .build();
                 splits.add(split);
                 logger.info("doGetSplits: exit - " + splits.size());
-                return new GetSplitsResponse(catalogName,split);
+                return GetSplitsResponse.newBuilder().setCatalogName(catalogName).addSplits(split).build();
             }
 
     }

@@ -22,10 +22,12 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
@@ -33,6 +35,8 @@ import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -79,19 +83,24 @@ public class GcsRecordHandlerTest extends GenericGcsTest
     @Mock
     GoogleCredentials credentials;
 
-    private S3BlockSpiller spillWriter;
+    @Mock
+    StorageMetadata storageMetadata;
+
+    private AmazonS3 amazonS3;
+
+    private BlockSpiller spillWriter;
 
 
     private final EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private final EncryptionKey encryptionKey = keyFactory.create();
     private final String queryId = UUID.randomUUID().toString();
-    private final S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder()
-            .withBucket(UUID.randomUUID().toString())
-            .withSplitId(UUID.randomUUID().toString())
-            .withQueryId(queryId)
-            .withIsDirectory(true)
+    private final SpillLocation s3SpillLocation = SpillLocation.newBuilder()
+            .setBucket(UUID.randomUUID().toString())
+            .setKey(UUID.randomUUID().toString() + "/" + queryId)
+            .setDirectory(true)
             .build();
     private FederatedIdentity federatedIdentity;
+    private BlockAllocator allocator;
     GcsRecordHandler gcsRecordHandler;
 
     private static final BufferAllocator bufferAllocator = new RootAllocator();
@@ -103,14 +112,14 @@ public class GcsRecordHandlerTest extends GenericGcsTest
         super.initCommonMockedStatic();
         System.setProperty("aws.region", "us-east-1");
         LOGGER.info("Starting init.");
-        federatedIdentity = Mockito.mock(FederatedIdentity.class);
-        BlockAllocator allocator = new BlockAllocatorImpl();
-        AmazonS3 amazonS3 = mock(AmazonS3.class);
-
-        // Create Spill config
-        // This will be enough for a single block
-        // This will force the writer to spill.
-        // Async Writing.
+        federatedIdentity = FederatedIdentity.newBuilder().build();
+        allocator = new BlockAllocatorImpl();
+        amazonS3 = mock(AmazonS3.class);
+        mockS3Client();
+        //Create Spill config
+        //This will be enough for a single block
+        //This will force the writer to spill.
+        //Async Writing.
         SpillConfig spillConfig = SpillConfig.newBuilder()
                 .withEncryptionKey(encryptionKey)
                 //This will be enough for a single block
@@ -152,27 +161,33 @@ public class GcsRecordHandlerTest extends GenericGcsTest
             throws Exception
     {
         // Mocking split
-        Split split = mock(Split.class);
-        when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn("[\"data.parquet\"]");
-        when(split.getProperty(FILE_FORMAT)).thenReturn("parquet");
-
+        Split split = Split.newBuilder()
+            .putProperties(STORAGE_SPLIT_JSON, "[\"data.parquet\"]")
+            .putProperties(FILE_FORMAT, "parquet")
+            .build();
+        
         // Test readWithConstraint
-        try (ReadRecordsRequest request = new ReadRecordsRequest(
-                federatedIdentity,
-                GcsTestUtils.PROJECT_1_NAME,
-                "queryId",
-                new TableName("dataset1", "table1"), // dummy table
-                GcsTestUtils.getDatatypeTestSchema(),
-                split,
-                new Constraints(Collections.EMPTY_MAP),
-                0, //This is ignored when directly calling readWithConstraints.
-                0)) {  //This is ignored when directly calling readWithConstraints.
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(federatedIdentity)
+            .setCatalogName(GcsTestUtils.PROJECT_1_NAME)
+            .setQueryId("queryId")
+            .setTableName(TableName.newBuilder().setSchemaName("dataset1").setTableName("table1").build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(GcsTestUtils.getDatatypeTestSchema()))
+            .setSplit(split)
+            .setMaxBlockSize(0)
+            .setMaxInlineBlockSize(0)
+            .build();
+        ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);  //This is ignored when directly calling readWithConstraints.
+        //Always return true for the evaluator to keep all rows.
 
-            QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-            // Execute the test
-            gcsRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
-            assertEquals(2, spillWriter.getBlock().getRowCount(), "Total records should be 2");
-        }
+        when(evaluator.apply(any(String.class), any(Object.class))).thenAnswer((InvocationOnMock invocationOnMock) -> true);
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        //Execute the test
+        gcsRecordHandler.readWithConstraint(allocator, spillWriter, request, queryStatusChecker);
+        assertEquals("Total records should be 2", 2, spillWriter.getBlock().getRowCount());
+    
     }
 
 }

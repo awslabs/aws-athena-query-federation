@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.metadata.*;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -42,6 +43,8 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableList;
+
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Assert;
@@ -83,7 +86,7 @@ public class VerticaMetadataHandlerTest extends TestBase
     private AmazonAthena athena;
     private AmazonS3 amazonS3;
     private FederatedIdentity federatedIdentity;
-    private BlockAllocatorImpl allocator;
+    private BlockAllocator allocator;
     private DatabaseMetaData databaseMetaData;
     private TableName tableName;
     private Schema schema;
@@ -111,9 +114,9 @@ public class VerticaMetadataHandlerTest extends TestBase
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
-        this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        this.federatedIdentity = FederatedIdentity.newBuilder().build();
         this.databaseMetaData = Mockito.mock(DatabaseMetaData.class);
-        this.tableName = Mockito.mock(TableName.class);
+        this.tableName = TableName.newBuilder().build();
         this.schema = Mockito.mock(Schema.class);
         this.constraints = Mockito.mock(Constraints.class);
         this.schemaBuilder = Mockito.mock(SchemaBuilder.class);
@@ -134,7 +137,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 "spill-prefix",
                 verticaSchemaUtils,
                 amazonS3,
-                com.google.common.collect.ImmutableMap.of());
+                com.google.common.collect.ImmutableMap.of("catalog_name", "asdf_connection_str", "export_bucket", "asdf_export_bucket_loc"));
         this.allocator =  new BlockAllocatorImpl();
         this.databaseMetaData = this.connection.getMetaData();
         verticaMetadataHandlerMocked = Mockito.spy(this.verticaMetadataHandler);
@@ -163,9 +166,9 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
 
         ListSchemasResponse listSchemasResponse = this.verticaMetadataHandler.doListSchemaNames(this.allocator,
-                                                                     new ListSchemasRequest(this.federatedIdentity,
-                                                                    "testQueryId", "testCatalog"));
-        Assert.assertArrayEquals(expected, listSchemasResponse.getSchemas().toArray());
+            ListSchemasRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalog").build()
+        );
+        Assert.assertArrayEquals(expected, listSchemasResponse.getSchemasList().toArray());
     }
 
     @Test
@@ -173,7 +176,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME", };
         Object[][] values = {{"testSchema", "testTable1"}};
         List<TableName> expectedTables = new ArrayList<>();
-        expectedTables.add(TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable1")).build();
+        expectedTables.add(TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable1").build());
 
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
@@ -182,13 +185,10 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
 
         ListTablesResponse listTablesResponse = this.verticaMetadataHandler.doListTables(this.allocator,
-                                                                new ListTablesRequest(this.federatedIdentity,
-                                                                        "testQueryId",
-                                                                        "testCatalog",
-                                                                        tableName.getSchemaName(),
-                                                                        null, UNLIMITED_PAGE_SIZE_VALUE));
+            ListTablesRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalog").setSchemaName(tableName.getSchemaName()).setPageSize(UNLIMITED_PAGE_SIZE_VALUE).build()
+        );
 
-        Assert.assertArrayEquals(expectedTables.toArray(), listTablesResponse.getTables().toArray());
+        Assert.assertArrayEquals(expectedTables.toArray(), listTablesResponse.getTablesList().toArray());
 
     }
 
@@ -199,17 +199,12 @@ public class VerticaMetadataHandlerTest extends TestBase
         Set<String> partitionCols = new HashSet<>();
         SchemaBuilder schemaBuilder = new SchemaBuilder();
 
-        this.verticaMetadataHandler.enhancePartitionSchema(schemaBuilder, new GetTableLayoutRequest(
-                this.federatedIdentity,
-                "queryId",
-                "testCatalog",
-                this.tableName,
-                this.constraints,
-                this.schema,
-                partitionCols
-        ));
+        this.verticaMetadataHandler.enhancePartitionSchema(allocator, schemaBuilder, GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("queryId").setCatalogName("testCatalog")
+            .setTableName(this.tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(this.constraints))
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(this.schema))
+            .addAllPartitionCols(partitionCols)
+            .build());
         Assert.assertEquals("preparedStmt", schemaBuilder.getField("preparedStmt").getName());
-
     }
 
 
@@ -254,7 +249,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 {"testSchema", "testTable1", "queryId", "varchar"},  {"testSchema", "testTable1", "awsRegionSql", "varchar"}};
         int[] types = {Types.INTEGER, Types.INTEGER, Types.INTEGER,Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
         List<TableName> expectedTables = new ArrayList<>();
-        expectedTables.add(TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable1")).build();
+        expectedTables.add(TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable1").build());
 
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
@@ -265,45 +260,31 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
         Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
 
-        try {
-            req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
-                    TableName.newBuilder().setSchemaName("schema1").setTableName("table1").build(),
-                    new Constraints(constraintsMap),
-                    tableSchema,
-                    partitionCols);
+        req = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("queryId").setCatalogName("default")
+        .setTableName(TableName.newBuilder().setSchemaName("schema1").setTableName("table1").build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+        .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(tableSchema))
+        .addAllPartitionCols(partitionCols)
+        .build();
+        res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req);
 
-            res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req);
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, res.getPartitions());
 
-            Block partitions = res.getPartitions();
+        String actualQueryID = partitions.getFieldReader("queryId").readText().toString();
+        String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                "AS SELECT day,month,year,preparedStmt,queryId,awsRegionSql " +
+                "FROM \"schema1\".\"table1\" " +
+                "WHERE ((\"day\" > 0 )) AND ((\"month\" > 0 )) AND ((\"year\" > 2000 ))";
 
-            String actualQueryID = partitions.getFieldReader("queryId").readText().toString();
-            String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
-                    actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
-                    "AS SELECT day,month,year,preparedStmt,queryId,awsRegionSql " +
-                    "FROM \"schema1\".\"table1\" " +
-                    "WHERE ((\"day\" > 0 )) AND ((\"month\" > 0 )) AND ((\"year\" > 2000 ))";
-
-            Assert.assertEquals(expectedExportSql, partitions.getFieldReader("preparedStmt").readText().toString());
+        Assert.assertEquals(expectedExportSql, partitions.getFieldReader("preparedStmt").readText().toString());
 
 
-            for (int row = 0; row < partitions.getRowCount() && row < 1; row++) {
-                logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
-
-            }
-            assertTrue(partitions.getRowCount() > 0);
-            logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
+        for (int row = 0; row < partitions.getRowCount() && row < 1; row++) {
+            logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
 
         }
-        finally {
-        try {
-            req.close();
-            res.close();
-        }
-        catch (Exception ex) {
-            logger.error("doGetTableLayout: ", ex);
-        }
-    }
-
+        assertTrue(partitions.getRowCount() > 0);
+        logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
         logger.info("doGetTableLayout - exit");
 
     }
@@ -315,20 +296,18 @@ public class VerticaMetadataHandlerTest extends TestBase
         logger.info("doGetSplits: enter");
 
         Schema schema = SchemaBuilder.newBuilder()
-                .addIntField("day")
-                .addIntField("month")
-                .addIntField("year")
-                .addStringField("preparedStmt")
-                .addStringField("queryId")
-                .addStringField("awsRegionSql")
+                .addField("day", new org.apache.arrow.vector.types.pojo.ArrowType.Int(32, true))
+                .addField("month", new org.apache.arrow.vector.types.pojo.ArrowType.Int(32, true))
+                .addField("year", new org.apache.arrow.vector.types.pojo.ArrowType.Int(32, true))
+                .addField("preparedStmt", new org.apache.arrow.vector.types.pojo.ArrowType.Utf8())
+                .addField("queryId", new org.apache.arrow.vector.types.pojo.ArrowType.Utf8())
+                .addField("awsRegionSql", new org.apache.arrow.vector.types.pojo.ArrowType.Utf8())
                 .build();
 
         List<String> partitionCols = new ArrayList<>();
         partitionCols.add("preparedStmt");
         partitionCols.add("queryId");
         partitionCols.add("awsRegionSql");
-
-        Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         Block partitions = allocator.createBlock(schema);
 
@@ -340,8 +319,26 @@ public class VerticaMetadataHandlerTest extends TestBase
             BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), i, "test");
             BlockUtils.setValue(partitions.getFieldVector("queryId"), i, "123");
             BlockUtils.setValue(partitions.getFieldVector("awsRegionSql"), i, "us-west-2");
-
         }
+        // There was a bug in this test where we weren't setting the row count on the block, so the readers didn't think it could read anything.
+        partitions.setRowCount(10);
+
+        // Everything commented out here was me testing out and understanding how our BlockUtils works.
+        // logger.error("FIRST ROW OF BLOCK IS {}", BlockUtils.rowToString(partitions, 0));
+        // logger.error("LAST ROW OF BLOCK IS {}", BlockUtils.rowToString(partitions, 9));
+        // Block partitionsCopy = allocator.createBlock(schema);
+        // BlockUtils.copyRows(partitions, partitionsCopy, 0, 9); //inclusive copy
+        // logger.error("FIRST ROW OF RAW COPY IS {}", BlockUtils.rowToString(partitionsCopy, 0));
+        // Block toAndFromProtoBlock = ProtobufMessageConverter.fromProtoBlock(allocator, ProtobufMessageConverter.toProtoBlock(partitions));
+        // logger.error("FIRST ROW OF PROTO COPY IS {}", BlockUtils.rowToString(toAndFromProtoBlock, 0));
+        // partitions.getFieldVectors().forEach(fv -> {
+        //     fv.setValueCount(10);
+        //     for (int i = 0; i < fv.getValueCount(); i++) {
+        //         // fv.get()
+        //     }
+        //     logger.error("ROW COUNT FOR FIELD VECTOR {} IS {}", fv.getName(), fv.getValueCount());
+        // });
+        
         List<S3ObjectSummary> s3ObjectSummariesList = new ArrayList<>();
         S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
         s3ObjectSummary.setBucketName("s3ExportBucket");
@@ -351,38 +348,31 @@ public class VerticaMetadataHandlerTest extends TestBase
         listObjectsRequestObj.setBucketName("s3ExportBucket");
         listObjectsRequestObj.setPrefix("queryId");
 
-
-        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
         Mockito.lenient().when(listObjectsRequest.withBucketName(nullable(String.class))).thenReturn(listObjectsRequestObj);
         Mockito.lenient().when(listObjectsRequest.withPrefix(nullable(String.class))).thenReturn(listObjectsRequestObj);
         Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class))).thenReturn(objectListing);
         Mockito.when(objectListing.getObjectSummaries()).thenReturn(s3ObjectSummariesList);
 
-        GetSplitsRequest originalReq = new GetSplitsRequest(this.federatedIdentity, "queryId", "catalog_name",
-                TableName.newBuilder().setSchemaName("schema").setTableName("table_name").build(),
-                partitions,
-                partitionCols,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                null);
-        GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
-
+        logger.error("ROW COUNT IS {}", partitions.getRowCount());
+        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("queryId").setCatalogName("catalog_name")
+            .setTableName(TableName.newBuilder().setSchemaName("schema").setTableName("table_name").build())
+            .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
+            .addAllPartitionCols(partitionCols)
+            .build();
         logger.info("doGetSplits: req[{}]", req);
-        MetadataResponse rawResponse = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
-        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        GetSplitsResponse response = verticaMetadataHandler.doGetSplits(allocator, req);
         String continuationToken = response.getContinuationToken();
 
-        logger.info("doGetSplits: continuationToken[{}] - splits[{}]", continuationToken, response.getSplits());
+        logger.info("doGetSplits: continuationToken[{}] - splits[{}]", continuationToken, response.getSplitsList());
 
-        for (Split nextSplit : response.getSplits()) {
+        for (Split nextSplit : response.getSplitsList()) {
 
-            assertNotNull(nextSplit.getProperty("query_id"));
-            assertNotNull(nextSplit.getProperty("exportBucket"));
-            assertNotNull(nextSplit.getProperty("s3ObjectKey"));
+            assertNotNull(nextSplit.getPropertiesMap().get("query_id"));
+            assertNotNull(nextSplit.getPropertiesMap().get("exportBucket"));
+            assertNotNull(nextSplit.getPropertiesMap().get("s3ObjectKey"));
         }
 
-        assertTrue(!response.getSplits().isEmpty());
+        assertTrue(!response.getSplitsList().isEmpty());
 
         logger.info("doGetSplits: exit");
     }

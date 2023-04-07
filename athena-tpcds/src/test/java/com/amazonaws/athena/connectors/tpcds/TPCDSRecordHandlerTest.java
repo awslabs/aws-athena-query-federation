@@ -35,11 +35,11 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -49,6 +49,7 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.Message;
 import com.teradata.tpcds.Table;
 import com.teradata.tpcds.column.Column;
 import org.apache.arrow.vector.types.Types;
@@ -87,7 +88,7 @@ public class TPCDSRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TPCDSRecordHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     private List<ByteHolder> mockS3Storage;
     private TPCDSRecordHandler handler;
     private S3BlockSpillReader spillReader;
@@ -172,36 +173,36 @@ public class TPCDSRecordHandlerTest
                 .add("AAAAAAAACAAAAAAA")
                 .add("AAAAAAAADAAAAAAA").build());
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("tpcds1", table.getName()),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create())
-                        .add(SPLIT_NUMBER_FIELD, "0")
-                        .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
-                        .add(SPLIT_SCALE_FACTOR_FIELD, "1")
-                        .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L,
-                100_000_000_000L //100GB don't expect this to spill
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(identity)
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName("tpcds1").setTableName(table.getName()).build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(Split.newBuilder().setSpillLocation(
+                SpillLocation.newBuilder()
+                                .setBucket(UUID.randomUUID().toString())
+                                .setKey(UUID.randomUUID().toString() + '/' + UUID.randomUUID().toString())
+                                .setDirectory(true)
+                            .build()
+                ).setEncryptionKey(keyFactory.create())
+                .putProperties(SPLIT_NUMBER_FIELD, "0")
+                .putProperties(SPLIT_TOTAL_NUMBER_FIELD, "1000")
+                .putProperties(SPLIT_SCALE_FACTOR_FIELD, "1")
+                .build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
+        Message rawResponse = handler.doReadRecords(allocator, request);
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertTrue(response.getRecords().getRowCount() == 3);
-        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertTrue(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount() == 3);
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
 
         logger.info("doReadRecordsNoSpill: exit");
     }
@@ -216,50 +217,49 @@ public class TPCDSRecordHandlerTest
         constraintsMap.put("c_current_cdemo_sk", SortedRangeSet.of(
                 Range.range(allocator, Types.MinorType.BIGINT.getType(), 100L, true, 100_000_000L, true)));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("tpcds1", table.getName()),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create())
-                        .add(SPLIT_NUMBER_FIELD, "0")
-                        .add(SPLIT_TOTAL_NUMBER_FIELD, "10000")
-                        .add(SPLIT_SCALE_FACTOR_FIELD, "1")
-                        .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                1_500_000L, //~1.5MB so we should see some spill
-                0
-        );
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(identity)
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName("tpcds1").setTableName(table.getName()).build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
+            .setSplit(Split.newBuilder().setSpillLocation(
+                SpillLocation.newBuilder()
+                                .setBucket(UUID.randomUUID().toString())
+                                .setKey(UUID.randomUUID().toString() + '/' + UUID.randomUUID().toString())
+                                .setDirectory(true)
+                            .build()
+                ).setEncryptionKey(keyFactory.create())
+                .putProperties(SPLIT_NUMBER_FIELD, "0")
+                .putProperties(SPLIT_TOTAL_NUMBER_FIELD, "1000")
+                .putProperties(SPLIT_SCALE_FACTOR_FIELD, "1")
+                .build())
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
+            .setMaxBlockSize(1_500_000L)
+            .setMaxInlineBlockSize(0)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 
-        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
-            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+        RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocksList().size());
 
-            assertTrue(response.getNumberBlocks() > 1);
+        assertTrue(response.getRemoteBlocksList().size() > 1);
 
-            int blockNum = 0;
-            for (SpillLocation next : response.getRemoteBlocks()) {
-                S3SpillLocation spillLocation = (S3SpillLocation) next;
-                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
+        int blockNum = 0;
+        for (SpillLocation next : response.getRemoteBlocksList()) {
+            SpillLocation spillLocation = (SpillLocation) next;
+            try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), ProtobufMessageConverter.fromProtoSchema(allocator, response.getSchema()))) {
 
-                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
-                    // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
+                logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                // assertTrue(++blockNum < response.getRemoteBlocksList().size() && block.getRowCount() > 10_000);
 
-                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
-                    assertNotNull(BlockUtils.rowToString(block, 0));
-                }
+                logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                assertNotNull(BlockUtils.rowToString(block, 0));
             }
         }
-
         logger.info("doReadRecordsSpill: exit");
     }
 
@@ -277,34 +277,35 @@ public class TPCDSRecordHandlerTest
             schemaBuilder.addField(TPCDSUtils.convertColumn(nextCol));
         }
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("tpcds1", table.getName()),
-                schemaBuilder.build(),
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create())
-                        .add(SPLIT_NUMBER_FIELD, "0")
-                        .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
-                        .add(SPLIT_SCALE_FACTOR_FIELD, "1")
-                        .build(),
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L,
-                100_000_000_000L
-        );
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(identity)
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setTableName(TableName.newBuilder().setSchemaName("tpcds1").setTableName(table.getName()).build())
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaBuilder.build()))
+            .setSplit(Split.newBuilder().setSpillLocation(
+                SpillLocation.newBuilder()
+                                .setBucket(UUID.randomUUID().toString())
+                                .setKey(UUID.randomUUID().toString() + '/' + UUID.randomUUID().toString())
+                                .setDirectory(true)
+                            .build()
+                ).setEncryptionKey(keyFactory.create())
+                .putProperties(SPLIT_NUMBER_FIELD, "0")
+                .putProperties(SPLIT_TOTAL_NUMBER_FIELD, "1000")
+                .putProperties(SPLIT_SCALE_FACTOR_FIELD, "1")
+                .build())
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
+
+        Message rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
 
-        logger.info("doReadRecordForTPCDSTIMETypeColumn: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        assertEquals(1, response.getRecords().getRowCount()); // TPCDS for `dbgen_version` always generates 1 record.
+        logger.info("doReadRecordForTPCDSTIMETypeColumn: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
+        assertEquals(1, ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount()); // TPCDS for `dbgen_version` always generates 1 record.
 
         logger.info("doReadRecordForTPCDSTIMETypeColumn: exit");
     }

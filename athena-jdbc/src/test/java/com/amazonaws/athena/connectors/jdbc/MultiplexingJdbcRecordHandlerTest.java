@@ -20,10 +20,11 @@
 package com.amazonaws.athena.connectors.jdbc;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -64,7 +65,7 @@ public class MultiplexingJdbcRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new MultiplexingJdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
+        this.jdbcRecordHandler = new MultiplexingJdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of("spill_bucket", "asdf_spill_bucket_loc"));
     }
 
     @Test
@@ -72,10 +73,10 @@ public class MultiplexingJdbcRecordHandlerTest
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
-        ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
-        this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
-        Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest), Mockito.eq(queryStatusChecker));
+        BlockAllocator allocator = Mockito.mock(BlockAllocator.class);
+        ReadRecordsRequest readRecordsRequest = ReadRecordsRequest.newBuilder().setCatalogName("fakedatabase").build();
+        this.jdbcRecordHandler.readWithConstraint(allocator, blockSpiller, readRecordsRequest, queryStatusChecker);
+        Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(allocator), Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest), Mockito.eq(queryStatusChecker));
     }
 
     @Test(expected = RuntimeException.class)
@@ -83,22 +84,21 @@ public class MultiplexingJdbcRecordHandlerTest
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
-        ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("unsupportedCatalog");
-        this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
+        BlockAllocator allocator = Mockito.mock(BlockAllocator.class);
+        ReadRecordsRequest readRecordsRequest = ReadRecordsRequest.newBuilder().setCatalogName("unsupportedCatalog").build();
+        this.jdbcRecordHandler.readWithConstraint(allocator, blockSpiller, readRecordsRequest, queryStatusChecker);
     }
 
     @Test
     public void buildSplitSql()
             throws SQLException
     {
-        ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
+        ReadRecordsRequest readRecordsRequest = ReadRecordsRequest.newBuilder().setCatalogName("fakedatabase").build();
         Connection jdbcConnection = Mockito.mock(Connection.class);
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("tableName").build();
         Schema schema = Mockito.mock(Schema.class);
         Constraints constraints = Mockito.mock(Constraints.class);
-        Split split = Mockito.mock(Split.class);
+        Split split = Split.newBuilder().build();
         this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "fakedatabase", tableName, schema, constraints, split);
         Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq("fakedatabase"), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
     }

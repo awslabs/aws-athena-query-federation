@@ -21,6 +21,8 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
@@ -55,6 +57,7 @@ public class HiveMuxRecordHandlerTest
     private AmazonAthena athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
+    private BlockAllocator blockAllocator;
     @BeforeClass
     public static void dataSetUP() {
         System.setProperty("aws.region", "us-west-2");
@@ -71,17 +74,17 @@ public class HiveMuxRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
         		"hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new HiveMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
+        this.jdbcRecordHandler = new HiveMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of("spill_bucket", "asdf_spill_bucket_loc"));
+        this.blockAllocator = new BlockAllocatorImpl();
     }
 
     @Test
     public void readWithConstraint() throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
-        ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("recordHive");
-        this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
-        Mockito.verify(this.hiveRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest), Mockito.eq(queryStatusChecker));
+        ReadRecordsRequest readRecordsRequest = ReadRecordsRequest.newBuilder().setCatalogName("recordHive").build();
+        this.jdbcRecordHandler.readWithConstraint(blockAllocator, blockSpiller, readRecordsRequest, queryStatusChecker);
+        Mockito.verify(this.hiveRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(blockAllocator), Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest), Mockito.eq(queryStatusChecker));
     }
     
     @Test
@@ -106,22 +109,20 @@ public class HiveMuxRecordHandlerTest
     public void readWithConstraintWithUnsupportedCatalog() throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
-        ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("unsupportedCatalog");
-        this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
+        ReadRecordsRequest readRecordsRequest = ReadRecordsRequest.newBuilder().setCatalogName("unsupportedCatalog").build();
+        this.jdbcRecordHandler.readWithConstraint(blockAllocator, blockSpiller, readRecordsRequest, queryStatusChecker);
     }
 
     @Test
     public void buildSplitSql()
             throws SQLException
     {
-        ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("recordHive");
+        ReadRecordsRequest readRecordsRequest = ReadRecordsRequest.newBuilder().setCatalogName("recordHive").build();
         Connection jdbcConnection = Mockito.mock(Connection.class);
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("tableName").build();
         Schema schema = Mockito.mock(Schema.class);
         Constraints constraints = Mockito.mock(Constraints.class);
-        Split split = Mockito.mock(Split.class);
+        Split split = Split.newBuilder().build();
         this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "recordHive", tableName, schema, constraints, split);
         Mockito.verify(this.hiveRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq("recordHive"), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
     }
