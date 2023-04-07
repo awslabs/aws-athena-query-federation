@@ -23,19 +23,19 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
@@ -62,7 +62,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
@@ -196,7 +196,7 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());

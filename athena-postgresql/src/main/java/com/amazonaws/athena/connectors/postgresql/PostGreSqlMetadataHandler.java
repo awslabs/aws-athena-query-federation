@@ -24,18 +24,18 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -203,7 +203,7 @@ public class PostGreSqlMetadataHandler
             if (ALL_PARTITIONS.equals(partitionsSchemaFieldReader.readText().toString()) && ALL_PARTITIONS.equals(partitionsFieldReader.readText().toString())) {
                 for (String splitClause : getSplitClauses(getSplitsRequest.getTableName())) {
                     //Every split must have a unique location if we wish to spill to avoid failures
-                    SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
+                    SpillLocation spillLocation = makeSpillLocation(getSplitsRequest.getQueryId());
 
                     Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                             .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
@@ -228,7 +228,7 @@ public class PostGreSqlMetadataHandler
                 partitionsFieldReader.setPosition(curPartition);
 
                 //Every split must have a unique location if we wish to spill to avoid failures
-                SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
+                SpillLocation spillLocation = makeSpillLocation(getSplitsRequest.getQueryId());
 
                 LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), String.valueOf(partitionsFieldReader.readText()));
                 Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
@@ -244,7 +244,7 @@ public class PostGreSqlMetadataHandler
             }
         }
 
-        return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+        return GetSplitsResponse.newBuilder().setType("GetSplitsResponse").setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).build();
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)

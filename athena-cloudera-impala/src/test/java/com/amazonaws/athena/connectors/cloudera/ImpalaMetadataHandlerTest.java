@@ -20,10 +20,10 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.lambda.data.*;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.*;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.metadata.*;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -100,7 +100,7 @@ public class ImpalaMetadataHandlerTest
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tempTableName = new TableName("testSchema", "testTable");
+        TableName tempTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId",
@@ -143,7 +143,7 @@ public class ImpalaMetadataHandlerTest
        AtomicInteger rowNumber = new AtomicInteger(-1);
        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
        Constraints constraints = Mockito.mock(Constraints.class);
-       TableName tempTableName = new TableName("testSchema", "testTable");
+       TableName tempTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
        Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
        Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId",
@@ -178,7 +178,7 @@ public class ImpalaMetadataHandlerTest
     public void doGetTableLayoutWithSQLException()
             throws Exception {
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
@@ -200,7 +200,7 @@ public class ImpalaMetadataHandlerTest
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tempTableName = new TableName("testSchema", "testTable");
+        TableName tempTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId",
@@ -231,7 +231,7 @@ public class ImpalaMetadataHandlerTest
     @Test
     public void decodeContinuationToken() throws Exception
     {
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Constraints constraints = Mockito.mock(Constraints.class);
         Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
@@ -270,7 +270,7 @@ public class ImpalaMetadataHandlerTest
                 {Types.TIMESTAMP, 93, "case_instance", 0, 0}, {Types.DATE, 91, "case_date", 0, 0},{Types.VARBINARY, 91, "case_binary", 0, 0},
                 {Types.DOUBLE, 91, "case_double", 0, 0},{Types.FLOAT, 91, "case_float", 0, 0}, {Types.BOOLEAN, 1, "case_boolean", 0, 0}};
         ResultSet resultSet1 = mockResultSet(schema1, values1, new AtomicInteger(-1));
-        TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("TESTSCHEMA").setTableName("TESTTABLE").build();
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY + inputTableName.getTableName().toUpperCase())).thenReturn(preparestatement1);
         Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
@@ -285,7 +285,7 @@ public class ImpalaMetadataHandlerTest
     @Test
     public void doGetTableNoColumns() throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         this.impalaMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
@@ -293,7 +293,7 @@ public class ImpalaMetadataHandlerTest
     public void doGetTableSQLException()
             throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.impalaMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));

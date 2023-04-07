@@ -22,19 +22,19 @@ package com.amazonaws.athena.connectors.docdb;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
@@ -146,7 +146,7 @@ public class DocDBMetadataHandler
                 schemas.add(itr.next());
             }
 
-            return new ListSchemasResponse(request.getCatalogName(), schemas);
+            return ListSchemasResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSchemas(schemas).build();
         }
     }
 
@@ -164,7 +164,7 @@ public class DocDBMetadataHandler
 
         try (MongoCursor<String> itr = client.getDatabase(request.getSchemaName()).listCollectionNames().iterator()) {
             while (itr.hasNext()) {
-                tables.add(new TableName(request.getSchemaName(), itr.next()));
+                tables.add(TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(itr.next())).build();
             }
 
             return new ListTablesResponse(request.getCatalogName(), tables, null);
@@ -203,7 +203,7 @@ public class DocDBMetadataHandler
             MongoClient client = getOrCreateConn(request);
             schema = SchemaUtils.inferSchema(client, request.getTableName(), SCHEMA_INFERRENCE_NUM_DOCS);
         }
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+        return GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(request.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).build();
     }
 
     /**
@@ -212,7 +212,7 @@ public class DocDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         //NoOp as we do not support partitioning.

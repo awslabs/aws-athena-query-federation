@@ -27,24 +27,24 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -283,7 +283,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             FieldReader locationReader = partitions.getFieldReader(PARTITION_NUMBER);
             locationReader.setPosition(curPartition);
-            SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
+            SpillLocation spillLocation = makeSpillLocation(getSplitsRequest.getQueryId());
             LOGGER.debug("{}: Input partition is {}", getSplitsRequest.getQueryId(), locationReader.readText());
             Split.Builder splitBuilder;
             String partInfo = String.valueOf(locationReader.readText());
@@ -306,7 +306,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, encodeContinuationToken(curPartition));
             }
         }
-        return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+        return GetSplitsResponse.newBuilder().setType("GetSplitsResponse").setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).build();
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)
@@ -356,7 +356,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
+            TableName tableName = TableName.newBuilder().setSchemaName(getTableRequest.getTableName().getSchemaName().toUpperCase()).setTableName(getTableRequest.getTableName().getTableName().toUpperCase()).build();
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -490,7 +490,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
+            return ListSchemasResponse.newBuilder().setCatalogName(listSchemasRequest.getCatalogName()).addAllSchemas(listDatabaseNames(connection)).build();
         }
     }
 

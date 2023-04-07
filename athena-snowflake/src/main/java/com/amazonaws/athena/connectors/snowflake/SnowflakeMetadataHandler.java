@@ -28,25 +28,26 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -277,7 +278,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             FieldReader locationReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
             locationReader.setPosition(curPartition);
-            SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
+            SpillLocation spillLocation = makeSpillLocation(getSplitsRequest.getQueryId());
             LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), locationReader.readText());
             Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                     .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
@@ -287,7 +288,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, encodeContinuationToken(curPartition + 1));
             }
         }
-        return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+        return GetSplitsResponse.newBuilder().setType("GetSplitsResponse").setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).build();
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)
@@ -435,7 +436,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         //if no query hints has been passed then return input table name
         if (!table.getTableName().contains("@")) {
-            return new TableName(table.getSchemaName().toUpperCase(), table.getTableName().toUpperCase());
+            return TableName.newBuilder().setSchemaName(table.getSchemaName().toUpperCase()).setTableName(table.getTableName().toUpperCase()).build();
         }
         //analyze the hint to find table and schema case
         String[] tbNameWithQueryHint = table.getTableName().split("@");
@@ -453,19 +454,19 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
         }
         if (schemaCase.equalsIgnoreCase(CASE_UPPER) && tableCase.equalsIgnoreCase(CASE_UPPER)) {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toUpperCase());
+            return TableName.newBuilder().setSchemaName(table.getSchemaName().toUpperCase()).setTableName(tableName.toUpperCase()).build();
         }
         else if (schemaCase.equalsIgnoreCase(CASE_LOWER) && tableCase.equalsIgnoreCase(CASE_LOWER)) {
-            return new TableName(table.getSchemaName().toLowerCase(), tableName.toLowerCase());
+            return TableName.newBuilder().setSchemaName(table.getSchemaName().toLowerCase()).setTableName(tableName.toLowerCase()).build();
         }
         else if (schemaCase.equalsIgnoreCase(CASE_LOWER) && tableCase.equalsIgnoreCase(CASE_UPPER)) {
-            return new TableName(table.getSchemaName().toLowerCase(), tableName.toUpperCase());
+            return TableName.newBuilder().setSchemaName(table.getSchemaName().toLowerCase()).setTableName(tableName.toUpperCase()).build();
         }
         else if (schemaCase.equalsIgnoreCase(CASE_UPPER) && tableCase.equalsIgnoreCase(CASE_LOWER)) {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toLowerCase());
+            return TableName.newBuilder().setSchemaName(table.getSchemaName().toUpperCase()).setTableName(tableName.toLowerCase()).build();
         }
         else {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toUpperCase());
+            return TableName.newBuilder().setSchemaName(table.getSchemaName().toUpperCase()).setTableName(tableName.toUpperCase()).build();
         }
     }
 
@@ -485,7 +486,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         ResultSet resultSet = metadata.getTables(catalogName, tableName.getSchemaName(), tableName.getTableName(), null);
         while (resultSet.next()) {
             if (tableName.getTableName().equals(resultSet.getString(3))) {
-                tableName = new TableName(tableName.getSchemaName(), resultSet.getString(3));
+                tableName = TableName.newBuilder().setSchemaName(tableName.getSchemaName()).setTableName(resultSet.getString(3)).build();
                 return tableName;
             }
         }
@@ -493,7 +494,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         ResultSet rs = metadata.getTables(catalogName, tableName.getSchemaName().toUpperCase(), "%", null);
         while (rs.next()) {
             if (tableName.getTableName().equalsIgnoreCase(rs.getString(3))) {
-                tableName = new TableName(tableName.getSchemaName().toUpperCase(), rs.getString(3));
+                tableName = TableName.newBuilder().setSchemaName(tableName.getSchemaName().toUpperCase()).setTableName(rs.getString(3)).build();
                 return tableName;
             }
         }
@@ -505,7 +506,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
+            return ListSchemasResponse.newBuilder().setCatalogName(listSchemasRequest.getCatalogName()).addAllSchemas(listDatabaseNames(connection)).build();
         }
     }
     protected static Set<String> listDatabaseNames(final Connection jdbcConnection)

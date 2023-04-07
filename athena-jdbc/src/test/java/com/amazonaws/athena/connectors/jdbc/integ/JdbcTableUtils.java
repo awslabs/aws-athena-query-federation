@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.jdbc.integ;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;

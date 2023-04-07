@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.aws.cmdb;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.EmrClusterTableProvider;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.RdsTableProvider;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;

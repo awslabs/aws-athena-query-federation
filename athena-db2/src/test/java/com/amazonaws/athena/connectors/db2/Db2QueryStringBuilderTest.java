@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.db2;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;

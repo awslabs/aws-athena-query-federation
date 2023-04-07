@@ -25,11 +25,11 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
@@ -71,7 +71,7 @@ public class SubnetTableProvider
     @Override
     public TableName getTableName()
     {
-        return new TableName(getSchema(), "subnets");
+        return TableName.newBuilder().setSchemaName(getSchema()).setTableName("subnets").build();
     }
 
     /**
@@ -80,7 +80,7 @@ public class SubnetTableProvider
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
-        return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
+        return GetTableResponse.newBuilder().setCatalogName(getTableRequest.getCatalogName()).setTableName(getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(SCHEMA)).build();
     }
 
     /**
@@ -90,11 +90,11 @@ public class SubnetTableProvider
      * @See TableProvider
      */
     @Override
-    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    public void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         DescribeSubnetsRequest request = new DescribeSubnetsRequest();
 
-        ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("id");
+        ValueSet idConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()).getSummary().get("id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
             request.setSubnetIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }

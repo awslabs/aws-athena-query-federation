@@ -26,11 +26,11 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.*;
+import com.amazonaws.athena.connector.lambda.proto.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
@@ -147,7 +147,7 @@ public class VerticaMetadataHandler
                 }
             }
         }
-        return new ListSchemasResponse(request.getCatalogName(), schemas);
+        return ListSchemasResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSchemas(schemas).build();
     }
 
     /**
@@ -168,7 +168,7 @@ public class VerticaMetadataHandler
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet table = dbMetadata.getTables(null, request.getSchemaName(),null, TABLE_TYPES);
             while (table.next()){
-                tables.add(new TableName(table.getString(TABLE_SCHEMA), table.getString(TABLE_NAME)));
+                tables.add(TableName.newBuilder().setSchemaName(table.getString(TABLE_SCHEMA)).setTableName(table.getString(TABLE_NAME))).build();
             }
         }
         return new ListTablesResponse(request.getCatalogName(), tables, null);
@@ -211,7 +211,7 @@ public class VerticaMetadataHandler
      * @param request The GetTableLayoutResquest that triggered this call.
      */
     @Override
-    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request) {
+    public void enhancePartitionSchema(BlockAllocator allocator, SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request) {
 
         logger.info("{}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName());
         partitionSchemaBuilder.addField("preparedStmt", new ArrowType.Utf8());
@@ -228,7 +228,7 @@ public class VerticaMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-        public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws SQLException {
+        public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws SQLException {
         logger.info("in getPartitions: "+ request);
 
         Schema schemaName = request.getSchema();

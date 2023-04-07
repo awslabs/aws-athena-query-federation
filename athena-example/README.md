@@ -75,7 +75,7 @@ public class MyMetadataHandler extends MetadataHandler
      * for pushing down into the source you are querying.
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) {}
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) {}
 
     /**
      * Used to split-up the reads required to scan the requested batch of partition(s).

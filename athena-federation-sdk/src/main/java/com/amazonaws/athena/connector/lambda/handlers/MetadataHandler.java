@@ -218,28 +218,33 @@ public abstract class MetadataHandler
             case "ListSchemasRequest":
                 ListSchemasRequest listSchemasRequest = (ListSchemasRequest) ProtobufSerDe.buildFromJson(inputJson, ListSchemasRequest.newBuilder());
                 ListSchemasResponse listSchemasResponse = doListSchemaNames(allocator, listSchemasRequest);
+                if (!listSchemasResponse.hasType()) listSchemasResponse = listSchemasResponse.toBuilder().setType("ListSchemasResponse").build();
                 ProtobufSerDe.writeResponse(listSchemasResponse, outputStream);
                 return;
             case "ListTablesRequest":
                 ListTablesRequest listTablesRequest = (ListTablesRequest) ProtobufSerDe.buildFromJson(inputJson, ListTablesRequest.newBuilder());
                 ListTablesResponse listTablesResponse = doListTables(allocator, listTablesRequest);
+                if (!listTablesResponse.hasType()) listTablesResponse = listTablesResponse.toBuilder().setType("ListTablesResponse").build();
                 ProtobufSerDe.writeResponse(listTablesResponse, outputStream);
                 return;
             case "GetTableRequest":
                 GetTableRequest getTableRequest = (GetTableRequest) ProtobufSerDe.buildFromJson(inputJson, GetTableRequest.newBuilder());
                 GetTableResponse getTableResponse = doGetTable(allocator, getTableRequest);
+                if (!getTableResponse.hasType()) getTableResponse = getTableResponse.toBuilder().setType("GetTableResponse").build();
                 assertTypes(ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema()));
                 ProtobufSerDe.writeResponse(getTableResponse, outputStream);
                 return;
             case "GetTableLayoutRequest":
                 GetTableLayoutRequest getTableLayoutRequest = (GetTableLayoutRequest) ProtobufSerDe.buildFromJson(inputJson, GetTableLayoutRequest.newBuilder());
                 GetTableLayoutResponse getTableLayoutResponse = doGetTableLayout(allocator, getTableLayoutRequest);
+                if (!getTableLayoutResponse.hasType()) getTableLayoutResponse = getTableLayoutResponse.toBuilder().setType("GetTableLayoutResponse").build();
                 ProtobufSerDe.writeResponse(getTableLayoutResponse, outputStream);
                 return;
             case "GetSplitsRequest":
                 GetSplitsRequest getSplitsRequest = (GetSplitsRequest) ProtobufSerDe.buildFromJson(inputJson, GetSplitsRequest.newBuilder());
-                GetSplitsResponse response = doGetSplits(allocator, getSplitsRequest);
-                ProtobufSerDe.writeResponse(response, outputStream);
+                GetSplitsResponse getSplitsResponse = doGetSplits(allocator, getSplitsRequest);
+                if (!getSplitsResponse.hasType()) getSplitsResponse = getSplitsResponse.toBuilder().setType("GetSplitsResponse").build();
+                ProtobufSerDe.writeResponse(getSplitsResponse, outputStream);
                 return;
             default:
               throw new UnsupportedOperationException("Input type is not recognized - " + typeHeader.getType());

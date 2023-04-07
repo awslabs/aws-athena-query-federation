@@ -19,10 +19,10 @@
  */
 package com.amazonaws.athena.connectors.mysql;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
@@ -56,7 +56,7 @@ public class MySqlQueryStringBuilder
         }
         tableName.append(quote(table));
 
-        String partitionName = split.getProperty(MySqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
+        String partitionName = split.getPropertiesMap().get((MySqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
 
         if (MySqlMetadataHandler.ALL_PARTITIONS.equals(partitionName)) {
             // No partitions

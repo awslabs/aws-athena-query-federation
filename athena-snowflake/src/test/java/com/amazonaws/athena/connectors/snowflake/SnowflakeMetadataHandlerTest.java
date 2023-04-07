@@ -20,11 +20,11 @@ package com.amazonaws.athena.connectors.snowflake;
  */
 
 import com.amazonaws.athena.connector.lambda.data.*;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.*;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.metadata.*;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -96,7 +96,7 @@ public class SnowflakeMetadataHandlerTest
             throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.snowflakeMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
@@ -142,7 +142,7 @@ public class SnowflakeMetadataHandlerTest
             throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.snowflakeMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
@@ -184,7 +184,7 @@ public class SnowflakeMetadataHandlerTest
             throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.snowflakeMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
@@ -230,7 +230,7 @@ public class SnowflakeMetadataHandlerTest
     public void doGetTableLayoutWithSQLException()
             throws Exception {
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.snowflakeMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
@@ -249,7 +249,7 @@ public class SnowflakeMetadataHandlerTest
             throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
 
@@ -288,7 +288,7 @@ public class SnowflakeMetadataHandlerTest
             throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.snowflakeMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
@@ -322,7 +322,7 @@ public class SnowflakeMetadataHandlerTest
     @Test(expected = RuntimeException.class)
     public void doGetTableNoColumns() throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
 
         this.snowflakeMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
@@ -331,7 +331,7 @@ public class SnowflakeMetadataHandlerTest
     public void doGetTableSQLException()
             throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.snowflakeMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
@@ -340,14 +340,14 @@ public class SnowflakeMetadataHandlerTest
     @Test(expected = RuntimeException.class)
     public void doGetTableException() throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "test@schema");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("test@schema").build();
         this.snowflakeMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
     @Test(expected = RuntimeException.class)
     public void doGetTableNoColumnsException() throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "test@table");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("test@table").build();
         this.snowflakeMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
@@ -370,7 +370,7 @@ public class SnowflakeMetadataHandlerTest
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
-        TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("TESTSCHEMA").setTableName("TESTTABLE").build();
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
 
@@ -386,21 +386,21 @@ public class SnowflakeMetadataHandlerTest
     public void testFindTableNameFromQueryHint()
             throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable@schemacase=upper&tablecase=upper");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable@schemacase=upper&tablecase=upper").build();
         TableName tableName = snowflakeMetadataHandler.findTableNameFromQueryHint(inputTableName);
-        Assert.assertEquals(new TableName("TESTSCHEMA", "TESTTABLE"), tableName);
+        Assert.assertEquals(TableName.newBuilder().setSchemaName("TESTSCHEMA", "TESTTABLE")).setTableName(tableName).build();
 
-        TableName inputTableName1 = new TableName("testSchema", "testTable@schemacase=upper&tablecase=lower");
+        TableName inputTableName1 = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable@schemacase=upper&tablecase=lower").build();
         TableName tableName1 = snowflakeMetadataHandler.findTableNameFromQueryHint(inputTableName1);
-        Assert.assertEquals(new TableName("TESTSCHEMA", "testtable"), tableName1);
+        Assert.assertEquals(TableName.newBuilder().setSchemaName("TESTSCHEMA", "testtable")).setTableName(tableName1).build();
 
-        TableName inputTableName2 = new TableName("testSchema", "testTable@schemacase=lower&tablecase=lower");
+        TableName inputTableName2 = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable@schemacase=lower&tablecase=lower").build();
         TableName tableName2 = snowflakeMetadataHandler.findTableNameFromQueryHint(inputTableName2);
-        Assert.assertEquals(new TableName("testschema", "testtable"), tableName2);
+        Assert.assertEquals(TableName.newBuilder().setSchemaName("testschema", "testtable")).setTableName(tableName2).build();
 
-        TableName inputTableName3 = new TableName("testSchema", "testTable@schemacase=lower&tablecase=upper");
+        TableName inputTableName3 = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable@schemacase=lower&tablecase=upper").build();
         TableName tableName3 = snowflakeMetadataHandler.findTableNameFromQueryHint(inputTableName3);
-        Assert.assertEquals(new TableName("testschema", "TESTTABLE"), tableName3);
+        Assert.assertEquals(TableName.newBuilder().setSchemaName("testschema", "TESTTABLE")).setTableName(tableName3).build();
 
     }
 

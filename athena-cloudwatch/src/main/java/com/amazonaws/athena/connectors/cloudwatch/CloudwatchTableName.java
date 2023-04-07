@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 
 import java.util.Objects;
 
@@ -46,7 +46,7 @@ public class CloudwatchTableName
 
     public TableName toTableName()
     {
-        return new TableName(logGroupName, logStreamName);
+        return TableName.newBuilder().setSchemaName(logGroupName.toLowerCase()).setTableName(logStreamName.toLowerCase()).build();
     }
 
     @Override

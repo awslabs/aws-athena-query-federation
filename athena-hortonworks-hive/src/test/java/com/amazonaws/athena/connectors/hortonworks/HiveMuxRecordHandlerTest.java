@@ -22,10 +22,10 @@ package com.amazonaws.athena.connectors.hortonworks;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
@@ -118,7 +118,7 @@ public class HiveMuxRecordHandlerTest
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
         Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("recordHive");
         Connection jdbcConnection = Mockito.mock(Connection.class);
-        TableName tableName = new TableName("testSchema", "tableName");
+        TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("tableName").build();
         Schema schema = Mockito.mock(Schema.class);
         Constraints constraints = Mockito.mock(Constraints.class);
         Split split = Mockito.mock(Split.class);

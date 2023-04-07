@@ -24,24 +24,24 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
@@ -68,7 +68,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
@@ -140,8 +140,8 @@ public class MetricsMetadataHandlerTest
         logger.info("doListTables - {}", res.getTables());
 
         assertEquals(2, res.getTables().size());
-        assertTrue(res.getTables().contains(new TableName(defaultSchema, "metrics")));
-        assertTrue(res.getTables().contains(new TableName(defaultSchema, "metric_samples")));
+        assertTrue(res.getTables().contains(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics"))).build();
+        assertTrue(res.getTables().contains(TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples"))).build();
 
         logger.info("doListTables - exit");
     }
@@ -151,11 +151,11 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doGetMetricsTable - enter");
 
-        GetTableRequest metricsTableReq = new GetTableRequest(identity, "queryId", "default", new TableName(defaultSchema, "metrics"));
+        GetTableRequest metricsTableReq = new GetTableRequest(identity, "queryId", "default", TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics")).build();
         GetTableResponse metricsTableRes = handler.doGetTable(allocator, metricsTableReq);
         logger.info("doGetMetricsTable - {} {}", metricsTableRes.getTableName(), metricsTableRes.getSchema());
 
-        assertEquals(new TableName(defaultSchema, "metrics"), metricsTableRes.getTableName());
+        assertEquals(TableName.newBuilder().setSchemaName(defaultSchema, "metrics")).setTableName(metricsTableRes.getTableName()).build();
         assertNotNull(metricsTableRes.getSchema());
         assertEquals(6, metricsTableRes.getSchema().getFields().size());
 
@@ -170,12 +170,12 @@ public class MetricsMetadataHandlerTest
         GetTableRequest metricsTableReq = new GetTableRequest(identity,
                 "queryId",
                 "default",
-                new TableName(defaultSchema, "metric_samples"));
+                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples")).build();
 
         GetTableResponse metricsTableRes = handler.doGetTable(allocator, metricsTableReq);
         logger.info("doGetMetricSamplesTable - {} {}", metricsTableRes.getTableName(), metricsTableRes.getSchema());
 
-        assertEquals(new TableName(defaultSchema, "metric_samples"), metricsTableRes.getTableName());
+        assertEquals(TableName.newBuilder().setSchemaName(defaultSchema, "metric_samples")).setTableName(metricsTableRes.getTableName()).build();
         assertNotNull(metricsTableRes.getSchema());
         assertEquals(9, metricsTableRes.getSchema().getFields().size());
 
@@ -197,8 +197,8 @@ public class MetricsMetadataHandlerTest
         GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
                 "queryId",
                 "default",
-                new TableName(defaultSchema, "metrics"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics").build(),
+                new Constraints(constraintsMap),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -228,7 +228,7 @@ public class MetricsMetadataHandlerTest
         GetSplitsRequest originalReq = new GetSplitsRequest(identity,
                 "queryId",
                 "catalog_name",
-                new TableName(defaultSchema, "metrics"),
+                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metrics").build(),
                 partitions,
                 Collections.singletonList("partitionId"),
                 new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
@@ -302,7 +302,7 @@ public class MetricsMetadataHandlerTest
         GetSplitsRequest originalReq = new GetSplitsRequest(identity,
                 "queryId",
                 "catalog_name",
-                new TableName(defaultSchema, "metric_samples"),
+                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples").build(),
                 partitions,
                 Collections.singletonList("partitionId"),
                 new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
@@ -369,7 +369,7 @@ public class MetricsMetadataHandlerTest
         GetSplitsRequest originalReq = new GetSplitsRequest(identity,
                 "queryId",
                 "catalog_name",
-                new TableName(defaultSchema, "metric_samples"),
+                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("metric_samples").build(),
                 partitions,
                 Collections.singletonList("partitionId"),
                 new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),

@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTableRequest;

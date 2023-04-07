@@ -24,17 +24,17 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -55,7 +55,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -134,7 +134,7 @@ public class JdbcMetadataHandlerTest
     {
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
         Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testtable2"}};
-        TableName[] expected = {new TableName("testSchema", "testTable"), new TableName("testSchema", "testtable2")};
+        TableName[] expected = {TableName.newBuilder().setSchemaName("testSchema", "testTable"), new TableName("testSchema").setTableName("testtable2").build()};
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
@@ -151,7 +151,7 @@ public class JdbcMetadataHandlerTest
     {
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
         Object[][] values = {{"test_Schema", "testTable"}, {"test_Schema", "testtable2"}};
-        TableName[] expected = {new TableName("test_Schema", "testTable"), new TableName("test_Schema", "testtable2")};
+        TableName[] expected = {TableName.newBuilder().setSchemaName("test_Schema", "testTable"), new TableName("test_Schema").setTableName("testtable2").build()};
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
         Mockito.when(connection.getMetaData().getTables("testCatalog", "test\\_Schema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE"})).thenReturn(resultSet);
@@ -189,7 +189,7 @@ public class JdbcMetadataHandlerTest
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
 
         GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(
@@ -204,7 +204,7 @@ public class JdbcMetadataHandlerTest
     public void doGetTableNoColumns()
             throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
 
         this.jdbcMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
@@ -213,7 +213,7 @@ public class JdbcMetadataHandlerTest
     public void doGetTableSQLException()
             throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), Mockito.isNull()))
                 .thenThrow(new SQLException());
         this.jdbcMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));

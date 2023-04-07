@@ -24,11 +24,10 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
@@ -410,7 +409,7 @@ public class DynamoDBRecordHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE3);
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE3).build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
@@ -474,7 +473,7 @@ public class DynamoDBRecordHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE4).build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
@@ -527,7 +526,7 @@ public class DynamoDBRecordHandlerTest
     {
         when(glueClient.getTable(any())).thenThrow(new EntityNotFoundException(""));
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE4).build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
@@ -595,7 +594,7 @@ public class DynamoDBRecordHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE5);
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE5).build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
@@ -653,7 +652,7 @@ public class DynamoDBRecordHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE6);
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE6).build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
@@ -713,7 +712,7 @@ public class DynamoDBRecordHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE7);
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE7).build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
@@ -798,7 +797,7 @@ public class DynamoDBRecordHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE8).build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
@@ -867,7 +866,7 @@ public class DynamoDBRecordHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE8).build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)

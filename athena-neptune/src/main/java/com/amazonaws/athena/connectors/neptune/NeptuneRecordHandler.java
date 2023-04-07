@@ -22,7 +22,7 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.GraphType;
 import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
 import com.amazonaws.services.athena.AmazonAthena;

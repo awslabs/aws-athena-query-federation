@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.docdb;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -64,7 +64,7 @@ public class SchemaUtilsTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
 
-        Schema schema = SchemaUtils.inferSchema(mockClient, new TableName("test", "test"), 10);
+        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test", "test")).setTableName(10).build();
         assertEquals(1, schema.getFields().size());
 
         Map<String, Field> fields = new HashMap<>();
@@ -127,7 +127,7 @@ public class SchemaUtilsTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
 
-        Schema schema = SchemaUtils.inferSchema(mockClient, new TableName("test", "test"), 10);
+        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test", "test")).setTableName(10).build();
         assertEquals(6, schema.getFields().size());
 
         Map<String, Field> fields = new HashMap<>();
@@ -179,7 +179,7 @@ public class SchemaUtilsTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
 
-        Schema schema = SchemaUtils.inferSchema(mockClient, new TableName("test", "test"), 10);
+        Schema schema = SchemaUtils.inferSchema(mockClient, TableName.newBuilder().setSchemaName("test", "test")).setTableName(10).build();
         assertEquals(4, schema.getFields().size());
 
         Map<String, Field> fields = new HashMap<>();

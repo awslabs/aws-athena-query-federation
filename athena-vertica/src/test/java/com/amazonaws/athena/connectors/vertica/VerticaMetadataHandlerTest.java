@@ -21,14 +21,14 @@ package com.amazonaws.athena.connectors.vertica;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.*;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.metadata.*;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.metadata.*;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
@@ -60,7 +60,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -173,7 +173,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME", };
         Object[][] values = {{"testSchema", "testTable1"}};
         List<TableName> expectedTables = new ArrayList<>();
-        expectedTables.add(new TableName("testSchema", "testTable1"));
+        expectedTables.add(TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable1")).build();
 
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
@@ -254,7 +254,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 {"testSchema", "testTable1", "queryId", "varchar"},  {"testSchema", "testTable1", "awsRegionSql", "varchar"}};
         int[] types = {Types.INTEGER, Types.INTEGER, Types.INTEGER,Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
         List<TableName> expectedTables = new ArrayList<>();
-        expectedTables.add(new TableName("testSchema", "testTable1"));
+        expectedTables.add(TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable1")).build();
 
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
@@ -267,8 +267,8 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         try {
             req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
-                    new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                    TableName.newBuilder().setSchemaName("schema1").setTableName("table1").build(),
+                    new Constraints(constraintsMap),
                     tableSchema,
                     partitionCols);
 
@@ -359,7 +359,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(objectListing.getObjectSummaries()).thenReturn(s3ObjectSummariesList);
 
         GetSplitsRequest originalReq = new GetSplitsRequest(this.federatedIdentity, "queryId", "catalog_name",
-                new TableName("schema", "table_name"),
+                TableName.newBuilder().setSchemaName("schema").setTableName("table_name").build(),
                 partitions,
                 partitionCols,
                 new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),

@@ -23,10 +23,10 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.*;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.metadata.*;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -124,7 +124,7 @@ public class ElasticsearchMetadataHandlerTest
 
         // Generate hard-coded response with 3 domains.
         ListSchemasResponse mockDomains =
-                new ListSchemasResponse("elasticsearch", ImmutableList.of("domain2", "domain3", "domain1"));
+                ListSchemasResponse.newBuilder().setCatalogName("elasticsearch", ImmutableList.of("domain2", "domain3").addAllSchemas("domain1")).build();
 
         // Get real response from doListSchemaNames().
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("domain1", "endpoint1",
@@ -186,10 +186,10 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("doListTables - enter");
 
         // Hardcoded response with 2 indices.
-        Collection<TableName> mockIndices = ImmutableList.of(new TableName("movies", "customer"),
-                new TableName("movies", "movies"),
-                new TableName("movies", "stream1"),
-                new TableName("movies", "stream2"));
+        Collection<TableName> mockIndices = ImmutableList.of(TableName.newBuilder().setSchemaName("movies").setTableName("customer").build(),
+                TableName.newBuilder().setSchemaName("movies").setTableName("movies"),
+                TableName.newBuilder().setSchemaName("movies").setTableName("stream1"),
+                TableName.newBuilder().setSchemaName("movies").setTableName("stream2")).build();
 
         // Get real indices.
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
@@ -377,7 +377,7 @@ public class ElasticsearchMetadataHandlerTest
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
                 "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, com.google.common.collect.ImmutableMap.of());
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
-                new TableName("movies", "mishmash"));
+                TableName.newBuilder().setSchemaName("movies").setTableName("mishmash")).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         Schema realMapping = res.getSchema();
 
@@ -410,7 +410,7 @@ public class ElasticsearchMetadataHandlerTest
         GetSplitsRequest originalReq = new GetSplitsRequest(fakeIdentity(),
                 "queryId",
                 "elasticsearch",
-                new TableName("movies", index),
+                TableName.newBuilder().setSchemaName("movies").setTableName(index).build(),
                 partitions,
                 partitionCols,
                 new Constraints(new HashMap<>()),

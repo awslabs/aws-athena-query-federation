@@ -23,16 +23,15 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
@@ -101,8 +100,8 @@ public class MetricsRecordHandlerTest
     private static final Table METRIC_TABLE = new MetricsTable();
     //Schema for the metric_samples table.
     private static final Table METRIC_DATA_TABLE = new MetricSamplesTable();
-    private static final TableName METRICS_TABLE_NAME = new TableName("default", METRIC_TABLE.getName());
-    private static final TableName METRIC_SAMPLES_TABLE_NAME = new TableName("default", METRIC_DATA_TABLE.getName());
+    private static final TableName METRICS_TABLE_NAME = TableName.newBuilder().setSchemaName("default").setTableName(METRIC_TABLE.getName()).build();
+    private static final TableName METRIC_SAMPLES_TABLE_NAME = TableName.newBuilder().setSchemaName("default").setTableName(METRIC_DATA_TABLE.getName()).build();
 
     private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     private List<ByteHolder> mockS3Storage;

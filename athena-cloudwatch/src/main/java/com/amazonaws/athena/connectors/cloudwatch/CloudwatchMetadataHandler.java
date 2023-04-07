@@ -25,19 +25,19 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.logs.AWSLogs;
@@ -63,7 +63,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchExceptionFilter.EXCEPTION_FILTER;
 
 /**
@@ -165,7 +165,7 @@ public class CloudwatchMetadataHandler
         }
         while (result.getNextToken() != null);
 
-        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
+        return ListSchemasResponse.newBuilder().setCatalogName(listSchemasRequest.getCatalogName()).addAllSchemas(schemas).build();
     }
 
     /**
@@ -208,7 +208,7 @@ public class CloudwatchMetadataHandler
         if (nextToken == null) {
             //We add a special table that represents all log streams. This is helpful depending on how
             //you have your logs organized.
-            tables.add(new TableName(listTablesRequest.getSchemaName(), ALL_LOG_STREAMS_TABLE));
+            tables.add(TableName.newBuilder().setSchemaName(listTablesRequest.getSchemaName()).setTableName(ALL_LOG_STREAMS_TABLE)).build();
         }
 
         return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
@@ -239,7 +239,7 @@ public class CloudwatchMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    public void enhancePartitionSchema(BlockAllocator allocator, SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
         partitionSchemaBuilder.addField(LOG_STREAM_SIZE_FIELD, new ArrowType.Int(64, true));
         partitionSchemaBuilder.addField(LOG_GROUP_FIELD, Types.MinorType.VARCHAR.getType());
@@ -254,7 +254,7 @@ public class CloudwatchMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         CloudwatchTableName cwTableName = tableResolver.validateTable(request.getTableName());
@@ -360,6 +360,6 @@ public class CloudwatchMetadataHandler
      */
     private TableName toTableName(ListTablesRequest request, LogStream logStream)
     {
-        return new TableName(request.getSchemaName(), logStream.getLogStreamName());
+        return TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(logStream.getLogStreamName().toLowerCase()).build();
     }
 }

@@ -28,20 +28,19 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -92,7 +91,7 @@ public abstract class AbstractTableProviderTest
     private String expectedCatalog = "catalog";
     private String expectedSchema = getExpectedSchema();
     private String expectedTable = getExpectedTable();
-    private TableName expectedTableName = new TableName(expectedSchema, expectedTable);
+    private TableName expectedTableName = TableName.newBuilder().setSchemaName(expectedSchema).setTableName(expectedTable).build();
 
     private TableProvider provider;
 

@@ -19,13 +19,13 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.DimensionFilter;
 import com.amazonaws.services.cloudwatch.model.GetMetricDataRequest;
@@ -149,7 +149,7 @@ public class MetricUtils
 
         dataRequest.withMetricDataQueries(metricDataQueries);
 
-        ValueSet timeConstraint = readRecordsRequest.getConstraints().getSummary().get(TIMESTAMP_FIELD);
+        ValueSet timeConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, readRecordsRequest.getConstraints()).getSummary().get(TIMESTAMP_FIELD);
         if (timeConstraint instanceof SortedRangeSet && !timeConstraint.isNullAllowed()) {
             //SortedRangeSet is how >, <, between is represented which are easiest and most common when
             //searching logs so we attempt to push that down here as an optimization. SQL can represent complex

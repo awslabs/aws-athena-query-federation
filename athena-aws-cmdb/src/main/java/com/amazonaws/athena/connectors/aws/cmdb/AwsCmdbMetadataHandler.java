@@ -23,20 +23,20 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -96,7 +96,7 @@ public class AwsCmdbMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
-        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas.keySet());
+        return ListSchemasResponse.newBuilder().setCatalogName(listSchemasRequest.getCatalogName()).addAllSchemas(schemas.keySet()).build();
     }
 
     /**
@@ -132,7 +132,7 @@ public class AwsCmdbMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    public void enhancePartitionSchema(BlockAllocator allocator, SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
         TableProvider tableProvider = tableProviders.get(request.getTableName());
         if (tableProvider == null) {
@@ -147,7 +147,7 @@ public class AwsCmdbMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         TableProvider tableProvider = tableProviders.get(request.getTableName());
@@ -171,9 +171,9 @@ public class AwsCmdbMetadataHandler
         }
 
         //Every split needs a unique spill location.
-        SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
+        SpillLocation spillLocation = makeSpillLocation(getSplitsRequest.getQueryId());
         EncryptionKey encryptionKey = makeEncryptionKey();
-        Split split = Split.newBuilder(spillLocation, encryptionKey).build();
-        return new GetSplitsResponse(getSplitsRequest.getCatalogName(), split);
+        Split split = Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(encryptionKey).build();
+        return GetSplitsResponse.newBuilder().setType("GetSplitsResponse").setCatalogName(getSplitsRequest.getCatalogName()).addSplits(split).build();
     }
 }

@@ -22,14 +22,13 @@ package com.amazonaws.athena.connectors.aws.cmdb;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -92,7 +91,7 @@ public class AwsCmdbRecordHandlerTest
             throws Exception
     {
         when(mockTableProviderFactory.getTableProviders())
-                .thenReturn(Collections.singletonMap(new TableName("schema", "table"), mockTableProvider));
+                .thenReturn(Collections.singletonMap(TableName.newBuilder().setSchemaName("schema", "table")).setTableName(mockTableProvider)).build();
 
         handler = new AwsCmdbRecordHandler(mockS3, mockSecretsManager, mockAthena, mockTableProviderFactory, com.google.common.collect.ImmutableMap.of());
 
@@ -107,7 +106,7 @@ public class AwsCmdbRecordHandlerTest
     {
         ReadRecordsRequest request = new ReadRecordsRequest(identity, "catalog",
                 "queryId",
-                new TableName("schema", "table"),
+                TableName.newBuilder().setSchemaName("schema").setTableName("table").build(),
                 SchemaBuilder.newBuilder().build(),
                 Split.newBuilder(S3SpillLocation.newBuilder()
                         .withBucket(bucket)

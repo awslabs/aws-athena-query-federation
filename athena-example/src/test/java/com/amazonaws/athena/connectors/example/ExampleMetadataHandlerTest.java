@@ -23,25 +23,25 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -63,7 +63,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
@@ -138,9 +138,9 @@ public class ExampleMetadataHandlerTest
         ListTablesResponse res = handler.doListTables(allocator, req);
         ListTablesResponse expectedResponse = new ListTablesResponse("default",
                 new ImmutableList.Builder<TableName>()
-                        .add(new TableName("schema1", "table1"))
-                        .add(new TableName("schema1", "table2"))
-                        .add(new TableName("schema1", "table3"))
+                        .add(TableName.newBuilder().setSchemaName("schema1").setTableName("table1")).build()
+                        .add(TableName.newBuilder().setSchemaName("schema1").setTableName("table2")).build()
+                        .add(TableName.newBuilder().setSchemaName("schema1").setTableName("table3")).build()
                         .build(), null);
         logger.info("doListTables - {}", res);
         assertEquals("Expecting a different response", expectedResponse, res);
@@ -151,8 +151,8 @@ public class ExampleMetadataHandlerTest
                 null, 2);
         expectedResponse = new ListTablesResponse("default",
                 new ImmutableList.Builder<TableName>()
-                        .add(new TableName("schema1", "table1"))
-                        .add(new TableName("schema1", "table2"))
+                        .add(TableName.newBuilder().setSchemaName("schema1").setTableName("table1")).build()
+                        .add(TableName.newBuilder().setSchemaName("schema1").setTableName("table2")).build()
                         .build(), "table3");
         res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res);
@@ -164,7 +164,7 @@ public class ExampleMetadataHandlerTest
                 res.getNextToken(), 2);
         expectedResponse = new ListTablesResponse("default",
                 new ImmutableList.Builder<TableName>()
-                        .add(new TableName("schema1", "table3"))
+                        .add(TableName.newBuilder().setSchemaName("schema1").setTableName("table3")).build()
                         .build(), null);
         res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res);
@@ -187,7 +187,7 @@ public class ExampleMetadataHandlerTest
 
         logger.info("doGetTable - enter");
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "default",
-                new TableName("schema1", "table1"));
+                TableName.newBuilder().setSchemaName("schema1").setTableName("table1")).build();
         GetTableResponse res = handler.doGetTable(allocator, req);
         assertTrue(res.getSchema().getFields().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
@@ -237,8 +237,8 @@ public class ExampleMetadataHandlerTest
         try {
 
             req = new GetTableLayoutRequest(fakeIdentity(), "queryId", "default",
-                    new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                    TableName.newBuilder().setSchemaName("schema1").setTableName("table1").build(),
+                    new Constraints(constraintsMap),
                     tableSchema,
                     partitionCols);
 
@@ -310,7 +310,7 @@ public class ExampleMetadataHandlerTest
 
         String continuationToken = null;
         GetSplitsRequest originalReq = new GetSplitsRequest(fakeIdentity(), "queryId", "catalog_name",
-                new TableName("schema", "table_name"),
+                TableName.newBuilder().setSchemaName("schema").setTableName("table_name").build(),
                 partitions,
                 partitionCols,
                 new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),

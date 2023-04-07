@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
+<<<<<<< HEAD
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
@@ -41,6 +42,15 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.Optimization
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+=======
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+>>>>>>> 0fe7638f (Interface Changes)
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -180,9 +190,9 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
 
         // Always create single split
         Set<Split> splits = new HashSet<>();
-        splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
+        splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest.getQueryId()), makeEncryptionKey())
                 .add(PARTITION_NUMBER, "0").build());
-        return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+        return GetSplitsResponse.newBuilder().setType("GetSplitsResponse").setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).build();
     }
 
     @Override
@@ -191,7 +201,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
+            TableName tableName = TableName.newBuilder().setSchemaName(getTableRequest.getTableName().getSchemaName().toUpperCase()).setTableName(getTableRequest.getTableName().getTableName().toUpperCase()).build();
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }

@@ -24,21 +24,21 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -77,7 +77,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.eq;
@@ -266,7 +266,7 @@ public class TimestreamMetadataHandlerTest
         GetTableRequest req = new GetTableRequest(identity,
                 "query-id",
                 "default",
-                new TableName(defaultSchema, "table1"));
+                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
@@ -316,7 +316,7 @@ public class TimestreamMetadataHandlerTest
         GetTableRequest req = new GetTableRequest(identity,
                 "query-id",
                 "default",
-                new TableName(defaultSchema, "table1"));
+                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
@@ -364,7 +364,7 @@ public class TimestreamMetadataHandlerTest
         GetTableRequest req = new GetTableRequest(identity,
                 "query-id",
                 "default",
-                new TableName(defaultSchema, "table1"));
+                TableName.newBuilder().setSchemaName(defaultSchema).setTableName("table1")).build();
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
@@ -408,7 +408,7 @@ public class TimestreamMetadataHandlerTest
         GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
                 "query-id",
                 defaultSchema,
-                new TableName("database1", "table1"),
+                TableName.newBuilder().setSchemaName("database1").setTableName("table1").build(),
                 new Constraints(new HashMap<>()),
                 schema,
                 Collections.EMPTY_SET);
@@ -439,7 +439,7 @@ public class TimestreamMetadataHandlerTest
         GetSplitsRequest originalReq = new GetSplitsRequest(identity,
                 "query-id",
                 defaultSchema,
-                new TableName("database1", "table1"),
+                TableName.newBuilder().setSchemaName("database1").setTableName("table1").build(),
                 partitions,
                 partitionCols,
                 new Constraints(new HashMap<>()),

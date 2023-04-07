@@ -20,8 +20,8 @@
 
 package com.amazonaws.athena.connectors.teradata;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 

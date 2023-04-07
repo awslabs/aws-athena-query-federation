@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.tpcds;
 
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.teradata.tpcds.Table;
 import com.teradata.tpcds.column.Column;
 import com.teradata.tpcds.column.ColumnType;

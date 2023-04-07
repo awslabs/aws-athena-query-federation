@@ -23,10 +23,10 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.*;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.metadata.*;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.*;
 import org.junit.After;
@@ -44,7 +44,7 @@ import java.io.IOException;
 import java.util.*;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -58,7 +58,7 @@ public class BigQueryMetadataHandlerTest
 {
     private static final String QUERY_ID = "queryId";
     private static final String CATALOG = "catalog";
-    private static final TableName TABLE_NAME = new TableName("dataset1", "table1");
+    private static final TableName TABLE_NAME = TableName.newBuilder().setSchemaName("dataset1").setTableName("table1").build();
 
     @Mock
     BigQuery bigQuery;
@@ -177,7 +177,7 @@ public class BigQueryMetadataHandlerTest
         //Make the call
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,
-                new TableName(datasetName, tableName));
+                TableName.newBuilder().setSchemaName(datasetName).setTableName(tableName)).build();
 
         GetTableResponse response = bigQueryMetadataHandler.doGetTable(blockAllocator, getTableRequest);
 

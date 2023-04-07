@@ -20,9 +20,9 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
@@ -74,14 +74,14 @@ public class TestBase
     protected static final String TEST_TABLE6 = "test_table6";
     protected static final String TEST_TABLE7 = "test_table7";
     protected static final String TEST_TABLE8 = "test_table8";
-    protected static final TableName TEST_TABLE_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE);
-    protected static final TableName TEST_TABLE_2_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE2);
-    protected static final TableName TEST_TABLE_3_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE3);
-    protected static final TableName TEST_TABLE_4_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
-    protected static final TableName TEST_TABLE_5_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE5);
-    protected static final TableName TEST_TABLE_6_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE6);
-    protected static final TableName TEST_TABLE_7_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE7);
-    protected static final TableName TEST_TABLE_8_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
+    protected static final TableName TEST_TABLE_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE).build();
+    protected static final TableName TEST_TABLE_2_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE2).build();
+    protected static final TableName TEST_TABLE_3_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE3).build();
+    protected static final TableName TEST_TABLE_4_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE4).build();
+    protected static final TableName TEST_TABLE_5_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE5).build();
+    protected static final TableName TEST_TABLE_6_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE6).build();
+    protected static final TableName TEST_TABLE_7_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE7).build();
+    protected static final TableName TEST_TABLE_8_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE8).build();
 
     protected static AmazonDynamoDB ddbClient;
     protected static Schema schema;

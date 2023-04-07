@@ -24,23 +24,21 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -60,7 +58,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_NUMBER_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_TOTAL_NUMBER_FIELD;
@@ -119,7 +117,7 @@ public class TPCDSMetadataHandlerTest
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 
-        assertTrue(res.getTables().contains(new TableName("tpcds1", "customer")));
+        assertTrue(res.getTables().contains(TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer"))).build();
 
         assertTrue(res.getTables().size() == 25);
 
@@ -135,12 +133,12 @@ public class TPCDSMetadataHandlerTest
         GetTableRequest req = new GetTableRequest(identity,
                 "queryId",
                 "default",
-                new TableName(expectedSchema, "customer"));
+                TableName.newBuilder().setSchemaName(expectedSchema).setTableName("customer")).build();
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {} {}", res.getTableName(), res.getSchema());
 
-        assertEquals(new TableName(expectedSchema, "customer"), res.getTableName());
+        assertEquals(TableName.newBuilder().setSchemaName(expectedSchema, "customer")).setTableName(res.getTableName()).build();
         assertTrue(res.getSchema() != null);
 
         logger.info("doGetTable - exit");
@@ -159,8 +157,8 @@ public class TPCDSMetadataHandlerTest
         GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
                 "queryId",
                 "default",
-                new TableName("tpcds1", "customer"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer").build(),
+                new Constraints(constraintsMap),
                 schema,
                 Collections.EMPTY_SET);
 
@@ -189,7 +187,7 @@ public class TPCDSMetadataHandlerTest
         GetSplitsRequest originalReq = new GetSplitsRequest(identity,
                 "queryId",
                 "catalog_name",
-                new TableName("tpcds1", "customer"),
+                TableName.newBuilder().setSchemaName("tpcds1").setTableName("customer").build(),
                 partitions,
                 Collections.EMPTY_LIST,
                 new Constraints(new HashMap<>()),

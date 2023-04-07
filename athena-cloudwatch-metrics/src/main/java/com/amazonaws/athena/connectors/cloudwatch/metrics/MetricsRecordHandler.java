@@ -25,7 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
@@ -151,8 +151,8 @@ public class MetricsRecordHandler
         String prevToken;
         Set<String> requiredFields = new HashSet<>();
         request.getSchema().getFields().stream().forEach(next -> requiredFields.add(next.getName()));
-        ValueSet dimensionNameConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
-        ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_VALUE_FIELD);
+        ValueSet dimensionNameConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()).getSummary().get(DIMENSION_NAME_FIELD);
+        ValueSet dimensionValueConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()).getSummary().get(DIMENSION_VALUE_FIELD);
         do {
             prevToken = listMetricsRequest.getNextToken();
             ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
@@ -211,8 +211,8 @@ public class MetricsRecordHandler
         }
 
         String prevToken;
-        ValueSet dimensionNameConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
-        ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_VALUE_FIELD);
+        ValueSet dimensionNameConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()).getSummary().get(DIMENSION_NAME_FIELD);
+        ValueSet dimensionValueConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()).getSummary().get(DIMENSION_VALUE_FIELD);
         do {
             prevToken = dataRequest.getNextToken();
             GetMetricDataResult result = invoker.invoke(() -> metrics.getMetricData(dataRequest));

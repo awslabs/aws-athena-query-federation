@@ -24,10 +24,10 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.Bucket;
@@ -63,7 +63,7 @@ public class S3BucketsTableProvider
     @Override
     public TableName getTableName()
     {
-        return new TableName(getSchema(), "buckets");
+        return TableName.newBuilder().setSchemaName(getSchema()).setTableName("buckets").build();
     }
 
     /**
@@ -72,7 +72,7 @@ public class S3BucketsTableProvider
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
-        return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
+        return GetTableResponse.newBuilder().setCatalogName(getTableRequest.getCatalogName()).setTableName(getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(SCHEMA)).build();
     }
 
     /**
@@ -82,7 +82,7 @@ public class S3BucketsTableProvider
      * @See TableProvider
      */
     @Override
-    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    public void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         for (Bucket next : amazonS3.listBuckets()) {
             toRow(next, spiller);

@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb.resolver;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;

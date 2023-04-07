@@ -32,11 +32,11 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.athena.connectors.timestream.query.SelectQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -112,7 +112,7 @@ public class TimestreamRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    protected void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         TableName tableName = recordsRequest.getTableName();
 

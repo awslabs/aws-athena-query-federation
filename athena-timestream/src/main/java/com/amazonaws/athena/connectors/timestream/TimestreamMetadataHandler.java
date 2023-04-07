@@ -23,18 +23,18 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
@@ -120,9 +120,7 @@ public class TimestreamMetadataHandler
             .map(db -> db.getDatabaseName())
             .collect(Collectors.toList());
 
-        return new ListSchemasResponse(
-            request.getCatalogName(),
-            schemas);
+        return ListSchemasResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSchemas(schemas).build();
     }
 
     private ListDatabasesResult doListSchemaNamesOnePage(String nextToken)
@@ -277,7 +275,7 @@ public class TimestreamMetadataHandler
 
         try {
             Schema schema = inferSchemaForTable(request.getTableName());
-            return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+            return GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(request.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).build();
         }
         catch (com.amazonaws.services.timestreamquery.model.ValidationException ex) {
             logger.debug("Could not find table name matching {} in database {}. Falling back to case-insensitive lookup.", request.getTableName().getTableName(), request.getTableName().getSchemaName());
@@ -285,7 +283,7 @@ public class TimestreamMetadataHandler
             TableName resolvedTableName = findTableNameIgnoringCase(blockAllocator, request);
             logger.debug("Found case insensitive match for schema {} and table {}", resolvedTableName.getSchemaName(), resolvedTableName.getTableName());
             Schema schema = inferSchemaForTable(resolvedTableName);
-            return new GetTableResponse(request.getCatalogName(), resolvedTableName, schema);
+            return GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(resolvedTableName).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).build();
         }
     }
 

@@ -23,21 +23,21 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
@@ -160,7 +160,7 @@ public class MetricsMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
-        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), Collections.singletonList(SCHEMA_NAME));
+        return ListSchemasResponse.newBuilder().setCatalogName(listSchemasRequest.getCatalogName()).addAllSchemas(Collections.singletonList(SCHEMA_NAME)).build();
     }
 
     /**
@@ -172,7 +172,7 @@ public class MetricsMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         List<TableName> tables = new ArrayList<>();
-        TABLES.keySet().stream().forEach(next -> tables.add(new TableName(SCHEMA_NAME, next)));
+        TABLES.keySet().stream().forEach(next -> tables.add(TableName.newBuilder().setSchemaName(SCHEMA_NAME).setTableName(next))).build();
         return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
     }
 
@@ -204,7 +204,7 @@ public class MetricsMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         validateTable(request.getTableName());
@@ -227,7 +227,7 @@ public class MetricsMetadataHandler
         //Handle requests for the METRIC_TABLE which requires only 1 split to list available metrics.
         if (METRIC_TABLE_NAME.equals(getSplitsRequest.getTableName().getTableName())) {
             //The request is just for meta-data about what metrics exist.
-            Split metricsSplit = Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey()).build();
+            Split metricsSplit = Split.newBuilder(makeSpillLocation(getSplitsRequest.getQueryId()), makeEncryptionKey()).build();
             return new GetSplitsResponse(getSplitsRequest.getCatalogName(), metricsSplit);
         }
 
@@ -260,13 +260,13 @@ public class MetricsMetadataHandler
 
             if (CollectionUtils.isNullOrEmpty(metricStats)) {
                 logger.info("No metric stats present after filtering predicates.");
-                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+                return GetSplitsResponse.newBuilder().setType("GetSplitsResponse").setCatalogName(getSplitsRequest.getCatalogName()).addAllSplits(splits).build();
             }
 
             List<List<MetricStat>> partitions = Lists.partition(metricStats, calculateSplitSize(metricStats.size()));
             for (List<MetricStat> partition : partitions) {
                 String serializedMetricStats = MetricStatSerDe.serialize(partition);
-                splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
+                splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest.getQueryId()), makeEncryptionKey())
                         .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, serializedMetricStats)
                         .build());
             }

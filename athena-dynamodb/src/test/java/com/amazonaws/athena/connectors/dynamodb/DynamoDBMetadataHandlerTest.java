@@ -24,8 +24,8 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
@@ -240,15 +240,15 @@ public class DynamoDBMetadataHandlerTest
         logger.info("doListTables - {}", res.getTablesList());
 
         List<com.amazonaws.athena.connector.lambda.proto.domain.TableName> expectedTables = 
-            tableNames.stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).map(ProtobufMessageConverter::toTableName).collect(Collectors.toList());
+            tableNames.stream().map(table -> TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(table)).map(ProtobufMessageConverter::toTableName).collect(Collectors.toList()).build();
         expectedTables.add(ProtobufMessageConverter.toTableName(TEST_TABLE_NAME));
-        expectedTables.add(ProtobufMessageConverter.toTableName(new TableName(DEFAULT_SCHEMA, "test_table2")));
-        expectedTables.add(ProtobufMessageConverter.toTableName(new TableName(DEFAULT_SCHEMA, "test_table3")));
-        expectedTables.add(ProtobufMessageConverter.toTableName(new TableName(DEFAULT_SCHEMA, "test_table4")));
-        expectedTables.add(ProtobufMessageConverter.toTableName(new TableName(DEFAULT_SCHEMA, "test_table5")));
-        expectedTables.add(ProtobufMessageConverter.toTableName(new TableName(DEFAULT_SCHEMA, "test_table6")));
-        expectedTables.add(ProtobufMessageConverter.toTableName(new TableName(DEFAULT_SCHEMA, "test_table7")));
-        expectedTables.add(ProtobufMessageConverter.toTableName(new TableName(DEFAULT_SCHEMA, "test_table8")));
+        expectedTables.add(ProtobufMessageConverter.toTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("test_table2"))).build();
+        expectedTables.add(ProtobufMessageConverter.toTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("test_table3"))).build();
+        expectedTables.add(ProtobufMessageConverter.toTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("test_table4"))).build();
+        expectedTables.add(ProtobufMessageConverter.toTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("test_table5"))).build();
+        expectedTables.add(ProtobufMessageConverter.toTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("test_table6"))).build();
+        expectedTables.add(ProtobufMessageConverter.toTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("test_table7"))).build();
+        expectedTables.add(ProtobufMessageConverter.toTableName(TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("test_table8"))).build();
 
         // there was a bug in these tests before - the ExampleMetadataHandler doesn't actually sort the tables if it has no pagination,
         // but the tests implied they were supposed to by comparing the objects. However, the equals method defined in the old Response class
@@ -330,7 +330,7 @@ public class DynamoDBMetadataHandlerTest
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG_NAME)
-            .setTableName(ProtobufMessageConverter.toTableName(new TableName(TEST_CATALOG_NAME, TEST_TABLE)))
+            .setTableName(ProtobufMessageConverter.toTableName(TableName.newBuilder().setSchemaName(TEST_CATALOG_NAME).setTableName(TEST_TABLE))).build()
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
             .build();
@@ -676,7 +676,7 @@ public class DynamoDBMetadataHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("glueTableForTestTable").build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)
@@ -725,7 +725,7 @@ public class DynamoDBMetadataHandlerTest
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
-        TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
+        TableName tableName = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName("glueTableForTestTable").build();
         GetTableRequest getTableRequest = GetTableRequest.newBuilder()
             .setIdentity(PROTO_TEST_IDENTITY)
             .setQueryId(TEST_QUERY_ID)

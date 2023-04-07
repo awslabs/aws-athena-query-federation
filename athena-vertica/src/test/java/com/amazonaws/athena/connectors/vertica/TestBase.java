@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.vertica;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
@@ -39,7 +39,7 @@ public class TestBase {
         protected static final String TEST_TABLE = "test_table";
         protected static final String DEFAULT_SCHEMA = "default";
         protected static final String CONNECTION_STRING = "connectionString";
-        protected static final TableName TABLE_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE);
+        protected static final TableName TABLE_NAME = TableName.newBuilder().setSchemaName(DEFAULT_SCHEMA).setTableName(TEST_TABLE).build();
         protected static final String[] TABLE_TYPES = {"TABLE"};
 
         protected ResultSet mockResultSet(String[] columnNames, int[] columnTypes, Object[][] rows, AtomicInteger rowNumber)

@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.sqlserver;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.testng.Assert;

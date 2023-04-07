@@ -22,9 +22,9 @@ package com.amazonaws.athena.connectors.redis;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
@@ -130,7 +130,7 @@ public class RedisRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    protected void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         Split split = recordsRequest.getSplit();
         ScanCursor keyCursor = null;

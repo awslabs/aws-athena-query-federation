@@ -23,10 +23,10 @@ package com.amazonaws.athena.connectors.msk;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.*;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.metadata.*;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.GetSchemaResult;
@@ -165,7 +165,7 @@ public class AmazonMskMetadataHandlerTest {
                 "}");
         Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
         Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
-        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "kafka", new TableName("default", "testtable"));
+        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "kafka", TableName.newBuilder().setSchemaName("default").setTableName("testtable")).build();
         GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         assertEquals(1, getTableResponse.getSchema().getFields().size());
     }
@@ -200,7 +200,7 @@ public class AmazonMskMetadataHandlerTest {
                 federatedIdentity,
                 QUERY_ID,
                 "kafka",
-                new TableName("default", "testTopic"),
+                TableName.newBuilder().setSchemaName("default").setTableName("testTopic").build(),
                 Mockito.mock(Block.class),
                 new ArrayList<>(),
                 Mockito.mock(Constraints.class),
@@ -214,7 +214,7 @@ public class AmazonMskMetadataHandlerTest {
                 federatedIdentity,
                 QUERY_ID,
                 "kafka",
-                new TableName("default", "testTopic"),
+                TableName.newBuilder().setSchemaName("default").setTableName("testTopic").build(),
                 Mockito.mock(Block.class),
                 new ArrayList<>(),
                 Mockito.mock(Constraints.class),

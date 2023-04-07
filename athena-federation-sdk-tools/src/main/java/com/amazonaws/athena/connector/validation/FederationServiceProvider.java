@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connector.validation;
 
-import com.amazonaws.athena.connector.lambda.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
 import com.amazonaws.services.lambda.invoke.LambdaFunction;

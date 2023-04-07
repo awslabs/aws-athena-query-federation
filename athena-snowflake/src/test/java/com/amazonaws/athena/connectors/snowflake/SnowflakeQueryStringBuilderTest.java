@@ -18,7 +18,7 @@
  * #L%
  */
 package com.amazonaws.athena.connectors.snowflake;
-import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mock;

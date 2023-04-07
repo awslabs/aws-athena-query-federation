@@ -24,28 +24,27 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
@@ -74,7 +73,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.translateToArrowType;
@@ -139,7 +138,7 @@ public class BigQueryMetadataHandler
 
             logger.info("Found {} schemas!", schemas.size());
 
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
+            return ListSchemasResponse.newBuilder().setCatalogName(listSchemasRequest.getCatalogName()).addAllSchemas(schemas).build();
         }
         catch
         (Exception e) {
@@ -166,14 +165,14 @@ public class BigQueryMetadataHandler
                     if (tables.size() > BigQueryConstants.MAX_RESULTS) {
                         throw new BigQueryExceptions.TooManyTablesException();
                     }
-                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
+                    tables.add(TableName.newBuilder().setSchemaName(listTablesRequest.getSchemaName()).setTableName(table.getTableId().getTable())).build();
                 }
             }
             else {
                 Page<Table> response = bigQuery.listTables(datasetId,
                         BigQuery.TableListOption.pageToken(listTablesRequest.getNextToken()), BigQuery.TableListOption.pageSize(listTablesRequest.getPageSize()));
                 for (Table table : response.getValues()) {
-                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
+                    tables.add(TableName.newBuilder().setSchemaName(listTablesRequest.getSchemaName()).setTableName(table.getTableId().getTable())).build();
                 }
                 nextToken = response.getNextPageToken();
             }
@@ -192,7 +191,8 @@ public class BigQueryMetadataHandler
         logger.info("doGetTable called with request {}. Resolved projectName: {}", getTableRequest.getCatalogName(), projectName);
         final Schema tableSchema = getSchema(getTableRequest.getTableName().getSchemaName(),
                 getTableRequest.getTableName().getTableName());
-        return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), tableSchema);
+        // TODO: Do we actually need to lowercase here?
+        return GetTableResponse.newBuilder().setCatalogName(projectName.toLowerCase()).setTableName(getTableRequest.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(tableSchema)).build();
     }
 
     /**
@@ -201,7 +201,7 @@ public class BigQueryMetadataHandler
      * in the query instead we are using limit and offset for non constraints query with basic concurrency limit
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         //NoOp since we don't support partitioning at this time.

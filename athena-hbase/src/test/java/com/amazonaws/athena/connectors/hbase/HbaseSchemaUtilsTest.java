@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.hbase;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.ResultProcessor;
 import org.apache.arrow.vector.types.Types;
@@ -61,7 +61,7 @@ public class HbaseSchemaUtilsTest
             throws IOException
     {
         int numToScan = 4;
-        TableName tableName = new TableName("schema", "table");
+        TableName tableName = TableName.newBuilder().setSchemaName("schema").setTableName("table").build();
         List<Result> results = TestUtils.makeResults();
 
         HBaseConnection mockConnection = mock(HBaseConnection.class);
@@ -97,7 +97,7 @@ public class HbaseSchemaUtilsTest
         String table = "table";
         String schema = "schema";
         String expected = "schema:table";
-        String actual = HbaseSchemaUtils.getQualifiedTableName(new TableName(schema, table));
+        String actual = HbaseSchemaUtils.getQualifiedTableName(TableName.newBuilder().setSchemaName(schema).setTableName(table)).build();
         assertEquals(expected, actual);
     }
 
@@ -107,7 +107,7 @@ public class HbaseSchemaUtilsTest
         String table = "table";
         String schema = "schema";
         org.apache.hadoop.hbase.TableName expected = org.apache.hadoop.hbase.TableName.valueOf(schema + ":" + table);
-        org.apache.hadoop.hbase.TableName actual = HbaseSchemaUtils.getQualifiedTable(new TableName(schema, table));
+        org.apache.hadoop.hbase.TableName actual = HbaseSchemaUtils.getQualifiedTable(TableName.newBuilder().setSchemaName(schema).setTableName(table)).build();
         assertEquals(expected, actual);
     }
 

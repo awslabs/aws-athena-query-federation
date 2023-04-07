@@ -22,19 +22,19 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -126,7 +126,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
 
         Set<String> schemas = new HashSet<>();
         schemas.add(glueDBName);
-        return new ListSchemasResponse(request.getCatalogName(), schemas);
+        return ListSchemasResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllSchemas(schemas).build();
     }
 
     /**
@@ -155,7 +155,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         List<Table> glueTableList = getTablesResult.getTableList();
         String schemaName = request.getSchemaName();
         glueTableList.forEach(e -> {
-            tables.add(new TableName(schemaName, e.getName()));
+            tables.add(TableName.newBuilder().setSchemaName(schemaName).setTableName(e.getName())).build();
         });
 
         return new ListTablesResponse(request.getCatalogName(), tables, null);
@@ -190,7 +190,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
             logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
                     request.getTableName().getSchemaName(), request.getTableName().getTableName(), ex);
         }
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), tableSchema);
+        return GetTableResponse.newBuilder().setCatalogName(request.getCatalogName()).setTableName(request.getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(tableSchema)).build();
     }
 
     /**

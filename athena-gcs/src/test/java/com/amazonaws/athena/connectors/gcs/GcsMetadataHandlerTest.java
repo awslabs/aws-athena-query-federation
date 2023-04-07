@@ -26,18 +26,19 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -118,7 +119,7 @@ public class GcsMetadataHandlerTest
     private static final String CATALOG = "catalog";
     private static final String TEST_TOKEN = "testToken";
     private static final String SCHEMA_NAME = "default";
-    private static final TableName TABLE_NAME = new TableName("default", "testtable");
+    private static final TableName TABLE_NAME = TableName.newBuilder().setSchemaName("default").setTableName("testtable").build();
     @Mock
     protected Page<Blob> tables;
     @Mock
@@ -250,7 +251,7 @@ public class GcsMetadataHandlerTest
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", PARQUET);
         Schema schema = new Schema(asList(field), metadataSchema);
-        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "gcs", new TableName(SCHEMA_NAME, "testtable"));
+        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "gcs", TableName.newBuilder().setSchemaName(SCHEMA_NAME).setTableName("testtable")).build();
         Table table = new Table();
         table.setName(TABLE_1);
         table.setDatabaseName(DATABASE_NAME);
@@ -299,7 +300,8 @@ public class GcsMetadataHandlerTest
         getTableResult.setTable(table);
         Mockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
-        Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName(DATABASE_NAME, TABLE_1));
+        Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(TableName.newBuilder().setSchemaName(DATABASE_NAME).setTableName(TABLE_1)).build();
+        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn(CATALOG_NAME);
         Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
         Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), 2000));
         Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(constraints);

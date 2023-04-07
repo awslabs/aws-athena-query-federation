@@ -23,7 +23,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
@@ -75,7 +75,7 @@ public class AmazonMskRecordHandler
      * @param queryStatusChecker - instance of {@link QueryStatusChecker}
      */
     @Override
-    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker) throws Exception
+    public void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker) throws Exception
     {
         // Taking the Split parameters in a readable pojo format.
         SplitParameters splitParameters = AmazonMskUtils.createSplitParam(recordsRequest.getSplit().getProperties());

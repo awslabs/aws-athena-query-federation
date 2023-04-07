@@ -23,7 +23,7 @@ import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.athena.connector.integ.clients.CloudFormationClient;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.integ.JdbcTableUtils;
 import com.amazonaws.services.athena.model.Row;
@@ -229,10 +229,10 @@ public class MySqlIntegTest extends IntegrationTestBase
         logger.info("Setting up DB Schema: {}", mysqlDbName);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils jdbcUtils = new JdbcTableUtils(lambdaFunctionName, new TableName(mysqlDbName, mysqlTableMovies), environmentVars, jdbcProperties, MYSQL_NAME);
+        JdbcTableUtils jdbcUtils = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(mysqlDbName, mysqlTableMovies), environmentVars, jdbcProperties).setTableName(MYSQL_NAME).build();
         jdbcUtils.createDbSchema(databaseConnectionInfo);
 
-        jdbcUtils = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, jdbcProperties, MYSQL_NAME);
+        jdbcUtils = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, jdbcProperties).setTableName(MYSQL_NAME).build();
         jdbcUtils.createDbSchema(databaseConnectionInfo);
     }
 
@@ -290,7 +290,7 @@ public class MySqlIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", mysqlTableMovies);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(mysqlDbName, mysqlTableMovies), environmentVars, jdbcProperties, MYSQL_NAME);
+        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(mysqlDbName, mysqlTableMovies), environmentVars, jdbcProperties).setTableName(MYSQL_NAME).build();
         moviesTable.createTable("year INTEGER, title VARCHAR(25), director VARCHAR(25), lead_actor VARCHAR(25)", databaseConnectionInfo);
         moviesTable.insertRow("2014, 'Interstellar', 'Christopher Nolan', 'Matthew McConaughey'", databaseConnectionInfo);
         moviesTable.insertRow("1986, 'Aliens', 'James Cameron', 'Sigourney Weaver'", databaseConnectionInfo);
@@ -306,7 +306,7 @@ public class MySqlIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", mysqlTableBday);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils bdayTable = new JdbcTableUtils(lambdaFunctionName, new TableName(mysqlDbName, mysqlTableBday), environmentVars, jdbcProperties, MYSQL_NAME);
+        JdbcTableUtils bdayTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(mysqlDbName, mysqlTableBday), environmentVars, jdbcProperties).setTableName(MYSQL_NAME).build();
         bdayTable.createTable("first_name VARCHAR(10), last_name VARCHAR(10), birthday DATE", databaseConnectionInfo);
         bdayTable.insertRow("'Joe', 'Schmoe', '2002-05-05'", databaseConnectionInfo);
         bdayTable.insertRow("'Jane', 'Doe', '2005-10-12'", databaseConnectionInfo);
@@ -323,7 +323,7 @@ public class MySqlIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", TEST_DATATYPES_TABLE_NAME);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, jdbcProperties, MYSQL_NAME);
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, jdbcProperties).setTableName(MYSQL_NAME).build();
         datatypesTable.createTable("int_type INTEGER, smallint_type SMALLINT, bigint_type BIGINT, varchar_type CHARACTER VARYING(255), boolean_type BOOLEAN, float4_type REAL, float8_type DOUBLE PRECISION, date_type DATE, timestamp_type TIMESTAMP, byte_type BINARY(4)", databaseConnectionInfo);
         String row = String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s",
                 TEST_DATATYPES_INT_VALUE,
@@ -349,7 +349,7 @@ public class MySqlIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", TEST_NULL_TABLE_NAME);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_NULL_TABLE_NAME), environmentVars, jdbcProperties, MYSQL_NAME);
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME, TEST_NULL_TABLE_NAME), environmentVars, jdbcProperties).setTableName(MYSQL_NAME).build();
         datatypesTable.createTable("int_type INTEGER", databaseConnectionInfo);
         datatypesTable.insertRow("NULL", databaseConnectionInfo);
     }
@@ -364,7 +364,7 @@ public class MySqlIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", TEST_EMPTY_TABLE_NAME);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_EMPTY_TABLE_NAME), environmentVars, jdbcProperties, MYSQL_NAME);
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, TableName.newBuilder().setSchemaName(INTEG_TEST_DATABASE_NAME, TEST_EMPTY_TABLE_NAME), environmentVars, jdbcProperties).setTableName(MYSQL_NAME).build();
         datatypesTable.createTable("int_type INTEGER", databaseConnectionInfo);
     }
 

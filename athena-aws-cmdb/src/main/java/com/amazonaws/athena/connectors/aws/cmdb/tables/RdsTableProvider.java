@@ -25,11 +25,12 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.DBInstanceStatusInfo;
@@ -78,7 +79,7 @@ public class RdsTableProvider
     @Override
     public TableName getTableName()
     {
-        return new TableName(getSchema(), "rds_instances");
+        return TableName.newBuilder().setSchemaName(getSchema()).setTableName("rds_instances").build();
     }
 
     /**
@@ -87,7 +88,7 @@ public class RdsTableProvider
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
-        return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
+        return GetTableResponse.newBuilder().setCatalogName(getTableRequest.getCatalogName()).setTableName(getTableName()).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(SCHEMA)).build();
     }
 
     /**
@@ -97,12 +98,12 @@ public class RdsTableProvider
      * @See TableProvider
      */
     @Override
-    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    public void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         boolean done = false;
         DescribeDBInstancesRequest request = new DescribeDBInstancesRequest();
 
-        ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("instance_id");
+        ValueSet idConstraint = ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()).getSummary().get("instance_id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
             request.setDBInstanceIdentifier(idConstraint.getSingleValue().toString());
         }

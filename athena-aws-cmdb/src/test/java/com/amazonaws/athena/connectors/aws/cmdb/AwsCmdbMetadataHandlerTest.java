@@ -24,20 +24,20 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -57,7 +57,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -113,18 +113,18 @@ public class AwsCmdbMetadataHandlerTest
     {
         blockAllocator = new BlockAllocatorImpl();
         Map<TableName, TableProvider> tableProviderMap = new HashMap<>();
-        tableProviderMap.putIfAbsent(new TableName("schema1", "table1"), mockTableProvider1);
-        tableProviderMap.putIfAbsent(new TableName("schema1", "table2"), mockTableProvider2);
-        tableProviderMap.putIfAbsent(new TableName("schema2", "table1"), mockTableProvider3);
+        tableProviderMap.putIfAbsent(TableName.newBuilder().setSchemaName("schema1", "table1")).setTableName(mockTableProvider1).build();
+        tableProviderMap.putIfAbsent(TableName.newBuilder().setSchemaName("schema1", "table2")).setTableName(mockTableProvider2).build();
+        tableProviderMap.putIfAbsent(TableName.newBuilder().setSchemaName("schema2", "table1")).setTableName(mockTableProvider3).build();
 
         when(mockTableProviderFactory.getTableProviders()).thenReturn(tableProviderMap);
 
         Map<String, List<TableName>> schemas = new HashMap<>();
         schemas.put("schema1", new ArrayList<>());
         schemas.put("schema2", new ArrayList<>());
-        schemas.get("schema1").add(new TableName("schema1", "table1"));
-        schemas.get("schema1").add(new TableName("schema1", "table2"));
-        schemas.get("schema2").add(new TableName("schema2", "table1"));
+        schemas.get("schema1").add(TableName.newBuilder().setSchemaName("schema1").setTableName("table1")).build();
+        schemas.get("schema1").add(TableName.newBuilder().setSchemaName("schema1").setTableName("table2")).build();
+        schemas.get("schema2").add(TableName.newBuilder().setSchemaName("schema2").setTableName("table1")).build();
 
         when(mockTableProviderFactory.getSchemas()).thenReturn(schemas);
 
@@ -161,14 +161,14 @@ public class AwsCmdbMetadataHandlerTest
         ListTablesResponse response = handler.doListTables(blockAllocator, request);
 
         assertEquals(2, response.getTables().size());
-        assertTrue(response.getTables().contains(new TableName("schema1", "table1")));
-        assertTrue(response.getTables().contains(new TableName("schema1", "table2")));
+        assertTrue(response.getTables().contains(TableName.newBuilder().setSchemaName("schema1").setTableName("table1"))).build();
+        assertTrue(response.getTables().contains(TableName.newBuilder().setSchemaName("schema1").setTableName("table2"))).build();
     }
 
     @Test
     public void doGetTable()
     {
-        GetTableRequest request = new GetTableRequest(identity, queryId, catalog, new TableName("schema1", "table1"));
+        GetTableRequest request = new GetTableRequest(identity, queryId, catalog, TableName.newBuilder().setSchemaName("schema1").setTableName("table1")).build();
 
         when(mockTableProvider1.getTable(eq(blockAllocator), eq(request))).thenReturn(mock(GetTableResponse.class));
         GetTableResponse response = handler.doGetTable(blockAllocator, request);
@@ -182,7 +182,7 @@ public class AwsCmdbMetadataHandlerTest
             throws Exception
     {
         GetTableLayoutRequest request = new GetTableLayoutRequest(identity, queryId, catalog,
-                new TableName("schema1", "table1"),
+                TableName.newBuilder().setSchemaName("schema1").setTableName("table1").build(),
                 mockConstraints,
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
@@ -197,7 +197,7 @@ public class AwsCmdbMetadataHandlerTest
     public void doGetSplits()
     {
         GetSplitsRequest request = new GetSplitsRequest(identity, queryId, catalog,
-                new TableName("schema1", "table1"),
+                TableName.newBuilder().setSchemaName("schema1").setTableName("table1").build(),
                 mockBlock,
                 Collections.emptyList(),
                 new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),

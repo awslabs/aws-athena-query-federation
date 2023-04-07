@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.saphana;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
