@@ -163,7 +163,7 @@ public class BigQueryMetadataHandler
         final Schema tableSchema = getSchema(projectName, getTableRequest.getTableName().getSchemaName(),
                 getTableRequest.getTableName().getTableName());
         // TODO: Do we actually need to lowercase here?
-        return new GetTableResponse(projectName.toLowerCase(), getTableRequest.getTableName(), tableSchema);
+        return new GetTableResponse(getTableRequest.getCatalogName().toLowerCase(), getTableRequest.getTableName(), tableSchema);
     }
 
     /**
