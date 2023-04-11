@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.holders.TimeStampMilliTZHolder;
 import org.apache.arrow.vector.holders.TimeStampMicroTZHolder;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -36,6 +37,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.TimeZone;
 
@@ -191,5 +193,22 @@ public class DateTimeFormatterUtilTest {
         assertEquals("-05:00", holder.timezone);
         ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MICROSECOND, "-05:00");
         assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedMicros, arrowType));
+    }
+
+    // Adapted the test cases from: https://github.com/awslabs/aws-athena-query-federation/issues/293#issue-740925274
+    @Test
+    public void dateTimePackingRoundTrip() {
+        ImmutableList.of(
+            ZonedDateTime.ofInstant(Instant.ofEpochMilli(10), ZoneOffset.UTC),
+            ZonedDateTime.of(LocalDateTime.of(2015, 12, 21, 17, 42, 34, 0), ZoneOffset.UTC),
+            ZonedDateTime.ofInstant(Instant.ofEpochMilli(45423958493L), ZoneOffset.of("-11:00"))
+        ).forEach(zonedDateTime -> {
+            org.apache.arrow.vector.holders.TimeStampMilliTZHolder holder = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zonedDateTime);
+            ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, holder.timezone);
+            ZonedDateTime zonedDateTimeBack = DateTimeFormatterUtil.constructZonedDateTime(holder.value, arrowType);
+
+            assertEquals(zonedDateTime.getOffset(), zonedDateTimeBack.getOffset());
+            assertEquals(zonedDateTime.toInstant(), zonedDateTimeBack.toInstant());
+        });
     }
 }
