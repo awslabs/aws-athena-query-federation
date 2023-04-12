@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.google.api.gax.paging.Page;
@@ -71,7 +72,10 @@ public class BigQueryMetadataHandlerTest
     private Job job;
     private JobStatus jobStatus;
 
-    private java.util.HashMap<String, String> configOptions = new HashMap();
+    private java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+            "gcp_project_id", "testProject",
+            "concurrencyLimit", "10"
+    );
 
     @Before
     public void setUp() throws InterruptedException {
@@ -92,7 +96,6 @@ public class BigQueryMetadataHandlerTest
     @After
     public void tearDown()
     {
-        configOptions.clear();
         blockAllocator.close();
     }
 
@@ -175,7 +178,6 @@ public class BigQueryMetadataHandlerTest
         when(table.getTableId()).thenReturn(TableId.of(BigQueryTestUtils.PROJECT_1_NAME, datasetName, tableName));
         when(table.getDefinition()).thenReturn(tableDefinition);
         when(bigQuery.getTable(nullable(TableId.class))).thenReturn(table);
-
         //Make the call
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,
@@ -194,8 +196,6 @@ public class BigQueryMetadataHandlerTest
     {
         PowerMockito.mockStatic(BigQueryUtils.class);
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        configOptions.put("concurrencyLimit", "10");
-
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
                 mock(Block.class), Collections.<String>emptyList(), new Constraints(new HashMap<>()), null);

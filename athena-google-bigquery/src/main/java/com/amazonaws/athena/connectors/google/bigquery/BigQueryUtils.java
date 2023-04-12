@@ -71,14 +71,14 @@ public class BigQueryUtils
                     "https://www.googleapis.com/auth/drive"));
     }
 
-    public static BigQuery getBigQueryClient(String projectId, java.util.Map<String, String> configOptions) throws IOException
+    public static BigQuery getBigQueryClient(java.util.Map<String, String> configOptions) throws IOException
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
         String endpoint = configOptions.get(BigQueryConstants.BIG_QUERY_ENDPOINT);
         if (StringUtils.isNotEmpty(endpoint)) {
             bigqueryBuilder.setHost(endpoint);
         }
-        bigqueryBuilder.setProjectId(projectId);
+        bigqueryBuilder.setProjectId(configOptions.get(BigQueryConstants.GCP_PROJECT_ID));
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager(configOptions));
         return bigqueryBuilder.build().getService();
     }
@@ -90,20 +90,6 @@ public class BigQueryUtils
             throw new RuntimeException(String.format("Configuration variable: %s not set", BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID));
         }
         return smid;
-    }
-
-    /**
-     * Gets the project name that exists within Google Cloud Platform that contains the datasets that we wish to query.
-     * The Lambda environment variables are first inspected and if it does not exist, then we take it from the catalog
-     * name in the request.
-     *
-     * @param catalogName The catalogName from the request that is passed in from the Athena Connector framework.
-     * @param configOptions The configOptions contains the fallback value for the project id.
-     * @return The project name.
-     */
-    static String getProjectName(String catalogName, java.util.Map<String, String> configOptions)
-    {
-        return configOptions.getOrDefault(BigQueryConstants.GCP_PROJECT_ID, catalogName);
     }
 
     /**

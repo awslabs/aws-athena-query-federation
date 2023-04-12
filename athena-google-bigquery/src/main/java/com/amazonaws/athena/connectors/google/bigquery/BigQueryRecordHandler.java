@@ -92,8 +92,8 @@ public class BigQueryRecordHandler
         List<QueryParameterValue> parameterValues = new ArrayList<>();
         String sqlToExecute = "";
         invoker.setBlockSpiller(spiller);
-        final String projectName = BigQueryUtils.getProjectName(recordsRequest.getCatalogName(), configOptions);
-        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(projectName, configOptions);
+        final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID);
+        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions);
         final String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
         final String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(),
                 bigQueryClient);
