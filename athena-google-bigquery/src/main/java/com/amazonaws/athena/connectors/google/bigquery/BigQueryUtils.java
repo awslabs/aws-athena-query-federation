@@ -97,13 +97,12 @@ public class BigQueryUtils
      * The Lambda environment variables are first inspected and if it does not exist, then we take it from the catalog
      * name in the request.
      *
-     * @param catalogName The catalogName from the request that is passed in from the Athena Connector framework.
      * @param configOptions The configOptions contains the fallback value for the project id.
      * @return The project name.
      */
-    static String getProjectName(String catalogName, java.util.Map<String, String> configOptions)
+    static String getProjectName(java.util.Map<String, String> configOptions)
     {
-        return configOptions.getOrDefault(BigQueryConstants.GCP_PROJECT_ID, catalogName);
+        return configOptions.get(BigQueryConstants.GCP_PROJECT_ID);
     }
 
     /**

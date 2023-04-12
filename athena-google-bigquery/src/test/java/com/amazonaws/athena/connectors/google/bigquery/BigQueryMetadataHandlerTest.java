@@ -87,6 +87,7 @@ public class BigQueryMetadataHandlerTest
         when(job.getStatus()).thenReturn(jobStatus);
 
         PowerMockito.stub(PowerMockito.method(BigQueryUtils.class, "getBigQueryClient")).toReturn(bigQuery);
+        PowerMockito.stub(PowerMockito.method(BigQueryUtils.class, "getProjectName")).toReturn(BigQueryTestUtils.PROJECT_1_NAME);
     }
 
     @After
@@ -175,7 +176,6 @@ public class BigQueryMetadataHandlerTest
         when(table.getTableId()).thenReturn(TableId.of(BigQueryTestUtils.PROJECT_1_NAME, datasetName, tableName));
         when(table.getDefinition()).thenReturn(tableDefinition);
         when(bigQuery.getTable(nullable(TableId.class))).thenReturn(table);
-
         //Make the call
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,

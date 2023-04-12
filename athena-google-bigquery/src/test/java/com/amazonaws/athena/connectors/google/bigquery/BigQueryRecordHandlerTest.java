@@ -211,7 +211,7 @@ public class BigQueryRecordHandlerTest
 
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
-            logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
+            logger.info("Project Name: "+BigQueryUtils.getProjectName(com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
 
             //Ensure that there was a spill so that we can read the spilled block.
             assertTrue(spillWriter.spilled());
@@ -280,7 +280,7 @@ public class BigQueryRecordHandlerTest
 
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
-            logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
+            logger.info("Project Name: "+BigQueryUtils.getProjectName(com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
 
         }
     }
