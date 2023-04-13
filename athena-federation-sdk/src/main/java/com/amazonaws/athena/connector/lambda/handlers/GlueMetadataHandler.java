@@ -218,13 +218,10 @@ public abstract class GlueMetadataHandler
     {
         String override = configOptions.get(CATALOG_NAME_ENV_OVERRIDE);
         if (override == null) {
-            if (configOptions.get(FUNCTION_ARN_CONFIG_KEY) != null) {
-                String functionArn = configOptions.get(FUNCTION_ARN_CONFIG_KEY);
-                String functionOwner = getFunctionOwner(functionArn).orElse(null);
-                if (functionOwner != null) {
-                    logger.debug("Function Owner: " + functionOwner);
-                    return functionOwner;
-                }
+            String functionOwner = getFunctionOwner(this.functionArn).orElse(null);
+            if (functionOwner != null) {
+                logger.debug("Function Owner: " + functionOwner);
+                return functionOwner;
             }
             return identity.getAccount();
         }

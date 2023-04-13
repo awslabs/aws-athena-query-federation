@@ -111,7 +111,7 @@ public class MySqlMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.mySqlMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(MySqlMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
@@ -153,7 +153,7 @@ public class MySqlMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.mySqlMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(MySqlMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
@@ -194,7 +194,7 @@ public class MySqlMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.mySqlMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
@@ -226,12 +226,12 @@ public class MySqlMetadataHandlerTest
 
         Schema partitionSchema = this.mySqlMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         GetTableLayoutResponse getTableLayoutResponse = this.mySqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.mySqlMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
@@ -251,7 +251,7 @@ public class MySqlMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.mySqlMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(MySqlMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
@@ -268,7 +268,7 @@ public class MySqlMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = this.mySqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("1").build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("1").build();
         GetSplitsResponse getSplitsResponse = this.mySqlMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();

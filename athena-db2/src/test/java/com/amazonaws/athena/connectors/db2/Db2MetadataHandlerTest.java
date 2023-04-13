@@ -118,7 +118,7 @@ public class Db2MetadataHandlerTest extends TestBase {
 
         Schema schema = this.db2MetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> cols = schema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).addAllPartitionCols(cols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).addAllPartitionColumns(cols).build();
 
         PreparedStatement partitionPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Db2Constants.PARTITION_QUERY)).thenReturn(partitionPreparedStatement);
@@ -128,7 +128,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         GetTableLayoutResponse getTableLayoutResponse = this.db2MetadataHandler.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(cols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(cols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
@@ -159,12 +159,12 @@ public class Db2MetadataHandlerTest extends TestBase {
 
         Schema partitionSchema = this.db2MetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         GetTableLayoutResponse getTableLayoutResponse = this.db2MetadataHandler.doGetTableLayout(this.blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(

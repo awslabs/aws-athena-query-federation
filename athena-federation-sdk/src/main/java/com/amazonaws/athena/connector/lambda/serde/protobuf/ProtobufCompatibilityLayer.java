@@ -21,8 +21,17 @@ package com.amazonaws.athena.connector.lambda.serde.protobuf;
 
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,5 +74,44 @@ public class ProtobufCompatibilityLayer
             return nextTokenMatcher.replaceAll("$1null");
         }
         return inputJson;
+    }
+
+    public static String buildPingRequestWithDeprecatedIdentityFields(PingRequest pingRequest) throws InvalidProtocolBufferException
+    {
+        FederatedIdentity identity = pingRequest.getIdentity();
+        pingRequest = pingRequest.toBuilder().setIdentity(identity.toBuilder().setId("UNKNOWN").build()).build();
+        return ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(pingRequest);
+    }
+
+    public static String lintMessageWithSummaryMap(Message message) throws JsonMappingException, JsonProcessingException, InvalidProtocolBufferException
+    {
+        String messageJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(message);
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(messageJson);
+        jsonNode.get("constraints").get("summary").fields().forEachRemaining(ProtobufCompatibilityLayer::cleanSummaryEntry);
+        return jsonNode.toString();
+    }
+
+    private static void cleanSummaryEntry(Entry<String, JsonNode> summaryMapEntry)
+    {
+        removeRangesFromSummaryEntry(summaryMapEntry);
+        removeTypeIdsFromNonUnionTypeArrowTypes(summaryMapEntry);
+    }
+
+    private static void removeRangesFromSummaryEntry(Entry<String, JsonNode> summaryMapEntry)
+    {
+        if (!summaryMapEntry.getValue().get("@type").asText().equals("SortedRangeSet")) {
+            ((ObjectNode) summaryMapEntry.getValue()).remove("ranges");
+        }
+    }
+
+    private static void removeTypeIdsFromNonUnionTypeArrowTypes(Entry<String, JsonNode> summaryMapEntry)
+    {
+        if (summaryMapEntry.getValue().has("type")) { // not to be confused with @type
+            ObjectNode arrowType = (ObjectNode) summaryMapEntry.getValue().get("type");
+            if (!arrowType.get("@type").asText().equals("Union")) {
+                arrowType.remove("typeIds");
+            }
+        }
     }
 }

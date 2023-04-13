@@ -92,8 +92,8 @@ public class CompositeHandler
             throws IOException
     {
         // in the existing logic, we were attching the Lambda Context variable to the metadata request, which is messy.
-        // For now, I'll stick it in the config options with only the part we need.
-        metadataHandler.configOptions.put(MetadataHandler.FUNCTION_ARN_CONFIG_KEY, context.getInvokedFunctionArn());
+        // We modify it here to just set a variable in the metadata handler.
+        metadataHandler.setFunctionArn(context.getInvokedFunctionArn());
 
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
             String inputJson = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);

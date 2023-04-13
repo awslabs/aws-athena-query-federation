@@ -247,7 +247,7 @@ public class HbaseMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);
 
         String continuationToken = null;
-        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setTableName(TABLE_NAME).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionCols(partitionCols).build();
+        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(IDENTITY).setQueryId(QUERY_ID).setCatalogName(DEFAULT_CATALOG).setTableName(TABLE_NAME).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionColumns(partitionCols).build();
 
         logger.info("doGetSplits: req[{}]", req);
 

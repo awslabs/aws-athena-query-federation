@@ -108,6 +108,7 @@ public abstract class MetadataHandler
     protected static final String KMS_KEY_ID_ENV = "kms_key_id";
     protected static final String DISABLE_SPILL_ENCRYPTION = "disable_spill_encryption";
     protected static final String FUNCTION_ARN_CONFIG_KEY = "FUNCTION_ARN";
+    protected String functionArn;
     private final CachableSecretsManager secretsManager;
     private final AmazonAthena athena;
     private final ThrottlingInvoker athenaInvoker;
@@ -190,6 +191,11 @@ public abstract class MetadataHandler
         return (encryptionKeyFactory != null) ? encryptionKeyFactory.create() : null;
     }
 
+    protected void setFunctionArn(String functionArn)
+    {
+        this.functionArn = functionArn;
+    }
+
         /**
      * Used to make a spill location for a split. Each split should have a unique spill location, so be sure
      * to call this method once per split!
@@ -222,7 +228,7 @@ public abstract class MetadataHandler
                 if (!listSchemasResponse.hasType()) {
                     listSchemasResponse = listSchemasResponse.toBuilder().setType("ListSchemasResponse").build();
                 } 
-                ProtobufSerDe.writeResponse(listSchemasResponse, outputStream);
+                outputStream.write(ProtobufSerDe.writeMessageToJson(listSchemasResponse).getBytes());
                 return;
             case "ListTablesRequest":
                 ListTablesRequest listTablesRequest = (ListTablesRequest) ProtobufSerDe.buildFromJson(inputJson, ListTablesRequest.newBuilder());
@@ -230,7 +236,7 @@ public abstract class MetadataHandler
                 if (!listTablesResponse.hasType()) {
                     listTablesResponse = listTablesResponse.toBuilder().setType("ListTablesResponse").build();
                 } 
-                ProtobufSerDe.writeResponse(listTablesResponse, outputStream);
+                outputStream.write(ProtobufSerDe.writeMessageToJson(listTablesResponse).getBytes());
                 return;
             case "GetTableRequest":
                 GetTableRequest getTableRequest = (GetTableRequest) ProtobufSerDe.buildFromJson(inputJson, GetTableRequest.newBuilder());
@@ -239,7 +245,7 @@ public abstract class MetadataHandler
                     getTableResponse = getTableResponse.toBuilder().setType("GetTableResponse").build();
                 }
                 assertTypes(ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema()));
-                ProtobufSerDe.writeResponse(getTableResponse, outputStream);
+                outputStream.write(ProtobufSerDe.writeMessageToJson(getTableResponse).getBytes());
                 return;
             case "GetTableLayoutRequest":
                 GetTableLayoutRequest getTableLayoutRequest = (GetTableLayoutRequest) ProtobufSerDe.buildFromJson(inputJson, GetTableLayoutRequest.newBuilder());
@@ -247,7 +253,7 @@ public abstract class MetadataHandler
                 if (!getTableLayoutResponse.hasType()) {
                     getTableLayoutResponse = getTableLayoutResponse.toBuilder().setType("GetTableLayoutResponse").build();
                 }
-                ProtobufSerDe.writeResponse(getTableLayoutResponse, outputStream);
+                outputStream.write(ProtobufSerDe.writeMessageToJson(getTableLayoutResponse).getBytes());
                 return;
             case "GetSplitsRequest":
                 GetSplitsRequest getSplitsRequest = (GetSplitsRequest) ProtobufSerDe.buildFromJson(inputJson, GetSplitsRequest.newBuilder());
@@ -255,7 +261,7 @@ public abstract class MetadataHandler
                 if (!getSplitsResponse.hasType()) {
                     getSplitsResponse = getSplitsResponse.toBuilder().setType("GetSplitsResponse").build();
                 }
-                ProtobufSerDe.writeResponse(getSplitsResponse, outputStream);
+                outputStream.write(ProtobufSerDe.writeMessageToJson(getSplitsResponse).getBytes());
                 return;
             default:
               throw new UnsupportedOperationException("Input type is not recognized - " + typeHeader.getType());
@@ -322,7 +328,7 @@ public abstract class MetadataHandler
          * partitions we are going to return.
          */
         Schema requestSchema = ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema());
-        for (String nextPartCol : request.getPartitionColsList()) {
+        for (String nextPartCol : request.getPartitionColumnsList()) {
             Field partitionCol = requestSchema.findField(nextPartCol);
             partitionSchemaBuilder.addField(nextPartCol, partitionCol.getType());
             constraintSchema.addField(nextPartCol, partitionCol.getType());
@@ -462,7 +468,7 @@ public abstract class MetadataHandler
         catch (Exception ex) {
             logger.warn("doPing: encountered an exception while delegating onPing.", ex);
         }
-        ProtobufSerDe.writeResponse(pingResponse, outputStream);
+        outputStream.write(ProtobufSerDe.writeMessageToJson(pingResponse).getBytes());
     }
 
     /**

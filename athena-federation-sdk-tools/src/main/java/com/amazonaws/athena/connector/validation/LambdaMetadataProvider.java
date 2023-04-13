@@ -157,7 +157,7 @@ public class LambdaMetadataProvider
     log.info("Submitting GetTableLayoutRequest with ID " + queryId);
 
     GetTableLayoutRequest request =
-                GetTableLayoutRequest.newBuilder().setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).addAllPartitionCols(partitionCols).build();
+                GetTableLayoutRequest.newBuilder().setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema)).addAllPartitionColumns(partitionCols).build();
     log.info("Submitting request: {}", request);
     GetTableLayoutResponse response = (GetTableLayoutResponse) getService(metadataFunction, identity, catalog).call(request);
     log.info("Received response: {}", response);
@@ -190,7 +190,7 @@ public class LambdaMetadataProvider
     log.info("Submitting GetSplitsRequest with ID " + queryId);
 
     GetSplitsRequest request =
-        GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).setTableName(tableName).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionCols(partitionCols).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken(contToken).build();
+        GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId(queryId).setCatalogName(catalog).setTableName(tableName).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionColumns(partitionCols).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken(contToken).build();
     log.info("Submitting request: {}", request);
     GetSplitsResponse response = (GetSplitsResponse) getService(metadataFunction, identity, catalog).call(request);
     log.info("Received response: {}", response);

@@ -116,7 +116,7 @@ public abstract class RecordHandler
     {
         logger.info("doHandleRequest: request[{}]", ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(readRecordsRequest));
         Message response = doReadRecords(allocator, readRecordsRequest);
-        String jsonOut = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(response);
+        String jsonOut = ProtobufSerDe.writeMessageToJson(response);
         outputStream.write(jsonOut.getBytes());
     }
 

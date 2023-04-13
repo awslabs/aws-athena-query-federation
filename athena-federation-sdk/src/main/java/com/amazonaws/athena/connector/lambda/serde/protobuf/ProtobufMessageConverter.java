@@ -61,9 +61,9 @@ import java.util.stream.Collectors;
 public class ProtobufMessageConverter 
 {
     
-    private static final String ALL_OR_NONE_VALUE_SET_TYPE = "@AllOrNoneValueSet";
-    private static final String EQUATABLE_VALUE_SET_TYPE = "@EquatableValueSet";
-    private static final String SORTED_RANGE_SET_TYPE = "@SortedRangeSet";
+    private static final String ALL_OR_NONE_VALUE_SET_TYPE = "AllOrNoneValueSet";
+    private static final String EQUATABLE_VALUE_SET_TYPE = "EquatableValueSet";
+    private static final String SORTED_RANGE_SET_TYPE = "SortedRangeSet";
 
     private static final Logger logger = LoggerFactory.getLogger(ProtobufMessageConverter.class);
 

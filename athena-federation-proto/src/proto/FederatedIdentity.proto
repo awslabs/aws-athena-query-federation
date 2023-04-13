@@ -5,9 +5,10 @@ package com.amazonaws.athena.connector.lambda.proto.security;
 option java_multiple_files = true;
 
 message FederatedIdentity {
- optional string principal = 1;
- optional string account = 2;
- optional string arn = 3;
- map<string, string> tags = 4;
- repeated string groups = 5;
+ optional string id = 1; // This does not exist anymore, but the jackson serde will write it and look for it, so we have to add it too.
+ optional string principal = 2;
+ optional string account = 3;
+ optional string arn = 4;
+ map<string, string> tags = 5;
+ repeated string groups = 6;
 }

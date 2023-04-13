@@ -106,7 +106,7 @@ public class ImpalaMetadataHandlerTest
         Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
         GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName")
-            .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+            .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
         String value2 = "case_date=01-01-2000/case_number=0/case_instance=89898989/case_location=__HIVE_DEFAULT_PARTITION__";
         String value3 = "case_date=02-01-2000/case_number=1/case_instance=89898990/case_location=Hyderabad";
         String[] columns2 = {"Partition"};
@@ -149,7 +149,7 @@ public class ImpalaMetadataHandlerTest
        Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
        Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName")
-            .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+            .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
        String[] columns2 = {"Partition"};
        int[] types2 = {Types.VARCHAR};
        Object[][] values1 = {};
@@ -183,7 +183,7 @@ public class ImpalaMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
@@ -206,7 +206,7 @@ public class ImpalaMetadataHandlerTest
         Schema partitionSchema = this.impalaMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
         GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName")
-            .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+            .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
         String value2 = "case_date=01-01-2000/case_number=0/case_instance=89898989/case_location=__HIVE_DEFAULT_PARTITION__";
         String value3 = "case_date=02-01-2000/case_number=1/case_instance=89898990/case_location=Hyderabad";
         String[] columns2 = {"Partition"};
@@ -224,7 +224,7 @@ public class ImpalaMetadataHandlerTest
         Mockito.when(statement1.executeQuery(getPartitionDetailsSql)).thenReturn(resultSet1);
         GetTableLayoutResponse getTableLayoutResponse = this.impalaMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tempTableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tempTableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.impalaMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
         Assert.assertEquals(2, getSplitsResponse.getSplitsList().size());
     }
@@ -240,12 +240,12 @@ public class ImpalaMetadataHandlerTest
 
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName")
-            .setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+            .setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         GetTableLayoutResponse getTableLayoutResponse = this.impalaMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName")
-            .setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(partitionCols).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("1").build();
+            .setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(partitionCols).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("1").build();
 
         Integer splitRequestToken=0;
         if (getSplitsRequest.hasContinuationToken()) {

@@ -230,7 +230,7 @@ public class RedisMetadataHandlerTest
             .setCatalogName(DEFAULT_CATALOG)
             .setTableName(TABLE_NAME)
             .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
-            .addAllPartitionCols(partitionCols)
+            .addAllPartitionColumns(partitionCols)
             .build();
         logger.info("doGetSplitsPrefix: req[{}]", req);
 

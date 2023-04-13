@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package com.amazonaws.athena.connector.lambda.proto.records;
 
-import 'Block.proto';
 import 'SpillLocation.proto';
 import 'EncryptionKey.proto';
 

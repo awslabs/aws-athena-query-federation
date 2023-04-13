@@ -21,8 +21,6 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
-import java.util.HashMap;
-
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose DynamoDBMetadataHandler and DynamoDBRecordHandler.
@@ -33,6 +31,6 @@ public class DynamoDBCompositeHandler
     public DynamoDBCompositeHandler()
     {
         // System.getenv returns an unmodifiable map, so wrap it in a modifiable map, so we can set configs dynamically on lambda execution.
-        super(new DynamoDBMetadataHandler(new HashMap<>(System.getenv())), new DynamoDBRecordHandler(new HashMap<>(System.getenv())));
+        super(new DynamoDBMetadataHandler(System.getenv()), new DynamoDBRecordHandler(System.getenv()));
     }
 }

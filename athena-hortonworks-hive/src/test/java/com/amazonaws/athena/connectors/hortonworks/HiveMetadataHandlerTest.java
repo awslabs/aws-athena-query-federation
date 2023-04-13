@@ -108,7 +108,7 @@ public class HiveMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatlogName")
             .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema))
-            .addAllPartitionCols(partitionCols)
+            .addAllPartitionColumns(partitionCols)
             .build();
         String value2 = "case_date=01-01-2000/case_number=0/case_instance=89898989/case_location=__HIVE_DEFAULT_PARTITION__";
         String value3 = "case_date=02-01-2000/case_number=1/case_instance=89898990/case_location=Hyderabad";
@@ -161,7 +161,7 @@ public class HiveMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatlogName")
             .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema))
-            .addAllPartitionCols(partitionCols)
+            .addAllPartitionColumns(partitionCols)
             .build();
         String[] columns2 = {"Partition"};
         int[] types2 = {Types.VARCHAR};
@@ -196,7 +196,7 @@ public class HiveMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
@@ -225,7 +225,7 @@ public class HiveMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatlogName")
             .setTableName(tempTableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema))
-            .addAllPartitionCols(partitionCols)
+            .addAllPartitionColumns(partitionCols)
             .build();
         String value2 = "case_date=01-01-2000/case_number=0/case_instance=89898989/case_location=__HIVE_DEFAULT_PARTITION__";
         String value3 = "case_date=02-01-2000/case_number=1/case_instance=89898990/case_location=Hyderabad";
@@ -247,7 +247,7 @@ public class HiveMetadataHandlerTest
         Mockito.when(resultSet2.getString(1)).thenReturn("PARTITIONED:true");
         GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tempTableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tempTableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.hiveMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
         Assert.assertEquals(2, getSplitsResponse.getSplitsList().size());
     }
@@ -265,12 +265,12 @@ public class HiveMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatlogName")
             .setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema))
-            .addAllPartitionCols(partitionCols)
+            .addAllPartitionColumns(partitionCols)
             .build();
         GetTableLayoutResponse getTableLayoutResponse = this.hiveMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName")
-            .setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(partitionCols).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("1").build();
+            .setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(partitionCols).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("1").build();
 
         Integer splitRequestToken=0;
         if (getSplitsRequest.hasContinuationToken()) {

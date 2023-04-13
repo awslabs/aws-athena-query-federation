@@ -8,8 +8,8 @@
     "tags" : { },
     "groups" : [ ]
   },
-  "queryId" : "test-catalog",
-  "catalogName" : "test-query-id",
+  "queryId" : "test-query-id",
+  "catalogName" : "test-catalog",
   "tableName" : {
     "schemaName" : "test-schema",
     "tableName" : "test-table"

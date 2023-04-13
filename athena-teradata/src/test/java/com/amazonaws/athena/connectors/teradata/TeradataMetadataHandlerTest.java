@@ -94,7 +94,7 @@ public class TeradataMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.teradataMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition")); //partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         String GET_PARTITIONS_QUERY = "Select DISTINCT partition FROM " + getTableLayoutRequest.getTableName().getSchemaName()+"." +
@@ -134,7 +134,7 @@ public class TeradataMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.teradataMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         String GET_PARTITIONS_QUERY = "Select DISTINCT partition FROM " + getTableLayoutRequest.getTableName().getSchemaName()+"." +
@@ -174,7 +174,7 @@ public class TeradataMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.teradataMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
@@ -205,7 +205,7 @@ public class TeradataMetadataHandlerTest
 
         Schema partitionSchema = this.teradataMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         String GET_PARTITIONS_QUERY = "Select DISTINCT partition FROM " + getTableLayoutRequest.getTableName().getSchemaName()+"." +
                 getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
@@ -214,7 +214,7 @@ public class TeradataMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = this.teradataMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.teradataMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
@@ -234,7 +234,7 @@ public class TeradataMetadataHandlerTest
         TableName tableName = TableName.newBuilder().setSchemaName("testSchema").setTableName("testTable").build();
         Schema partitionSchema = this.teradataMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         String GET_PARTITIONS_QUERY = "Select DISTINCT partition FROM " + getTableLayoutRequest.getTableName().getSchemaName()+"." +
@@ -252,7 +252,7 @@ public class TeradataMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = this.teradataMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("1").build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setContinuationToken("1").build();
         GetSplitsResponse getSplitsResponse = this.teradataMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
@@ -276,10 +276,10 @@ public class TeradataMetadataHandlerTest
 
         Schema partitionSchema = this.teradataMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionCols(partitionCols).build();
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).setSchema(ProtobufMessageConverter.toProtoSchemaBytes(partitionSchema)).addAllPartitionColumns(partitionCols).build();
         GetTableLayoutResponse getTableLayoutResponse = this.teradataMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionCols(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
+        GetSplitsRequest getSplitsRequest = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("testQueryId").setCatalogName("testCatalogName").setTableName(tableName).setPartitions(getTableLayoutResponse.getPartitions()).addAllPartitionColumns(new ArrayList<>(partitionCols)).setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints)).build();
         GetSplitsResponse getSplitsResponse = this.teradataMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
         Set<Map<String, String>> expectedSplits = new HashSet<>();
         expectedSplits.add(Collections.singletonMap(teradataMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, "*"));

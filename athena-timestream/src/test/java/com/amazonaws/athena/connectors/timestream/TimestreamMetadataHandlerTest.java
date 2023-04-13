@@ -418,7 +418,7 @@ public class TimestreamMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(allocator, "partition_id", Types.MinorType.INT.getType(), 0);
 
         String continuationToken = null;
-        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("query-id").setCatalogName(defaultSchema).setTableName(TableName.newBuilder().setSchemaName("database1").setTableName("table1").build()).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionCols(partitionCols).build();
+        GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("query-id").setCatalogName(defaultSchema).setTableName(TableName.newBuilder().setSchemaName("database1").setTableName("table1").build()).setPartitions(ProtobufMessageConverter.toProtoBlock(partitions)).addAllPartitionColumns(partitionCols).build();
 
         logger.info("doGetSplits: req[{}]", req);
 

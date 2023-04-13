@@ -202,7 +202,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         this.verticaMetadataHandler.enhancePartitionSchema(allocator, schemaBuilder, GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("queryId").setCatalogName("testCatalog")
             .setTableName(this.tableName).setConstraints(ProtobufMessageConverter.toProtoConstraints(this.constraints))
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(this.schema))
-            .addAllPartitionCols(partitionCols)
+            .addAllPartitionColumns(partitionCols)
             .build());
         Assert.assertEquals("preparedStmt", schemaBuilder.getField("preparedStmt").getName());
     }
@@ -263,7 +263,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         req = GetTableLayoutRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("queryId").setCatalogName("default")
         .setTableName(TableName.newBuilder().setSchemaName("schema1").setTableName("table1").build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
         .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(tableSchema))
-        .addAllPartitionCols(partitionCols)
+        .addAllPartitionColumns(partitionCols)
         .build();
         res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req);
 
@@ -357,7 +357,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         GetSplitsRequest req = GetSplitsRequest.newBuilder().setIdentity(this.federatedIdentity).setQueryId("queryId").setCatalogName("catalog_name")
             .setTableName(TableName.newBuilder().setSchemaName("schema").setTableName("table_name").build())
             .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
-            .addAllPartitionCols(partitionCols)
+            .addAllPartitionColumns(partitionCols)
             .build();
         logger.info("doGetSplits: req[{}]", req);
         GetSplitsResponse response = verticaMetadataHandler.doGetSplits(allocator, req);

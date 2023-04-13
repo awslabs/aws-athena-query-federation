@@ -16,5 +16,5 @@ message GetTableLayoutRequest {
   optional com.amazonaws.athena.connector.lambda.proto.domain.TableName tableName = 5;
   optional com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints constraints = 6;
   optional bytes schema = 7;
-  repeated string partitionCols = 8;
+  repeated string partitionColumns = 8;
 }

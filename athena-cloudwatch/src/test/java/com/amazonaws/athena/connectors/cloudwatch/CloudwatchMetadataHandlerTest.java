@@ -332,7 +332,7 @@ public class CloudwatchMetadataHandlerTest
         GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("default1")
         .setTableName(TableName.newBuilder().setSchemaName("schema-1").setTableName("all_log_streams").build()).setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(constraintsMap)))
         .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
-        .addPartitionCols("log_stream")
+        .addPartitionColumns("log_stream")
         .build();
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
@@ -372,7 +372,7 @@ public class CloudwatchMetadataHandlerTest
         GetSplitsRequest originalReq = GetSplitsRequest.newBuilder().setIdentity(identity).setQueryId("queryId").setCatalogName("catalog_name")
             .setTableName(TableName.newBuilder().setSchemaName("schema").setTableName("all_log_streams").build())
             .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
-            .addPartitionCols(CloudwatchMetadataHandler.LOG_GROUP_FIELD)
+            .addPartitionColumns(CloudwatchMetadataHandler.LOG_GROUP_FIELD)
             .build();
         int numContinuations = 0;
         do {
