@@ -25,6 +25,7 @@ import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
+import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
@@ -140,28 +141,38 @@ public final class DDBTableUtils
             throws TimeoutException
     {
         ScanRequest scanRequest = new ScanRequest().withTableName(tableName).withLimit(SCHEMA_INFERENCE_NUM_RECORDS);
-        ScanResult scanResult = invoker.invoke(() -> ddbClient.scan(scanRequest));
-        List<Map<String, AttributeValue>> items = scanResult.getItems();
-        Set<String> discoveredColumns = new HashSet<>();
         SchemaBuilder schemaBuilder = new SchemaBuilder();
-        if (!items.isEmpty()) {
-            for (Map<String, AttributeValue> item : items) {
-                for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
-                    if (!discoveredColumns.contains(column.getKey())) {
-                        Field field = DDBTypeUtils.inferArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue()));
-                        if (field != null) {
-                            schemaBuilder.addField(field);
-                            discoveredColumns.add(column.getKey());
+        try {
+            ScanResult scanResult = invoker.invoke(() -> ddbClient.scan(scanRequest));
+            List<Map<String, AttributeValue>> items = scanResult.getItems();
+            Set<String> discoveredColumns = new HashSet<>();
+            if (!items.isEmpty()) {
+                for (Map<String, AttributeValue> item : items) {
+                    for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
+                        if (!discoveredColumns.contains(column.getKey())) {
+                            Field field = DDBTypeUtils.inferArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue()));
+                            if (field != null) {
+                                schemaBuilder.addField(field);
+                                discoveredColumns.add(column.getKey());
+                            }
                         }
                     }
                 }
             }
+            else {
+                // there's no items, so use any attributes defined in the table metadata
+                DynamoDBTable table = getTable(tableName, invoker, ddbClient);
+                for (AttributeDefinition attributeDefinition : table.getKnownAttributeDefinitions()) {
+                    schemaBuilder.addField(DDBTypeUtils.getArrowFieldFromDDBType(attributeDefinition.getAttributeName(), attributeDefinition.getAttributeType()));
+                }
+            }
         }
-        else {
-            // there's no items, so use any attributes defined in the table metadata
-            DynamoDBTable table = getTable(tableName, invoker, ddbClient);
-            for (AttributeDefinition attributeDefinition : table.getKnownAttributeDefinitions()) {
-                schemaBuilder.addField(DDBTypeUtils.getArrowFieldFromDDBType(attributeDefinition.getAttributeName(), attributeDefinition.getAttributeType()));
+        catch (AmazonDynamoDBException amazonDynamoDBException) {
+            if (amazonDynamoDBException.getMessage().contains("AWSKMSException")) {
+                logger.warn("Failed to retrieve table schema due to KMS issue, empty schema for table: {}. Error Message: {}", tableName, amazonDynamoDBException.getMessage());
+            }
+            else {
+                throw amazonDynamoDBException;
             }
         }
         return schemaBuilder.build();
