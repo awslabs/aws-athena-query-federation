@@ -47,6 +47,7 @@ import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.impl.UnionListReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -177,6 +178,70 @@ public class DynamoDBRecordHandlerTest
     }
 
     @Test
+    public void testReadScanSplitWithLimit()
+        throws Exception
+    {
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 5),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(5, response.getRecords().getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testReadScanSplitWithLimitLargerThanN()
+            throws Exception
+    {
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 10_000),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(1000, response.getRecords().getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
     public void testReadScanSplitFiltered()
             throws Exception
     {
@@ -247,6 +312,43 @@ public class DynamoDBRecordHandlerTest
         logger.info("testReadQuerySplit: rows[{}]", response.getRecordCount());
 
         assertEquals(2, response.getRecords().getRowCount());
+        logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testReadQuerySplitWithLimit()
+            throws Exception
+    {
+        Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(HASH_KEY_NAME_METADATA, "col_0")
+                .add("col_0", toJsonString(toAttributeValue("test_str_0")))
+                .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
+                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 1),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadQuerySplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(1, response.getRecords().getRowCount());
         logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
     }
 

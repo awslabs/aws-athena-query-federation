@@ -146,8 +146,16 @@ public class ExampleRecordHandler
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
 
         /**
+         * Pushing down constraints is going to be very specific to your connector's means of communicating with
+         * your underlying data source. For example, you can see how JDBC source types handle this in the class
+         * JdbcSplitQueryBuilder in method buildSql.
+         * 
+         * In this example, we do not ask you to implement any pushdowns as it is going to be very connector specific.
+         */
+
+        /**
          * TODO: Add extractors for each field to our RowWRiterBuilder, the RowWriterBuilder will then 'generate'
-         * optomized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
+         * optimized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
          * branches, etc... Later in the code when we call RowWriter for each line in our S3 file
          *
          builder.withExtractor("year", (IntExtractor) (Object context, NullableIntHolder value) -> {

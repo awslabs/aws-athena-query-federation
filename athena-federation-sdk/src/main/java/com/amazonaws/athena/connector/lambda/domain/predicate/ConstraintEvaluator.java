@@ -28,9 +28,12 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 
 /**
  * Used to apply predicates to values inside your connector. Ideally you would also be able to push
@@ -81,7 +84,7 @@ public class ConstraintEvaluator
      */
     public static ConstraintEvaluator emptyEvaluator()
     {
-        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>()));
+        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
     }
 
     /**

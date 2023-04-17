@@ -70,9 +70,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 
 public class GeneratedRowWriter
 {
@@ -103,7 +106,7 @@ public class GeneratedRowWriter
 
     public static RowWriterBuilder newBuilder()
     {
-        return new RowWriterBuilder(new Constraints(ImmutableMap.of()));
+        return new RowWriterBuilder(new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
     }
 
     public boolean writeRow(Block block, int rowNum, Object context)

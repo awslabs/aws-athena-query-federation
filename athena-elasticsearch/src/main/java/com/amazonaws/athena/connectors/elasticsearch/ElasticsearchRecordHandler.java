@@ -154,7 +154,7 @@ public class ElasticsearchRecordHandler
                         .size(QUERY_BATCH_SIZE)
                         .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
-                        .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
+                        .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints()));
 
                 //init scroll
                 Scroll scroll = new Scroll(TimeValue.timeValueSeconds(this.scrollTimeout));

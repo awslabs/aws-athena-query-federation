@@ -1,10 +1,8 @@
-package com.amazonaws.athena.connector.lambda.examples;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,22 +17,31 @@ package com.amazonaws.athena.connector.lambda.examples;
  * limitations under the License.
  * #L%
  */
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-public enum SplitProperties
+import java.util.List;
+
+public class SubTypeProperties
+    implements PushdownSubTypes
 {
-    LOCATION(ExampleMetadataHandler.PARTITION_LOCATION),
-    SERDE(ExampleMetadataHandler.SERDE),
-    SPLIT_PART("SPLIT_PART");
+    private final String propertyName;
+    private final List<String> propertyValues;
 
-    private final String id;
-
-    SplitProperties(String id)
+    public SubTypeProperties(String propertyName, List<String> propertyValues)
     {
-        this.id = id;
+        this.propertyName = propertyName;
+        this.propertyValues = propertyValues;
     }
 
-    public String getId()
+    @Override
+    public String getSubType()
     {
-        return id;
+        return propertyName;
+    }
+
+    @Override
+    public List<String> getProperties()
+    {
+        return propertyValues;
     }
 }

@@ -27,6 +27,8 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -36,6 +38,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -49,8 +52,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -339,5 +344,36 @@ public class ExampleMetadataHandler
 
         logger.info("doGetSplits: exit - " + splits.size());
         return new GetSplitsResponse(catalogName, splits);
+    }
+
+    /**
+     * Used to describe the types of capabilities supported by a data source. An engine can use this to determine what
+     * portions of the query to push down. A connector that returns any optimization will guarantee that the associated
+     * predicate will be pushed down.
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details about the catalog being used.
+     * @return A GetDataSourceCapabilitiesResponse object which returns a map of supported optimizations that
+     * the connector is advertising to the consumer. The connector assumes all responsibility for whatever is passed here.
+     */
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
+
+        /*
+         * TODO: Add capabilities which your connector will support.
+         * The capabilities you return here will cause Athena to fill the Constraints object in the RecordHandler's
+         * readWithConstraint method's ReadRecordsRequest parameter with the specific pushdowns your connector supports
+         * and expect your record handler to correctly evaluate the pushdowns present.
+         *
+         * Example: capabilities.putAll(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(FilterPushdownSubType.ALL));
+         * This tells Athena your connector can handle simple associative filters, like colA > 10.
+         *
+         * See athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/metadata/optimizations/DataSourceOptimizations.java for options.
+         * Pushdown subtypes are found in athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/metadata/optimizations/pushdown/
+         * 
+         */
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities);
     }
 }

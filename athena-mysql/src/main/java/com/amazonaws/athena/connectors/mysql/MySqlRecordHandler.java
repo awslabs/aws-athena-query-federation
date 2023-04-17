@@ -57,7 +57,8 @@ public class MySqlRecordHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(MySqlRecordHandler.class);
 
-    private static final String MYSQL_QUOTE_CHARACTER = "`";
+    @VisibleForTesting
+    protected static final String MYSQL_QUOTE_CHARACTER = "`";
 
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
 
@@ -79,7 +80,7 @@ public class MySqlRecordHandler
     public MySqlRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                jdbcConnectionFactory, new MySqlQueryStringBuilder(MYSQL_QUOTE_CHARACTER), configOptions);
+                jdbcConnectionFactory, new MySqlQueryStringBuilder(MYSQL_QUOTE_CHARACTER, new MySqlFederationExpressionParser(MYSQL_QUOTE_CHARACTER)), configOptions);
     }
 
     @VisibleForTesting

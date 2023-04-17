@@ -57,6 +57,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
@@ -155,7 +156,7 @@ public class ExampleRecordHandlerTest
                             .add("month", "11")
                             .add("day", "1")
                             .build(),
-                    new Constraints(constraintsMap),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
             );

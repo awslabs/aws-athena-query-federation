@@ -44,6 +44,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.*;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -198,7 +199,7 @@ public class BigQueryMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                mock(Block.class), Collections.<String>emptyList(), new Constraints(new HashMap<>()), null);
+                mock(Block.class), Collections.<String>emptyList(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), null);
         // added schema with integer column countCol
         List<Field> testSchemaFields = Arrays.asList(Field.of("countCol", LegacySQLTypeName.INTEGER));
         com.google.cloud.bigquery.Schema tableSchema = Schema.of(testSchemaFields);

@@ -67,6 +67,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
@@ -197,7 +198,7 @@ public class MetricsMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName(defaultSchema, "metrics"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -230,7 +231,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metrics"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
         int numContinuations = 0;
         do {
@@ -304,7 +305,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
 
         int numContinuations = 0;
@@ -371,7 +372,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
