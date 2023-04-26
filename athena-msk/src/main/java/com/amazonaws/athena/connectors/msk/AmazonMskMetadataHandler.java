@@ -36,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicPartitionPiece;
 import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
@@ -97,21 +98,15 @@ public class AmazonMskMetadataHandler extends MetadataHandler
             .map(r -> r.getRegistryName());
     }
 
-    private ListRegistriesResult listRegistriesFromGlue(AWSGlue glue, String nextToken, boolean start)
+    private ListRegistriesResult listRegistriesFromGlue(AWSGlue glue, String nextToken)
     {
-        if (!start && nextToken == null) {
-            return null;
-        }
         ListRegistriesRequest listRequest = new ListRegistriesRequest().withMaxResults(maxGluePageSize);
         listRequest = (nextToken == null) ? listRequest : listRequest.withNextToken(nextToken);
         return glue.listRegistries(listRequest);
     }
 
-    private ListSchemasResult listSchemasFromGlue(AWSGlue glue, String glueRegistryName, int pageSize, String nextToken, boolean start)
+    private ListSchemasResult listSchemasFromGlue(AWSGlue glue, String glueRegistryName, int pageSize, String nextToken)
     {
-        if (!start && nextToken == null) {
-            return null;
-        }
         com.amazonaws.services.glue.model.ListSchemasRequest listRequest = new com.amazonaws.services.glue.model.ListSchemasRequest()
             .withRegistryId(new RegistryId().withRegistryName(glueRegistryName))
             .withMaxResults(Math.min(pageSize, maxGluePageSize));
@@ -131,15 +126,9 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     {
         LOGGER.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
         AWSGlue glue = AWSGlueClientBuilder.defaultClient();
-        Stream<String> allFilteredRegistries = Stream.empty();
-        for (
-            ListRegistriesResult currentResult = listRegistriesFromGlue(glue, null, true);
-            currentResult != null;
-            currentResult = listRegistriesFromGlue(glue, currentResult.getNextToken(), false)
-        ) {
-            // Concat the results from the current page
-            allFilteredRegistries = Stream.concat(allFilteredRegistries, filteredRegistriesStream(currentResult.getRegistries().stream()));
-        }
+
+        Stream<String> allFilteredRegistries = PaginatedRequestIterator.stream((pageToken) -> listRegistriesFromGlue(glue, pageToken), ListRegistriesResult::getNextToken)
+            .flatMap(result -> filteredRegistriesStream(result.getRegistries().stream()));
         ListSchemasResponse result = new ListSchemasResponse(listSchemasRequest.getCatalogName(), allFilteredRegistries.collect(Collectors.toList()));
         LOGGER.debug("doListSchemaNames result: {}", result);
         return result;
@@ -181,23 +170,19 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         if (federationListTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE &&
                 federationListTablesRequest.getNextToken() == null) {
             LOGGER.info("Request page size is UNLIMITED_PAGE_SIZE_VALUE");
-            List<TableName> allTableNames = new ArrayList();
-            for (
-                ListSchemasResult currentResult = listSchemasFromGlue(glue, glueRegistryNameResolved, maxGluePageSize, null, true);
-                currentResult != null;
-                currentResult = listSchemasFromGlue(glue, glueRegistryNameResolved, maxGluePageSize, currentResult.getNextToken(), false)
-            ) {
-                // Append the results from the current page
-                allTableNames.addAll(
+
+            List<TableName> allTableNames = PaginatedRequestIterator.stream((pageToken) -> listSchemasFromGlue(glue, glueRegistryNameResolved, maxGluePageSize, pageToken), ListSchemasResult::getNextToken)
+                .flatMap(currentResult ->
                     currentResult.getSchemas().stream()
                         .map(schemaListItem -> schemaListItem.getSchemaName())
                         .map(glueSchemaName -> new TableName(glueRegistryNameResolved, glueSchemaName))
-                        .collect(Collectors.toList())
-                );
-                if (allTableNames.size() > MAX_RESULTS) {
-                    throw new RuntimeException(
-                        String.format("Exceeded maximum result size. Current doListTables result size: %d", allTableNames.size()));
-                }
+                )
+                .limit(MAX_RESULTS + 1)
+                .collect(Collectors.toList());
+
+            if (allTableNames.size() > MAX_RESULTS) {
+                throw new RuntimeException(
+                    String.format("Exceeded maximum result size. Current doListTables result size: %d", allTableNames.size()));
             }
             ListTablesResponse result = new ListTablesResponse(federationListTablesRequest.getCatalogName(), allTableNames, null);
             LOGGER.debug("doListTables result: {}", result);
@@ -209,9 +194,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
             glue,
             glueRegistryNameResolved,
             federationListTablesRequest.getPageSize(),
-            federationListTablesRequest.getNextToken(),
-            // always consider this as a starting rqeuest if the token is null
-            federationListTablesRequest.getNextToken() == null);
+            federationListTablesRequest.getNextToken());
         // Convert the glue response into our own federation response
         List<TableName> tableNames = listSchemasResultFromGlue.getSchemas()
             .stream()
@@ -231,50 +214,34 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     {
         LOGGER.debug("findGlueRegistryNameIgnoringCasing {}", glueRegistryNameIn);
         AWSGlue glue = AWSGlueClientBuilder.defaultClient();
-        for (
-            ListRegistriesResult currentResult = listRegistriesFromGlue(glue, null, true);
-            currentResult != null;
-            currentResult = listRegistriesFromGlue(glue, currentResult.getNextToken(), false)
-        ) {
-            // Try to find the registry ignoring the case
-            java.util.Optional<String> result = filteredRegistriesStream(currentResult.getRegistries().stream())
-                .filter(r -> r.equalsIgnoreCase(glueRegistryNameIn))
-                .findAny();
-            // Continue searching through the other pages if we haven't found the registry yet
-            if (!result.isPresent()) {
-                continue;
-            }
-            LOGGER.debug("findGlueRegistryNameIgnoringCasing result: {}", result.get());
-            return result.get();
-        }
-        throw new RuntimeException(String.format("Could not find Glue Registry: %s", glueRegistryNameIn));
+
+        // Try to find the registry ignoring the case
+        String result = PaginatedRequestIterator.stream((pageToken) -> listRegistriesFromGlue(glue, pageToken), ListRegistriesResult::getNextToken)
+            .flatMap(currentResult -> filteredRegistriesStream(currentResult.getRegistries().stream()))
+            .filter(r -> r.equalsIgnoreCase(glueRegistryNameIn))
+            .findAny()
+            .orElseThrow(() -> new RuntimeException(String.format("Could not find Glue Registry: %s", glueRegistryNameIn)));
+        LOGGER.debug("findGlueRegistryNameIgnoringCasing result: {}", result);
+        return result;
     }
 
     // Assumes that glueRegistryNameIn is already resolved to the right name
     private String findGlueSchemaNameIgnoringCasing(String glueRegistryNameIn, String glueSchemaNameIn)
     {
         LOGGER.debug("findGlueSchemaNameIgnoringCasing {} {}", glueRegistryNameIn, glueSchemaNameIn);
-        // List all schemas under the input registry
         AWSGlue glue = AWSGlueClientBuilder.defaultClient();
-        for (
-            ListSchemasResult currentResult = listSchemasFromGlue(glue, glueRegistryNameIn, maxGluePageSize, null, true);
-            currentResult != null;
-            currentResult = listSchemasFromGlue(glue, glueRegistryNameIn, maxGluePageSize, currentResult.getNextToken(), false)
-        ) {
-            // Find the schema name ignoring the case in this page
-            java.util.Optional<String> foundSchema = currentResult.getSchemas().stream()
-                .map(schemaListItem -> schemaListItem.getSchemaName())
-                .filter(glueSchemaName -> glueSchemaName.equalsIgnoreCase(glueSchemaNameIn))
-                .findAny();
-            // Continue looking at the next page if not found
-            if (!foundSchema.isPresent()) {
-                continue;
-            }
-            // Return the found schema
-            LOGGER.debug("findGlueSchemaNameIgnoringCasing result: {}", foundSchema.get());
-            return foundSchema.get();
-        }
-        throw new RuntimeException(String.format("Could not find Glue Schema: %s", glueSchemaNameIn));
+        // List all schemas under the input registry
+        // Find the schema name ignoring the case in this page
+        String result = PaginatedRequestIterator.stream((pageToken) -> listSchemasFromGlue(glue, glueRegistryNameIn, maxGluePageSize, pageToken), ListSchemasResult::getNextToken)
+            .flatMap(currentResult -> currentResult.getSchemas().stream())
+            .map(schemaListItem -> schemaListItem.getSchemaName())
+            .filter(glueSchemaName -> glueSchemaName.equalsIgnoreCase(glueSchemaNameIn))
+            .findAny()
+            .orElseThrow(() -> new RuntimeException(String.format("Could not find Glue Schema: %s", glueSchemaNameIn)));
+
+        // Return the found schema
+        LOGGER.debug("findGlueSchemaNameIgnoringCasing result: {}", result);
+        return result;
     }
 
     /**

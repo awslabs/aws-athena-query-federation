@@ -36,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -56,8 +57,8 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class TimestreamMetadataHandler
         extends GlueMetadataHandler
@@ -108,26 +109,19 @@ public class TimestreamMetadataHandler
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
             throws Exception
     {
-        List<String> schemaNames = new ArrayList<>();
+        List<String> schemas = PaginatedRequestIterator.stream(this::doListSchemaNamesOnePage, ListDatabasesResult::getNextToken)
+            .flatMap(result -> result.getDatabases().stream())
+            .map(db -> db.getDatabaseName())
+            .collect(Collectors.toList());
 
-        for (
-            ListDatabasesResult currResult = doListSchemaNamesOnePage(null, true);
-            currResult != null;
-            currResult = doListSchemaNamesOnePage(currResult.getNextToken(), false)
-        ) {
-            currResult.getDatabases().stream().forEach(db -> schemaNames.add(db.getDatabaseName()));
-        }
-        return new ListSchemasResponse(request.getCatalogName(), schemaNames);
+        return new ListSchemasResponse(
+            request.getCatalogName(),
+            schemas);
     }
 
-    private ListDatabasesResult doListSchemaNamesOnePage(String nextToken, boolean start)
+    private ListDatabasesResult doListSchemaNamesOnePage(String nextToken)
     {
-        if (!start && nextToken == null) {
-            return null;
-        }
-        ListDatabasesRequest listDatabasesRequest = new ListDatabasesRequest();
-        listDatabasesRequest.setNextToken(nextToken);
-        return tsMeta.listDatabases(listDatabasesRequest);
+        return tsMeta.listDatabases(new ListDatabasesRequest().withNextToken(nextToken));
     }
 
     @Override
@@ -147,11 +141,8 @@ public class TimestreamMetadataHandler
         return new ListTablesResponse(request.getCatalogName(), tableNames, null);
     }
 
-    private ListTablesResult doListTablesOnePage(String schemaName, String nextToken, boolean start)
+    private ListTablesResult doListTablesOnePage(String schemaName, String nextToken)
     {
-        if (!start && nextToken == null) {
-            return null;
-        }
         com.amazonaws.services.timestreamwrite.model.ListTablesRequest listTablesRequest =
                 new com.amazonaws.services.timestreamwrite.model.ListTablesRequest()
                         .withDatabaseName(schemaName)
@@ -161,52 +152,33 @@ public class TimestreamMetadataHandler
 
     private List<TableName> getTableNamesInSchema(String schemaName)
     {
-        List<TableName> tableNames = new ArrayList<>();
-        for (ListTablesResult currResult = doListTablesOnePage(schemaName, null, true);
-            currResult != null;
-            currResult = doListTablesOnePage(schemaName, currResult.getNextToken(), false)) {
-            currResult.getTables().stream().forEach(table -> tableNames.add(new TableName(schemaName, table.getTableName())));
-        }
-        return tableNames;
+        return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(schemaName, pageToken), ListTablesResult::getNextToken)
+            .flatMap(currResult -> currResult.getTables().stream())
+            .map(table -> new TableName(schemaName, table.getTableName()))
+            .collect(Collectors.toList());
     }
 
     private String findSchemaNameIgnoringCase(String schemaNameInsensitive)
     {
-        for (
-            ListDatabasesResult currResult = doListSchemaNamesOnePage(null, true);
-            currResult != null;
-            currResult = doListSchemaNamesOnePage(currResult.getNextToken(), false)
-        ) {
-            java.util.Optional<String> matchedCaseInsensitiveSchemaName = currResult.getDatabases()
-                .stream()
-                .map(db -> db.getDatabaseName())
-                .filter(name -> name.equalsIgnoreCase(schemaNameInsensitive))
-                .findAny();
-            if (matchedCaseInsensitiveSchemaName.isPresent()) {
-                return matchedCaseInsensitiveSchemaName.get();
-            }
-        }
-        throw new RuntimeException(String.format("Could not find a case-insensitive match for schema name %s", schemaNameInsensitive));
+        return PaginatedRequestIterator.stream(this::doListSchemaNamesOnePage, ListDatabasesResult::getNextToken)
+            .flatMap(result -> result.getDatabases().stream())
+            .map(db -> db.getDatabaseName())
+            .filter(name -> name.equalsIgnoreCase(schemaNameInsensitive))
+            .findAny()
+            .orElseThrow(() -> new RuntimeException(String.format("Could not find a case-insensitive match for schema name %s", schemaNameInsensitive)));
     }
 
     private TableName findTableNameIgnoringCase(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         String caseInsenstiveSchemaNameMatch = findSchemaNameIgnoringCase(getTableRequest.getTableName().getSchemaName());
-        for (
-            ListTablesResult currResult = doListTablesOnePage(caseInsenstiveSchemaNameMatch, null, true);
-            currResult != null;
-            currResult = doListTablesOnePage(caseInsenstiveSchemaNameMatch, currResult.getNextToken(), false)) {
-            // based on AmazonMskMetadataHandler::findGlueRegistryNameIgnoringCasing
-            java.util.Optional<TableName> matchedCaseInsensitiveTableName = currResult.getTables()
-                .stream()
-                .map(tbl -> new TableName(caseInsenstiveSchemaNameMatch, tbl.getTableName()))
-                .filter(tbl -> tbl.getTableName().equalsIgnoreCase(getTableRequest.getTableName().getTableName()))
-                .findAny();
-            if (matchedCaseInsensitiveTableName.isPresent()) {
-                return matchedCaseInsensitiveTableName.get();
-            }
-        }
-        throw new RuntimeException(String.format("Could not find a case-insensitive match for table name %s", getTableRequest.getTableName().getTableName()));
+
+        // based on AmazonMskMetadataHandler::findGlueRegistryNameIgnoringCasing
+        return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(caseInsenstiveSchemaNameMatch, pageToken), ListTablesResult::getNextToken)
+            .flatMap(result -> result.getTables().stream())
+            .map(tbl -> new TableName(caseInsenstiveSchemaNameMatch, tbl.getTableName()))
+            .filter(tbl -> tbl.getTableName().equalsIgnoreCase(getTableRequest.getTableName().getTableName()))
+            .findAny()
+            .orElseThrow(() -> new RuntimeException(String.format("Could not find a case-insensitive match for table name %s", getTableRequest.getTableName().getTableName())));
     }
 
    private Schema buildSchemaForTable(TableName tableName)
