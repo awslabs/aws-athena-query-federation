@@ -59,6 +59,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 public class TimestreamMetadataHandler
         extends GlueMetadataHandler
@@ -72,6 +75,9 @@ public class TimestreamMetadataHandler
     private static final String METADATA_FLAG = "timestream-metadata-flag";
     //Used to filter out Glue tables which lack a timestream metadata flag.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(METADATA_FLAG);
+
+    private static final long MAX_RESULTS = 100_000;
+
     //Used to generate TimeStream queries using templates query patterns.
     private final QueryFactory queryFactory = new QueryFactory();
 
@@ -128,21 +134,60 @@ public class TimestreamMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
             throws Exception
     {
-        List<TableName> tableNames;
+        // First try with the schema name passed in
         try {
-            tableNames = getTableNamesInSchema(request.getSchemaName());
+            return doListTablesInternal(blockAllocator, request);
         }
         catch (com.amazonaws.services.timestreamwrite.model.ResourceNotFoundException ex) {
-            logger.debug("Could not find database name matching {}. Falling back to case-insensitive lookup.", request.getSchemaName());
-
-            String caseInsenstiveSchemaNameMatch = findSchemaNameIgnoringCase(request.getSchemaName());
-            tableNames = getTableNamesInSchema(caseInsenstiveSchemaNameMatch);
+            // If it fails then we will retry after resolving the schema name by ignoring the casing
+            String resolvedSchemaName = findSchemaNameIgnoringCase(request.getSchemaName());
+            request = new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(), resolvedSchemaName, request.getNextToken(), request.getPageSize());
+            return doListTablesInternal(blockAllocator, request);
         }
-        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
+    }
+
+    private ListTablesResponse doListTablesInternal(BlockAllocator blockAllocator, ListTablesRequest request)
+            throws Exception
+    {
+        logger.info("doListTablesInternal: {}", request);
+        // In this situation we want to loop through all the pages to return up to the MAX_RESULTS size
+        // And only do this if we don't have a token passed in, otherwise if we have a token that takes precedence
+        // over the fact that the page size was set to unlimited.
+        if (request.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE && request.getNextToken() == null) {
+            logger.info("Request page size is UNLIMITED_PAGE_SIZE_VALUE");
+
+            List<TableName> allTableNames = getTableNamesInSchema(request.getSchemaName())
+                .limit(MAX_RESULTS + 1)
+                .collect(Collectors.toList());
+
+            if (allTableNames.size() > MAX_RESULTS) {
+                throw new RuntimeException(
+                    String.format("Exceeded maximum result size. Current doListTables result size: %d", allTableNames.size()));
+            }
+            ListTablesResponse result = new ListTablesResponse(request.getCatalogName(), allTableNames, null);
+            logger.debug("doListTables result: {}", result);
+            return result;
+        }
+
+        // Otherwise don't retrieve all pages, just pass through the page token.
+        ListTablesResult timestreamResults = doListTablesOnePage(request.getSchemaName(), request.getNextToken());
+        List<TableName> tableNames = timestreamResults.getTables()
+            .stream()
+            .map(table -> new TableName(request.getSchemaName(), table.getTableName()))
+            .collect(Collectors.toList());
+
+        // Pass through whatever token we got from Glue to the user
+        ListTablesResponse result = new ListTablesResponse(
+            request.getCatalogName(),
+            tableNames,
+            timestreamResults.getNextToken());
+        logger.debug("doListTables [paginated] result: {}", result);
+        return result;
     }
 
     private ListTablesResult doListTablesOnePage(String schemaName, String nextToken)
     {
+        // TODO: We should pass through the pageSize as withMaxResults(pageSize)
         com.amazonaws.services.timestreamwrite.model.ListTablesRequest listTablesRequest =
                 new com.amazonaws.services.timestreamwrite.model.ListTablesRequest()
                         .withDatabaseName(schemaName)
@@ -150,12 +195,11 @@ public class TimestreamMetadataHandler
         return tsMeta.listTables(listTablesRequest);
     }
 
-    private List<TableName> getTableNamesInSchema(String schemaName)
+    private Stream<TableName> getTableNamesInSchema(String schemaName)
     {
         return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(schemaName, pageToken), ListTablesResult::getNextToken)
             .flatMap(currResult -> currResult.getTables().stream())
-            .map(table -> new TableName(schemaName, table.getTableName()))
-            .collect(Collectors.toList());
+            .map(table -> new TableName(schemaName, table.getTableName()));
     }
 
     private String findSchemaNameIgnoringCase(String schemaNameInsensitive)
@@ -181,7 +225,7 @@ public class TimestreamMetadataHandler
             .orElseThrow(() -> new RuntimeException(String.format("Could not find a case-insensitive match for table name %s", getTableRequest.getTableName().getTableName())));
     }
 
-   private Schema buildSchemaForTable(TableName tableName)
+   private Schema inferSchemaForTable(TableName tableName)
    {
         String describeQuery = queryFactory.createDescribeTableQueryBuilder()
                 .withTablename(tableName.getTableName())
@@ -219,34 +263,30 @@ public class TimestreamMetadataHandler
     {
         logger.info("doGetTable: enter", request.getTableName());
 
-        Schema schema = null;
-        try {
-            if (glue != null) {
-                schema = super.doGetTable(blockAllocator, request, TABLE_FILTER).getSchema();
-                logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
+        if (glue != null) {
+            try {
+                return super.doGetTable(blockAllocator, request, TABLE_FILTER);
             }
-        }
-        catch (RuntimeException ex) {
-            logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
+            catch (RuntimeException ex) {
+                logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
                     request.getTableName().getSchemaName(),
                     request.getTableName().getTableName(),
                     ex);
-        }
-
-        TableName resolvedTableName = request.getTableName();
-        if (schema == null) {
-            try {
-                schema = buildSchemaForTable(request.getTableName());
-            }
-            catch (com.amazonaws.services.timestreamquery.model.ValidationException ex) {
-                logger.debug("Could not find table name matching {} in database {}. Falling back to case-insensitive lookup.", request.getTableName().getTableName(), request.getTableName().getSchemaName());
-                resolvedTableName = findTableNameIgnoringCase(blockAllocator, request);
-                logger.debug("Found case insensitive match for schema {} and table {}", resolvedTableName.getSchemaName(), resolvedTableName.getTableName());
-                schema = buildSchemaForTable(resolvedTableName);
             }
         }
 
-        return new GetTableResponse(request.getCatalogName(), resolvedTableName, schema);
+        try {
+            Schema schema = inferSchemaForTable(request.getTableName());
+            return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+        }
+        catch (com.amazonaws.services.timestreamquery.model.ValidationException ex) {
+            logger.debug("Could not find table name matching {} in database {}. Falling back to case-insensitive lookup.", request.getTableName().getTableName(), request.getTableName().getSchemaName());
+
+            TableName resolvedTableName = findTableNameIgnoringCase(blockAllocator, request);
+            logger.debug("Found case insensitive match for schema {} and table {}", resolvedTableName.getSchemaName(), resolvedTableName.getTableName());
+            Schema schema = inferSchemaForTable(resolvedTableName);
+            return new GetTableResponse(request.getCatalogName(), resolvedTableName, schema);
+        }
     }
 
     /**
