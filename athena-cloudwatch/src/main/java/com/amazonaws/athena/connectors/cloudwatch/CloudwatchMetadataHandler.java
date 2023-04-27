@@ -159,7 +159,7 @@ public class CloudwatchMetadataHandler
                 throw new RuntimeException("Too many log groups, exceeded max metadata results for schema count.");
             }
             result = invoker.invoke(() -> awsLogs.describeLogGroups(request));
-            result.getLogGroups().forEach(next -> schemas.add(next.getLogGroupName().toLowerCase()));
+            result.getLogGroups().forEach(next -> schemas.add(next.getLogGroupName()));
             request.setNextToken(result.getNextToken());
             logger.info("doListSchemaNames: Listing log groups {} {}", result.getNextToken(), schemas.size());
         }
@@ -224,9 +224,9 @@ public class CloudwatchMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         TableName tableName = getTableRequest.getTableName();
-        tableResolver.validateTable(tableName);
+        CloudwatchTableName cwTableName = tableResolver.validateTable(tableName);
         return new GetTableResponse(getTableRequest.getCatalogName(),
-                getTableRequest.getTableName(),
+                cwTableName.toTableName(),
                 CLOUDWATCH_SCHEMA,
                 Collections.singleton(LOG_STREAM_FIELD));
     }
@@ -360,6 +360,6 @@ public class CloudwatchMetadataHandler
      */
     private TableName toTableName(ListTablesRequest request, LogStream logStream)
     {
-        return new TableName(request.getSchemaName(), logStream.getLogStreamName().toLowerCase());
+        return new TableName(request.getSchemaName(), logStream.getLogStreamName());
     }
 }
