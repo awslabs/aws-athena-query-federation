@@ -73,7 +73,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_RECORD_COUNT;
 
 /**
  * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns` in
@@ -158,14 +157,10 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
         /**
-         * "PARTITION_RECORD_COUNT" is currently set to 500000.
-         * It means there will be 500000 rows per partition. The number of partition will be total number of rows divided by
-         * PARTITION_RECORD_COUNT variable value.
          * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
          * this is to handle timeout issues because of huge partitions
          */
         LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
-        LOGGER.info(" Total Page  Count" +  PARTITION_RECORD_COUNT);
         boolean viewFlag = checkForView(getTableLayoutRequest);
         //if the input table is a view , there will be single split
         if (viewFlag) {
@@ -187,44 +182,25 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     totalRecordCount = rs.getLong(1);
                 }
                 if (totalRecordCount > 0) {
-                    // if number of partitions are more than defined limit "MAX_PARTITION_COUNT"
-                    // it will do maximum 50 partitions,49 partitions will have 500000 records each and last partition will have the remaining number of records.
-                    double limitValue = totalRecordCount / PARTITION_RECORD_COUNT;
+                    long partitionRecordCount = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
+                    LOGGER.info(" Total Page  Count" +  partitionRecordCount);
+                    double limitValue = totalRecordCount / partitionRecordCount;
                     double limit = (int) Math.ceil(limitValue);
                     long offset = 0;
-                    if (limit > MAX_PARTITION_COUNT) {
-                        for (int i = 1; i <= MAX_PARTITION_COUNT; i++) {
-                            int partitionRecord = PARTITION_RECORD_COUNT;
-                            if (i == MAX_PARTITION_COUNT) {
-                                //Updating partitionRecord variable to display the remaining records in the last partition.
-                                //we get the value by subtracting the records displayed till 49th partition from the total number of records.
-                                partitionRecord = (int) totalRecordCount - (PARTITION_RECORD_COUNT * (MAX_PARTITION_COUNT - 1));
-                            }
-                            final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + partitionRecord + "-offset-" + offset;
-                            LOGGER.info("partitionVal {} ", partitionVal);
-                            blockWriter.writeRows((Block block, int rowNum) ->
-                            {
-                                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
-                                return 1;
-                            });
-                            offset = offset + PARTITION_RECORD_COUNT;
-                        }
-                    }
-                    else {
-                        /**
-                         * Custom pagination based partition logic will be applied with limit and offset clauses.
-                         * the partition values we are setting the limit and offset values like p-limit-3000-offset-0
-                         */
-                        for (int i = 1; i <= limit; i++) {
-                            final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + PARTITION_RECORD_COUNT + "-offset-" + offset;
-                            LOGGER.info("partitionVal {} ", partitionVal);
-                            blockWriter.writeRows((Block block, int rowNum) ->
-                            {
-                                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
-                                return 1;
-                            });
-                            offset = offset + PARTITION_RECORD_COUNT;
-                        }
+                    /**
+                     * Custom pagination based partition logic will be applied with limit and offset clauses.
+                     * It will have maximum 50 partitions and number of records in each partition is decided by dividing total number of records by 50
+                     * the partition values we are setting the limit and offset values like p-limit-3000-offset-0
+                     */
+                    for (int i = 1; i <= limit; i++) {
+                        final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + partitionRecordCount + "-offset-" + offset;
+                        LOGGER.info("partitionVal {} ", partitionVal);
+                        blockWriter.writeRows((Block block, int rowNum) ->
+                        {
+                            block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
+                            return 1;
+                        });
+                        offset = offset + partitionRecordCount;
                     }
                 }
                 else {
