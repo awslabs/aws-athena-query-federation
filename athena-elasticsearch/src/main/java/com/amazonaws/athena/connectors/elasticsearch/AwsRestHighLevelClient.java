@@ -41,6 +41,7 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.GetMappingsRequest;
 import org.elasticsearch.client.indices.GetMappingsResponse;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
@@ -85,6 +86,25 @@ public class AwsRestHighLevelClient
 
     /**
      * Gets the mapping for the specified index.
+     * For regular index name (table name in Athena), the index name equals to the actual index in ES.
+     *
+     * For data stream, data stream index does not equals to actual index names, ES created and managed indices for a data stream based on time. therefore, if we use data stream name to find mapping, we will not able to find it.
+     * In addition, data stream can contains multiple indices, it is hard to aggregate all the mapping into single giant mapping, we pick up the first index mapping we can find for data stream.
+     *
+     * Example : non data stream : "book"
+     * {
+     *  "book" : {
+     *    "mappings" : { .. }
+     * }
+     *
+     * Example: data stream : "datastream"
+     * {
+     *  ".ds-datastream_test1-000001" : {
+     *    "mappings" : {....}
+     *   },
+     *  ".ds-datastream_test1-12345678" : {
+     *    "mappings" : {....}
+     *   }
      * @param index is the index whose mapping will be retrieved.
      * @return a map containing all the mapping information for the specified index.
      * @throws IOException
@@ -95,8 +115,19 @@ public class AwsRestHighLevelClient
         GetMappingsRequest mappingsRequest = new GetMappingsRequest();
         mappingsRequest.indices(index);
         GetMappingsResponse mappingsResponse = indices().getMapping(mappingsRequest, RequestOptions.DEFAULT);
+        // non data stream mappingMetadata will return value because index name is same as underlying index used by ES.
+        MappingMetadata mappingMetadata = mappingsResponse.mappings().get(index);
+        // data stream case, index name is not same as underlying index managed by ES.
+        if (mappingMetadata == null) {
+            logger.info("Get first available mapping for data stream, data stream name: {}", index);
+            Map.Entry<String, MappingMetadata> dsmapping = mappingsResponse.mappings().entrySet()
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException(String.format("Could not find mapping for data stream name: %s", index)));
+            mappingMetadata = dsmapping.getValue();
+        }
 
-        return (LinkedHashMap<String, Object>) mappingsResponse.mappings().get(index).sourceAsMap();
+        return (LinkedHashMap<String, Object>) mappingMetadata.getSourceAsMap();
     }
 
     /**
