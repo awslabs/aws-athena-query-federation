@@ -118,7 +118,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
              Statement stmt = connection.createStatement();
              PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
             boolean isTablePartitioned = false;
-            ResultSet partitionResultset = stmt.executeQuery("show table extended like " + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase());
+            ResultSet partitionResultset = stmt.executeQuery("show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like " + getTableLayoutRequest.getTableName().getTableName().toUpperCase());
             while (partitionResultset != null && partitionResultset.next()) {
                 String partExists = partitionResultset.getString(1);
                 if (partExists.toUpperCase().contains("PARTITIONED")) {
