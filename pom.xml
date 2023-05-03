@@ -120,6 +120,7 @@
         <module>athena-cloudera-impala</module>
         <module>athena-hortonworks-hive</module>
         <module>athena-db2</module>
+        <module>athena-db2-as400</module>
         <module>athena-msk</module>
         <module>athena-kafka</module>
         <module>athena-gcs</module>
