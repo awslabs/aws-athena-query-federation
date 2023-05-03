@@ -13,10 +13,10 @@
         <!--<maven.compiler.release>8</maven.compiler.release>-->
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
-        <aws-sdk.version>1.12.454</aws-sdk.version>
+        <aws-sdk.version>1.12.459</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
-        <aws-cdk.version>1.199.0</aws-cdk.version>
+        <aws-cdk.version>1.200.0</aws-cdk.version>
         <jsii.version>1.80.0</jsii.version>
         <slf4j-log4j.version>2.0.7</slf4j-log4j.version>
         <mockito.legacy.version>3.3.3</mockito.legacy.version>
@@ -30,7 +30,7 @@
         <surefire.failsafe.version>3.0.0</surefire.failsafe.version>
         <log4j2Version>2.20.0</log4j2Version>
         <apache.arrow.version>10.0.1</apache.arrow.version>
-        <netty.version>4.1.91.Final</netty.version>
+        <netty.version>4.1.92.Final</netty.version>
         <guava.version>31.1-jre</guava.version>
         <protobuf3.version>3.22.3</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
@@ -52,7 +52,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.2</version>
+                <version>5.9.3</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -248,7 +248,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.8</version>
+                <version>0.8.10</version>
                 <executions>
                     <execution>
                         <goals>
