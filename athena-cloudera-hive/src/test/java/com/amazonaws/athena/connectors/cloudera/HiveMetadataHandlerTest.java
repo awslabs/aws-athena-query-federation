@@ -121,7 +121,7 @@ public class HiveMetadataHandlerTest
         String tableName =getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tableName)).thenReturn(preparestatement1);
-        final String getPartitionExistsSql = "show table extended like "  + tableName;
+        final String getPartitionExistsSql = "show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
         final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
@@ -229,7 +229,7 @@ public class HiveMetadataHandlerTest
         String tableName =getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY+tableName)).thenReturn(preparestatement1);
-        final String getPartitionExistsSql = "show table extended like "  + tableName;
+        final String getPartitionExistsSql = "show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
         final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
