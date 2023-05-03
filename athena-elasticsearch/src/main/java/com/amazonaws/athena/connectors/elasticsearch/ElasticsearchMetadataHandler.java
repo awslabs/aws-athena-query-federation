@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -45,16 +44,21 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.indices.GetDataStreamRequest;
+import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.client.indices.GetIndexResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
@@ -96,6 +100,8 @@ public class ElasticsearchMetadataHandler
      * from the Elasticsearch instance (e.g. "_shards:5" - retrieve shard number 5).
      */
     private static final String SHARD_VALUE = "_shards:";
+
+    protected static final String INDEX_KEY = "index";
 
     private final AWSGlue awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
@@ -168,35 +174,27 @@ public class ElasticsearchMetadataHandler
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
-            throws RuntimeException
+            throws IOException
     {
         logger.debug("doListTables: enter - " + request);
 
-        List<TableName> indices = new ArrayList<>();
+        String endpoint = getDomainEndpoint(request.getSchemaName());
+        AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+        // get regular indices from ES, ignore all system indices starting with period `.` (e.g. .kibana, .tasks, etc...)
+        Stream<String> indicesStream = client.getAliases()
+                .stream()
+                .filter(index -> !index.startsWith("."));
 
-        try {
-            String endpoint = getDomainEndpoint(request.getSchemaName());
-            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
-            try {
-                for (String index : client.getAliases()) {
-                    // Ignore all system indices starting with period `.` (e.g. .kibana, .tasks, etc...)
-                    if (index.startsWith(".")) {
-                        logger.info("Ignoring system index: {}", index);
-                        continue;
-                    }
+        // get all data streams from ES, 1 data stream can contains multiple indices which start with ".ds-xxxxxxxxxx"
+        Stream<String> dataStreams = client.indices().getDataStream(new GetDataStreamRequest("*"), RequestOptions.DEFAULT).getDataStreams()
+                .stream()
+                .map(dataStream -> dataStream.getName());
 
-                    indices.add(new TableName(request.getSchemaName(), index));
-                }
-            }
-            catch (IOException error) {
-                throw new RuntimeException("Error retrieving indices: " + error.getMessage(), error);
-            }
-        }
-        catch (RuntimeException error) {
-            throw new RuntimeException("Error processing request to list indices: " + error.getMessage(), error);
-        }
-
-        return new ListTablesResponse(request.getCatalogName(), indices, null);
+        //combine two different data sources and create tables
+        List<TableName> tableNames = Stream.concat(indicesStream, dataStreams)
+                .map(tableName -> new TableName(request.getSchemaName(), tableName))
+                .collect(Collectors.toList());
+        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
     }
 
     /**
@@ -213,12 +211,9 @@ public class ElasticsearchMetadataHandler
      */
     @Override
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
-            throws RuntimeException
     {
         logger.debug("doGetTable: enter - " + request);
-
         Schema schema = null;
-
         // Look at GLUE catalog first.
         try {
             if (awsGlue != null) {
@@ -236,20 +231,14 @@ public class ElasticsearchMetadataHandler
         // Supplement GLUE catalog if not present.
         if (schema == null) {
             String index = request.getTableName().getTableName();
+            String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
+            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
-                String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
-                AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
-                try {
-                    Map<String, Object> mappings = client.getMapping(index);
-                    schema = ElasticsearchSchemaUtils.parseMapping(mappings);
-                }
-                catch (IOException error) {
-                    throw new RuntimeException("Error retrieving mapping information for index (" +
-                            index + "): " + error.getMessage(), error);
-                }
+                Map<String, Object> mappings = client.getMapping(index);
+                schema = ElasticsearchSchemaUtils.parseMapping(mappings);
             }
-            catch (RuntimeException error) {
-                throw new RuntimeException("Error processing request to map index (" +
+            catch (IOException error) {
+                throw new RuntimeException("Error retrieving mapping information for index (" +
                         index + "): " + error.getMessage(), error);
             }
         }
@@ -284,41 +273,44 @@ public class ElasticsearchMetadataHandler
      */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
-            throws RuntimeException
+            throws IOException
     {
         logger.debug("doGetSplits: enter - " + request);
 
-        // Create set of splits
-        Set<Split> splits = new HashSet<>();
         // Get domain
         String domain = request.getTableName().getSchemaName();
-        // Get index
-        String index = request.getTableName().getTableName();
 
-        try {
-            String endpoint = getDomainEndpoint(domain);
-            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
-            try {
-                Set<Integer> shardIds = client.getShardIds(index, queryTimeout);
-                for (Integer shardId : shardIds) {
-                    // Every split must have a unique location if we wish to spill to avoid failures
-                    SpillLocation spillLocation = makeSpillLocation(request);
-                    // Create a new split (added to the splits set) that includes the domain and endpoint, and
-                    // shard information (to be used later by the Record Handler).
-                    splits.add(new Split(spillLocation, makeEncryptionKey(), ImmutableMap
-                            .of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString())));
-                }
-            }
-            catch (IOException error) {
-                throw new RuntimeException("Error retrieving shard-health information: " + error.getMessage(), error);
-            }
-        }
-        catch (RuntimeException error) {
-            throw new RuntimeException("Error trying to generate splits for index (" +
-                    index + "): " + error.getMessage(), error);
-        }
+        String endpoint = getDomainEndpoint(domain);
+        AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+        // We send index request in case the table name is a data stream, a data stream can contains multiple indices which are created by ES
+        // For non data stream, index name is same as table name
+        GetIndexResponse indexResponse = client.indices().get(new GetIndexRequest(request.getTableName().getTableName()), RequestOptions.DEFAULT);
+
+        Set<Split> splits = Arrays.stream(indexResponse.getIndices())
+                .flatMap(index -> getShardsIDsFromES(client, index) // get all shards for an index.
+                        .stream()
+                        .map(shardId -> new Split(makeSpillLocation(request), makeEncryptionKey(), ImmutableMap.of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString(), INDEX_KEY, index))) // make split for each (index + shardId) combination
+                )
+                .collect(Collectors.toSet());
 
         return new GetSplitsResponse(request.getCatalogName(), splits);
+    }
+
+    /**
+     * Mandatory checked exception needs to handle from here
+     * This is to keep the lambda stream function clearer.
+     * @param client
+     * @param index
+     * @return
+     */
+    private Set<Integer> getShardsIDsFromES(AwsRestHighLevelClient client, String index)
+    {
+        try {
+            return client.getShardIds(index, queryTimeout);
+        }
+        catch (IOException error) {
+            throw new RuntimeException(String.format("Error trying to get shards ids for index: %s, error message: %s", index, error.getMessage()), error);
+        }
     }
 
     /**
