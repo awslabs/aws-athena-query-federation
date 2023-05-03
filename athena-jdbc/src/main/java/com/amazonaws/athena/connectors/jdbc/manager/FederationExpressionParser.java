@@ -73,11 +73,6 @@ public abstract class FederationExpressionParser
      */
     public String parseFunctionCallExpression(FunctionCallExpression functionCallExpression)
     {
-        return parseFunctionCallExpressionHelper(functionCallExpression);
-    }
-
-    protected String parseFunctionCallExpressionHelper(FunctionCallExpression functionCallExpression)
-    {
         FunctionName functionName = functionCallExpression.getFunctionName();
         List<FederationExpression> functionArguments = functionCallExpression.getArguments();
 
@@ -89,10 +84,10 @@ public abstract class FederationExpressionParser
                 }
                 else if (argument instanceof VariableExpression) {
                     return parseVariableExpression((VariableExpression) argument);
-                // recursive case
                 }
+                // recursive case
                 else if (argument instanceof FunctionCallExpression) {
-                    return parseFunctionCallExpressionHelper((FunctionCallExpression) argument);
+                    return parseFunctionCallExpression((FunctionCallExpression) argument);
                 }
                 throw new RuntimeException("Should not reach this case - a new subclass was introduced and is not handled.");
             }).collect(Collectors.toList());
