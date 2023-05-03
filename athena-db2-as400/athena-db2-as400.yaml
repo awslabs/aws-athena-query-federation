@@ -1,7 +1,7 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaDb2As400Connector
+    Name: AthenaDb2AS400Connector
     Description: 'This connector enables Amazon Athena to communicate with DB2 on iSeries (AS400) using JDBC driver.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
