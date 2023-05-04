@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.metadata;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Objects;
 
 public class GetDataSourceCapabilitiesRequest
         extends MetadataRequest
@@ -45,5 +46,39 @@ public class GetDataSourceCapabilitiesRequest
     public void close()
             throws Exception
     {
+    }
+
+    @Override
+    public String toString()
+    {
+        return "GetDataSourceCapabilitiesRequest{" +
+                "identity=" + getIdentity() +
+                ", queryId=" + getQueryId() +
+                ", catalogName=" + getCatalogName() +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        GetDataSourceCapabilitiesRequest that = (GetDataSourceCapabilitiesRequest) o;
+
+        return Objects.equal(this.getIdentity(), that.getIdentity()) &&
+                Objects.equal(this.getQueryId(), that.getQueryId()) &&
+                Objects.equal(this.getCatalogName(), that.getCatalogName()) &&
+                Objects.equal(this.getRequestType(), that.getRequestType());
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hashCode(getIdentity(), getQueryId(), getCatalogName(), getRequestType());
     }
 }

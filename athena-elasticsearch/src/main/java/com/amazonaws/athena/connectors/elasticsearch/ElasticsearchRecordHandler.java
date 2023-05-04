@@ -139,8 +139,8 @@ public class ElasticsearchRecordHandler
 
         String domain = recordsRequest.getTableName().getSchemaName();
         String endpoint = recordsRequest.getSplit().getProperty(domain);
-        String index = recordsRequest.getTableName().getTableName();
         String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
+        String index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
