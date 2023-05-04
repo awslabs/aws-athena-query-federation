@@ -182,10 +182,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     totalRecordCount = rs.getLong(1);
                 }
                 if (totalRecordCount > 0) {
-                    long partitionRecordCount = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
+                    long pageCount = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
+                    //It will return a single split for records less than or equal to 10000
+                    long partitionRecordCount = (totalRecordCount <= 10000) ? (long) totalRecordCount : pageCount;
                     LOGGER.info(" Total Page  Count" +  partitionRecordCount);
-                    double limitValue = totalRecordCount / partitionRecordCount;
-                    double limit = (int) Math.ceil(limitValue);
+                    double limit = (int) Math.ceil(totalRecordCount / partitionRecordCount);
                     long offset = 0;
                     /**
                      * Custom pagination based partition logic will be applied with limit and offset clauses.

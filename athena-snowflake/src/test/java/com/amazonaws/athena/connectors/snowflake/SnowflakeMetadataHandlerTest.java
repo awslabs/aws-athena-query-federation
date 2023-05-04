@@ -108,7 +108,7 @@ public class SnowflakeMetadataHandlerTest
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
-        double totalActualRecordCount = 560000;
+        double totalActualRecordCount = 10001;
         Mockito.when(resultSet.getLong(1)).thenReturn((long) totalActualRecordCount);
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         List<String> expectedValues = new ArrayList<>();
@@ -116,9 +116,9 @@ public class SnowflakeMetadataHandlerTest
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
         List<String> actualValues = new ArrayList<>();
-        long partitionActualRecordCount= (long) (Math.ceil(totalActualRecordCount / MAX_PARTITION_COUNT));
-        double limitValue = totalActualRecordCount / partitionActualRecordCount;
-        double limit = (int) Math.ceil(limitValue);
+        long pageCount = (long) (Math.ceil(totalActualRecordCount / MAX_PARTITION_COUNT));
+        long partitionActualRecordCount = (totalActualRecordCount <= 10000) ? (long) totalActualRecordCount : pageCount;
+        double limit = (int) Math.ceil(totalActualRecordCount / partitionActualRecordCount);
         long offset = 0;
         for (int i = 1; i <= limit; i++) {
             if (i > 1) {
@@ -157,7 +157,7 @@ public class SnowflakeMetadataHandlerTest
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
-        Mockito.when(resultSet.getLong(1)).thenReturn(1L);
+        Mockito.when(resultSet.getLong(1)).thenReturn(1001L);
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
@@ -166,7 +166,7 @@ public class SnowflakeMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Arrays.asList("[partition : partition-limit-1-offset-0]"));
+        Assert.assertEquals(expectedValues, Arrays.asList("[partition : partition-limit-1001-offset-0]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
@@ -191,10 +191,10 @@ public class SnowflakeMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.COUNT_RECORDS_QUERY)).thenReturn(preparedStatement);
         //By changing the value of variable totalActualRecordCount,we can check the maximum number of partitions supported by the table dynamically
-        double totalActualRecordCount = 5600005;
-        long partitionActualRecordCount= (long) (Math.ceil(totalActualRecordCount / MAX_PARTITION_COUNT));
-        double limitValue = totalActualRecordCount / partitionActualRecordCount;
-        double limit = (int) Math.ceil(limitValue);
+        double totalActualRecordCount = 7256888;
+        long pageCount = (long) (Math.ceil(totalActualRecordCount / MAX_PARTITION_COUNT));
+        long partitionActualRecordCount = (totalActualRecordCount <= 10000) ? (long) totalActualRecordCount : pageCount;
+        double limit = (int) Math.ceil(totalActualRecordCount / partitionActualRecordCount);
         long offset = 0;
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
