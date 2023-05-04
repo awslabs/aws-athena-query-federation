@@ -39,6 +39,13 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.elasticsearch.client.IndicesClient;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.indices.DataStream;
+import org.elasticsearch.client.indices.GetDataStreamRequest;
+import org.elasticsearch.client.indices.GetDataStreamResponse;
+import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.client.indices.GetIndexResponse;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,7 +61,9 @@ import java.util.*;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -178,15 +187,25 @@ public class ElasticsearchMetadataHandlerTest
 
         // Hardcoded response with 2 indices.
         Collection<TableName> mockIndices = ImmutableList.of(new TableName("movies", "customer"),
-                new TableName("movies", "movies"));
+                new TableName("movies", "movies"),
+                new TableName("movies", "stream1"),
+                new TableName("movies", "stream2"));
 
         // Get real indices.
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
                 "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, com.google.common.collect.ImmutableMap.of());
-        when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
 
+        IndicesClient indices = mock(IndicesClient.class);
+        GetDataStreamResponse mockIndexResponse = mock(GetDataStreamResponse.class);
+        when(mockIndexResponse.getDataStreams()).thenReturn(
+                ImmutableList.of(new DataStream("stream1", "ts",ImmutableList.of("index1", "index2"), 0, null, null, null),
+                        new DataStream("stream2", "ts",ImmutableList.of("index7", "index8"), 0, null, null, null)));
+        when(indices.getDataStream(nullable(GetDataStreamRequest.class), eq(RequestOptions.DEFAULT))).thenReturn(mockIndexResponse);
+        when(mockClient.indices()).thenReturn(indices);
+
+        when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
         ListTablesRequest req = new ListTablesRequest(fakeIdentity(),
                 "queryId", "elasticsearch", "movies", null, UNLIMITED_PAGE_SIZE_VALUE);
         Collection<TableName> realIndices = handler.doListTables(allocator, req).getTables();
@@ -383,6 +402,7 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("doGetSplits: enter");
 
         List<String> partitionCols = new ArrayList<>();
+        String index = "customer";
 
         Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);
 
@@ -390,7 +410,7 @@ public class ElasticsearchMetadataHandlerTest
         GetSplitsRequest originalReq = new GetSplitsRequest(fakeIdentity(),
                 "queryId",
                 "elasticsearch",
-                new TableName("movies", "customer"),
+                new TableName("movies", index),
                 partitions,
                 partitionCols,
                 new Constraints(new HashMap<>()),
@@ -407,6 +427,12 @@ public class ElasticsearchMetadataHandlerTest
 
         when(mockClient.getShardIds(nullable(String.class), anyLong())).thenReturn(ImmutableSet
                 .of(new Integer(0), new Integer(1), new Integer(2)));
+
+        IndicesClient indices = mock(IndicesClient.class);
+        GetIndexResponse mockIndexResponse = mock(GetIndexResponse.class);
+        when(mockIndexResponse.getIndices()).thenReturn(new String[]{index});
+        when(indices.get(nullable(GetIndexRequest.class), eq(RequestOptions.DEFAULT))).thenReturn(mockIndexResponse);
+        when(mockClient.indices()).thenReturn(indices);
 
         // Instantiate handler
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
@@ -433,6 +459,8 @@ public class ElasticsearchMetadataHandlerTest
             assertEquals(endpoint, split.getProperty(domain));
             String shard = split.getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
             assertTrue("Split contains invalid shard: " + shard, shardIds.contains(shard));
+            String actualIndex = split.getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
+            assertEquals("Split contains invalid index:" + index, index, actualIndex);
             shardIds.remove(shard);
         });
 

@@ -116,9 +116,9 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              Statement stmt = connection.createStatement();
-             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getTableName().toUpperCase())) {
+             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
             boolean isTablePartitioned = false;
-            ResultSet partitionResultset = stmt.executeQuery("show table extended like " + getTableLayoutRequest.getTableName().getTableName().toUpperCase());
+            ResultSet partitionResultset = stmt.executeQuery("show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like " + getTableLayoutRequest.getTableName().getTableName().toUpperCase());
             while (partitionResultset != null && partitionResultset.next()) {
                 String partExists = partitionResultset.getString(1);
                 if (partExists.toUpperCase().contains("PARTITIONED")) {
@@ -130,7 +130,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
             }
             LOGGER.debug("isTablePartitioned:" + isTablePartitioned);
              if (isTablePartitioned) {
-                 ResultSet partitionRs = stmt.executeQuery("show partitions " + getTableLayoutRequest.getTableName().getTableName().toUpperCase());
+                 ResultSet partitionRs = stmt.executeQuery("show partitions " + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase());
                  Set<String> partition = new HashSet<>();
                  while (partitionRs != null && partitionRs.next()) {
                      partition.add(partitionRs.getString("Partition"));
@@ -270,7 +270,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
                 Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + tableName.getTableName().toUpperCase())) {
+            try (PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
                 Map<String, String> meteHashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
