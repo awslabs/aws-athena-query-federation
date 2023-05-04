@@ -30,6 +30,10 @@ public final class SnowflakeConstants
      * We arrived at this number after performance testing with datasets of different size
      */
     public static final int MAX_PARTITION_COUNT = 50;
+    /**
+     * This constant limits the number of records to be returned in a single split.
+     */
+    public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
 
     private SnowflakeConstants() {}
 }
