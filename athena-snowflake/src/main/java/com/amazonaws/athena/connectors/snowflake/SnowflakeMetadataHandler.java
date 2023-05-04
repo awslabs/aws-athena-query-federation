@@ -73,6 +73,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT;
 
 /**
  * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns` in
@@ -183,8 +184,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 }
                 if (totalRecordCount > 0) {
                     long pageCount = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
-                    //It will return a single split for records less than or equal to 10000
-                    long partitionRecordCount = (totalRecordCount <= 10000) ? (long) totalRecordCount : pageCount;
+                    long partitionRecordCount = (totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT) ? (long) totalRecordCount : pageCount;
                     LOGGER.info(" Total Page  Count" +  partitionRecordCount);
                     double limit = (int) Math.ceil(totalRecordCount / partitionRecordCount);
                     long offset = 0;
