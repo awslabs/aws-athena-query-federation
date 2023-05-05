@@ -70,7 +70,7 @@ public class DataLakeRecordHandlerTest
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new DataLakeGen2QueryStringBuilder("`");
+        jdbcSplitQueryBuilder = new DataLakeGen2QueryStringBuilder("`", new DataLakeGen2FederationExpressionParser("`"));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", DataLakeGen2Constants.NAME,
                 "datalakegentwo://jdbc:sqlserver://hostname;databaseName=fakedatabase");
 

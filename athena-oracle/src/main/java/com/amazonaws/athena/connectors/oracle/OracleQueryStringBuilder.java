@@ -35,9 +35,9 @@ import java.util.Set;
 public class OracleQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
-    public OracleQueryStringBuilder(final String quoteCharacters)
+    public OracleQueryStringBuilder(final String quoteCharacter, final OracleFederationExpressionParser oracleFederationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacter, oracleFederationExpressionParser);
     }
 
     @Override

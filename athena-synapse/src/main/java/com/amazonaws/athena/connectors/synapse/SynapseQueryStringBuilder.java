@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.synapse;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
@@ -31,9 +32,9 @@ import java.util.List;
 public class SynapseQueryStringBuilder extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SynapseQueryStringBuilder.class);
-    public SynapseQueryStringBuilder(String quoteCharacters)
+    public SynapseQueryStringBuilder(String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, federationExpressionParser);
     }
 
     @Override

@@ -39,7 +39,7 @@ public class HiveQueryStringBuilderTest
 	{
 	    String expectedFrom1 = " FROM default.schema.table ";
 	    String expectedFrom2 = " FROM default.table ";
-		HiveQueryStringBuilder builder = new HiveQueryStringBuilder("");
+		HiveQueryStringBuilder builder = new HiveQueryStringBuilder("`", new HiveFederationExpressionParser("`"));
 		String fromResult1 = builder.getFromClauseWithSplit("default", "schema", "table", split);
 		String fromResult2 = builder.getFromClauseWithSplit("default", "", "table", split);
 		Assert.assertEquals(expectedFrom1, fromResult1);

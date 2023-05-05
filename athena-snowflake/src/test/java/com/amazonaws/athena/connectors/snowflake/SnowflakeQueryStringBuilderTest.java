@@ -37,7 +37,7 @@ public class SnowflakeQueryStringBuilderTest
     public void testQueryBuilderNew()
     {
         Split split = Mockito.mock(Split.class);
-        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder("'");
+        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder("'", new SnowflakeFederationExpressionParser("'"));
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p1-p2-p3-p4-p5");
         builder.getFromClauseWithSplit("default", "", "table", split);
@@ -47,7 +47,7 @@ public class SnowflakeQueryStringBuilderTest
     @Test
     public void testGetPartitionWhereClauses()
     {
-        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder("'");
+        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder("'", new SnowflakeFederationExpressionParser("'"));
         List<String> fromClauseWithSplit = builder.getPartitionWhereClauses(split);
         List<String> expected = new ArrayList<>();
         Assert.assertEquals(expected, fromClauseWithSplit);

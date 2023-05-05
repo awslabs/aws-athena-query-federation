@@ -31,9 +31,9 @@ import java.util.List;
 public class Db2QueryStringBuilder extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Db2QueryStringBuilder.class);
-    public Db2QueryStringBuilder(String quoteCharacters)
+    public Db2QueryStringBuilder(final String quoteCharacters, final Db2FederationExpressionParser db2FederationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, db2FederationExpressionParser);
     }
 
     /**

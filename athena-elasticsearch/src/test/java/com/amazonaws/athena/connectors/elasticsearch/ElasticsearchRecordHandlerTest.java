@@ -307,6 +307,8 @@ public class ElasticsearchRecordHandlerTest
 
         split = Split.newBuilder(makeSpillLocation(), null)
                 .add("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
+                .add(ElasticsearchMetadataHandler.SHARD_KEY, "_shards:5")
+                .add(ElasticsearchMetadataHandler.INDEX_KEY, "index1")
                 .build();
 
         when(clientFactory.getOrCreateClient(nullable(String.class))).thenReturn(mockClient);

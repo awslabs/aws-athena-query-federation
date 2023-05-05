@@ -28,9 +28,9 @@ import java.util.List;
 
 public class HiveQueryStringBuilder extends JdbcSplitQueryBuilder
 {
-    public HiveQueryStringBuilder(String quoteCharacters)
+    public HiveQueryStringBuilder(final String quoteCharacters, final HiveFederationExpressionParser hiveFederationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, hiveFederationExpressionParser);
     }
 
     @Override

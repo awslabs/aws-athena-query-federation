@@ -67,7 +67,7 @@ public class Db2RecordHandlerTest {
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new Db2QueryStringBuilder("`");
+        jdbcSplitQueryBuilder = new Db2QueryStringBuilder("`", new Db2FederationExpressionParser("'"));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2Constants.NAME,
                 "dbtwo://jdbc:db2://hostname/fakedatabase:${testsecret}");
         this.db2RecordHandler = new Db2RecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());

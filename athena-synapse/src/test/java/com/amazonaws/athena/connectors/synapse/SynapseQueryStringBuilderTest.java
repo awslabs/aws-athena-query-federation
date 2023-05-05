@@ -29,7 +29,7 @@ import java.util.Collections;
 
 public class SynapseQueryStringBuilderTest
 {
-    SynapseQueryStringBuilder builder = new SynapseQueryStringBuilder("'");
+    SynapseQueryStringBuilder builder = new SynapseQueryStringBuilder("'", new SynapseFederationExpressionParser("`"));
 
     @Test
     public void testQueryBuilder()

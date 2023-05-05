@@ -147,8 +147,11 @@ public class MySqlFederationExpressionParserTest {
     public void testCreateSqlForComplexExpressionContent_VarargFunction()
     {
         FunctionName inFunction = StandardFunctions.IN_PREDICATE_FUNCTION_NAME.getFunctionName();
-        String inClause = federationExpressionParser.mapFunctionToDataSourceSyntax(inFunction, intType, ImmutableList.of("`coinValueColumn`", "25,10,5,1"));
-        assertEquals(inClause, "(`coinValueColumn` IN (25,10,5,1))");
+        FunctionName arrayFunction = StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME.getFunctionName();
+        String arrayClause = federationExpressionParser.mapFunctionToDataSourceSyntax(arrayFunction, intType, ImmutableList.of("25", "10", "5", "1"));
+        assertEquals("(25, 10, 5, 1)", arrayClause);
+        String inClause = federationExpressionParser.mapFunctionToDataSourceSyntax(inFunction, intType, ImmutableList.of("`coinValueColumn`", arrayClause));
+        assertEquals(inClause, "(`coinValueColumn` IN (25, 10, 5, 1))");
     }
     
     @Test
@@ -199,10 +202,14 @@ public class MySqlFederationExpressionParserTest {
         
 
         // colFour IN ("banana", "dragonfruit")
-        FederationExpression colFour = new VariableExpression("colFour", new ArrowType.Utf8());
-        FederationExpression fruitList = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(),
-            ImmutableList.of("banana", "dragonfruit")), new ArrowType.Utf8()
+        FederationExpression colFour = new VariableExpression("colFour", ArrowType.Utf8.INSTANCE);
+        FederationExpression fruitList = new FunctionCallExpression(
+            ArrowType.Utf8.INSTANCE,
+            StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME.getFunctionName(),
+            ImmutableList.of(
+                new ConstantExpression(BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, ArrowType.Utf8.INSTANCE,
+                ImmutableList.of("banana", "dragonfruit")), ArrowType.Utf8.INSTANCE)
+            )
         );
         FederationExpression inFunction = new FunctionCallExpression(
             ArrowType.Bool.INSTANCE,
@@ -234,7 +241,7 @@ public class MySqlFederationExpressionParserTest {
         );
 
         String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction);
-        // actual is ((((colOne + colTwo) > colThree) AND (colFour IN (banana))) OR (colFour <> fruit))
+        // actual is ((((colOne + colTwo) > colThree) AND (colFour IN (banana, dragonfruit))) OR (colFour <> fruit))
         String expected = "((((" + quoteColumn("colOne") + " + " + quoteColumn("colTwo") + ") > "
                                   + quoteColumn("colThree") + ") AND (" + quoteColumn("colFour") +
                                   " IN (" + quoteConstant("banana") + "," + quoteConstant("dragonfruit") + "))) OR (" + quoteColumn("colFour") + " <> " + quoteConstant("fruit") + "))";

@@ -39,7 +39,7 @@ public class SqlServerQueryStringBuilderTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder("'");
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder("'", new SqlServerFederationExpressionParser("'"));
         Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
         Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
@@ -47,7 +47,7 @@ public class SqlServerQueryStringBuilderTest
     @Test
     public void testGetPartitionWhereClauses()
     {
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder("'");
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder("'", new SqlServerFederationExpressionParser("'"));
 
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "0"));

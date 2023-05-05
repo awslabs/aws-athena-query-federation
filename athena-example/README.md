@@ -241,23 +241,21 @@ Now run `mvn clean install -DskipTests=true > /tmp/log` from the athena-federati
 
 ### Step 5: Package and Deploy Your New Connector
 
-We have two options for deploying our connector: directly to Lambda or via Serverless Application Repository. We'll do both below.
+For fast development, we can bypass the standard Serverless Application Repository setup by directly deploying our CloudFormation stack,
+which will create all our IAM policies/roles and the Lambda function on our behalf.
 
-*Publish Your Connector To Serverless Application Repository*
+`cd` into the connector module and run `sam deploy --template-file <template_file>.yaml -g`. You can add the `--profile` flag if you want to use
+a sepcific profile in your `~/.aws/config`. Follow the guided prompts, making sure to use a lowercase name for your catalog and lambda function
+when providing the parameter options.
 
-Run `../tools/publish.sh S3_BUCKET_NAME athena-example AWS_REGION` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form.
-
-If the publish command gave you an error about the aws cli or sam tool not recognizing an argument, you likely forgot to source the new bash profile after
-updating your development environment so run `source ~/.profile` and try again.
-
-Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and click on 'Private applications' and check the box to "Show apps that create custom IAM roles or resource policies" to search for your application and deploy it before using it from Athena. Be sure to use a LOWER_CASE name for yoyr catalog / lambda function when you configure the connector on the Serverless Application Repository console.
+Once the deployment finishes, you should be able to see your stack in CloudFormation and your Lambda function should have been created.
 
 ### Step 6: Validate our Connector.
 
 One of the most challenging aspects of integrating systems (in this case our connector and Athena) is testing how these two things will work together. Lambda will capture logging from out connector in Cloudwatch Logs but we've also tried to provide some tools to stream line detecting and correcting common semantic and logical issues with your custom connector. By running Athena's connector validation tool you can simulate how Athena will interact with your Lambda function and get access to diagnostic information that would normally only be available within Athena or require you to add extra diagnostics to your connector.
 
 Run `../tools/validate_connector.sh --lambda-func <function_name> --schema schema1 --table table1 --constraints year=2017,month=11,day=1`
-Be sure to replace lambda_func with the name you gave to your function/catalog when you deployed it via Serverless Application Repository.
+Be sure to replace lambda_func with the name you gave to your function/catalog when you deployed it.
 
 If everything worked as expected you should see the script generate useful debugging info and end with:
 ```txt
