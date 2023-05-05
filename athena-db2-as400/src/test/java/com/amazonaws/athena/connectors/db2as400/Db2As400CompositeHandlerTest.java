@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-db2
+ * athena-db2-as400
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
@@ -47,7 +47,7 @@ public class Db2As400CompositeHandlerTest
     @Test
     public void Db2CompositeHandlerTest() {
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", Db2As400Constants.NAME,
-                "dbtwo_as400://jdbc:as400://samplehost:prompt=false;user=dummy;password=dummy;");
+                "dbtwo-iseries://jdbc:as400://testhost:user=dummy;password=dummy;");
         PowerMockito.mockStatic(JDBCUtil.class);
         PowerMockito.when(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2As400Constants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
         db2As400CompositeHandler = new Db2As400CompositeHandler();

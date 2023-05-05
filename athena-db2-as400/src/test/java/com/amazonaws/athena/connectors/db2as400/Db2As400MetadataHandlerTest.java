@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-db2
+ * athena-db2-as400
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
@@ -76,7 +76,7 @@ public class Db2As400MetadataHandlerTest extends TestBase {
     private static final Logger logger = LoggerFactory.getLogger(Db2As400MetadataHandlerTest.class);
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2As400Constants.NAME,
-            "dbtwo_as400://jdbc:as400://samplehost:prompt=false;user=dummy;password=dummy;");
+            "dbtwo-iseries://jdbc:as400://testhost:user=dummy;password=dummy;");
     private Db2As400MetadataHandler db2As400MetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;

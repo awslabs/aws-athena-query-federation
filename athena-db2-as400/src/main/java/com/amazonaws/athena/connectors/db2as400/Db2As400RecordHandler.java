@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-db2
+ * athena-db2-as400
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%

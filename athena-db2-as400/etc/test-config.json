@@ -15,7 +15,7 @@
     "disable_spill_encryption" : "false", /* If set to true encryption for spilled data is disabled (default: false) */
     "spill_put_request_headers": "",  /* JSON encoded map of request headers and values for the s3 putObject request used for spilling. This is a String not an object. Optional.*/
     "region": "<region>", /* aws region name */
-    "default": "dbtwo_as400://jdbc:as400://<host>:prompt=false;user=<username>;password=<password>;" /* db2-as400 jdbc connection string*/
+    "default": "dbtwo-iseries://jdbc:as400://<host>:user=<username>;password=<password>;" /* db2-as400 jdbc connection string*/
   },
   "vpc_configuration" : {
     "region": "<region>", /* aws region name */
