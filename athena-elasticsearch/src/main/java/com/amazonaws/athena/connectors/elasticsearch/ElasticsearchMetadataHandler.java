@@ -123,16 +123,16 @@ public class ElasticsearchMetadataHandler
 
     @VisibleForTesting
     protected ElasticsearchMetadataHandler(
-        AWSGlue awsGlue,
-        EncryptionKeyFactory keyFactory,
-        AWSSecretsManager awsSecretsManager,
-        AmazonAthena athena,
-        String spillBucket,
-        String spillPrefix,
-        ElasticsearchDomainMapProvider domainMapProvider,
-        AwsRestHighLevelClientFactory clientFactory,
-        long queryTimeout,
-        java.util.Map<String, String> configOptions)
+            AWSGlue awsGlue,
+            EncryptionKeyFactory keyFactory,
+            AWSSecretsManager awsSecretsManager,
+            AmazonAthena athena,
+            String spillBucket,
+            String spillPrefix,
+            ElasticsearchDomainMapProvider domainMapProvider,
+            AwsRestHighLevelClientFactory clientFactory,
+            long queryTimeout,
+            java.util.Map<String, String> configOptions)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
@@ -145,6 +145,7 @@ public class ElasticsearchMetadataHandler
 
     /**
      * Used to get the list of domains (aka databases) for the Elasticsearch service.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog they are querying.
      * @return A ListSchemasResponse which primarily contains a Set<String> of schema names and a catalog name
@@ -165,6 +166,7 @@ public class ElasticsearchMetadataHandler
 
     /**
      * Used to get the list of indices contained in the specified domain.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
      * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
@@ -186,9 +188,19 @@ public class ElasticsearchMetadataHandler
                 .filter(index -> !index.startsWith("."));
 
         // get all data streams from ES, 1 data stream can contains multiple indices which start with ".ds-xxxxxxxxxx"
-        Stream<String> dataStreams = client.indices().getDataStream(new GetDataStreamRequest("*"), RequestOptions.DEFAULT).getDataStreams()
-                .stream()
-                .map(dataStream -> dataStream.getName());
+        Stream<String> dataStreams;
+        try {
+            dataStreams = client.indices().getDataStream(new GetDataStreamRequest("*"), RequestOptions.DEFAULT).getDataStreams()
+                    .stream()
+                    .map(dataStream -> dataStream.getName());
+        }
+        // gracefully exit for AWS ES.
+        // AWS's version of ES doesn't support data stream, it is a feature only available in the Elasticsearch distributed by Elastic itself, licensed under the Elastic License.
+        // https://stackoverflow.com/questions/68006918/aws-elasticsearch-service-and-datastream
+        catch (Exception ex) {
+            logger.warn("Unable to retrieve datastream or cluster version not support data stream, ignore datastream");
+            dataStreams = Stream.empty();
+        }
 
         //combine two different data sources and create tables
         List<TableName> tableNames = Stream.concat(indicesStream, dataStreams)
@@ -199,6 +211,7 @@ public class ElasticsearchMetadataHandler
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog, database, and table they are querying.
      * @return A GetTableResponse which primarily contains:
@@ -249,6 +262,7 @@ public class ElasticsearchMetadataHandler
 
     /**
      * Elasticsearch does not support partitioning so this method is a NoOp.
+     *
      * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
@@ -263,6 +277,7 @@ public class ElasticsearchMetadataHandler
      * Used to split-up the reads required to scan the requested index by shard. Cluster-health information is
      * retrieved for shards associated with the specified index. A split will then be generated for each shard that
      * is primary and active.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details of the catalog, domain, and index being queried, as well as any filter predicate.
      * @return A GetSplitsResponse which primarily contains:
@@ -299,6 +314,7 @@ public class ElasticsearchMetadataHandler
     /**
      * Mandatory checked exception needs to handle from here
      * This is to keep the lambda stream function clearer.
+     *
      * @param client
      * @param index
      * @return
@@ -317,6 +333,7 @@ public class ElasticsearchMetadataHandler
      * Gets an endpoint from the domain mapping. For AWS Elasticsearch Service, if the domain does not exist in
      * the domain map, refresh the latter by calling the AWS ES SDK (it's possible that the domain was added
      * after the last connector refresh).
+     *
      * @param domain is used for searching the domain map for the corresponding endpoint.
      * @return endpoint corresponding to the domain or a null if domain does not exist in the map.
      * @throws RuntimeException when the endpoint does not exist in the domain map even after a map refresh.
