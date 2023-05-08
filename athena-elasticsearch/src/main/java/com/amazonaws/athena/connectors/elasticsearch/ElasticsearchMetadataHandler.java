@@ -185,13 +185,8 @@ public class ElasticsearchMetadataHandler
                 .stream()
                 .filter(index -> !index.startsWith("."));
 
-        // get all data streams from ES, 1 data stream can contains multiple indices which start with ".ds-xxxxxxxxxx"
-        Stream<String> dataStreams = client.indices().getDataStream(new GetDataStreamRequest("*"), RequestOptions.DEFAULT).getDataStreams()
-                .stream()
-                .map(dataStream -> dataStream.getName());
-
         //combine two different data sources and create tables
-        List<TableName> tableNames = Stream.concat(indicesStream, dataStreams)
+        List<TableName> tableNames = Stream.concat(indicesStream, getDataStreamNames(client))
                 .map(tableName -> new TableName(request.getSchemaName(), tableName))
                 .collect(Collectors.toList());
         return new ListTablesResponse(request.getCatalogName(), tableNames, null);
@@ -294,6 +289,25 @@ public class ElasticsearchMetadataHandler
                 .collect(Collectors.toSet());
 
         return new GetSplitsResponse(request.getCatalogName(), splits);
+    }
+
+    /**
+     * Get all data streams from ES, one data stream can contains multiple indices which start with ".ds-xxxxxxxxxx"
+     * return empty if not supported.
+     * Notes: AWS's version of ES doesn't support data stream, it is a feature only available in the Elasticsearch distributed by Elastic itself, licensed under the Elastic License.
+     */
+    private Stream<String> getDataStreamNames(AwsRestHighLevelClient client)
+    {
+        try {
+            return client.indices().getDataStream(new GetDataStreamRequest("*"), RequestOptions.DEFAULT).getDataStreams()
+                    .stream()
+                    .map(dataStream -> dataStream.getName());
+        }
+        // gracefully exit for exception or non-support data stream.
+        catch (Exception ex) {
+            logger.warn("getDataStreamNamesFromClient: Unable to retrieve datastream or cluster version not support data stream, ignore datastream.", ex);
+            return Stream.empty();
+        }
     }
 
     /**
