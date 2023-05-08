@@ -29,7 +29,7 @@
         <fasterxml.jackson.version>2.15.0</fasterxml.jackson.version>
         <surefire.failsafe.version>3.0.0</surefire.failsafe.version>
         <log4j2Version>2.20.0</log4j2Version>
-        <apache.arrow.version>10.0.1</apache.arrow.version>
+        <apache.arrow.version>12.0.0</apache.arrow.version>
         <netty.version>4.1.92.Final</netty.version>
         <guava.version>31.1-jre</guava.version>
         <protobuf3.version>3.22.3</protobuf3.version>
