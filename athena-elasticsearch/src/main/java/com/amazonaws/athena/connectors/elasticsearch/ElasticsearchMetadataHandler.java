@@ -305,7 +305,7 @@ public class ElasticsearchMetadataHandler
         }
         // gracefully exit for exception or non-support data stream.
         catch (Exception ex) {
-            logger.warn("getDataStreamNamesFromClient: Unable to retrieve datastream or cluster version not support data stream, ignore datastream, message: {}.", ex.getMessage(), ex);
+            logger.warn("getDataStreamNamesFromClient: Unable to retrieve datastream or cluster version not support data stream, ignore datastream.", ex);
             return Stream.empty();
         }
     }
