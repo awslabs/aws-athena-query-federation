@@ -21,7 +21,7 @@ package com.amazonaws.athena.connectors.db2as400;
 
 public class Db2As400Constants
 {
-    public static final String NAME = "dbtwo-iseries";
+    public static final String NAME = "dbtwoiseries";
     public static final String DRIVER_CLASS = "com.ibm.as400.access.AS400JDBCDriver";
     public static final int DEFAULT_PORT = 446;
 
