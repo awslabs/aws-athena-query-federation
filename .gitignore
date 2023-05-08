@@ -14,3 +14,8 @@
 */packaged.yaml
 .DS_Store
 */.jqwik-database
+dist
+node_modules
+package-lock.json
+cdk.out
+.env

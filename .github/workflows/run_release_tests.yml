@@ -1,0 +1,47 @@
+name: Run release tests
+
+on:
+  workflow_dispatch:
+
+
+
+jobs:
+  run_release_tests:
+    name: run release tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: install dependencies. note aws is pre-installed and we use a specific action for node.
+        run: |
+          sudo apt install -y tar gzip unzip wget less groff vim git python3 python3-pip unixodbc-dev curl jq;
+          pip3 install boto3;
+      - name: install node and npm
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Build jars
+        run: mvn clean package -T 1C -DskipTests
+      - name: env vars
+        run: echo "REPOSITORY_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - name: Run tests
+        run: |
+            cd $GITHUB_WORKSPACE/validation_testing;
+            python3 main.py;
+        env:
+          # env vars that are secrets should always be set in the env field, so they aren't visible in $GITHUB_ENV file
+          AWS_DEFAULT_REGION: 'us-east-1'
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          RESULTS_LOCATION: ${{ secrets.RESULTS_LOCATION }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          S3_DATA_PATH: ${{ secrets.S3_DATA_PATH }}
+          S3_JARS_BUCKET: ${{ secrets.S3_JARS_BUCKET }}
