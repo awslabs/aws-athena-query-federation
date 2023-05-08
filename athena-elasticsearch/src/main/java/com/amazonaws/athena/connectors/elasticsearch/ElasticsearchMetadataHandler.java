@@ -186,19 +186,8 @@ public class ElasticsearchMetadataHandler
                 .filter(index -> !index.startsWith("."));
 
         // get all data streams from ES, 1 data stream can contains multiple indices which start with ".ds-xxxxxxxxxx"
-        Stream<String> dataStreams;
-        try {
-            dataStreams = client.indices().getDataStream(new GetDataStreamRequest("*"), RequestOptions.DEFAULT).getDataStreams()
-                    .stream()
-                    .map(dataStream -> dataStream.getName());
-        }
-        // gracefully exit for AWS ES.
-        // AWS's version of ES doesn't support data stream, it is a feature only available in the Elasticsearch distributed by Elastic itself, licensed under the Elastic License.
-        // https://stackoverflow.com/questions/68006918/aws-elasticsearch-service-and-datastream
-        catch (Exception ex) {
-            logger.warn(String.format("Unable to retrieve datastream or cluster version not support data stream, ignore datastream, message: %s", ex.getMessage()), ex);
-            dataStreams = Stream.empty();
-        }
+        Stream<String> dataStreams = getDataStreamNamesFromClient(client);
+
         //combine two different data sources and create tables
         List<TableName> tableNames = Stream.concat(indicesStream, dataStreams)
                 .map(tableName -> new TableName(request.getSchemaName(), tableName))
@@ -303,6 +292,29 @@ public class ElasticsearchMetadataHandler
                 .collect(Collectors.toSet());
 
         return new GetSplitsResponse(request.getCatalogName(), splits);
+    }
+
+    /**
+     * Get DataStream names from ES/OS cluster if supported.
+     * return empty if not supported.
+     * Notes: AWS's version of ES doesn't support data stream, it is a feature only available in the Elasticsearch distributed by Elastic itself, licensed under the Elastic License.
+     * @param client
+     * @return
+     */
+    private Stream<String> getDataStreamNamesFromClient(AwsRestHighLevelClient client)
+    {
+        try {
+            return client.indices().getDataStream(new GetDataStreamRequest("*"), RequestOptions.DEFAULT).getDataStreams()
+                    .stream()
+                    .map(dataStream -> dataStream.getName());
+        }
+        // gracefully exit for AWS ES.
+        // AWS's version of ES doesn't support data stream, it is a feature only available in the Elasticsearch distributed by Elastic itself, licensed under the Elastic License.
+        // https://stackoverflow.com/questions/68006918/aws-elasticsearch-service-and-datastream
+        catch (Exception ex) {
+            logger.warn("getDataStreamNamesFromClient: Unable to retrieve datastream or cluster version not support data stream, ignore datastream, message: {}.", ex.getMessage(), ex);
+            return Stream.empty();
+        }
     }
 
     /**
