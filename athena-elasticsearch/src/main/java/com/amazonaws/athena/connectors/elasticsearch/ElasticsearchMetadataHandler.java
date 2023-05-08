@@ -292,7 +292,7 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
-     * Get get all data streams from ES, 1 data stream can contains multiple indices which start with ".ds-xxxxxxxxxx"
+     * Get all data streams from ES, one data stream can contains multiple indices which start with ".ds-xxxxxxxxxx"
      * return empty if not supported.
      * Notes: AWS's version of ES doesn't support data stream, it is a feature only available in the Elasticsearch distributed by Elastic itself, licensed under the Elastic License.
      */
