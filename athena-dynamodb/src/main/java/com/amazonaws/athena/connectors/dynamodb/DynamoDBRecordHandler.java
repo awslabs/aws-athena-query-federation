@@ -207,7 +207,7 @@ public class DynamoDBRecordHandler
 
         GeneratedRowWriter rowWriter = rowWriterBuilder.build();
         long numRows = 0;
-        boolean hasLimit = recordsRequest.getConstraints().hasLimit();
+        boolean canApplyLimit = canApplyLimit(recordsRequest.getConstraints());
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated
@@ -222,11 +222,16 @@ public class DynamoDBRecordHandler
             }
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
-            if (hasLimit && numRows >= recordsRequest.getConstraints().getLimit()) {
+            if (canApplyLimit && numRows >= recordsRequest.getConstraints().getLimit()) {
                 return;
             }
         }
         logger.info("readWithConstraint: numRows[{}]", numRows);
+    }
+
+    private boolean canApplyLimit(Constraints constraints)
+    {
+        return constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause();
     }
 
     /*
@@ -282,7 +287,7 @@ public class DynamoDBRecordHandler
                     .withExpressionAttributeNames(expressionAttributeNames)
                     .withExpressionAttributeValues(expressionAttributeValues)
                     .withProjectionExpression(projectionExpression);
-            if (constraints.hasLimit()) {
+            if (canApplyLimit(constraints)) {
                 queryRequest.setLimit((int) constraints.getLimit());
             }
             return queryRequest;
@@ -299,7 +304,7 @@ public class DynamoDBRecordHandler
                     .withExpressionAttributeNames(expressionAttributeNames.isEmpty() ? null : expressionAttributeNames)
                     .withExpressionAttributeValues(expressionAttributeValues.isEmpty() ? null : expressionAttributeValues)
                     .withProjectionExpression(projectionExpression);
-            if (constraints.hasLimit()) {
+            if (canApplyLimit(constraints)) {
                 scanRequest.setLimit((int) constraints.getLimit());
             }
             return scanRequest;
