@@ -98,6 +98,11 @@ public class Constraints
         return this.orderByClause;
     }
 
+    public boolean hasNonEmptyOrderByClause()
+    {
+        return this.orderByClause != null && this.orderByClause.size() > 0;
+    }
+
     @Override
     public boolean equals(Object o)
     {
