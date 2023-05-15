@@ -438,7 +438,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
                     If arrow type is struct then convert to VARCHAR, because struct is
                     considered as Unhandled type by JdbcRecordHandler's makeExtractor method.
                      */
-                    if (columnType != null && columnType.getTypeID().name().equalsIgnoreCase("Struct")) {
+                    else if (columnType != null && columnType.getTypeID().name().equalsIgnoreCase("Struct")) {
                         columnType = Types.MinorType.VARCHAR.getType();
                     }
 
