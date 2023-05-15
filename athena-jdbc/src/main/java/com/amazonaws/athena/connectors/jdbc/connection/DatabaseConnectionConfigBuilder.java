@@ -38,7 +38,7 @@ public class DatabaseConnectionConfigBuilder
     public static final String DEFAULT_CONNECTION_STRING_PROPERTY = "default";
     private static final int MUX_CATALOG_LIMIT = 100;
 
-    private static final String CONNECTION_STRING_REGEX = "([a-zA-Z]+)://(.*)";
+    private static final String CONNECTION_STRING_REGEX = "([a-zA-Z0-9]+)://(.*)";
     private static final Pattern CONNECTION_STRING_PATTERN = Pattern.compile(CONNECTION_STRING_REGEX);
     private static final String SECRET_PATTERN_STRING = "\\$\\{([a-zA-Z0-9:/_+=.@-]+)}";
     public static final Pattern SECRET_PATTERN = Pattern.compile(SECRET_PATTERN_STRING);

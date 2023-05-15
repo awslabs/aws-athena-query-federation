@@ -69,7 +69,7 @@ public class Db2As400RecordHandlerTest {
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new Db2As400QueryStringBuilder("`");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2As400Constants.NAME,
-                "dbtwo-iseries://jdbc:as400://testhost:user=dummy;password=dummy;");
+                "db2as400://jdbc:as400://testhost;user=dummy;password=dummy;");
         this.db2As400RecordHandler = new Db2As400RecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 

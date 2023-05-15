@@ -9,7 +9,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels:
       - ibm
-      - db2iseries
+      - db2as400
       - athena-federation
       - jdbc
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'

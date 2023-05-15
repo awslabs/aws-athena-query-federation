@@ -313,8 +313,11 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
             if (resultSet.next()) {
                 return resultSet.getString("COLUMN_NAME");
             }
+            else {
+                LOGGER.error("Column Name not found in the table {} ", parameters.get(1));
+                return null;
+            }
         }
-        return null;
     }
 
     /**
@@ -402,11 +405,6 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
-        String typeName;
-        String columnName;
-        HashMap<String, String> columnNameMap = new HashMap<>();
-        boolean found = false;
-
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
@@ -414,11 +412,10 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
             stmt.setString(1, tableName.getSchemaName());
             stmt.setString(2, tableName.getTableName());
             try (ResultSet dataTypeResultSet = stmt.executeQuery()) {
+                HashMap<String, String> columnNameMap = new HashMap<>();
                 // fetch data types of columns and prepare map with column name and typeName.
                 while (dataTypeResultSet.next()) {
-                    columnName = dataTypeResultSet.getString("COLUMN_NAME");
-                    typeName = dataTypeResultSet.getString("DATA_TYPE");
-                    columnNameMap.put(columnName, typeName);
+                    columnNameMap.put(dataTypeResultSet.getString("COLUMN_NAME"), dataTypeResultSet.getString("DATA_TYPE"));
                 }
 
                 while (resultSet.next()) {
@@ -428,8 +425,14 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
                             resultSet.getInt("DECIMAL_DIGITS"),
                             configOptions
                     );
-                    columnName = resultSet.getString("COLUMN_NAME");
-                    typeName = columnNameMap.get(columnName);
+                    String columnName = resultSet.getString("COLUMN_NAME");
+                    String typeName = columnNameMap.get(columnName);
+                    /*
+                     * Converting REAL, DOUBLE, DECFLOAT data types into FLOAT8 since framework is unable to map it by default
+                     */
+                    if ("real".equalsIgnoreCase(typeName) || "double".equalsIgnoreCase(typeName) || "decfloat".equalsIgnoreCase(typeName)) {
+                        columnType = Types.MinorType.FLOAT8.getType();
+                    }
 
                     /*
                     If arrow type is struct then convert to VARCHAR, because struct is
@@ -440,30 +443,14 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
                     }
 
                     /*
-                     * Converting REAL, DOUBLE, DECFLOAT data types into FLOAT8 since framework is unable to map it by default
-                     */
-                    if ("real".equalsIgnoreCase(typeName) || "double".equalsIgnoreCase(typeName) || "decfloat".equalsIgnoreCase(typeName)) {
-                        columnType = Types.MinorType.FLOAT8.getType();
-                    }
-
-                    /*
                      * converting into VARCHAR for non supported data types.
                      */
-                    if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
+                    else if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
                         columnType = Types.MinorType.VARCHAR.getType();
                     }
 
                     LOGGER.debug("columnType: " + columnType);
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        found = true;
-                    }
-                    else {
-                        LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
-                    }
-                }
-                if (!found) {
-                    throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
                 }
 
                 partitionSchema.getFields().forEach(schemaBuilder::addField);
