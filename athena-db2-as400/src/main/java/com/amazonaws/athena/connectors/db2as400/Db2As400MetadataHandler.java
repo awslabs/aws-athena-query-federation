@@ -315,7 +315,7 @@ public class Db2As400MetadataHandler extends JdbcMetadataHandler
             }
             else {
                 LOGGER.error("Column Name not found in the table {} ", parameters.get(1));
-                return null;
+                throw new RuntimeException("Failed to retrieve column Name");
             }
         }
     }
