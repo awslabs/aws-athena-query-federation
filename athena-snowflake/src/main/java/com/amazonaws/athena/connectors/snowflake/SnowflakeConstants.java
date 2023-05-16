@@ -34,6 +34,7 @@ public final class SnowflakeConstants
      * This constant limits the number of records to be returned in a single split.
      */
     public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
+    public static final String SNOWFLAKE_QUOTE_CHARACTER = "\"";
 
     private SnowflakeConstants() {}
 }

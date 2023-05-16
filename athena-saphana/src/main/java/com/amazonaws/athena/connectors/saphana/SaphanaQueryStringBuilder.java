@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -63,12 +64,15 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SaphanaQueryStringBuilder.class);
 
+    private final FederationExpressionParser federationExpressionParser;
+
     private static final String SPATIAL_CONVERSION_FUNCTION_REGEX = "ST_([a-zA-Z]+)\\(\\)";
     private static final Pattern SPATIAL_CONVERSION_FUNCTION_PATTERN = Pattern.compile(SPATIAL_CONVERSION_FUNCTION_REGEX);
 
-    public SaphanaQueryStringBuilder(String quoteCharacters)
+    public SaphanaQueryStringBuilder(String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, federationExpressionParser);
+        this.federationExpressionParser = federationExpressionParser;
     }
 
     @Override
@@ -152,7 +156,17 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
         }
-        sql.append(appendLimitOffset(split));
+
+        String orderByClause = extractOrderByClause(constraints);
+
+        if (!Strings.isNullOrEmpty(orderByClause)) {
+            sql.append(" ").append(orderByClause);
+        }
+
+        if (constraints.getLimit() > 0) {
+            sql.append(appendLimitOffset(split, constraints));
+        }
+
         LOGGER.debug("Generated SQL : {}", sql);
         PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
 
@@ -205,7 +219,6 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
                     throw new UnsupportedOperationException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), minorTypeForArrowType));
             }
         }
-
         return statement;
     }
 
@@ -270,7 +283,7 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
     }
 
     private List<String> toConjuncts(List<Field> columns, Constraints constraints,
-                                     List<SaphanaQueryStringBuilder.TypeAndValue> accumulator,
+                                     List<TypeAndValue> accumulator,
                                      Map<String, String> partitionSplit)
     {
         List<String> conjuncts = new ArrayList<>();
@@ -286,11 +299,12 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
                 }
             }
         }
+        conjuncts.addAll(federationExpressionParser.parseComplexExpressions(columns, constraints));
         return conjuncts;
     }
 
     private String toPredicate(String columnName, ValueSet valueSet, ArrowType type,
-                               List<SaphanaQueryStringBuilder.TypeAndValue> accumulator)
+                               List<TypeAndValue> accumulator)
     {
         List<String> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
@@ -357,7 +371,7 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
             }
             else if (singleValues.size() > 1) {
                 for (Object value : singleValues) {
-                    accumulator.add(new SaphanaQueryStringBuilder.TypeAndValue(type, value));
+                    accumulator.add(new TypeAndValue(type, value));
                 }
                 String values = Joiner.on(",").join(Collections.nCopies(singleValues.size(), "?"));
                 disjuncts.add(quote(columnName) + " IN (" + values + ")");
@@ -368,9 +382,9 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
     }
 
     private String toPredicate(String columnName, String operator, Object value, ArrowType type,
-                               List<SaphanaQueryStringBuilder.TypeAndValue> accumulator)
+                               List<TypeAndValue> accumulator)
     {
-        accumulator.add(new SaphanaQueryStringBuilder.TypeAndValue(type, value));
+        accumulator.add(new TypeAndValue(type, value));
         return quote(columnName) + " " + operator + " ?";
     }
 }

@@ -27,6 +27,8 @@ import org.testng.Assert;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2Constants.QUOTE_CHARACTER;
+
 public class DataLakeQueryStringBuilderTest
 {
     static {
@@ -39,15 +41,15 @@ public class DataLakeQueryStringBuilderTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
-        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder("'");
-        Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
+        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test
     public void testGetPartitionWhereClauses()
     {
-        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder("'");
+        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
 
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));

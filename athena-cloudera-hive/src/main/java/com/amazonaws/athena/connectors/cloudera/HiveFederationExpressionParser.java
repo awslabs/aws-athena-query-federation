@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-datalakegen2
+ * athena-cloudera-hive
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
@@ -17,14 +17,24 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.datalakegen2;
+package com.amazonaws.athena.connectors.cloudera;
 
-public class DataLakeGen2Constants
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcFederationExpressionParser;
+import com.google.common.base.Joiner;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+
+import java.util.List;
+
+public class HiveFederationExpressionParser extends JdbcFederationExpressionParser
 {
-    public static final String NAME = "datalakegentwo";
-    public static final String DRIVER_CLASS = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-    public static final int DEFAULT_PORT = 1433;
-    public static final String QUOTE_CHARACTER = "\"";
+    public HiveFederationExpressionParser(String quoteChar)
+    {
+        super(quoteChar);
+    }
 
-    private DataLakeGen2Constants() {}
+    @Override
+    public String writeArrayConstructorClause(ArrowType type, List<String> arguments)
+    {
+        return Joiner.on(", ").join(arguments);
+    }    
 }

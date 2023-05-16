@@ -24,6 +24,7 @@ public class Db2Constants
     public static final String NAME = "dbtwo";
     public static final String DRIVER_CLASS = "com.ibm.db2.jcc.DB2Driver";
     public static final int DEFAULT_PORT = 50001;
+    public static final String QUOTE_CHARACTER = "\"";
 
     public static final String QRY_TO_LIST_SCHEMAS = "select schemaname as name " +
             "from syscat.schemata " +
