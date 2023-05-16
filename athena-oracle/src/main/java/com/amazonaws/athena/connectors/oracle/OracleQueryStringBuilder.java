@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.oracle;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
@@ -35,9 +36,9 @@ import java.util.Set;
 public class OracleQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
-    public OracleQueryStringBuilder(final String quoteCharacters)
+    public OracleQueryStringBuilder(final String quoteCharacter, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacter, federationExpressionParser);
     }
 
     @Override

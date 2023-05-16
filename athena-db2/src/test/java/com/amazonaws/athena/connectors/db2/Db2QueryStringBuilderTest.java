@@ -27,6 +27,8 @@ import org.testng.Assert;
 
 import java.util.Arrays;
 
+import static com.amazonaws.athena.connectors.db2.Db2Constants.QUOTE_CHARACTER;
+
 public class Db2QueryStringBuilderTest {
     @Mock
     Split split;
@@ -35,15 +37,15 @@ public class Db2QueryStringBuilderTest {
     public void testQueryBuilder()
     {
         Split split = Mockito.mock(Split.class);
-        Db2QueryStringBuilder builder = new Db2QueryStringBuilder("'");
-        Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        Db2QueryStringBuilder builder = new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
+        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test
     public void testGetPartitionWhereClauses()
     {
-        Db2QueryStringBuilder builder = new Db2QueryStringBuilder("'");
+        Db2QueryStringBuilder builder =  new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_NUMBER"))).thenReturn("0");
         Mockito.when(split.getProperty(Mockito.eq("PARTITIONING_COLUMN"))).thenReturn("PC");

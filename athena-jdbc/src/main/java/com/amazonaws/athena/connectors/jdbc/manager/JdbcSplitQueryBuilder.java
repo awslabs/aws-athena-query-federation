@@ -200,7 +200,7 @@ public abstract class JdbcSplitQueryBuilder
         return statement;
     }
 
-    private String extractOrderByClause(Constraints constraints)
+    protected String extractOrderByClause(Constraints constraints)
     {
         List<OrderByField> orderByClause = constraints.getOrderByClause();
         if (orderByClause == null || orderByClause.size() == 0) {

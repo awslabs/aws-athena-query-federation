@@ -27,9 +27,11 @@ import org.testng.Assert;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.synapse.SynapseConstants.QUOTE_CHARACTER;
+
 public class SynapseQueryStringBuilderTest
 {
-    SynapseQueryStringBuilder builder = new SynapseQueryStringBuilder("'");
+    SynapseQueryStringBuilder builder = new SynapseQueryStringBuilder(QUOTE_CHARACTER, new SynapseFederationExpressionParser(QUOTE_CHARACTER));
 
     @Test
     public void testQueryBuilder()
@@ -40,8 +42,8 @@ public class SynapseQueryStringBuilderTest
 
         builder.getFromClauseWithSplit("default", "", "table", split);
         builder.getFromClauseWithSplit("default", "schema", "table", split);
-        Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test

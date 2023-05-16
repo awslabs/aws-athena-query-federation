@@ -27,6 +27,8 @@ import org.testng.Assert;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
+
 public class SqlServerQueryStringBuilderTest
 {
     static {
@@ -39,15 +41,15 @@ public class SqlServerQueryStringBuilderTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder("'");
-        Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
+        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test
     public void testGetPartitionWhereClauses()
     {
-        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder("'");
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
 
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "0"));

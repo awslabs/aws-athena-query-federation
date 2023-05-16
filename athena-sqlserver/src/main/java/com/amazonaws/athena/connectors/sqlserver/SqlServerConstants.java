@@ -24,6 +24,6 @@ public final class SqlServerConstants
     public static final String NAME = "sqlserver";
     public static final String DRIVER_CLASS = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     public static final int DEFAULT_PORT = 1433;
-
+    public static final String SQLSERVER_QUOTE_CHARACTER = "\"";
     private SqlServerConstants() {}
 }

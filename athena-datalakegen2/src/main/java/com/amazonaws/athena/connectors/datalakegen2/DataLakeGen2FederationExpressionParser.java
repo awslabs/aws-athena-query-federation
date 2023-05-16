@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-datalakegen2
+ * athena-DataLakeGen2
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
@@ -19,12 +19,22 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
-public class DataLakeGen2Constants
-{
-    public static final String NAME = "datalakegentwo";
-    public static final String DRIVER_CLASS = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-    public static final int DEFAULT_PORT = 1433;
-    public static final String QUOTE_CHARACTER = "\"";
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcFederationExpressionParser;
+import com.google.common.base.Joiner;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
-    private DataLakeGen2Constants() {}
+import java.util.List;
+
+public class DataLakeGen2FederationExpressionParser extends JdbcFederationExpressionParser
+{
+    public DataLakeGen2FederationExpressionParser(String quoteChar)
+    {
+        super(quoteChar);
+    }
+
+    @Override
+    public String writeArrayConstructorClause(ArrowType type, List<String> arguments)
+    {
+        return Joiner.on(", ").join(arguments);
+    }    
 }

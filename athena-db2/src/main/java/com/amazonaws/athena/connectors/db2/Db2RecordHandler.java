@@ -43,9 +43,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import static com.amazonaws.athena.connectors.db2.Db2Constants.QUOTE_CHARACTER;
+
 public class Db2RecordHandler extends JdbcRecordHandler
 {
-    private static final String QUOTE_CHARACTER = "\"";
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
     public Db2RecordHandler(java.util.Map<String, String> configOptions)
@@ -62,7 +63,7 @@ public class Db2RecordHandler extends JdbcRecordHandler
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
                 new GenericJdbcConnectionFactory(databaseConnectionConfig, null,
-                        new DatabaseConnectionInfo(Db2Constants.DRIVER_CLASS, Db2Constants.DEFAULT_PORT)), new Db2QueryStringBuilder(QUOTE_CHARACTER), configOptions);
+                        new DatabaseConnectionInfo(Db2Constants.DRIVER_CLASS, Db2Constants.DEFAULT_PORT)), new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER)), configOptions);
     }
 
     @VisibleForTesting

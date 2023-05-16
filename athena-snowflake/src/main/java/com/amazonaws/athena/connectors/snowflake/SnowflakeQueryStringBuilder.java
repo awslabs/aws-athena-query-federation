@@ -21,6 +21,7 @@
 package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
@@ -37,9 +38,9 @@ public class SnowflakeQueryStringBuilder
 {
     private static final String EMPTY_STRING = "";
 
-    public SnowflakeQueryStringBuilder(final String quoteCharacters)
+    public SnowflakeQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, federationExpressionParser);
     }
 
     @Override

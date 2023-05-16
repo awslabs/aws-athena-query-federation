@@ -20,11 +20,14 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connectors.hortonworks.ImpalaFederationExpressionParser;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+
+import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QUOTE_CHARACTER;
 
 @SuppressWarnings("deprecation")
 @RunWith(MockitoJUnitRunner.class)
@@ -39,7 +42,7 @@ public class ImpalaQueryStringBuilderTest
 	{
 	    String expectedFrom1 = " FROM default.schema.table ";
 	    String expectedFrom2 = " FROM default.table ";
-		ImpalaQueryStringBuilder builder = new ImpalaQueryStringBuilder("");
+		ImpalaQueryStringBuilder builder = new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER));
 		String fromResult1 = builder.getFromClauseWithSplit("default", "schema", "table", split);
 		String fromResult2 = builder.getFromClauseWithSplit("default", "", "table", split);
 		Assert.assertEquals(expectedFrom1, fromResult1);
