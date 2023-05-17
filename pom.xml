@@ -17,7 +17,7 @@
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.200.0</aws-cdk.version>
-        <jsii.version>1.80.0</jsii.version>
+        <jsii.version>1.81.0</jsii.version>
         <slf4j-log4j.version>2.0.7</slf4j-log4j.version>
         <mockito.legacy.version>3.3.3</mockito.legacy.version>
         <mockito.version>4.11.0</mockito.version>
