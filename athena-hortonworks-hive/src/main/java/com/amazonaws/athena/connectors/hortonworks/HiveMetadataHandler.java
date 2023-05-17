@@ -52,6 +52,7 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -83,11 +84,6 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
     static final Logger LOGGER = LoggerFactory.getLogger(HiveMetadataHandler.class);
     static final String GET_METADATA_QUERY = "describe ";
 
-    private static final List<String> UNSUPPORTED_CAPABILITIES = List.of(
-            NULLIF_FUNCTION_NAME.getFunctionName().getFunctionName(),
-            IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME.getFunctionName().getFunctionName()
-    );
-
     public HiveMetadataHandler(java.util.Map<String, String> configOptions)
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(HiveConstants.HIVE_NAME, configOptions), configOptions);
@@ -113,6 +109,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
      */
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
+        Set<StandardFunctions> unSupportedFunctions = ImmutableSet.of(IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME, NULLIF_FUNCTION_NAME);
         ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
         capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
                 FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
@@ -123,9 +120,8 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
         capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
                 ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
                         .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
-                                .filter(standardFunctions -> !UNSUPPORTED_CAPABILITIES.contains(standardFunctions.getFunctionName().getFunctionName()))
+                                .filter(values -> !unSupportedFunctions.contains(values))
                                 .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
-                                .collect(Collectors.toList())
                                 .toArray(String[]::new))
         ));
 
