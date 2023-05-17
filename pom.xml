@@ -32,7 +32,7 @@
         <apache.arrow.version>10.0.1</apache.arrow.version>
         <netty.version>4.1.92.Final</netty.version>
         <guava.version>31.1-jre</guava.version>
-        <protobuf3.version>3.22.4</protobuf3.version>
+        <protobuf3.version>3.23.0</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
