@@ -161,7 +161,8 @@ public abstract class JdbcMetadataHandler
             throws Exception
     {
         try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List table names for Catalog {}, Table {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
+            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
+                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
             return new ListTablesResponse(listTablesRequest.getCatalogName(),
                     listTables(connection, listTablesRequest.getSchemaName()), null);
         }
@@ -218,13 +219,46 @@ public abstract class JdbcMetadataHandler
     {
         try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), getSchema(connection, getTableRequest.getTableName(), partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            Optional<Schema> schema = getSchema(connection, getTableRequest.getTableName(), partitionSchema);
+            if (schema.isPresent()) {
+                return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), schema.get(),
+                        partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            }
+            else {
+                LOGGER.info("Table {} not found.  Falling back to case insensitive search.", getTableRequest.getTableName());
+
+                TableName caseInsensitiveTableMatch = caseInsensitiveTableSearch(connection, getTableRequest.getTableName().getSchemaName(),
+                        getTableRequest.getTableName().getTableName());
+                Schema caseInsensitiveSchemaMatch = getSchema(connection, caseInsensitiveTableMatch, partitionSchema)
+                        .orElseThrow(() -> new RuntimeException(String.format("Could not find table %s", getTableRequest.getTableName())));
+
+                return new GetTableResponse(getTableRequest.getCatalogName(), caseInsensitiveTableMatch, caseInsensitiveSchemaMatch,
+                        partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            }
         }
     }
 
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+    private TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
+                                                     final String tableName) throws Exception
+    {
+        List<TableName> tables = listTables(connection, databaseName)
+                .stream()
+                .filter(table -> table.getTableName().equalsIgnoreCase(tableName))
+                .collect(Collectors.toList());
+
+        if (tables.isEmpty()) {
+            throw new RuntimeException(String.format("Could not find table %s", tableName, databaseName));
+        }
+        else if (tables.size() > 1) {
+            throw new IllegalStateException(String.format("Multiple tables resolved from case insensitive name %s: %s",
+                    tableName, StringUtils.join(tables, ",")));
+        }
+
+        return tables.get(0);
+    }
+
+    private Optional<Schema> getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+            throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
@@ -258,13 +292,13 @@ public abstract class JdbcMetadataHandler
             }
 
             if (!found) {
-                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+                return Optional.empty();
             }
 
             // add partition columns
             partitionSchema.getFields().forEach(schemaBuilder::addField);
 
-            return schemaBuilder.build();
+            return Optional.of(schemaBuilder.build());
         }
     }
 

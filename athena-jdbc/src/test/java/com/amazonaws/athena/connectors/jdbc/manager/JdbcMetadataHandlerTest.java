@@ -200,6 +200,48 @@ public class JdbcMetadataHandlerTest
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 
+
+    @Test
+    public void doGetTableCaseInsensitive()
+            throws Exception
+    {
+        TableName inputTableName = new TableName("testSchema", "testtable");
+        Object[][] values1 = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}};
+
+        setupMocksDoGetTableCaseInsensitive(inputTableName, values1, "testTable");
+
+        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+
+        Assert.assertEquals("testTable", getTableResponse.getTableName().getTableName());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTableCaseInsensitiveNoTablesFound()
+            throws Exception
+    {
+        TableName inputTableName = new TableName("testSchema", "testtable");
+        Object[][] values1 = {{"testSchema", "a"}, {"testSchema", "b"}};
+
+        setupMocksDoGetTableCaseInsensitive(inputTableName, values1, null);
+
+        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void doGetTableCaseInsensitiveDuplicateTables()
+            throws Exception
+    {
+        TableName inputTableName = new TableName("testSchema", "testtable");
+        Object[][] values1 = {{"testSchema", "testTable"}, {"testSchema", "testTablE"}};
+
+        setupMocksDoGetTableCaseInsensitive(inputTableName, values1, null);
+
+        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+    }
+
     @Test(expected = RuntimeException.class)
     public void doGetTableNoColumns()
             throws Exception
@@ -234,5 +276,29 @@ public class JdbcMetadataHandlerTest
         Mockito.when(this.connection.getMetaData().getTables(nullable(String.class), nullable(String.class), Mockito.isNull(), any())).thenThrow(new SQLException());
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,
                 "testQueryId", "testCatalog", "testSchema", null, UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    private void setupMocksDoGetTableCaseInsensitive(TableName inputTableName, Object[][] resultSetRows,
+                                                     String expectedTableName) throws Exception
+    {
+        String[] schema1 = {"TABLE_SCHEM", "TABLE_NAME"};
+        ResultSet resultSet1 = mockResultSet(schema1, resultSetRows, new AtomicInteger(-1));
+        Mockito.when(connection.getMetaData().getTables("testCatalog", inputTableName.getSchemaName(),
+                        null, new String[]{"TABLE", "VIEW", "EXTERNAL TABLE"}))
+                .thenReturn(resultSet1);
+
+        // mock first call to getSchema() to simulate no table found for original lowercase table name
+        String[] schema2 = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values2 = {{Types.INTEGER, 12, "testCol1", 0, 0}};
+        ResultSet resultSet2 = mockResultSet(schema2, new Object[][]{}, new AtomicInteger(-1));
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(),
+                        inputTableName.getTableName(), null))
+                .thenReturn(resultSet2); //first call to getScheme() - simulate no table found
+
+        // mock second call to getSchema()
+        ResultSet resultSet3 = mockResultSet(schema2, values2, new AtomicInteger(-1));
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(),
+                        expectedTableName, null))
+                .thenReturn(resultSet3);
     }
 }
