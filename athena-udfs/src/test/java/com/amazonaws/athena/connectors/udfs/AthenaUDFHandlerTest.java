@@ -31,6 +31,7 @@ import java.util.Base64;
 import java.util.zip.DataFormatException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -66,16 +67,16 @@ public class AthenaUDFHandlerTest
         assertEquals(input, decompressed);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testCompressNull()
     {
-        athenaUDFHandler.compress(null);
+        assertNull(athenaUDFHandler.compress(null));
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testDecompressNull()
     {
-        athenaUDFHandler.decompress(null);
+        assertNull(athenaUDFHandler.decompress(null));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -130,6 +131,16 @@ public class AthenaUDFHandlerTest
         String result = athenaUDFHandler.encrypt(content, DUMMY_SECRET_NAME);
 
         assertEquals(expected, result);
+    }
+
+    @Test
+    public void testKmsEncryptionNull() {
+        assertNull(athenaUDFHandler.encrypt(null, DUMMY_SECRET_NAME));
+    }
+
+    @Test
+    public void testKmsDecryptionNull() {
+        assertNull(athenaUDFHandler.decrypt(null, DUMMY_SECRET_NAME));
     }
 
     /**

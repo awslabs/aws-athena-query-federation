@@ -22,6 +22,8 @@ package com.amazonaws.athena.connectors.jdbc;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -146,5 +148,12 @@ public class MultiplexingJdbcMetadataHandler
     {
         validateMultiplexer(getSplitsRequest.getCatalogName());
         return this.metadataHandlerMap.get(getSplitsRequest.getCatalogName()).doGetSplits(blockAllocator, getSplitsRequest);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        validateMultiplexer(request.getCatalogName());
+        return this.metadataHandlerMap.get(request.getCatalogName()).doGetDataSourceCapabilities(allocator, request);
     }
 }
