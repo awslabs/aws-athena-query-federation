@@ -9,7 +9,7 @@
     <artifactId>athena-neptune</artifactId>
     <version>2022.47.1</version>
     <properties>
-        <gremlinDriverVersion>3.6.3</gremlinDriverVersion>
+        <gremlinDriverVersion>3.6.4</gremlinDriverVersion>
         <neptune.sigv4.signer.version>2.4.0</neptune.sigv4.signer.version>
     </properties>
     <dependencies>
