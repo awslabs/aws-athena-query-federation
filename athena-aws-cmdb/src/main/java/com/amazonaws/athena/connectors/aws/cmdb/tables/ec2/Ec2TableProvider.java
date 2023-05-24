@@ -40,6 +40,7 @@ import com.amazonaws.services.ec2.model.InstanceNetworkInterface;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.StateReason;
+import com.amazonaws.services.ec2.model.Tag;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -226,6 +227,19 @@ public class Ec2TableProvider
                     .map(next -> next.getEbs().getVolumeId()).collect(Collectors.toList());
             matched &= block.offerComplexValue("ebs_volumes", row, FieldResolver.DEFAULT, ebsVolumes);
 
+            matched &= block.offerComplexValue("tags", row,
+                    (Field field, Object val) -> {
+                        if (field.getName().equals("key")) {
+                            return ((Tag) val).getKey();
+                        }
+                        else if (field.getName().equals("value")) {
+                            return ((Tag) val).getValue();
+                        }
+
+                        throw new RuntimeException("Unexpected field " + field.getName());
+                    },
+                    instance.getTags());
+
             return matched ? 1 : 0;
         });
     }
@@ -281,6 +295,12 @@ public class Ec2TableProvider
                 .addListField("security_groups", Types.MinorType.VARCHAR.getType())
                 .addListField("security_group_names", Types.MinorType.VARCHAR.getType())
                 .addListField("ebs_volumes", Types.MinorType.VARCHAR.getType())
+                .addField(FieldBuilder.newBuilder("tags", new ArrowType.List())
+                        .addField(FieldBuilder.newBuilder("tag", Types.MinorType.STRUCT.getType())
+                                        .addStringField("key")
+                                        .addStringField("value")
+                                        .build())
+                        .build())
                 .addMetadata("instance_id", "EC2 Instance id.")
                 .addMetadata("image_id", "The id of the AMI used to boot the instance.")
                 .addMetadata("instance_type", "The EC2 instance type,")
@@ -308,6 +328,7 @@ public class Ec2TableProvider
                 .addMetadata("security_groups", "The list of security group (ids) attached to this instance.")
                 .addMetadata("security_group_names", "The list of security group (names) attached to this instance.")
                 .addMetadata("ebs_volumes", "The list of ebs volume (ids) attached to this instance.")
+                .addMetadata("tags", "Tags associated with the instance.")
                 .build();
     }
 }
