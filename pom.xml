@@ -25,7 +25,7 @@
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.7.3</jqwik.version>
         <assertj.version>3.24.2</assertj.version>
-        <testng.version>7.7.1</testng.version>
+        <testng.version>7.8.0</testng.version>
         <fasterxml.jackson.version>2.15.1</fasterxml.jackson.version>
         <surefire.failsafe.version>3.1.0</surefire.failsafe.version>
         <log4j2Version>2.20.0</log4j2Version>
