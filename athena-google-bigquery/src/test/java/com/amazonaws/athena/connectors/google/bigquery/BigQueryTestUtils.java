@@ -62,7 +62,6 @@ public class BigQueryTestUtils
         for (int i = 0; i < numDatasets; i++) {
             Dataset dataset1 = mock(Dataset.class);
             when(dataset1.getDatasetId()).thenReturn(DatasetId.of(projectName, "dataset" + i));
-            when(dataset1.getFriendlyName()).thenReturn("dataset" + i);
             datasetList.add(dataset1);
         }
         return datasetList;

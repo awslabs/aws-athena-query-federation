@@ -24,19 +24,13 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.testng.Assert;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(JDBCUtil.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*"})
+@RunWith(MockitoJUnitRunner.class)
 public class HiveCompositeHandlerTest
 {
-
     @BeforeClass
     public static void dataSetUP() {
         System.setProperty("aws.region", "us-west-2");
@@ -47,9 +41,9 @@ public class HiveCompositeHandlerTest
         try {
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", HiveConstants.HIVE_NAME,
                 "hdphive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}","testSecret");
-        PowerMockito.mockStatic(JDBCUtil.class);
-        JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(HiveConstants.HIVE_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
+        Mockito.mockStatic(JDBCUtil.class);
+        JDBCUtil tested = Mockito.mock(JDBCUtil.class);
+        Mockito.when(tested.getSingleDatabaseConfigFromEnv(HiveConstants.HIVE_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
         new HiveCompositeHandler();
         }catch(Exception e) {
             ex =e;

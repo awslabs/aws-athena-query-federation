@@ -46,19 +46,19 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
 import java.io.ByteArrayInputStream;
-import java.io.FileOutputStream;
+
 import java.io.FileWriter;
 import java.util.*;
 
@@ -68,12 +68,7 @@ import static java.util.Arrays.asList;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*","javax.crypto.*"})
-@PrepareForTest({AWSGlueClientBuilder.class, AWSSecretsManagerClientBuilder.class,
-        AWSStaticCredentialsProvider.class, DefaultAWSCredentialsProviderChain.class, AmazonS3ClientBuilder.class,
-        ListObjectsRequest.class, FileOutputStream.class, Properties.class})
+@RunWith(MockitoJUnitRunner.class)
 public class KafkaUtilsTest {
     @Mock
     FileWriter fileWriter;
@@ -108,8 +103,6 @@ public class KafkaUtilsTest {
     @Mock
     ObjectListing oList;
 
-    @Mock
-    AWSGlue awsGlue;
 
     final java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
         "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-Kafka",
@@ -118,19 +111,20 @@ public class KafkaUtilsTest {
         "certificates_s3_reference", "s3://kafka-connector-test-bucket/kafkafiles/",
         "secrets_manager_secret", "Kafka_afq");
 
+    private MockedConstruction<ObjectMapper> mockedObjectMapper;
+    private MockedConstruction<DefaultAWSCredentialsProviderChain> mockedDefaultCredentials;
+    private MockedStatic<AmazonS3ClientBuilder> mockedS3ClientBuilder;
+    private MockedStatic<AWSSecretsManagerClientBuilder> mockedSecretsManagerClient;
+
 
     @Before
     public void init() throws Exception {
         System.setProperty("aws.region", "us-west-2");
         System.setProperty("aws.accessKeyId", "xxyyyioyuu");
         System.setProperty("aws.secretKey", "vamsajdsjkl");
-        PowerMockito.whenNew(ObjectMapper.class).withNoArguments().thenReturn(objectMapper);
-        String json = "{}";
-        Mockito.when(objectMapper.writeValueAsString(nullable(Map.class))).thenReturn(json);
-        PowerMockito.whenNew(FileWriter.class).withAnyArguments().thenReturn(fileWriter);
-        PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-        PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(awsSecretsManager);
-        PowerMockito.whenNew(GetSecretValueRequest.class).withNoArguments().thenReturn(secretValueRequest);
+
+        mockedSecretsManagerClient = Mockito.mockStatic(AWSSecretsManagerClientBuilder.class);
+        mockedSecretsManagerClient.when(()-> AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(awsSecretsManager);
 
         String creds = "{\"username\":\"admin\",\"password\":\"test\",\"keystore_password\":\"keypass\",\"truststore_password\":\"trustpass\",\"ssl_key_password\":\"sslpass\"}";
 
@@ -144,13 +138,17 @@ public class KafkaUtilsTest {
         Mockito.when(secretValueResult.getSecretString()).thenReturn(creds);
         Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResult);
 
-        Mockito.doReturn(map).when(objectMapper).readValue(Mockito.eq(creds), nullable(TypeReference.class));
-        PowerMockito.whenNew(DefaultAWSCredentialsProviderChain.class).withNoArguments().thenReturn(chain);
-        Mockito.when(chain.getCredentials()).thenReturn(credentials);
+        mockedObjectMapper = Mockito.mockConstruction(ObjectMapper.class,
+                (mock, context) -> {
+                    Mockito.doReturn(map).when(mock).readValue(Mockito.eq(creds), nullable(TypeReference.class));
+                });
+        mockedDefaultCredentials = Mockito.mockConstruction(DefaultAWSCredentialsProviderChain.class,
+                (mock, context) -> {
+                    Mockito.when(mock.getCredentials()).thenReturn(credentials);
+                });
+        mockedS3ClientBuilder = Mockito.mockStatic(AmazonS3ClientBuilder.class);
+        mockedS3ClientBuilder.when(()-> AmazonS3ClientBuilder.standard()).thenReturn(clientBuilder);
 
-        PowerMockito.mockStatic(AmazonS3ClientBuilder.class);
-        PowerMockito.when(AmazonS3ClientBuilder.standard()).thenReturn(clientBuilder);
-        PowerMockito.whenNew(AWSStaticCredentialsProvider.class).withArguments(credentials).thenReturn(credentialsProvider);
         Mockito.doReturn(clientBuilder).when(clientBuilder).withCredentials(any());
         Mockito.when(clientBuilder.build()).thenReturn(amazonS3Client);
         Mockito.when(amazonS3Client.listObjects(any(), any())).thenReturn(oList);
@@ -161,7 +159,13 @@ public class KafkaUtilsTest {
         s3.setKey("test/key");
         Mockito.when(oList.getObjectSummaries()).thenReturn(com.google.common.collect.ImmutableList.of(s3));
     }
-
+    @After
+    public void tearDown() {
+        mockedObjectMapper.close();
+        mockedDefaultCredentials.close();
+        mockedS3ClientBuilder.close();
+        mockedSecretsManagerClient.close();
+    }
     @Test
     public void testGetScramAuthKafkaProperties() throws Exception {
         java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);

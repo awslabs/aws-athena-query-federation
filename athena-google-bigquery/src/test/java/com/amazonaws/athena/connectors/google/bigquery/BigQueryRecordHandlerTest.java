@@ -33,49 +33,31 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.*;
-import com.google.common.io.ByteStreams;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.util.*;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
-})
-@PrepareForTest({BigQueryUtils.class})
+@RunWith(MockitoJUnitRunner.class)
 public class BigQueryRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandlerTest.class);
@@ -112,19 +94,18 @@ public class BigQueryRecordHandlerTest
             .build();
     private FederatedIdentity federatedIdentity;
 
+    private MockedStatic<BigQueryUtils> mockedStatic;
+
     @Before
     public void init() throws java.io.IOException
     {
         System.setProperty("aws.region", "us-east-1");
         logger.info("Starting init.");
-        PowerMockito.stub(PowerMockito.method(BigQueryUtils.class, "getBigQueryClient")).toReturn(bigQuery);
+        mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
+        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
-        //MockitoAnnotations.initMocks(this);
-
         allocator = new BlockAllocatorImpl();
         amazonS3 = mock(AmazonS3.class);
-
-        mockS3Client();
 
         //Create Spill config
         spillConfig = SpillConfig.newBuilder()
@@ -155,6 +136,11 @@ public class BigQueryRecordHandlerTest
         logger.info("Completed init.");
     }
 
+    @After
+    public void close(){
+        mockedStatic.close();
+    }
+
     @Test
     public void testReadWithConstraint()
             throws Exception
@@ -178,11 +164,6 @@ public class BigQueryRecordHandlerTest
                 0)) {   //This is ignored when directly calling readWithConstraints.
             //Always return try for the evaluator to keep all rows.
             ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-            when(evaluator.apply(nullable(String.class), any())).thenAnswer(
-                    (InvocationOnMock invocationOnMock) -> {
-                        return true;
-                    }
-            );
 
             //Populate the schema and data that the mocked Google BigQuery client will return.
             com.google.cloud.bigquery.Schema tableSchema = BigQueryTestUtils.getTestSchema();
@@ -244,13 +225,6 @@ public class BigQueryRecordHandlerTest
                 new Constraints(Collections.EMPTY_MAP),
                 0,          //This is ignored when directly calling readWithConstraints.
                 0)) {   //This is ignored when directly calling readWithConstraints.
-            //Always return try for the evaluator to keep all rows.
-            ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-            when(evaluator.apply(nullable(String.class), any())).thenAnswer(
-                    (InvocationOnMock invocationOnMock) -> {
-                        return true;
-                    }
-            );
 
             // added schema with columns datecol, datetimecol, timestampcol
             List<com.google.cloud.bigquery.Field> testSchemaFields = Arrays.asList(com.google.cloud.bigquery.Field.of("datecol", LegacySQLTypeName.DATE),
@@ -276,34 +250,10 @@ public class BigQueryRecordHandlerTest
 
             QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
             when(queryStatusChecker.isQueryRunning()).thenReturn(true);
-
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
 
         }
-    }
-    //Mocks the S3 client by storing any putObjects() and returning the object when getObject() is called.
-    private void mockS3Client()
-    {
-        when(amazonS3.putObject(any()))
-                .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
-                    ByteHolder byteHolder = new ByteHolder();
-                    byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
-                    mockS3Storage.add(byteHolder);
-                    return mock(PutObjectResult.class);
-                });
-
-        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
-                .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    S3Object mockObject = mock(S3Object.class);
-                    ByteHolder byteHolder = mockS3Storage.get(0);
-                    mockS3Storage.remove(0);
-                    when(mockObject.getObjectContent()).thenReturn(
-                            new S3ObjectInputStream(
-                                    new ByteArrayInputStream(byteHolder.getBytes()), null));
-                    return mockObject;
-                });
     }
 
     private class ByteHolder

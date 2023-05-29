@@ -24,16 +24,10 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.testng.Assert;
-
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(JDBCUtil.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*"})
+import org.mockito.Mockito;
+@RunWith(MockitoJUnitRunner.class)
 public class ImpalaCompositeHandlerTest
 {
     @BeforeClass
@@ -46,9 +40,10 @@ public class ImpalaCompositeHandlerTest
         try {
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", ImpalaConstants.IMPALA_NAME,
                 "impala://jdbc:impala://54.89.6.2:10000/authena;AuthMech=3;${testSecret}","testSecret");
-        PowerMockito.mockStatic(JDBCUtil.class);
-        JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(ImpalaConstants.IMPALA_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
+        Mockito.mockStatic(JDBCUtil.class);
+        JDBCUtil tested = Mockito.mock(JDBCUtil.class);
+
+        Mockito.when(tested.getSingleDatabaseConfigFromEnv(ImpalaConstants.IMPALA_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
         new ImpalaCompositeHandler();
         }catch(Exception e) {
             ex =e;

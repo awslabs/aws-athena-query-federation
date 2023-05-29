@@ -28,7 +28,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -54,9 +53,9 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
-import com.google.cloud.PageImpl;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -67,18 +66,17 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -91,22 +89,21 @@ import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GL
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
 import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.allocator;
 import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.createColumn;
-import static com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilderTest.createSummaryWithLValueRangeEqual;
+import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.createSummaryWithLValueRangeEqual;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.nullable;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*", "javax.security.*"})
-@PrepareForTest({StorageOptions.class, GoogleCredentials.class, AWSSecretsManagerClientBuilder.class, ServiceAccountCredentials.class, AWSGlueClientBuilder.class, GlueMetadataHandler.class})
+
+@RunWith(MockitoJUnitRunner.class)
 public class GcsMetadataHandlerTest
 {
     public static final String PARQUET = "parquet";
@@ -123,7 +120,7 @@ public class GcsMetadataHandlerTest
     private static final String SCHEMA_NAME = "default";
     private static final TableName TABLE_NAME = new TableName("default", "testtable");
     @Mock
-    protected PageImpl<Blob> tables;
+    protected Page<Blob> tables;
     @Mock
     GoogleCredentials credentials;
     private GcsMetadataHandler gcsMetadataHandler;
@@ -138,40 +135,57 @@ public class GcsMetadataHandlerTest
     @Mock
     private AmazonAthena athena;
 
+    private MockedStatic<StorageOptions> mockedStorageOptions;
+    private MockedStatic<ServiceAccountCredentials> mockedServiceAccountCredentials;
+    private MockedStatic<GoogleCredentials> mockedServiceGoogleCredentials;
+    private MockedStatic<AWSSecretsManagerClientBuilder> mockedAWSSecretsManagerClientBuilder;
+    private MockedStatic<AWSGlueClientBuilder> mockedAWSGlueClientBuilder;
+
     @Before
     public void setUp() throws Exception
     {
+
+        mockedStorageOptions = mockStatic(StorageOptions.class);
+        mockedServiceAccountCredentials = mockStatic(ServiceAccountCredentials.class);
+        mockedServiceGoogleCredentials = mockStatic(GoogleCredentials.class);
+        mockedAWSSecretsManagerClientBuilder = mockStatic(AWSSecretsManagerClientBuilder.class);
+        mockedAWSGlueClientBuilder = mockStatic(AWSGlueClientBuilder.class);
+
         Storage storage = mock(Storage.class);
         Blob blob = mock(Blob.class);
         Blob blob1 = mock(Blob.class);
-        mockStatic(StorageOptions.class);
         StorageOptions.Builder optionBuilder = mock(StorageOptions.Builder.class);
-        PowerMockito.when(StorageOptions.newBuilder()).thenReturn(optionBuilder);
+        Mockito.when(StorageOptions.newBuilder()).thenReturn(optionBuilder);
         StorageOptions mockedOptions = mock(StorageOptions.class);
-        PowerMockito.when(optionBuilder.setCredentials(ArgumentMatchers.any())).thenReturn(optionBuilder);
-        PowerMockito.when(optionBuilder.build()).thenReturn(mockedOptions);
-        PowerMockito.when(mockedOptions.getService()).thenReturn(storage);
-        PowerMockito.when(storage.list(anyString(), Mockito.any())).thenReturn(tables);
-        PowerMockito.when(tables.iterateAll()).thenReturn(com.google.common.collect.ImmutableList.of(blob, blob1));
-        PowerMockito.when(blob.getName()).thenReturn("data.parquet");
-        PowerMockito.when(blob.getSize()).thenReturn(10L);
-        PowerMockito.when(blob1.getName()).thenReturn("birthday/year=2000/birth_month09/12/");
-        mockStatic(ServiceAccountCredentials.class);
-        PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
+        Mockito.when(optionBuilder.setCredentials(ArgumentMatchers.any())).thenReturn(optionBuilder);
+        Mockito.when(optionBuilder.build()).thenReturn(mockedOptions);
+        Mockito.when(mockedOptions.getService()).thenReturn(storage);
+        Mockito.when(storage.list(anyString(), Mockito.any())).thenReturn(tables);
+        Mockito.when(tables.iterateAll()).thenReturn(ImmutableList.of(blob, blob1));
+        Mockito.when(blob.getName()).thenReturn("data.parquet");
+        Mockito.when(blob.getSize()).thenReturn(10L);
+        Mockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
         MockitoAnnotations.initMocks(this);
-        mockStatic(GoogleCredentials.class);
-        PowerMockito.when(GoogleCredentials.fromStream(Mockito.any())).thenReturn(credentials);
-        PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
+        Mockito.when(GoogleCredentials.fromStream(Mockito.any())).thenReturn(credentials);
+        Mockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
 
-        mockStatic(AWSSecretsManagerClientBuilder.class);
-        PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(com.google.common.collect.ImmutableList.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
+        Mockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
+        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(ImmutableList.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
         Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
-        mockStatic(AWSGlueClientBuilder.class);
-        PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", awsGlue, allocator, com.google.common.collect.ImmutableMap.of());
+        Mockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
+        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", awsGlue, allocator, ImmutableMap.of());
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
+    }
+
+    @After
+    public void tearDown()
+    {
+        mockedStorageOptions.close();
+        mockedServiceAccountCredentials.close();
+        mockedServiceGoogleCredentials.close();
+        mockedAWSSecretsManagerClientBuilder.close();
+        mockedAWSGlueClientBuilder.close();
     }
 
     @Test
@@ -182,7 +196,7 @@ public class GcsMetadataHandlerTest
                 new Database().withName(DATABASE_NAME1).withLocationUri(S3_GOOGLE_CLOUD_STORAGE_FLAG));
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity,
                 QUERY_ID, CATALOG);
-        PowerMockito.when(awsGlue.getDatabases(any())).thenReturn(result);
+        Mockito.when(awsGlue.getDatabases(any())).thenReturn(result);
         ListSchemasResponse schemaNamesResponse = gcsMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
         List<String> expectedSchemaNames = new ArrayList<>();
         expectedSchemaNames.add(DATABASE_NAME);
@@ -194,7 +208,6 @@ public class GcsMetadataHandlerTest
     public void testDoListSchemaNamesThrowsException() throws Exception
     {
         ListSchemasRequest listSchemasRequest = mock(ListSchemasRequest.class);
-        when(listSchemasRequest.getCatalogName()).thenThrow(new RuntimeException("RuntimeException() "));
         ListSchemasResponse listSchemasResponse = gcsMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
         assertNull(listSchemasResponse);
     }
@@ -214,7 +227,7 @@ public class GcsMetadataHandlerTest
                         .withLocation(LOCATION)
                         .withParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET))));
         getTablesResult.setTableList(tableList);
-        PowerMockito.when(awsGlue.getTables(any())).thenReturn(getTablesResult);
+        Mockito.when(awsGlue.getTables(any())).thenReturn(getTablesResult);
         ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, TEST_TOKEN, 50);
         ListTablesResponse tableNamesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
         assertEquals(2, tableNamesResponse.getTables().size());
@@ -245,16 +258,16 @@ public class GcsMetadataHandlerTest
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation(LOCATION).withColumns(new Column().withName("name").withType("String")));
         table.setCatalogId(CATALOG);
-        List<Column> columns = com.google.common.collect.ImmutableList.of(
+        List<Column> columns = ImmutableList.of(
                 createColumn("name", "String")
         );
         table.setPartitionKeys(columns);
         GetTableResult getTableResult = new GetTableResult();
         getTableResult.setTable(table);
-        PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
+        Mockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         StorageMetadata storageMetadata = mock(StorageMetadata.class);
-        Whitebox.setInternalState(gcsMetadataHandler, storageMetadata, storageMetadata);
-        PowerMockito.when(storageMetadata.buildTableSchema(any(), any())).thenReturn(schema);
+        FieldUtils.writeField(gcsMetadataHandler, "datasource", storageMetadata, true);
+        Mockito.when(storageMetadata.buildTableSchema(any(), any())).thenReturn(schema);
         GetTableResponse res = gcsMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         Field expectedField = res.getSchema().findField("name");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(expectedField.getType()));
@@ -276,7 +289,7 @@ public class GcsMetadataHandlerTest
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation(LOCATION).withColumns(new Column()));
         table.setCatalogId(CATALOG);
-        List<Column> columns = com.google.common.collect.ImmutableList.of(
+        List<Column> columns = ImmutableList.of(
                 createColumn("year", "varchar"),
                 createColumn("month", "varchar"),
                 createColumn("day", "varchar")
@@ -284,10 +297,9 @@ public class GcsMetadataHandlerTest
         table.setPartitionKeys(columns);
         GetTableResult getTableResult = new GetTableResult();
         getTableResult.setTable(table);
-        PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
+        Mockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName(DATABASE_NAME, TABLE_1));
-        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn(CATALOG_NAME);
         Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
         Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), 2000));
         Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(constraints);
@@ -302,21 +314,20 @@ public class GcsMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.VARCHAR.getType(), 2000, 2001);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, com.google.common.collect.ImmutableList.of("year"), new Constraints(new HashMap<>()), null);
+                partitions, ImmutableList.of("year"), new Constraints(new HashMap<>()), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
         when(storageDescriptor.getLocation()).thenReturn(LOCATION);
         Table table = mock(Table.class);
         when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
-        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${year}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
+        when(table.getParameters()).thenReturn(ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${year}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
         when(awsGlue.getTable(any())).thenReturn(getTableResult);
         when(getTableResult.getTable()).thenReturn(table);
-        List<Column> columns = com.google.common.collect.ImmutableList.of(
+        List<Column> columns = ImmutableList.of(
                 createColumn("year", "varchar")
         );
-        when(table.getPartitionKeys()).thenReturn(columns);
+
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
         assertEquals(2, response.getSplits().size());
         assertEquals(ImmutableList.of("2000", "2001"), response.getSplits().stream().map(split -> split.getProperties().get("year")).sorted().collect(Collectors.toList()));
@@ -340,22 +351,20 @@ public class GcsMetadataHandlerTest
         partitions.setRowCount(num_partitions);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, com.google.common.collect.ImmutableList.of("yearCol", "monthCol"), new Constraints(new HashMap<>()), null);
+                partitions, ImmutableList.of("yearCol", "monthCol"), new Constraints(new HashMap<>()), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
         when(storageDescriptor.getLocation()).thenReturn(LOCATION);
         Table table = mock(Table.class);
         when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
-        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${yearCol}/month${monthCol}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
+        when(table.getParameters()).thenReturn(ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${yearCol}/month${monthCol}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
         when(awsGlue.getTable(any())).thenReturn(getTableResult);
         when(getTableResult.getTable()).thenReturn(table);
-        List<Column> columns = com.google.common.collect.ImmutableList.of(
+        List<Column> columns = ImmutableList.of(
                 createColumn("yearCol", "varchar"),
                 createColumn("monthCol", "varchar")
         );
-        when(table.getPartitionKeys()).thenReturn(columns);
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
         assertEquals(4, response.getSplits().size());
         assertEquals(ImmutableList.of("2016", "2017", "2018", "2019"), response.getSplits().stream().map(split -> split.getProperties().get("yearCol")).sorted().collect(Collectors.toList()));
@@ -368,21 +377,19 @@ public class GcsMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(blockAllocator, "gcs_file_format", Types.MinorType.VARCHAR.getType(), 2000, 2001);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, com.google.common.collect.ImmutableList.of("gcs_file_format"), new Constraints(new HashMap<>()), null);
+                partitions, ImmutableList.of("gcs_file_format"), new Constraints(new HashMap<>()), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
         when(storageDescriptor.getLocation()).thenReturn(LOCATION);
         Table table = mock(Table.class);
         when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
-        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${gcs_file_format}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
+        when(table.getParameters()).thenReturn(ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${gcs_file_format}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
         when(awsGlue.getTable(any())).thenReturn(getTableResult);
         when(getTableResult.getTable()).thenReturn(table);
-        List<Column> columns = com.google.common.collect.ImmutableList.of(
+        List<Column> columns = ImmutableList.of(
                 createColumn("gcs_file_format", "varchar")
         );
-        when(table.getPartitionKeys()).thenReturn(columns);
         gcsMetadataHandler.doGetSplits(blockAllocator, request);
     }
 }
