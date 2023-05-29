@@ -34,6 +34,8 @@ import com.amazonaws.services.ec2.model.InstanceNetworkInterface;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.StateReason;
+import com.amazonaws.services.ec2.model.Tag;
+
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -194,7 +196,8 @@ public class Ec2TableProviderTest
                 .withLaunchTime(new Date(100_000))
                 .withState(new InstanceState().withCode(100).withName("name"))
                 .withStateReason(new StateReason().withCode("code").withMessage("message"))
-                .withEbsOptimized(true);
+                .withEbsOptimized(true)
+                .withTags(new Tag("key","value"));
 
         List<InstanceNetworkInterface> interfaces = new ArrayList<>();
         interfaces.add(new InstanceNetworkInterface()
