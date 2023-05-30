@@ -41,6 +41,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
@@ -53,7 +54,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -126,9 +126,9 @@ public class StorageMetadataTest extends GenericGcsTest
         mockedGoogleCredentials.close();
     }
 
-    private void storageMock()
+    private void storageMock() throws Exception
     {
-        GenericGcsTest.setInternalState(storageMetadata, "storage", storage);
+        FieldUtils.writeField(storageMetadata, "storage", storage, true);
         Mockito.when(storage.list(any(), any())).thenReturn(blobPage);
         blobList = ImmutableList.of(blob);
         Mockito.when(blob.getName()).thenReturn("birthday.parquet");
@@ -160,7 +160,7 @@ public class StorageMetadataTest extends GenericGcsTest
     }
 
     @Test
-    public void testGetPartitionFolders() throws URISyntaxException
+    public void testGetPartitionFolders() throws Exception
     {
         //single partition
         getStorageList(ImmutableList.of("year=2000/birthday.parquet", "year=2000/", "year=2000/birthday1.parquet"));
@@ -244,9 +244,9 @@ public class StorageMetadataTest extends GenericGcsTest
         return schema;
     }
 
-    private void getStorageList(List<String> partitionFiles)
+    private void getStorageList(List<String> partitionFiles) throws Exception
     {
-        GenericGcsTest.setInternalState(storageMetadata, "storage", storage);
+        FieldUtils.writeField(storageMetadata, "storage", storage, true);
         Mockito.when(storage.list(any(), any())).thenReturn(blobPage);
         List<Blob> bList = new ArrayList<>();
         for (String fileName : partitionFiles) {
