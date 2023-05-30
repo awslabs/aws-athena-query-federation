@@ -50,12 +50,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -212,7 +212,7 @@ public class CompositeHandlerTest
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
         SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
         doNothing().when(mockVerifier).checkBucketAuthZ(nullable(String.class));
-        Whitebox.setInternalState(mockMetadataHandler, "verifier", mockVerifier);
+        FieldUtils.writeField(mockMetadataHandler, "verifier", mockVerifier, true);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class));
     }
