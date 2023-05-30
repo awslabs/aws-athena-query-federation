@@ -45,12 +45,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,15 +59,11 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*", "javax.security.*"
-})
-@PrepareForTest({AWSSecretsManagerClientBuilder.class, AWSGlueClientBuilder.class, GlueRegistryReader.class})
+@RunWith(MockitoJUnitRunner.class)
 public class KafkaMetadataHandlerTest {
     private static final String QUERY_ID = "queryId";
     private KafkaMetadataHandler kafkaMetadataHandler;
@@ -78,6 +72,8 @@ public class KafkaMetadataHandlerTest {
     private Block partitions;
     private List<String> partitionCols;
     private Constraints constraints;
+
+    private MockedStatic<AWSGlueClientBuilder> awsGlueClientBuilder;
 
     @Mock
     AWSGlue awsGlue;
@@ -119,19 +115,21 @@ public class KafkaMetadataHandlerTest {
         consumer.updateEndOffsets(partitionsEnd);
         consumer.updatePartitions("testTopic", partitionInfoList);
 
+        awsGlueClientBuilder = Mockito.mockStatic(AWSGlueClientBuilder.class);
+        awsGlueClientBuilder.when(()-> AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
+
         kafkaMetadataHandler = new KafkaMetadataHandler(consumer, configOptions);
     }
 
     @After
     public void tearDown() {
         blockAllocator.close();
+        awsGlueClientBuilder.close();
     }
 
     @Test
     public void testDoListSchemaNames() {
-        PowerMockito.mockStatic(AWSGlueClientBuilder.class);
-        PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        PowerMockito.when(awsGlue.listRegistries(any())).thenAnswer(x -> (new ListRegistriesResult()).withRegistries(
+        Mockito.when(awsGlue.listRegistries(any())).thenAnswer(x -> (new ListRegistriesResult()).withRegistries(
           (new RegistryListItem()).withRegistryName("Asdf").withDescription("something something {AthenaFederationKafka} something"))
         );
 
@@ -172,10 +170,8 @@ public class KafkaMetadataHandlerTest {
                 "\t\t}]\n" +
                 "\t}\n" +
                 "}");
-        PowerMockito.mockStatic(AWSGlueClientBuilder.class);
-        PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        PowerMockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
-        PowerMockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
+        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
+        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "kafka", new TableName("default", "testtable"));
         GetTableResponse getTableResponse = kafkaMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         assertEquals(1, getTableResponse.getSchema().getFields().size());
@@ -204,10 +200,9 @@ public class KafkaMetadataHandlerTest {
                 "\t\t}]\n" +
                 "\t}\n" +
                 "}");
-        PowerMockito.mockStatic(AWSGlueClientBuilder.class);
-        PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        PowerMockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
-        PowerMockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
+
+        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
+        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
 
         GetSplitsRequest request = new GetSplitsRequest(
                 federatedIdentity,

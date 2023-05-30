@@ -24,18 +24,14 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
+
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(JDBCUtil.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*"})
+@RunWith(MockitoJUnitRunner.class)
 public class SnowflakeCompositeHandlerTest
 {
 
@@ -46,9 +42,9 @@ public class SnowflakeCompositeHandlerTest
         try {
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", SnowflakeConstants.SNOWFLAKE_NAME,
                 "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
-        PowerMockito.mockStatic(JDBCUtil.class);
-        JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SnowflakeConstants.SNOWFLAKE_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
+        Mockito.mockStatic(JDBCUtil.class);
+        JDBCUtil tested = Mockito.mock(JDBCUtil.class);
+        Mockito.when(tested.getSingleDatabaseConfigFromEnv(SnowflakeConstants.SNOWFLAKE_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
         snowflakeCompositeHandler = new SnowflakeCompositeHandler();
         assertEquals(snowflakeCompositeHandler.getClass(),SnowflakeCompositeHandler.class);
         }catch (Exception e){

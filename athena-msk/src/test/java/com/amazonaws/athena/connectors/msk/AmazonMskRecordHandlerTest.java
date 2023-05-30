@@ -44,32 +44,24 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.*;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*", "javax.security.*"
-})
-@PrepareForTest({AmazonMskUtils.class})
+@RunWith(MockitoJUnitRunner.class)
 public class AmazonMskRecordHandlerTest {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -102,6 +94,7 @@ public class AmazonMskRecordHandlerTest {
             .withQueryId(UUID.randomUUID().toString())
             .withIsDirectory(true)
             .build();
+    private MockedStatic<AmazonMskUtils> mockedMskUtils;
 
     @Before
     public void setUp() throws Exception {
@@ -127,7 +120,13 @@ public class AmazonMskRecordHandlerTest {
                 .withSpillLocation(s3SpillLocation)
                 .build();
         allocator = new BlockAllocatorImpl();
+        mockedMskUtils = Mockito.mockStatic(AmazonMskUtils.class, Mockito.CALLS_REAL_METHODS);
         amazonMskRecordHandler = new AmazonMskRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
+    }
+
+    @After
+    public void close(){
+        mockedMskUtils.close();
     }
 
     @Test
@@ -144,16 +143,8 @@ public class AmazonMskRecordHandlerTest {
         SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
-        PowerMockito.mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
-        ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-        when(evaluator.apply(nullable(String.class), any())).thenAnswer(
-                (InvocationOnMock invocationOnMock) -> {
-                    return true;
-                }
-        );
+        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
+        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -177,9 +168,8 @@ public class AmazonMskRecordHandlerTest {
         SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
-        PowerMockito.mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
+        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(false);
@@ -205,9 +195,8 @@ public class AmazonMskRecordHandlerTest {
         SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
-        PowerMockito.mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
+        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         amazonMskRecordHandler.readWithConstraint(null, request, null);
@@ -229,9 +218,8 @@ public class AmazonMskRecordHandlerTest {
         SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
-        PowerMockito.mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
+        mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
