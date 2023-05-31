@@ -39,7 +39,7 @@
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
-        <mvn.checkstyle.version>3.2.2</mvn.checkstyle.version>
+        <mvn.checkstyle.version>3.3.0</mvn.checkstyle.version>
         <mvn.shade.plugin.version>3.4.1</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.3.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.5.0</mvn.javadoc.plugin.version>
