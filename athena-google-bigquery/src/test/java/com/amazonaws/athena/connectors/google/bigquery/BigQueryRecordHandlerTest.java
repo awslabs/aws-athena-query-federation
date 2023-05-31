@@ -74,6 +74,9 @@ import java.util.UUID;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -263,6 +266,56 @@ public class BigQueryRecordHandlerTest
             FieldValueList firstRow = FieldValueList.of(firstRowValues,FieldList.of(testSchemaFields));
             List<FieldValueList> tableRows = Arrays.asList(firstRow);
 
+            Page<FieldValueList> fieldValueList = new BigQueryPage<>(tableRows);
+            TableResult result = new TableResult(tableSchema, tableRows.size(), fieldValueList);
+
+            //Mock out the Google BigQuery Job.
+            Job mockBigQueryJob = mock(Job.class);
+            when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
+            when(mockBigQueryJob.getQueryResults()).thenReturn(result);
+            when(bigQuery.create(nullable(JobInfo.class))).thenReturn(mockBigQueryJob);
+
+            QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+            when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+            //Execute the test
+            bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
+
+        }
+    }
+
+    @Test
+    public void testReadComplexTypes()
+            throws Exception
+    {
+        try (ReadRecordsRequest request = new ReadRecordsRequest(
+                federatedIdentity,
+                BigQueryTestUtils.PROJECT_1_NAME,
+                "queryId",
+                new TableName("dataset1", "table1"),
+                BigQueryTestUtils.getComplexTypeTestSchema(),
+                Split.newBuilder(S3SpillLocation.newBuilder()
+                                .withBucket(bucket)
+                                .withPrefix(prefix)
+                                .withSplitId(UUID.randomUUID().toString())
+                                .withQueryId(UUID.randomUUID().toString())
+                                .withIsDirectory(true)
+                                .build(),
+                        keyFactory.create()).build(),
+                new Constraints(Collections.EMPTY_MAP),
+                0,          //This is ignored when directly calling readWithConstraints.
+                0)) {   //This is ignored when directly calling readWithConstraints.
+            //Always return try for the evaluator to keep all rows.
+
+            //Populate the schema and data that the mocked Google BigQuery client will return.
+            com.google.cloud.bigquery.Schema tableSchema = BigQueryTestUtils.getComplextTypeTestSchema();
+            List<FieldValueList> tableRows = Arrays.asList(
+                    BigQueryTestUtils.getBigQueryComplexTypeFieldValueList(ImmutableList.of(1, 2, 3), 1),
+                    BigQueryTestUtils.getBigQueryComplexTypeFieldValueList(ImmutableList.of(10, 20, 30), 2),
+                    BigQueryTestUtils.getBigQueryComplexTypeFieldValueList(ImmutableList.of(100, 200, 300), 3),
+                    BigQueryTestUtils.getBigQueryComplexTypeFieldValueList(ImmutableList.of(1000, 2000, 3000), 4),
+                    BigQueryTestUtils.getBigQueryComplexTypeFieldValueList(ImmutableList.of(10000, 20000, 30000), 5),
+                    BigQueryTestUtils.getBigQueryComplexTypeFieldValueList(ImmutableList.of(100000, 200000, 300000), 6)
+            );
             Page<FieldValueList> fieldValueList = new BigQueryPage<>(tableRows);
             TableResult result = new TableResult(tableSchema, tableRows.size(), fieldValueList);
 
