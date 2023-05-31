@@ -29,37 +29,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.testng.annotations.BeforeMethod;
 
 import java.io.IOException;
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.nullable;
 
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*"})
-@PrepareForTest({BigQueryUtils.class, AWSSecretsManagerClientBuilder.class, ServiceAccountCredentials.class, BigQueryOptions.class, BigQueryOptions.Builder.class})
+@RunWith(MockitoJUnitRunner.class)
 public class BigQueryCompositeHandlerTest {
     private BigQueryCompositeHandler bigQueryCompositeHandler;
-    @Mock
-    BigQuery bigQuery;
     @Mock
     private AWSSecretsManager secretsManager;
     @Mock
     private ServiceAccountCredentials serviceAccountCredentials;
-    @Mock
-    private BigQueryOptions bigQueryOptions;
-    @Mock
-    private BigQueryOptions.Builder builder;
 
     @BeforeMethod
     public void setUp() {
@@ -73,8 +60,8 @@ public class BigQueryCompositeHandlerTest {
     @Test
     public void bigQueryCompositeHandlerTest() throws IOException {
         Exception ex = null;
-        PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-        PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
+        Mockito.mockStatic(AWSSecretsManagerClientBuilder.class);
+        Mockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
         GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(Arrays.asList("v1")).withSecretString("{\n" +
                 "  \"type\": \"service_account\",\n" +
                 "  \"project_id\": \"mockProjectId\",\n" +
@@ -83,17 +70,9 @@ public class BigQueryCompositeHandlerTest {
                 "  \"client_email\": \"mockabc@mockprojectid.iam.gserviceaccount.com\",\n" +
                 "  \"client_id\": \"000000000000000000000\"\n" +
                 "}");
-        Mockito.when(secretsManager.getSecretValue(any())).thenReturn(getSecretValueResult);
-        PowerMockito.mockStatic(ServiceAccountCredentials.class);
-        PowerMockito.when(ServiceAccountCredentials.fromStream(any())).thenReturn(serviceAccountCredentials);
-
-        PowerMockito.mockStatic(System.class);
-        PowerMockito.when(System.getenv(nullable(String.class))).thenReturn("test");
-
-        PowerMockito.mockStatic(BigQueryOptions.Builder.class);
-        PowerMockito.when(builder.build()).thenReturn(bigQueryOptions);
-        PowerMockito.when(bigQueryOptions.getService()).thenReturn(bigQuery);
-
+        Mockito.mockStatic(ServiceAccountCredentials.class);
+        Mockito.when(ServiceAccountCredentials.fromStream(any())).thenReturn(serviceAccountCredentials);
         bigQueryCompositeHandler = new BigQueryCompositeHandler();
+        assertTrue(bigQueryCompositeHandler instanceof BigQueryCompositeHandler);
     }
 }

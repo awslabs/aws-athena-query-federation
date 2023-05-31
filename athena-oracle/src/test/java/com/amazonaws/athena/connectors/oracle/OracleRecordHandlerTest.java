@@ -63,6 +63,8 @@ public class OracleRecordHandlerTest
     private AmazonAthena athena;
 
     private static final String ORACLE_QUOTE_CHARACTER = "\"";
+
+
     @Before
     public void setup()
             throws Exception

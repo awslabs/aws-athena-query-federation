@@ -39,6 +39,8 @@ import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +53,13 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
 public class BigQueryUtils
 {
@@ -130,8 +138,9 @@ public class BigQueryUtils
                 " could not be found in Project " + projectName + " in GCP. ");
     }
 
-    static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, ArrowType arrowType, boolean isTimeStampCol) throws ParseException
+    static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, Field field, boolean isTimeStampCol) throws ParseException
     {
+        ArrowType arrowType = field.getFieldType().getType();
         if (fieldValue.isNull() || fieldValue.getValue().equals("null")) {
             return null;
         }
@@ -193,6 +202,9 @@ public class BigQueryUtils
                 else {
                     return fieldValue.getStringValue();
                 }
+            case STRUCT:
+            case LIST:
+                return getComplexObjectFromFieldValue(field, fieldValue, isTimeStampCol);
             default:
                 throw new IllegalArgumentException("Unknown type has been encountered: Field Name: " + fieldName +
                         " Field Type: " + arrowType.toString() + " MinorType: " + Types.getMinorTypeForArrowType(arrowType));
@@ -231,6 +243,52 @@ public class BigQueryUtils
             /** Represents a set of geographic points, represented as a Well Known Text (WKT) string. */
             default:
                 return new ArrowType.Utf8();
+        }
+    }
+
+    public static List<Field> getChildFieldList(com.google.cloud.bigquery.Field field)
+    {
+        List<Field> fieldList = new ArrayList<>();
+        if (null != field.getSubFields()) {
+            for (com.google.cloud.bigquery.Field subField : field.getSubFields()) {
+                if (null != subField.getMode() && subField.getMode().name().equals("REPEATED")) {
+                    fieldList.add(new Field(subField.getName(), FieldType.nullable(Types.MinorType.LIST.getType()), getChildFieldList(subField)));
+                }
+                else if (subField.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
+                    fieldList.add(new Field(subField.getName(), FieldType.nullable(Types.MinorType.STRUCT.getType()), getChildFieldList(subField)));
+                }
+                else {
+                    fieldList.add(Field.nullable(subField.getName(), translateToArrowType(subField.getType())));
+                }
+            }
+        }
+        else {
+             fieldList.add(Field.nullable(field.getName(), translateToArrowType(field.getType())));
+        }
+       return  fieldList;
+    }
+
+    public static Object getComplexObjectFromFieldValue(Field field, FieldValue fieldValue, boolean isTimeStampCol) throws ParseException
+    {
+        Types.MinorType minorTypeForArrowType = getMinorTypeForArrowType(field.getFieldType().getType());
+        if (minorTypeForArrowType.equals(Types.MinorType.LIST)) {
+            List<Object> valList = new ArrayList();
+            for (FieldValue fieldVal : fieldValue.getRepeatedValue()) {
+                valList.add(getObjectFromFieldValue(field.toString(), fieldVal, field.getChildren().get(0), isTimeStampCol));
+            }
+            return valList;
+        }
+        else if (minorTypeForArrowType.equals(Types.MinorType.STRUCT)) {
+            Map<Object, Object> valMap = new HashMap();
+            Object[] fieldValues =  fieldValue.getRecordValue().toArray();
+            for (int i = 0; i < fieldValues.length; i++) {
+                valMap.put(field.getChildren().get(i).getName(), getObjectFromFieldValue(field.toString(), fieldValue.getRecordValue().get(i), field.getChildren().get(i), isTimeStampCol));
+            }
+            return valMap;
+        }
+        else {
+            throw new IllegalArgumentException("Unknown type has been encountered: Field Name: " + field.toString() +
+                    " Field Type: " + field.getFieldType().getType().toString() + " MinorType: " + minorTypeForArrowType);
         }
     }
 }

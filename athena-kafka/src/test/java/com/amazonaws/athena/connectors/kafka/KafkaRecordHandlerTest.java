@@ -44,32 +44,28 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
+
 import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.nullable;
+
 import static org.mockito.Mockito.*;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*", "javax.security.*"
-})
-@PrepareForTest({KafkaUtils.class})
+@RunWith(MockitoJUnitRunner.class)
 public class KafkaRecordHandlerTest {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -102,6 +98,7 @@ public class KafkaRecordHandlerTest {
             .withQueryId(UUID.randomUUID().toString())
             .withIsDirectory(true)
             .build();
+    private MockedStatic<KafkaUtils> mockedKafkaUtils;
 
     @Before
     public void setUp() throws Exception {
@@ -127,7 +124,13 @@ public class KafkaRecordHandlerTest {
                 .withSpillLocation(s3SpillLocation)
                 .build();
         allocator = new BlockAllocatorImpl();
+        mockedKafkaUtils = Mockito.mockStatic(KafkaUtils.class, Mockito.CALLS_REAL_METHODS);
         kafkaRecordHandler = new KafkaRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
+    }
+
+    @After
+    public void close(){
+        mockedKafkaUtils.close();
     }
 
     @Test
@@ -144,16 +147,8 @@ public class KafkaRecordHandlerTest {
         SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
-        PowerMockito.mockStatic(KafkaUtils.class);
-        PowerMockito.when(KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        PowerMockito.when(KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
-        ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-        when(evaluator.apply(nullable(String.class), any())).thenAnswer(
-                (InvocationOnMock invocationOnMock) -> {
-                    return true;
-                }
-        );
+        mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
+        mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -177,10 +172,8 @@ public class KafkaRecordHandlerTest {
         SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
-        PowerMockito.mockStatic(KafkaUtils.class);
-        PowerMockito.when(KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        PowerMockito.when(KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
+        mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
+        mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(false);
 
@@ -205,10 +198,8 @@ public class KafkaRecordHandlerTest {
         SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
-        PowerMockito.mockStatic(KafkaUtils.class);
-        PowerMockito.when(KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        PowerMockito.when(KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
+        mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
+        mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         kafkaRecordHandler.readWithConstraint(null, request, null);
     }
@@ -229,10 +220,8 @@ public class KafkaRecordHandlerTest {
         SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
-        PowerMockito.mockStatic(KafkaUtils.class);
-        PowerMockito.when(KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
-        PowerMockito.when(KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
-
+        mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
+        mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 

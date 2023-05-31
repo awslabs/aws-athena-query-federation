@@ -24,17 +24,13 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(JDBCUtil.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*"})
+
+@RunWith(MockitoJUnitRunner.class)
 public class Db2CompositeHandlerTest
 {
     private Db2CompositeHandler db2CompositeHandler;
@@ -43,13 +39,12 @@ public class Db2CompositeHandlerTest
     static {
         System.setProperty("aws.region", "us-east-1");
     }
-
     @Test
     public void Db2CompositeHandlerTest() {
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", Db2Constants.NAME,
                 "dbtwo://jdbc:db2://hostname:50001/dummydatabase:user=dummyuser;password=dummypwd");
-        PowerMockito.mockStatic(JDBCUtil.class);
-        PowerMockito.when(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
+        Mockito.mockStatic(JDBCUtil.class);
+        Mockito.when(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
         db2CompositeHandler = new Db2CompositeHandler();
         logger.info("Db2CompositeHandler: {}", db2CompositeHandler);
         Assert.assertTrue(db2CompositeHandler instanceof Db2CompositeHandler);

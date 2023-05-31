@@ -24,17 +24,12 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(JDBCUtil.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*"})
+@RunWith(MockitoJUnitRunner.class)
 public class SynapseCompositeHandlerTest {
 
     private SynapseCompositeHandler synapseCompositeHandler;
@@ -50,9 +45,9 @@ public class SynapseCompositeHandlerTest {
         try {
             DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", SynapseConstants.NAME,
                     "synapse://jdbc:sqlserver://hostname;databaseName=fakedatabase;");
-            PowerMockito.mockStatic(JDBCUtil.class);
-            JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
+            Mockito.mockStatic(JDBCUtil.class);
+            JDBCUtil tested = Mockito.mock(JDBCUtil.class);
+            Mockito.when(tested.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
             synapseCompositeHandler = new SynapseCompositeHandler();
             logger.info("synapseCompositeHandler: {}", synapseCompositeHandler);
         } catch (Exception e){

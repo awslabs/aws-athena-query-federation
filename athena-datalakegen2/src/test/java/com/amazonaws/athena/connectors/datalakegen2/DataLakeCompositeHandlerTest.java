@@ -24,17 +24,13 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(JDBCUtil.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*"})
+@RunWith(MockitoJUnitRunner.class)
 public class DataLakeCompositeHandlerTest {
 
     private DataLakeGen2CompositeHandler dataLakeGen2CompositeHandler;
@@ -50,9 +46,9 @@ public class DataLakeCompositeHandlerTest {
         try {
             DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", DataLakeGen2Constants.NAME,
                     "datalakegentwo://jdbc:sqlserver://hostname;databaseName=fakedatabase;");
-            PowerMockito.mockStatic(JDBCUtil.class);
-            JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(DataLakeGen2Constants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
+            Mockito.mockStatic(JDBCUtil.class);
+            JDBCUtil tested = Mockito.mock(JDBCUtil.class);
+            Mockito.when(tested.getSingleDatabaseConfigFromEnv(DataLakeGen2Constants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
             dataLakeGen2CompositeHandler = new DataLakeGen2CompositeHandler();
             logger.info("dataLakeGen2CompositeHandler: {}", dataLakeGen2CompositeHandler);
         } catch (Exception e){

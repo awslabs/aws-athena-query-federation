@@ -30,7 +30,9 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
+import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
@@ -49,6 +51,9 @@ public class BigQueryTestUtils
     public static final String INTEGER_FIELD_NAME_1 = "int1";
     public static final String STRING_FIELD_NAME_1 = "string1";
     public static final String FLOAT_FIELD_NAME_1 = "float1";
+    public static final String LIST_FIELD_NAME_1 = "list1";
+    public static final String STRUCT_FIELD_NAME_1 = "struct1";
+    public static final String STRUCT_INT_FIELD_NAME_1 = "struct_int_field_1";
 
     private BigQueryTestUtils() {
     }
@@ -62,7 +67,6 @@ public class BigQueryTestUtils
         for (int i = 0; i < numDatasets; i++) {
             Dataset dataset1 = mock(Dataset.class);
             when(dataset1.getDatasetId()).thenReturn(DatasetId.of(projectName, "dataset" + i));
-            when(dataset1.getFriendlyName()).thenReturn("dataset" + i);
             datasetList.add(dataset1);
         }
         return datasetList;
@@ -137,5 +141,63 @@ public class BigQueryTestUtils
     {
         return FieldValueList.of(generateBigQueryRowValue(bool, integer, string, floatVal),
                 FieldList.of(getTestSchemaFields()));
+    }
+
+    static FieldValueList getBigQueryComplexTypeFieldValueList(List<Integer> values, Integer structFieldValue)
+    {
+        return FieldValueList.of(generateBigQueryRowValueForComplexTypes(values, structFieldValue),
+                FieldList.of(getComplexTypeTestSchemaFields()));
+    }
+
+    static List<Field> getComplexTypeTestSchemaFields()
+    {
+        return ImmutableList.of(
+                Field.newBuilder(LIST_FIELD_NAME_1, LegacySQLTypeName.INTEGER)
+                        .setMode(Field.Mode.REPEATED).build(),
+                Field.newBuilder(STRUCT_FIELD_NAME_1, LegacySQLTypeName.RECORD,
+                                FieldList.of(ImmutableList.of(Field.of(STRUCT_INT_FIELD_NAME_1, LegacySQLTypeName.INTEGER))))
+                        .setMode(Field.Mode.REPEATED).build()
+        );
+    }
+
+    static Schema getComplextTypeTestSchema()
+    {
+        return Schema.of(getComplexTypeTestSchemaFields());
+    }
+
+    static org.apache.arrow.vector.types.pojo.Schema getComplexTypeTestSchema()
+    {
+        return SchemaBuilder.newBuilder()
+                .addListField(LIST_FIELD_NAME_1, Types.MinorType.INT.getType())
+                .addStructField(STRUCT_FIELD_NAME_1).addChildField(STRUCT_FIELD_NAME_1,
+                        org.apache.arrow.vector.types.pojo.Field.nullable(STRUCT_INT_FIELD_NAME_1, Types.MinorType.INT.getType()))
+                .build();
+    }
+
+    static List<FieldValue> generateBigQueryRowValueForComplexTypes(List<Integer> intList, Integer structFieldValue)
+    {
+        List<FieldValue> values = new ArrayList<>();
+        intList.forEach(i -> values.add(FieldValue.of(FieldValue.Attribute.PRIMITIVE, intList == null ? null : String.valueOf(i))));
+        return ImmutableList.of(
+                FieldValue.of(FieldValue.Attribute.REPEATED, values),
+                FieldValue.of(FieldValue.Attribute.REPEATED,
+                         FieldValueList.of(generateStructRowValue(structFieldValue), FieldList.of(getStructField())))
+        );
+    }
+
+    static List<FieldValue> generateStructRowValue(Integer integer)
+    {
+        return ImmutableList.of(
+                FieldValue.of(FieldValue.Attribute.PRIMITIVE, integer == null ? null : String.valueOf(integer))
+        );
+    }
+
+    static List<Field> getStructField()
+    {
+        return Arrays.asList(
+                Field.newBuilder(STRUCT_FIELD_NAME_1, LegacySQLTypeName.RECORD,
+                                FieldList.of(ImmutableList.of(Field.of(STRUCT_INT_FIELD_NAME_1, LegacySQLTypeName.INTEGER))))
+                        .setMode(Field.Mode.REPEATED).build()
+        );
     }
 }
