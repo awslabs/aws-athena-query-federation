@@ -497,9 +497,14 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     private Set<String> listDatabaseNames(final Connection jdbcConnection)
             throws SQLException
     {
+        /* 
+           Fix for not restricting databases to only to issqluser. 
+           All our databases is created by user dbo , but dbo is not an issqluser , that means i get no databases listed and this is
+           a standard practice ( similar to having not root login , but you can sudo to it)
+        */
         String queryToListUserCreatedSchemas = "select s.name as schema_name from " +
                 "sys.schemas s inner join sys.sysusers u on u.uid = s.principal_id " +
-                "where u.issqluser = 1 " +
+            
                 "and u.name not in ('sys', 'guest', 'INFORMATION_SCHEMA') " +
                 "order by s.name";
         try (Statement st = jdbcConnection.createStatement();
