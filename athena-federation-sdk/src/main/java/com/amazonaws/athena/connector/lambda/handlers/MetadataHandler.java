@@ -29,9 +29,9 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SimpleBlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -66,7 +66,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Collections;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
@@ -263,6 +262,13 @@ public abstract class MetadataHandler
                 }
                 outputStream.write(ProtobufSerDe.writeMessageToJson(getSplitsResponse).getBytes());
                 return;
+            case "GetDataSourceCapabilitiesRequest":
+                GetDataSourceCapabilitiesRequest getDataSourceCapabilitiesRequest = (GetDataSourceCapabilitiesRequest) ProtobufSerDe.buildFromJson(inputJson, GetDataSourceCapabilitiesRequest.newBuilder());
+                GetDataSourceCapabilitiesResponse dataSourceCapabilitiesResponse = doGetDataSourceCapabilities(allocator, getDataSourceCapabilitiesRequest);
+                if (!dataSourceCapabilitiesResponse.hasType()) {
+                    dataSourceCapabilitiesResponse = dataSourceCapabilitiesResponse.toBuilder().setType("GetDataSourceCapabilitiesResponse").build();
+                }
+                outputStream.write(ProtobufSerDe.writeMessageToJson(dataSourceCapabilitiesResponse).getBytes());
             default:
               throw new UnsupportedOperationException("Input type is not recognized - " + typeHeader.getType());
         }
@@ -441,7 +447,7 @@ public abstract class MetadataHandler
      */
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
-        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), Collections.emptyMap());
+        return GetDataSourceCapabilitiesResponse.newBuilder().setCatalogName(request.getCatalogName()).build();
     }
 
     /**
