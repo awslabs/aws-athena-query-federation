@@ -27,6 +27,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
@@ -83,35 +84,146 @@ public class ProtobufCompatibilityLayer
         return ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(pingRequest);
     }
 
-    public static String lintMessageWithSummaryMap(Message message) throws JsonMappingException, JsonProcessingException, InvalidProtocolBufferException
+    public static String lintMessageWithConstraints(Message message) throws JsonMappingException, JsonProcessingException, InvalidProtocolBufferException
     {
+        // build JsonNode from proto json
         String messageJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(message);
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonNode = objectMapper.readTree(messageJson);
-        jsonNode.get("constraints").get("summary").fields().forEachRemaining(ProtobufCompatibilityLayer::cleanSummaryEntry);
+
+        JsonNode constraintsNode = jsonNode.get("constraints");
+
+        // clean summary map
+        constraintsNode.get("summary").fields().forEachRemaining(ProtobufCompatibilityLayer::cleanSummaryEntry);
+        
+        // rewrite long type to long instead of string
+        long longLimit = constraintsNode.get("limit").asLong(-1);
+        ((ObjectNode) constraintsNode).put("limit", longLimit);
+
+        // rewrite expression list to clean arrow type message and remove arguments array from variable/constant expressions.
+        constraintsNode.get("expression").elements().forEachRemaining(ProtobufCompatibilityLayer::cleanExpressionElement);
+
+        return jsonNode.toString();
+    }
+
+    /**
+     * The proto message's "capabilities" field is a map that has entries which will look like this:
+     * "supports_complex_expression_pushdown": {
+            "optimiziationSubTypeList": [{
+                "subType": "supported_function_expression_types",
+                "properties": ["$add", "$subtract"]
+            }]
+        }
+        * and we want to rewrite the entries to look like this:
+        * "supports_complex_expression_pushdown" : [ {
+            "subType" : "supported_function_expression_types",
+            "properties" : [ "$add", "$subtract" ]
+        } ]
+    */
+    public static String rewriteGetDataSourceCapabilitiesResponseMessageForJacksonFormat(Message message) throws JsonMappingException, JsonProcessingException, InvalidProtocolBufferException
+    {
+        // build JsonNode from proto json
+        String messageJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(message);
+        
+        // build JsonNode from proto json
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(messageJson);
+         
+        // Create a new object node to store the modified capabilities
+        ObjectNode modifiedCapabilitiesNode = objectMapper.createObjectNode();
+
+        // over each capability obj, copy the subtype list and rewrite without the wrapper obj
+        jsonNode.get("capabilities").fields().forEachRemaining(entry -> {
+            String optimizationName = entry.getKey();
+            JsonNode optimizationNode = entry.getValue();
+            ArrayNode subTypeList = objectMapper.createArrayNode();
+            optimizationNode.get("optimiziationSubTypeList").elements().forEachRemaining(subTypeObj -> subTypeList.add(subTypeObj));
+            modifiedCapabilitiesNode.set(optimizationName, subTypeList);
+        });
+
+        // then replace
+        ((ObjectNode) jsonNode).set("capabilities", modifiedCapabilitiesNode);
+        return jsonNode.toString();
+    }
+
+    /**
+     * The input json we get from the Jackson serializer will have a capabilities entry which looks like this:
+     * "supports_complex_expression_pushdown" : [ {
+            "subType" : "supported_function_expression_types",
+            "properties" : [ "$add", "$subtract" ]
+        } ]
+     *  but we need to make it look like this for proto's deserializer:
+     * "supports_complex_expression_pushdown": {
+            "optimiziationSubTypeList": [{
+                "subType": "supported_function_expression_types",
+                "properties": ["$add", "$subtract"]
+            }]
+        }
+     * so we have to add a wrapper object around each capabilities object array field
+     * @throws JsonProcessingException
+     * @throws JsonMappingException
+     */
+    // TODO: obviously the work in this function and the previous one has the same boilerplate. abstract out a la the strategy method
+    public static String rewriteGetDataSourceCapabilitiesResponseJsonForProtobufFormat(String inputJson) throws JsonMappingException, JsonProcessingException 
+    {
+        // build JsonNode from proto json
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(inputJson);
+
+        // Create a new object node to store the modified capabilities
+        ObjectNode modifiedCapabilitiesNode = objectMapper.createObjectNode();
+
+        jsonNode.get("capabilities").fields().forEachRemaining(entry -> {
+            String optimizationName = entry.getKey();
+            ArrayNode subTypeList = (ArrayNode) entry.getValue();
+            ObjectNode wrapperObj = objectMapper.createObjectNode();
+            wrapperObj.set("optimiziationSubTypeList", subTypeList.deepCopy());
+            modifiedCapabilitiesNode.set(optimizationName, wrapperObj);
+        });
+
+        // then replace
+        ((ObjectNode) jsonNode).set("capabilities", modifiedCapabilitiesNode);
         return jsonNode.toString();
     }
 
     private static void cleanSummaryEntry(Entry<String, JsonNode> summaryMapEntry)
     {
-        removeRangesFromSummaryEntry(summaryMapEntry);
-        removeTypeIdsFromNonUnionTypeArrowTypes(summaryMapEntry);
+        removeRangesFromSummaryEntry(summaryMapEntry.getValue());
+        removeTypeIdsFromNonUnionTypeArrowTypes(summaryMapEntry.getValue());
     }
 
-    private static void removeRangesFromSummaryEntry(Entry<String, JsonNode> summaryMapEntry)
+    // because we are forced to make a composed protobuf message for ValueSet and include default values in our serializer, all subclasses will have this ranges array.
+    // But only SortedRangeSet should have it, so scrub it from the others.
+    private static void removeRangesFromSummaryEntry(JsonNode node)
     {
-        if (!summaryMapEntry.getValue().get("@type").asText().equals("SortedRangeSet")) {
-            ((ObjectNode) summaryMapEntry.getValue()).remove("ranges");
+        if (!node.get("@type").asText().equals("SortedRangeSet")) {
+            ((ObjectNode) node).remove("ranges");
         }
     }
 
-    private static void removeTypeIdsFromNonUnionTypeArrowTypes(Entry<String, JsonNode> summaryMapEntry)
+    //  because we are forced to make a composed arrow type message and include default values, every arrow type object in our proto message will have
+    // an array 'typeIds' for the arrow Union type. So, we have to scrub it from the json if the arrow type is not the Union type.
+    private static void removeTypeIdsFromNonUnionTypeArrowTypes(JsonNode node)
     {
-        if (summaryMapEntry.getValue().has("type")) { // not to be confused with @type
-            ObjectNode arrowType = (ObjectNode) summaryMapEntry.getValue().get("type");
+        if (node.has("type")) { // not to be confused with @type
+            ObjectNode arrowType = (ObjectNode) node.get("type");
             if (!arrowType.get("@type").asText().equals("Union")) {
                 arrowType.remove("typeIds");
             }
+        }
+    }
+
+    // because we are forced to make a composed FederationExpression proto message and include default values in our serializer, every federation expression
+    // will have an arguments array, but only FunctionCallExpression should actually contain it. So, scrub it from the other subclasses before writing.
+    private static void cleanExpressionElement(JsonNode node)
+    {
+        removeTypeIdsFromNonUnionTypeArrowTypes(node);
+        if (!node.get("@type").asText().equals("FunctionCallExpression")) {
+            ((ObjectNode) node).remove("arguments");
+        }
+        if (node.has("arguments")) {   
+            // recursive call to clean functionexpression arguments
+            node.get("arguments").elements().forEachRemaining(ProtobufCompatibilityLayer::cleanExpressionElement);
         }
     }
 }

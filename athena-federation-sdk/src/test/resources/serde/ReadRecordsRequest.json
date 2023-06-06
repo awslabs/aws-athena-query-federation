@@ -81,7 +81,61 @@
         } ],
         "nullAllowed" : false
       }
-    }
+    },
+    "expression" : [ {
+      "@type" : "FunctionCallExpression",
+      "type" : {
+        "@type" : "Bool"
+      },
+      "functionName" : {
+        "functionName" : "$greater_than"
+      },
+      "arguments" : [ {
+        "@type" : "FunctionCallExpression",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        },
+        "functionName" : {
+          "functionName" : "$add"
+        },
+        "arguments" : [ {
+          "@type" : "VariableExpression",
+          "columnName" : "col3",
+          "type" : {
+            "@type" : "FloatingPoint",
+            "precision" : "DOUBLE"
+          }
+        }, {
+          "@type" : "ConstantExpression",
+          "valueBlock" : {
+            "aId" : "test-allocator-id",
+            "schema":"lAAAABAAAAAAAAoADgAGAA0ACAAKAAAAAAADABAAAAAAAQoADAAAAAgABAAKAAAACAAAAAgAAAAAAAAAAQAAABgAAAAAABIAGAAUABMAEgAMAAAACAAEABIAAAAUAAAAFAAAABwAAAAAAAIBIAAAAAAAAAAAAAAACAAMAAgABwAIAAAAAAAAASAAAAAEAAAAY29sMQAAAAA=",
+            "records":"jAAAABQAAAAAAAAADAAWAA4AFQAQAAQADAAAABAAAAAAAAAAAAADABAAAAAAAwoAGAAMAAgABAAKAAAAFAAAADgAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAKAAAAAAAAAA=="
+          },
+          "type" : {
+            "@type" : "Int",
+            "bitWidth" : 32,
+            "isSigned" : true
+          }
+        } ]
+      }, {
+        "@type" : "VariableExpression",
+        "columnName" : "col2",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        }
+      } ]
+    } ],
+    "orderByClause" : [ {
+      "columnName" : "col3",
+      "direction" : "ASC_NULLS_FIRST"
+    }, {
+      "columnName" : "col2",
+      "direction" : "DESC_NULLS_FIRST"
+    } ],
+    "limit" : -1
   },
   "maxBlockSize" : "100000000000",
   "maxInlineBlockSize" : "100000000000"

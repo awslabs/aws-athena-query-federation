@@ -19,12 +19,15 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.protobuf;
 
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
@@ -66,8 +69,12 @@ public class ProtobufSerDe
 
     private static final Logger logger = LoggerFactory.getLogger(ProtobufSerDe.class);
     
-    public static Message buildFromJson(String inputJson, Message.Builder builder) throws InvalidProtocolBufferException
+    public static Message buildFromJson(String inputJson, Message.Builder builder) throws InvalidProtocolBufferException, JsonMappingException, JsonProcessingException
     {
+        if (builder instanceof GetDataSourceCapabilitiesResponse.Builder) {
+            // need to rewrite to ADD the surrounding object.
+            inputJson = ProtobufCompatibilityLayer.rewriteGetDataSourceCapabilitiesResponseJsonForProtobufFormat(inputJson);
+        }
         ProtobufSerDe.PROTOBUF_JSON_PARSER.merge(inputJson, builder);
         return builder.build();
     }
@@ -90,13 +97,16 @@ public class ProtobufSerDe
             jsonMessage = ProtobufCompatibilityLayer.buildPingRequestWithDeprecatedIdentityFields((PingRequest) message);
         }
         else if (message instanceof ReadRecordsRequest || message instanceof GetTableLayoutRequest || message instanceof GetSplitsRequest) {
-            jsonMessage = ProtobufCompatibilityLayer.lintMessageWithSummaryMap(message);
+            jsonMessage = ProtobufCompatibilityLayer.lintMessageWithConstraints(message);
+        }
+        else if (message instanceof GetDataSourceCapabilitiesResponse) {
+            // need to rewrite to REMOVE the surrounding object
+            jsonMessage = ProtobufCompatibilityLayer.rewriteGetDataSourceCapabilitiesResponseMessageForJacksonFormat(message);
         }
         else {
             jsonMessage = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(message);
         }
-        // TODO - if we need to enable "includingDefaultValueFields", then we have to do some removals, (like the following below).
-        // typeIds field in Constraints' ValueSet will write as an empty array, so we need to delete remove it if it's not set.
+
         logger.debug("json - {}", jsonMessage);
         return jsonMessage;
     }

@@ -27,22 +27,32 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.predicate.AllOrNoneValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListOptimizationSubType;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
@@ -51,11 +61,12 @@ import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
 import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connector.lambda.utils.TestUtils;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -67,6 +78,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -92,16 +104,11 @@ public class ProtobufSerializationCompatibilityTest
     private static String TEST_QUERY_ID = "test-query-id";
     private static String TEST_CATALOG = "test-catalog";
     private static String TEST_SOURCE_TYPE = "test-source-type";
-    // private static String BYTE_STRING_PARTITIONS_SCHEMA = "7AEAABAAAAAAAAoADgAGAA0ACAAKAAAAAAADABAAAAAAAQoADAAAAAgABAAKAAAACAAAAAgAAAAAAAAABwAAAHABAAAkAQAA7AAAALQAAAB0AAAAPAAAAAQAAAC+/v//FAAAABQAAAAUAAAAAAADARQAAAAAAAAAAAAAAJb///8AAAIABAAAAGNvbDUAAAAA8v7//xQAAAAUAAAAFAAAAAAAAwEUAAAAAAAAAAAAAADK////AAACAAQAAABjb2w0AAAAACb///8UAAAAFAAAABwAAAAAAAMBHAAAAAAAAAAAAAAAAAAGAAgABgAGAAAAAAACAAQAAABjb2wzAAAAAGL///8UAAAAFAAAABgAAAAAAAUBFAAAAAAAAAAAAAAABAAEAAQAAAAEAAAAY29sMgAAAACW////FAAAABQAAAAUAAAAAAACARgAAAAAAAAAAAAAAIT///8AAAABIAAAAAMAAABkYXkAyv///xQAAAAUAAAAFAAAAAAAAgEYAAAAAAAAAAAAAAC4////AAAAASAAAAAFAAAAbW9udGgAEgAYABQAEwASAAwAAAAIAAQAEgAAABQAAAAUAAAAHAAAAAAAAgEgAAAAAAAAAAAAAAAIAAwACAAHAAgAAAAAAAABIAAAAAQAAAB5ZWFyAAAAAA==";
-    // private static String BYTE_STRING_PARTITIONS_RECORDS = "vAEAABQAAAAAAAAADAAWAA4AFQAQAAQADAAAANABAAAAAAAAAAADABAAAAAAAwoAGAAMAAgABAAKAAAAFAAAAAgBAAAKAAAAAAAAAAAAAAAPAAAAAAAAAAAAAAACAAAAAAAAAAgAAAAAAAAAKAAAAAAAAAAwAAAAAAAAAAIAAAAAAAAAOAAAAAAAAAAoAAAAAAAAAGAAAAAAAAAAAgAAAAAAAABoAAAAAAAAACgAAAAAAAAAkAAAAAAAAAACAAAAAAAAAJgAAAAAAAAALAAAAAAAAADIAAAAAAAAAAAAAAAAAAAAyAAAAAAAAAACAAAAAAAAANAAAAAAAAAAUAAAAAAAAAAgAQAAAAAAAAIAAAAAAAAAKAEAAAAAAABQAAAAAAAAAHgBAAAAAAAAAgAAAAAAAACAAQAAAAAAAFAAAAAAAAAAAAAAAAcAAAAKAAAAAAAAAAAAAAAAAAAACgAAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAAAAAAAKAAAAAAAAAAoAAAAAAAAACgAAAAAAAAAKAAAAAAAAAAoAAAAAAAAACgAAAAAAAAAKAAAAAAAAAAoAAAAAAAAAAAAAAP8DAAAAAAAA4AcAAOEHAADiBwAA4wcAAOQHAADlBwAA5gcAAOcHAADoBwAA6QcAAP8DAAAAAAAAAQAAAAIAAAADAAAABAAAAAUAAAAGAAAABwAAAAgAAAAJAAAACgAAAP8DAAAAAAAAAQAAAAIAAAADAAAABAAAAAUAAAAGAAAABwAAAAgAAAAJAAAACgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    // private static String CONSTRAINTS_BLOCK_SCHEMA = "lAAAABAAAAAAAAoADgAGAA0ACAAKAAAAAAADABAAAAAAAQoADAAAAAgABAAKAAAACAAAAAgAAAAAAAAAAQAAABgAAAAAABIAGAAUABMAEgAMAAAACAAEABIAAAAUAAAAFAAAABwAAAAAAAMBHAAAAAAAAAAAAAAAAAAGAAgABgAGAAAAAAACAAQAAABjb2wxAAAAAAAAAAA=";
-    // private static String CONSTRAINTS_BLOCK_RECORDS = "jAAAABQAAAAAAAAADAAWAA4AFQAQAAQADAAAABAAAAAAAAAAAAADABAAAAAAAwoAGAAMAAgABAAKAAAAFAAAADgAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAACAAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAACamZmZmZnxPw==";
     private static String TEST_CONTINUATION_TOKEN = "test-continuation-token";
 
     private static Schema SCHEMA;
-    // private static ByteString SCHEMA_EXPECTED_BYTE_STRING;
     private static Map<String, ValueSet> constraintsMap;
-    private static Constraints CONSTRAINTS;
+    private static Constraints CONSTRAINTS_BASIC;
     private static Block PARTITIONS;
     String yearCol = "year";
     String monthCol = "month";
@@ -119,14 +126,13 @@ public class ProtobufSerializationCompatibilityTest
                 .addField("col4", Types.MinorType.FLOAT8.getType())
                 .addField("col5", Types.MinorType.FLOAT8.getType())
                 .build();
-        // SCHEMA_EXPECTED_BYTE_STRING = ProtobufMessageConverter.toProtoSchemaBytes(SCHEMA);
 
         constraintsMap = new HashMap<>();
         constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), -10000D)), false));
         constraintsMap.put("col4", EquatableValueSet.newBuilder(allocator, Types.MinorType.FLOAT8.getType(), false, true).add(1.1D).build());
         constraintsMap.put("col5", new AllOrNoneValueSet(Types.MinorType.FLOAT8.getType(), false, true));
-        CONSTRAINTS = new Constraints(constraintsMap);
+        CONSTRAINTS_BASIC = new Constraints(constraintsMap);
 
         PARTITIONS = allocator.createBlock(SCHEMA);
         setPartitionValuesForBlock(PARTITIONS);
@@ -179,7 +185,7 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testGetSplitsRequest() throws IOException {
-        String getSplitsRequestJson = readFileAsJsonString("serde/v2", "GetSplitsRequest.json");
+        String getSplitsRequestJson = readFileAsJsonString("serde", "GetSplitsRequest.json");
         assertTypeHeaderParsesCorrectly(getSplitsRequestJson, "GetSplitsRequest");
         GetSplitsRequest getSplitsRequestFromJson = (GetSplitsRequest) ProtobufSerDe.buildFromJson(getSplitsRequestJson, GetSplitsRequest.newBuilder());
         GetSplitsRequest getSplitsRequestConstructed = GetSplitsRequest.newBuilder()
@@ -190,7 +196,7 @@ public class ProtobufSerializationCompatibilityTest
             .setTableName(TEST_TABLE_NAME)
             .setPartitions(ProtobufMessageConverter.toProtoBlock(PARTITIONS))
             .addAllPartitionColumns(ImmutableList.of("year", "month", "day"))
-            .setConstraints(ProtobufMessageConverter.toProtoConstraints(CONSTRAINTS))
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(CONSTRAINTS_BASIC))
             .setContinuationToken(TEST_CONTINUATION_TOKEN)
             .build();
         assertEquals(getSplitsRequestFromJson, getSplitsRequestConstructed);
@@ -201,7 +207,7 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testGetSplitsResponse() throws IOException {
-        String getSplitsResponseJson = readFileAsJsonString("serde/v2", "GetSplitsResponse.json");
+        String getSplitsResponseJson = readFileAsJsonString("serde", "GetSplitsResponse.json");
         assertTypeHeaderParsesCorrectly(getSplitsResponseJson, "GetSplitsResponse");
         GetSplitsResponse getSplitsResponseFromJson = (GetSplitsResponse) ProtobufSerDe.buildFromJson(getSplitsResponseJson, GetSplitsResponse.newBuilder());
         GetSplitsResponse getSplitsResponseConstructed = GetSplitsResponse.newBuilder()
@@ -267,7 +273,7 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testGetTableLayoutRequest() throws IOException {
-        String getTableLayoutRequestJson = readFileAsJsonString("serde/v2", "GetTableLayoutRequest.json");
+        String getTableLayoutRequestJson = readFileAsJsonString("serde", "GetTableLayoutRequest.json");
         assertTypeHeaderParsesCorrectly(getTableLayoutRequestJson, "GetTableLayoutRequest");
         GetTableLayoutRequest getTableLayoutRequestFromJson = (GetTableLayoutRequest) ProtobufSerDe.buildFromJson(getTableLayoutRequestJson, GetTableLayoutRequest.newBuilder());
         GetTableLayoutRequest getTableLayoutRequestConstructed = GetTableLayoutRequest.newBuilder()
@@ -276,7 +282,7 @@ public class ProtobufSerializationCompatibilityTest
             .setQueryId(TEST_QUERY_ID)
             .setCatalogName(TEST_CATALOG)
             .setTableName(TEST_TABLE_NAME)
-            .setConstraints(ProtobufMessageConverter.toProtoConstraints(CONSTRAINTS))
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(CONSTRAINTS_BASIC))
             .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(SCHEMA))
             .addAllPartitionColumns(ImmutableList.of("month", "year", "day"))
             .build();
@@ -292,7 +298,7 @@ public class ProtobufSerializationCompatibilityTest
         Schema schema = getGetTableRequestsSchema();
         Block partitions = allocator.createBlock(schema);
         setPartitionValuesForBlock(partitions);
-        String getTableLayoutResponseJson = readFileAsJsonString("serde/v2", "GetTableLayoutResponse.json");
+        String getTableLayoutResponseJson = readFileAsJsonString("serde", "GetTableLayoutResponse.json");
         assertTypeHeaderParsesCorrectly(getTableLayoutResponseJson, "GetTableLayoutResponse");
         GetTableLayoutResponse getTableLayoutResponseFromJson = (GetTableLayoutResponse) ProtobufSerDe.buildFromJson(getTableLayoutResponseJson, GetTableLayoutResponse.newBuilder());
         GetTableLayoutResponse getTableLayoutResponseConstructed = GetTableLayoutResponse.newBuilder()
@@ -310,7 +316,7 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testGetTableRequest() throws IOException {
-        String getTableRequestJson = readFileAsJsonString("serde/v2", "GetTableRequest.json");
+        String getTableRequestJson = readFileAsJsonString("serde", "GetTableRequest.json");
         assertTypeHeaderParsesCorrectly(getTableRequestJson, "GetTableRequest");
         GetTableRequest getTableRequestFromJson = (GetTableRequest) ProtobufSerDe.buildFromJson(getTableRequestJson, GetTableRequest.newBuilder());
         GetTableRequest getTableRequestConstructed = GetTableRequest.newBuilder()
@@ -330,7 +336,7 @@ public class ProtobufSerializationCompatibilityTest
     @Test
     public void testGetTableResponse() throws IOException {
         Schema schema = getGetTableRequestsSchema();
-        String getTableResponseJson = readFileAsJsonString("serde/v2", "GetTableResponse.json");
+        String getTableResponseJson = readFileAsJsonString("serde", "GetTableResponse.json");
         assertTypeHeaderParsesCorrectly(getTableResponseJson, "GetTableResponse");
         GetTableResponse getTableResponseFromJson = (GetTableResponse) ProtobufSerDe.buildFromJson(getTableResponseJson, GetTableResponse.newBuilder());
         GetTableResponse getTableResponseConstructed = GetTableResponse.newBuilder()
@@ -348,7 +354,7 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testListSchemasRequest() throws IOException {
-        String listSchemasRequestJson = readFileAsJsonString("serde/v2", "ListSchemasRequest.json");
+        String listSchemasRequestJson = readFileAsJsonString("serde", "ListSchemasRequest.json");
         assertTypeHeaderParsesCorrectly(listSchemasRequestJson, "ListSchemasRequest");
         ListSchemasRequest listSchemasRequestFromJson = (ListSchemasRequest) ProtobufSerDe.buildFromJson(listSchemasRequestJson, ListSchemasRequest.newBuilder());
         ListSchemasRequest listSchemasRequestConstructed = ListSchemasRequest.newBuilder()
@@ -365,7 +371,7 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testListSchemasResponse() throws IOException {
-        String listSchemasResponseJson = readFileAsJsonString("serde/v2", "ListSchemasResponse.json");
+        String listSchemasResponseJson = readFileAsJsonString("serde", "ListSchemasResponse.json");
         assertTypeHeaderParsesCorrectly(listSchemasResponseJson, "ListSchemasResponse");
         ListSchemasResponse listSchemasResponseFromJson = (ListSchemasResponse) ProtobufSerDe.buildFromJson(listSchemasResponseJson, ListSchemasResponse.newBuilder());
         ListSchemasResponse listSchemasResponseConstructed = ListSchemasResponse.newBuilder()
@@ -382,7 +388,7 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testListTablesRequest() throws IOException {
-        String listTablesRequestJson = readFileAsJsonString("serde/v2", "ListTablesRequest.json");
+        String listTablesRequestJson = readFileAsJsonString("serde", "ListTablesRequest.json");
         assertTypeHeaderParsesCorrectly(listTablesRequestJson, "ListTablesRequest");
         ListTablesRequest listTablesRequestFromJson = (ListTablesRequest) ProtobufSerDe.buildFromJson(listTablesRequestJson, ListTablesRequest.newBuilder());
         ListTablesRequest listTablesRequestConstructed = ListTablesRequest.newBuilder()
@@ -402,7 +408,7 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testListTablesResponse() throws IOException {
-        String listTablesResponseJson = readFileAsJsonString("serde/v2", "ListTablesResponse.json");
+        String listTablesResponseJson = readFileAsJsonString("serde", "ListTablesResponse.json");
         assertTypeHeaderParsesCorrectly(listTablesResponseJson, "ListTablesResponse");
         ListTablesResponse listTablesResponseFromJson = (ListTablesResponse) ProtobufSerDe.buildFromJson(listTablesResponseJson, ListTablesResponse.newBuilder());
         ListTablesResponse listTablesResponseConstructed = ListTablesResponse.newBuilder()
@@ -422,7 +428,26 @@ public class ProtobufSerializationCompatibilityTest
 
     @Test
     public void testReadRecordsRequest() throws IOException {
-        String readRecordsRequestJson = readFileAsJsonString("serde/v2", "ReadRecordsRequest.json");
+        FederationExpression federationExpression = new FunctionCallExpression(
+            ArrowType.Bool.INSTANCE,
+            StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
+            ImmutableList.of(new FunctionCallExpression(
+                    Types.MinorType.FLOAT8.getType(),
+                    StandardFunctions.ADD_FUNCTION_NAME.getFunctionName(),
+                    ImmutableList.of(new VariableExpression("col3", Types.MinorType.FLOAT8.getType()),
+                            new ConstantExpression(
+                                    BlockUtils.newBlock(allocator, "col1", new ArrowType.Int(32, true), ImmutableList.of(10)),
+                                    new ArrowType.Int(32, true)))),
+                    new VariableExpression("col2", Types.MinorType.FLOAT8.getType())));
+
+        List<OrderByField> orderByClause = ImmutableList.of(
+            new OrderByField("col3", OrderByField.Direction.ASC_NULLS_FIRST),
+            new OrderByField("col2", OrderByField.Direction.DESC_NULLS_FIRST)
+        );
+
+        Constraints constraints = new Constraints(CONSTRAINTS_BASIC.getSummary(), ImmutableList.of(federationExpression), orderByClause, -1);
+
+        String readRecordsRequestJson = readFileAsJsonString("serde", "ReadRecordsRequest.json");
         assertTypeHeaderParsesCorrectly(readRecordsRequestJson, "ReadRecordsRequest");
         ReadRecordsRequest readRecordsRequestFromJson = (ReadRecordsRequest) ProtobufSerDe.buildFromJson(readRecordsRequestJson, ReadRecordsRequest.newBuilder());
         ReadRecordsRequest readRecordsRequestConstructed = ReadRecordsRequest.newBuilder()
@@ -456,13 +481,14 @@ public class ProtobufSerializationCompatibilityTest
                             )
                         )
             )
-            .setConstraints(ProtobufMessageConverter.toProtoConstraints(CONSTRAINTS))
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
             .setMaxBlockSize(100000000000L)
             .setMaxInlineBlockSize(100000000000L)
             .build();
-        assertEquals(readRecordsRequestFromJson,  readRecordsRequestConstructed);
+        
 
         String readRecordsRequestConstructedToJson = ProtobufSerDe.writeMessageToJson(readRecordsRequestConstructed);
+        assertEquals(readRecordsRequestFromJson,  readRecordsRequestConstructed);
         assertJsonEquivalentIgnoringWhitespace(readRecordsRequestJson, readRecordsRequestConstructedToJson);
     }
 
@@ -475,7 +501,7 @@ public class ProtobufSerializationCompatibilityTest
             .build();
         Block records = allocator.createBlock(schema);
         setPartitionValuesForBlock(records);
-        String readRecordsResponseJson = readFileAsJsonString("serde/v2", "ReadRecordsResponse.json");
+        String readRecordsResponseJson = readFileAsJsonString("serde", "ReadRecordsResponse.json");
         assertTypeHeaderParsesCorrectly(readRecordsResponseJson, "ReadRecordsResponse");
         ReadRecordsResponse readRecordsRequestFromJson = (ReadRecordsResponse) ProtobufSerDe.buildFromJson(readRecordsResponseJson, ReadRecordsResponse.newBuilder());
         ReadRecordsResponse readRecordsResponseConstructed = ReadRecordsResponse.newBuilder()
@@ -496,7 +522,7 @@ public class ProtobufSerializationCompatibilityTest
             .addField(monthCol, new ArrowType.Int(32, true))
             .addField(dayCol, new ArrowType.Int(32, true))
             .build();
-        String remoteReadRecordsResponseJson = readFileAsJsonString("serde/v2", "RemoteReadRecordsResponse.json");
+        String remoteReadRecordsResponseJson = readFileAsJsonString("serde", "RemoteReadRecordsResponse.json");
         assertTypeHeaderParsesCorrectly(remoteReadRecordsResponseJson, "RemoteReadRecordsResponse");
         RemoteReadRecordsResponse remoteReadRecordsResponseFromJson = (RemoteReadRecordsResponse) ProtobufSerDe.buildFromJson(remoteReadRecordsResponseJson, RemoteReadRecordsResponse.newBuilder());
         RemoteReadRecordsResponse remoteReadRecordsResponseConstructed = RemoteReadRecordsResponse.newBuilder()
@@ -531,6 +557,49 @@ public class ProtobufSerializationCompatibilityTest
         assertJsonEquivalentIgnoringWhitespace(remoteReadRecordsResponseJson, remoteReadRecordsResponseConstructedToJson);
     }
 
+    @Test
+    public void testGetDataSourceCapabilitiesRequest() throws IOException {
+        String getDataSourceCapabilitiesRequestJson = readFileAsJsonString("serde", "GetDataSourceCapabilitiesRequest.json");
+        assertTypeHeaderParsesCorrectly(getDataSourceCapabilitiesRequestJson, "GetDataSourceCapabilitiesRequest");
+        GetDataSourceCapabilitiesRequest getDataSourceCapabilitiesRequestFromJson = (GetDataSourceCapabilitiesRequest) ProtobufSerDe.buildFromJson(getDataSourceCapabilitiesRequestJson, GetDataSourceCapabilitiesRequest.newBuilder());
+        GetDataSourceCapabilitiesRequest getDataSourceCapabilitiesRequestConstructed = GetDataSourceCapabilitiesRequest.newBuilder()
+            .setType("GetDataSourceCapabilitiesRequest")
+            .setIdentity(TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG)
+            .build();
+        assertEquals(getDataSourceCapabilitiesRequestFromJson, getDataSourceCapabilitiesRequestConstructed);
+
+        String getDataSourceCapabilitiesConstrucctedToJson = ProtobufSerDe.writeMessageToJson(getDataSourceCapabilitiesRequestConstructed);
+        assertJsonEquivalentIgnoringWhitespace(getDataSourceCapabilitiesRequestJson, getDataSourceCapabilitiesConstrucctedToJson);
+    }
+
+    @Test
+    public void testGetDataSourceCapabilitiesResponse() throws IOException {
+        String getDataSourceCapabilitiesResponseJson = readFileAsJsonString("serde", "GetDataSourceCapabilitiesResponse.json");
+        assertTypeHeaderParsesCorrectly(getDataSourceCapabilitiesResponseJson, "GetDataSourceCapabilitiesResponse");
+        GetDataSourceCapabilitiesResponse getDataSourceCapabilitiesResponseFromJson = (GetDataSourceCapabilitiesResponse) ProtobufSerDe.buildFromJson(getDataSourceCapabilitiesResponseJson, GetDataSourceCapabilitiesResponse.newBuilder());
+        GetDataSourceCapabilitiesResponse getDataSourceCapabilitiesResponseConstructed = GetDataSourceCapabilitiesResponse.newBuilder()
+            .setType("GetDataSourceCapabilitiesResponse")
+            .setCatalogName(TEST_CATALOG)
+            .putAllCapabilities(ImmutableMap.of(
+                "supports_complex_expression_pushdown", ListOptimizationSubType.newBuilder()
+                    .addOptimiziationSubTypeList(0, 
+                        OptimizationSubType.newBuilder()
+                                            .setSubType("supported_function_expression_types")
+                                            .addAllProperties(List.of("$add", "$subtract"))
+                                            .build())
+                    .build()
+            ))
+            .build();
+        System.out.println("ASDFASDF");
+        System.out.println(ProtobufSerDe.writeMessageToJson(getDataSourceCapabilitiesResponseConstructed));
+        assertEquals(getDataSourceCapabilitiesResponseFromJson, getDataSourceCapabilitiesResponseConstructed);
+
+        String getDataSourceCapabilitiesConstrucctedToJson = ProtobufSerDe.writeMessageToJson(getDataSourceCapabilitiesResponseConstructed);
+        assertJsonEquivalentIgnoringWhitespace(getDataSourceCapabilitiesResponseJson, getDataSourceCapabilitiesConstrucctedToJson);
+    }
+
     private Schema getGetTableRequestsSchema()
     {
         return SchemaBuilder.newBuilder()
@@ -547,7 +616,7 @@ public class ProtobufSerializationCompatibilityTest
         return utils.readAllAsString(utils.getResourceOrFail(locationHint, resource)).trim();
     }
 
-    private void assertTypeHeaderParsesCorrectly(String inputJson, String type) throws InvalidProtocolBufferException
+    private void assertTypeHeaderParsesCorrectly(String inputJson, String type) throws IOException
     {
         TypeHeader typeHeader = (TypeHeader) ProtobufSerDe.buildFromJson(inputJson, TypeHeader.newBuilder());
         assertEquals(type, typeHeader.getType());

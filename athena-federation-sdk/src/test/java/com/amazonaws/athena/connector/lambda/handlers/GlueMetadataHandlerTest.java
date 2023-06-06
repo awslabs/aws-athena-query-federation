@@ -552,17 +552,17 @@ public class GlueMetadataHandlerTest
         assertEquals(IdentityUtil.fakeIdentity().getAccount(), catalog);
 
         // Catalog should be the account from the lambda context's function arn
-        handler.configOptions.put(MetadataHandler.FUNCTION_ARN_CONFIG_KEY, "arn:aws:lambda:us-east-1:012345678912:function:athena-123");
+        handler.setFunctionArn("arn:aws:lambda:us-east-1:012345678912:function:athena-123");
         catalog = handler.getCatalog(identity);
         assertEquals("012345678912", catalog);
 
         // Catalog should be the account from the request since function arn is invalid
-        handler.configOptions.put(MetadataHandler.FUNCTION_ARN_CONFIG_KEY, "arn:aws:lambda:us-east-1:012345678912:function:");
+        handler.setFunctionArn("arn:aws:lambda:us-east-1:012345678912:function:");
         catalog = handler.getCatalog(identity);
         assertEquals(IdentityUtil.fakeIdentity().getAccount(), catalog);
 
         // Catalog should be the account from the request since function arn is null
-        handler.configOptions.put(MetadataHandler.FUNCTION_ARN_CONFIG_KEY, null);
+        handler.setFunctionArn(null);
         catalog = handler.getCatalog(identity);
         assertEquals(IdentityUtil.fakeIdentity().getAccount(), catalog);
     }

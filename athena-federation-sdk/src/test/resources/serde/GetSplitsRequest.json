@@ -69,7 +69,10 @@
         } ],
         "nullAllowed" : false
       }
-    }
+    },
+    "expression":[],
+    "orderByClause":[],
+    "limit": -1
   },
   "continuationToken" : "test-continuation-token"
 }

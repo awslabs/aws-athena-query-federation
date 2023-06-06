@@ -26,9 +26,16 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.AllOrNoneValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.google.protobuf.ByteString;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
@@ -306,6 +313,92 @@ public class ProtobufMessageConverter
             ));
     }
 
+    public static List<com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression> toProtoFederationExpressionList(List<FederationExpression> federationExpressionList)
+    {
+        return federationExpressionList.stream().map(ProtobufMessageConverter::toProtoFederationExpression).collect(Collectors.toList());
+    }
+    private static com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression toProtoFederationExpression(FederationExpression federationExpression)
+    {
+        ArrowType arrowType = federationExpression.getType();
+        if (federationExpression instanceof ConstantExpression) {
+            ConstantExpression constantExpression = (ConstantExpression) federationExpression;
+            return com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression.newBuilder()
+                .setType("ConstantExpression")
+                .setValueBlock(toProtoBlock(constantExpression.getValues()))
+                .setArrowType(toProtoArrowType(arrowType))
+                .build();
+        }
+        else if (federationExpression instanceof VariableExpression) {
+            VariableExpression variableExpression = (VariableExpression) federationExpression;
+            return com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression.newBuilder()
+                .setType("VariableExpression")
+                .setColumnName(variableExpression.getColumnName())
+                .setArrowType(toProtoArrowType(arrowType))
+                .build();
+        }
+        else if (federationExpression instanceof FunctionCallExpression) {
+            FunctionCallExpression functionCallExpression = (FunctionCallExpression) federationExpression;
+            List<com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression> arguments = functionCallExpression.getArguments()
+                .stream()
+                .map(ProtobufMessageConverter::toProtoFederationExpression)
+                .collect(Collectors.toList());
+            return com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression.newBuilder()
+                .setType("FunctionCallExpression")
+                .addAllArguments(arguments)
+                .setFunctionName(com.amazonaws.athena.connector.lambda.proto.domain.predicate.functions.FunctionName.newBuilder().setFunctionName(functionCallExpression.getFunctionName().getFunctionName()).build())
+                .setArrowType(toProtoArrowType(arrowType))
+                .build();
+        }
+        else {
+            throw new IllegalArgumentException("Invalid subclass of FederationExpression.");
+        }
+        
+    }
+
+    public static List<com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField> toProtoOrderByClause(List<OrderByField> orderByClause)
+    {
+        return orderByClause.stream().map(ProtobufMessageConverter::toProtoOrderByField).collect(Collectors.toList());
+    }
+    private static com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField toProtoOrderByField(OrderByField orderByField)
+    {
+        String colName = orderByField.getColumnName();
+        OrderByField.Direction dir = orderByField.getDirection();
+        switch (dir) {
+            case ASC_NULLS_FIRST:
+                return com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField.newBuilder().setColumnName(colName).setDirection(com.amazonaws.athena.connector.lambda.proto.domain.predicate.Direction.ASC_NULLS_FIRST).build();
+            case ASC_NULLS_LAST:
+                return com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField.newBuilder().setColumnName(colName).setDirection(com.amazonaws.athena.connector.lambda.proto.domain.predicate.Direction.ASC_NULLS_LAST).build();
+            case DESC_NULLS_FIRST:
+                return com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField.newBuilder().setColumnName(colName).setDirection(com.amazonaws.athena.connector.lambda.proto.domain.predicate.Direction.DESC_NULLS_FIRST).build();
+            case DESC_NULLS_LAST:
+                return com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField.newBuilder().setColumnName(colName).setDirection(com.amazonaws.athena.connector.lambda.proto.domain.predicate.Direction.DESC_NULLS_LAST).build();
+            default:
+                throw new IllegalArgumentException(String.format("Invalid OrderByField.Direction type - received %s", orderByField.getDirection()));
+        }
+    }
+
+    public static Map<String, com.amazonaws.athena.connector.lambda.proto.metadata.ListOptimizationSubType> toProtoCapabilities(Map<String, List<OptimizationSubType>> capabilitiesMap)
+    {
+        return capabilitiesMap.entrySet().stream()
+            .collect(Collectors.toMap(
+                e -> e.getKey(),
+                e -> toProtoOptimizationSubTypeList(e.getValue())
+            ));
+    }
+
+    public static com.amazonaws.athena.connector.lambda.proto.metadata.ListOptimizationSubType toProtoOptimizationSubTypeList(List<OptimizationSubType> optimizationSubTypeList)
+    {
+        return com.amazonaws.athena.connector.lambda.proto.metadata.ListOptimizationSubType
+            .newBuilder()
+            .addAllOptimiziationSubTypeList(optimizationSubTypeList.stream().map(optimizationSubType -> 
+                com.amazonaws.athena.connector.lambda.proto.metadata.optimizations.OptimizationSubType.newBuilder()
+                    .setSubType(optimizationSubType.getSubType())
+                    .addAllProperties(optimizationSubType.getProperties())
+                    .build())
+                    .collect(Collectors.toList()))
+            .build();
+    }
+
     public static Map<String, ValueSet> fromProtoSummary(BlockAllocator blockAllocator, Map<String, com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet> protoSummaryMap)
     {
         return protoSummaryMap.entrySet().stream()
@@ -315,16 +408,74 @@ public class ProtobufMessageConverter
             ));
     }
 
+    public static List<FederationExpression> fromProtoFederationExpressionList(BlockAllocator blockAllocator, List<com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression> protoFederationExpressionList)
+    {
+        return protoFederationExpressionList.stream().map(
+            protoFederationExpression -> convertFromProtoFederationExpression(blockAllocator, protoFederationExpression)
+        ).collect(Collectors.toList());
+    }
+
+    // recursive function.
+    private static FederationExpression convertFromProtoFederationExpression(BlockAllocator blockAllocator, com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression protoFederationExpression)
+    {
+        String type = protoFederationExpression.getType();
+        ArrowType arrowType = fromProtoArrowType(protoFederationExpression.getArrowType());
+        switch (type) {
+            // base cases
+            case "VariableExpression":
+                return new VariableExpression(protoFederationExpression.getColumnName(), arrowType);
+            case "ConstantExpression":
+                return new ConstantExpression(fromProtoBlock(blockAllocator, protoFederationExpression.getValueBlock()), arrowType);
+            // recursive case
+            case "FunctionCallExpression":
+                List<FederationExpression> arguments = protoFederationExpression.getArgumentsList()
+                .stream()
+                .map(arg -> convertFromProtoFederationExpression(blockAllocator, arg))
+                .collect(Collectors.toList());
+                return new FunctionCallExpression(arrowType, new FunctionName(protoFederationExpression.getFunctionName().getFunctionName()), arguments);
+            default:
+                throw new IllegalArgumentException(String.format("Invalid FederationExpression type - received %s", type));
+        }
+    }
+
+    public static List<OrderByField> fromProtoOrderByClause(List<com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField> protoOrderByClause)
+    {
+        return protoOrderByClause.stream().map(ProtobufMessageConverter::fromProtoOrderByField).collect(Collectors.toList());
+    }
+
+    private static OrderByField fromProtoOrderByField(com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField protoOrderByField)
+    {
+        String colName = protoOrderByField.getColumnName();
+        switch (protoOrderByField.getDirection()) {
+            case ASC_NULLS_FIRST:
+                return new OrderByField(colName, OrderByField.Direction.ASC_NULLS_FIRST);
+            case ASC_NULLS_LAST:
+                return new OrderByField(colName, OrderByField.Direction.ASC_NULLS_LAST);
+            case DESC_NULLS_FIRST:
+                return new OrderByField(colName, OrderByField.Direction.DESC_NULLS_FIRST);
+            case DESC_NULLS_LAST:
+                return new OrderByField(colName, OrderByField.Direction.DESC_NULLS_LAST);
+            default:
+                throw new IllegalArgumentException(String.format("Invalid OrderByField.Direction type - received %s", protoOrderByField.getDirection()));
+        }
+    }
+
     public static com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints toProtoConstraints(Constraints constraints)
     {
         return com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints.newBuilder()
             .putAllSummary(toProtoSummary(constraints.getSummary()))
+            .addAllExpression(toProtoFederationExpressionList(constraints.getExpression()))
+            .addAllOrderByClause(toProtoOrderByClause(constraints.getOrderByClause()))
+            .setLimit(constraints.getLimit())
             .build();
     }
 
     public static Constraints fromProtoConstraints(BlockAllocator blockAllocator, com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints protoConstraints)
     {
-        return new Constraints(fromProtoSummary(blockAllocator, protoConstraints.getSummaryMap()));
+        return new Constraints(fromProtoSummary(blockAllocator, protoConstraints.getSummaryMap()), 
+            fromProtoFederationExpressionList(blockAllocator, protoConstraints.getExpressionList()),
+            fromProtoOrderByClause(protoConstraints.getOrderByClauseList()),
+            protoConstraints.getLimit());
     }
 
     // WARNING - This logic is compliant with the existing ObjectMapperV2 implementation. In ObjectMapperV3, the logic changed.
