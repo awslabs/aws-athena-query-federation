@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression;
+
+import "ArrowTypeMessage.proto";
+import "Block.proto";
+import "FunctionName.proto";
+
+option java_multiple_files = true;
+
+// message represents one of three subtypes: FunctionCallExpression, VariableExpression, and ConstantExpression
+message FederationExpression {
+  optional string type = 1 [json_name="@type"];
+  optional com.amazonaws.athena.connector.lambda.proto.data.Block valueBlock = 2; // ConstantExpression arg1
+  optional string columnName = 3; // VariableExpression arg1
+  optional com.amazonaws.athena.connector.lambda.proto.arrowtype.ArrowTypeMessage arrowType = 4 [json_name="type"]; // FunctionCallExpression arg1, VariableExpression arg2, ConstantExpression arg2
+  optional com.amazonaws.athena.connector.lambda.proto.domain.predicate.functions.FunctionName functionName = 5; // FunctionCallExpression arg2
+  repeated com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression arguments = 6; // FunctionCallExpression arg3
+}

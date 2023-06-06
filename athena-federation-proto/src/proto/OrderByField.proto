@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.domain.predicate;
+
+option java_multiple_files = true;
+
+enum Direction {
+  ASC_NULLS_FIRST = 0;
+  ASC_NULLS_LAST = 1;
+  DESC_NULLS_FIRST = 2;
+  DESC_NULLS_LAST = 3;
+}
+
+message OrderByField {
+  optional string columnName = 1;
+  optional Direction direction = 2;
+}

@@ -1,9 +1,16 @@
 syntax = "proto3";
 
 package com.amazonaws.athena.connector.lambda.proto.domain.predicate;
+
 import 'ValueSet.proto';
+import 'FederationExpression.proto';
+import 'OrderByField.proto';
+
 option java_multiple_files = true;
 
 message Constraints {
   map<string, com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet> summary = 1;
+  repeated com.amazonaws.athena.connector.lambda.proto.domain.predicate.expression.FederationExpression expression = 2;
+  repeated com.amazonaws.athena.connector.lambda.proto.domain.predicate.OrderByField orderByClause = 3;
+  optional int64 limit = 4;
 }

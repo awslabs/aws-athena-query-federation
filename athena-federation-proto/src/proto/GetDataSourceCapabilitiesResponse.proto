@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.metadata;
+
+import 'OptimizationSubType.proto';
+
+option java_multiple_files = true;
+
+message GetDataSourceCapabilitiesResponse {
+  optional string type = 1 [json_name="@type"];
+  optional string catalogName = 2;
+  map<string, com.amazonaws.athena.connector.lambda.proto.metadata.optimizations.OptimizationSubType> capabilities = 3;
+}
