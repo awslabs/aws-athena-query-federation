@@ -301,7 +301,7 @@ public class BigQueryMetadataHandler
             }
             else {
                 schemaBuilder.addField(field.getName(), translateToArrowType(field.getType()));
-         }
+            }
         }
         schemaBuilder.addMetadata("timeStampCols", timeStampColsList.toString());
         logger.debug("BigQuery table schema {}", schemaBuilder.toString());

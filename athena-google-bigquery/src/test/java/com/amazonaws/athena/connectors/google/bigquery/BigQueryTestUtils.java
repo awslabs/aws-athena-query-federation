@@ -177,7 +177,7 @@ public class BigQueryTestUtils
     static List<FieldValue> generateBigQueryRowValueForComplexTypes(List<Integer> intList, Integer structFieldValue)
     {
         List<FieldValue> values = new ArrayList<>();
-        intList.forEach(i -> values.add(FieldValue.of(FieldValue.Attribute.PRIMITIVE, intList == null ? null : String.valueOf(i))));
+        intList.forEach(i -> values.add(FieldValue.of(FieldValue.Attribute.PRIMITIVE, String.valueOf(i))));
         return ImmutableList.of(
                 FieldValue.of(FieldValue.Attribute.REPEATED, values),
                 FieldValue.of(FieldValue.Attribute.REPEATED,
@@ -188,7 +188,7 @@ public class BigQueryTestUtils
     static List<FieldValue> generateStructRowValue(Integer integer)
     {
         return ImmutableList.of(
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, integer == null ? null : String.valueOf(integer))
+                FieldValue.of(FieldValue.Attribute.PRIMITIVE, String.valueOf(integer))
         );
     }
 

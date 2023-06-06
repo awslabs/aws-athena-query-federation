@@ -166,13 +166,15 @@ public class BigQueryRecordHandler
                     boolean isMatched = true;
                     for (Field field : recordsRequest.getSchema().getFields()) {
                         FieldValue fieldValue = row.get(field.getName());
+                        Object val;
                         switch (getMinorTypeForArrowType(field.getFieldType().getType())) {
                             case LIST:
                             case STRUCT:
-                                isMatched &= block.offerComplexValue(field.getName(), rowNum, FieldResolver.DEFAULT, BigQueryUtils.getComplexObjectFromFieldValue(field, fieldValue,  timeStampColsList.contains(field.getName())));
+                                val = BigQueryUtils.getComplexObjectFromFieldValue(field, fieldValue, timeStampColsList.contains(field.getName()));
+                                isMatched &= block.offerComplexValue(field.getName(), rowNum, FieldResolver.DEFAULT, val);
                                 break;
                             default:
-                                Object val = getObjectFromFieldValue(field.getName(), fieldValue,
+                                val = getObjectFromFieldValue(field.getName(), fieldValue,
                                         field, timeStampColsList.contains(field.getName()));
                                 isMatched &= block.offerValue(field.getName(), rowNum, val);
                                 break;
