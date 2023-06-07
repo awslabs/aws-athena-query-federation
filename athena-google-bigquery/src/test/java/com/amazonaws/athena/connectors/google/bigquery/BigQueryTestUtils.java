@@ -54,6 +54,10 @@ public class BigQueryTestUtils
     public static final String LIST_FIELD_NAME_1 = "list1";
     public static final String STRUCT_FIELD_NAME_1 = "struct1";
     public static final String STRUCT_INT_FIELD_NAME_1 = "struct_int_field_1";
+    public static final String STRUCT_FIELD = "StructField";
+    public static final String LIST_FIELD = "ListField";
+    public static final String LIST_OF_STRUCT_FIELD = "ListOfStructField";
+    private static final String STRUCT_OF_LIST_FIELD = "StructOfListField";
 
     private BigQueryTestUtils()
     {
@@ -92,6 +96,18 @@ public class BigQueryTestUtils
                 Field.of(INTEGER_FIELD_NAME_1, LegacySQLTypeName.INTEGER),
                 Field.of(STRING_FIELD_NAME_1, LegacySQLTypeName.STRING),
                 Field.of(FLOAT_FIELD_NAME_1, LegacySQLTypeName.FLOAT)
+        );
+    }
+
+    //Returns the schema by returning a list of fields in Google BigQuery Format.
+    static Schema getTestSchemaComplexSchema()
+    {
+        return Schema.of(Arrays.asList(
+                        Field.of(STRUCT_FIELD, LegacySQLTypeName.RECORD, Field.of("intField", LegacySQLTypeName.INTEGER)),
+                        Field.newBuilder(LIST_OF_STRUCT_FIELD, LegacySQLTypeName.RECORD, Field.of("intField", LegacySQLTypeName.INTEGER)).setMode(Field.Mode.REPEATED).build(),
+                        Field.newBuilder(LIST_FIELD, LegacySQLTypeName.INTEGER).setMode(Field.Mode.REPEATED).build(),
+                        Field.of(STRUCT_OF_LIST_FIELD, LegacySQLTypeName.RECORD, Field.newBuilder(LIST_FIELD, LegacySQLTypeName.INTEGER).setMode(Field.Mode.REPEATED).build())
+                )
         );
     }
 
