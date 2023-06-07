@@ -55,7 +55,8 @@ public class BigQueryTestUtils
     public static final String STRUCT_FIELD_NAME_1 = "struct1";
     public static final String STRUCT_INT_FIELD_NAME_1 = "struct_int_field_1";
 
-    private BigQueryTestUtils() {
+    private BigQueryTestUtils()
+    {
     }
 
     public static final String PROJECT_1_NAME = "testProject";
@@ -178,26 +179,18 @@ public class BigQueryTestUtils
     {
         List<FieldValue> values = new ArrayList<>();
         intList.forEach(i -> values.add(FieldValue.of(FieldValue.Attribute.PRIMITIVE, String.valueOf(i))));
-        return ImmutableList.of(
-                FieldValue.of(FieldValue.Attribute.REPEATED, values),
-                FieldValue.of(FieldValue.Attribute.REPEATED,
-                         FieldValueList.of(generateStructRowValue(structFieldValue), FieldList.of(getStructField())))
-        );
-    }
-
-    static List<FieldValue> generateStructRowValue(Integer integer)
-    {
-        return ImmutableList.of(
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, String.valueOf(integer))
-        );
-    }
-
-    static List<Field> getStructField()
-    {
-        return Arrays.asList(
+        List<Field> fields = Arrays.asList(
                 Field.newBuilder(STRUCT_FIELD_NAME_1, LegacySQLTypeName.RECORD,
                                 FieldList.of(ImmutableList.of(Field.of(STRUCT_INT_FIELD_NAME_1, LegacySQLTypeName.INTEGER))))
                         .setMode(Field.Mode.REPEATED).build()
+        );
+        List<FieldValue> fieldValues = ImmutableList.of(
+                FieldValue.of(FieldValue.Attribute.PRIMITIVE, String.valueOf(structFieldValue))
+        );
+        return ImmutableList.of(
+                FieldValue.of(FieldValue.Attribute.REPEATED, values),
+                FieldValue.of(FieldValue.Attribute.REPEATED,
+                        FieldValueList.of(fieldValues, FieldList.of(fields)))
         );
     }
 }

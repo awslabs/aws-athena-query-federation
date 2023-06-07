@@ -322,7 +322,7 @@ public class BigQueryRecordHandlerTest
             when(queryStatusChecker.isQueryRunning()).thenReturn(true);
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
-
+            assertTrue(spillWriter.spilled());
         }
     }
 
