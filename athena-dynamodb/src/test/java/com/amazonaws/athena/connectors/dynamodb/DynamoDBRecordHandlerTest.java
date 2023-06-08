@@ -181,64 +181,62 @@ public class DynamoDBRecordHandlerTest
     public void testReadScanSplitWithLimit()
         throws Exception
     {
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 5),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(TEST_TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 5)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
-
+        Message rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
 
-        assertEquals(5, response.getRecords().getRowCount());
-        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("testReadScanSplit: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+
+        assertEquals(5, ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
     public void testReadScanSplitWithLimitLargerThanN()
             throws Exception
     {
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE)
-                .add(SEGMENT_ID_PROPERTY, "0")
-                .add(SEGMENT_COUNT_METADATA, "1")
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE)
+                .putProperties(SEGMENT_ID_PROPERTY, "0")
+                .putProperties(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 10_000),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+                ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(TEST_TABLE_NAME)
+                .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+                .setSplit(split)
+                .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 10_000)))
+                .setMaxBlockSize(100_000_000_000L)
+                .setMaxInlineBlockSize(100_000_000_000L)
+                .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
-
+        Message rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
 
-        assertEquals(1000, response.getRecords().getRowCount());
-        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("testReadScanSplit: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+
+        assertEquals(1000, ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -317,35 +315,34 @@ public class DynamoDBRecordHandlerTest
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
-        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
-                .add(TABLE_METADATA, TEST_TABLE)
-                .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(toAttributeValue("test_str_0")))
-                .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
-                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+        Split split = Split.newBuilder().setSpillLocation(SPILL_LOCATION).setEncryptionKey(keyFactory.create())
+                .putProperties(TABLE_METADATA, TEST_TABLE)
+                .putProperties(TABLE_METADATA, TEST_TABLE)
+                .putProperties(HASH_KEY_NAME_METADATA, "col_0")
+                .putProperties("col_0", toJsonString(toAttributeValue("test_str_0")))
+                .putProperties(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
+                .putProperties(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .putProperties(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 1),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(TEST_TABLE_NAME)
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
+            .setSplit(split)
+            .setConstraints(ProtobufMessageConverter.toProtoConstraints(new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 1)))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
-
+        Message rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testReadQuerySplit: rows[{}]", response.getRecordCount());
+        logger.info("testReadQuerySplit: rows[{}]", ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertEquals(1, response.getRecords().getRowCount());
-        logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(1, ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test

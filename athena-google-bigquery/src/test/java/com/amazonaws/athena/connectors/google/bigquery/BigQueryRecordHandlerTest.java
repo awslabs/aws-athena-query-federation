@@ -168,11 +168,6 @@ public class BigQueryRecordHandlerTest
             .build();        
         //Always return try for the evaluator to keep all rows.
         ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-        when(evaluator.apply(nullable(String.class), any())).thenAnswer(
-                (InvocationOnMock invocationOnMock) -> {
-                    return true;
-                }
-        );
 
         //Populate the schema and data that the mocked Google BigQuery client will return.
         com.google.cloud.bigquery.Schema tableSchema = BigQueryTestUtils.getTestSchema();
@@ -201,7 +196,6 @@ public class BigQueryRecordHandlerTest
 
         //Execute the test
         bigQueryRecordHandler.readWithConstraint(allocator, spillWriter, request, queryStatusChecker);
-        logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
 
         //Ensure that there was a spill so that we can read the spilled block.
         assertTrue(spillWriter.spilled());
@@ -239,11 +233,6 @@ public class BigQueryRecordHandlerTest
             .build();
         //Always return try for the evaluator to keep all rows.
         ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-        when(evaluator.apply(nullable(String.class), any())).thenAnswer(
-                (InvocationOnMock invocationOnMock) -> {
-                    return true;
-                }
-        );
 
         // added schema with columns datecol, datetimecol, timestampcol
         List<com.google.cloud.bigquery.Field> testSchemaFields = Arrays.asList(com.google.cloud.bigquery.Field.of("datecol", LegacySQLTypeName.DATE),
@@ -272,7 +261,6 @@ public class BigQueryRecordHandlerTest
 
         //Execute the test
         bigQueryRecordHandler.readWithConstraint(allocator, spillWriter, request, queryStatusChecker);
-        logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
 
     }
 

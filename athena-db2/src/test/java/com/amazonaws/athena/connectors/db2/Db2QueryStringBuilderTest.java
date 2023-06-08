@@ -34,15 +34,15 @@ public class Db2QueryStringBuilderTest {
     public void testQueryBuilder()
     {
         Split split = Split.newBuilder().build();
-        Db2QueryStringBuilder builder = new Db2QueryStringBuilder("'");
-        Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        Db2QueryStringBuilder builder = new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
+        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test
     public void testGetPartitionWhereClauses()
     {
-        Db2QueryStringBuilder builder = new Db2QueryStringBuilder("'");
+        Db2QueryStringBuilder builder =  new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
         Split split = Split.newBuilder()
             .putProperties("PARTITION_NUMBER", "0")
             .putProperties("PARTITIONING_COLUMN", "PC")

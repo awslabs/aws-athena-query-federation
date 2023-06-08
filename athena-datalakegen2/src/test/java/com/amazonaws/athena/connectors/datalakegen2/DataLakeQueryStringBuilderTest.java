@@ -21,11 +21,9 @@ package com.amazonaws.athena.connectors.datalakegen2;
 
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import org.junit.Test;
-import org.mockito.Mockito;
 import org.testng.Assert;
 
 import java.util.ArrayList;
-import java.util.Collections;
 
 import static com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2Constants.QUOTE_CHARACTER;
 
@@ -39,9 +37,9 @@ public class DataLakeQueryStringBuilderTest
     public void testQueryBuilder()
     {
         Split split = Split.newBuilder().putProperties("partition", "p0").build();
-        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder("'");
-        Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
+        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test

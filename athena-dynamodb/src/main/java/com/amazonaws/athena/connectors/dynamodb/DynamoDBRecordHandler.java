@@ -29,7 +29,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
@@ -191,7 +190,7 @@ public class DynamoDBRecordHandler
             logger.info("Resolving disableProjectionAndCasing to: " + disableProjectionAndCasing);
         }
 
-        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()), disableProjectionAndCasing);
+        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, ProtobufMessageConverter.fromProtoSchema(allocator, recordsRequest.getSchema()), ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()), disableProjectionAndCasing);
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
 
         GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()));
@@ -210,7 +209,7 @@ public class DynamoDBRecordHandler
 
         GeneratedRowWriter rowWriter = rowWriterBuilder.build();
         long numRows = 0;
-        boolean canApplyLimit = canApplyLimit(recordsRequest.getConstraints());
+        boolean canApplyLimit = canApplyLimit(ProtobufMessageConverter.fromProtoConstraints(allocator, recordsRequest.getConstraints()));
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated

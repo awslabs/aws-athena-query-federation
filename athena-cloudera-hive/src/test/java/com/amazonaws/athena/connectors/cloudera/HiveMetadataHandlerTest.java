@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.proto.metadata.*;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufUtils;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -119,11 +120,11 @@ public class HiveMetadataHandlerTest
         Object[][] values4 = {{"PARTITIONED:true"}};
         ResultSet resultSet2 = mockResultSet(columns3, types3, values4, new AtomicInteger(-1));
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
-        String tableName =getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
+        String tableName =ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase();
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + tableName)).thenReturn(preparestatement1);
         final String getPartitionExistsSql = "show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
+        final String getPartitionDetailsSql = "show partitions "  + ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
@@ -135,6 +136,10 @@ public class HiveMetadataHandlerTest
         List<String> expectedValues = new ArrayList<>();
         for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()), i));
+        }
+        List<String> actualValues = new ArrayList<>();
+        for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount(); i++) {
+            actualValues.add(BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()), i));
         }
         Assert.assertEquals(2, actualValues.size());
         Assert.assertEquals("[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']", actualValues.get(0));
@@ -167,8 +172,8 @@ public class HiveMetadataHandlerTest
         Object[][] values1 = {};
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY+tempTableName.getQualifiedTableName())).thenReturn(preparestatement1);
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
+        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY+ProtobufUtils.getQualifiedTableName(tempTableName))).thenReturn(preparestatement1);
+        final String getPartitionDetailsSql = "show partitions "  + ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
@@ -229,11 +234,11 @@ public class HiveMetadataHandlerTest
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {{value2},{value3}};
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
-        String tableName =getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
+        String tableName =ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase();
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY+tableName)).thenReturn(preparestatement1);
         final String getPartitionExistsSql = "show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
-        final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
+        final String getPartitionDetailsSql = "show partitions "  + ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
@@ -290,7 +295,7 @@ public class HiveMetadataHandlerTest
         ResultSet resultSet1 = mockResultSet(schema1, values1, new AtomicInteger(-1));
         TableName inputTableName = TableName.newBuilder().setSchemaName("TESTSCHEMA").setTableName("TESTTABLE").build();
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + inputTableName.getQualifiedTableName().toUpperCase())).thenReturn(preparestatement1);
+        Mockito.when(this.connection.prepareStatement(HiveMetadataHandler.GET_METADATA_QUERY + ProtobufUtils.getQualifiedTableName(inputTableName).toUpperCase())).thenReturn(preparestatement1);
         Mockito.when(preparestatement1.executeQuery()).thenReturn(resultSet);
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
         Mockito.when(this.connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet1);

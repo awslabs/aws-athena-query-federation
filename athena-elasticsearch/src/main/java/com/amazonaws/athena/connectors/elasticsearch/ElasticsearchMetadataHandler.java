@@ -53,13 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-<<<<<<< HEAD
 import java.util.Arrays;
-import java.util.Collections;
-=======
-import java.util.ArrayList;
-import java.util.HashSet;
->>>>>>> caebfdd6 (Changes to make all modules build)
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -196,6 +190,7 @@ public class ElasticsearchMetadataHandler
                 .map(tableName -> TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(tableName).build())
                 .collect(Collectors.toList());
         return ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tableNames).build();
+    }
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
@@ -292,7 +287,7 @@ public class ElasticsearchMetadataHandler
         Set<Split> splits = Arrays.stream(indexResponse.getIndices())
                 .flatMap(index -> getShardsIDsFromES(client, index) // get all shards for an index.
                         .stream()
-                        .map(shardId -> Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey()).putAllProperties(ImmutableMap.of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString())).build())
+                        .map(shardId -> Split.newBuilder().setSpillLocation(spillLocation).setEncryptionKey(makeEncryptionKey()).putAllProperties(ImmutableMap.of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString(), INDEX_KEY, index)).build())
                 )
                 .collect(Collectors.toSet());
 

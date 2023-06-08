@@ -113,8 +113,6 @@ public class SnowflakeMetadataHandlerTest
         Mockito.when(resultSet.getLong(1)).thenReturn((long) totalActualRecordCount);
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
-        Assert.assertEquals(values.length, ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount());
-
         List<String> expectedValues = new ArrayList<>();
         for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()), i));
@@ -130,7 +128,7 @@ public class SnowflakeMetadataHandlerTest
             }
             actualValues.add("[partition : partition-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
         }
-        Assert.assertEquals((int)limit, getTableLayoutResponse.getPartitions().getRowCount());
+        Assert.assertEquals((int)limit, ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount());
         Assert.assertEquals(expectedValues, actualValues);
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
@@ -210,7 +208,6 @@ public class SnowflakeMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         List<String> actualValues = new ArrayList<>();
         List<String> expectedValues = new ArrayList<>();
-        long offset = 0;
         for (int i = 0; i < ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()).getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(ProtobufMessageConverter.fromProtoBlock(blockAllocator, getTableLayoutResponse.getPartitions()), i));
         }

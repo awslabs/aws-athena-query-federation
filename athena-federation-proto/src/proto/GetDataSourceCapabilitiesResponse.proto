@@ -6,8 +6,14 @@ import 'OptimizationSubType.proto';
 
 option java_multiple_files = true;
 
+message ListOptimizationSubType {
+  repeated com.amazonaws.athena.connector.lambda.proto.metadata.optimizations.OptimizationSubType optimiziationSubTypeList = 1;
+}
+
 message GetDataSourceCapabilitiesResponse {
   optional string type = 1 [json_name="@type"];
   optional string catalogName = 2;
-  map<string, com.amazonaws.athena.connector.lambda.proto.metadata.optimizations.OptimizationSubType> capabilities = 3;
+  // this should really be map<string, repeated com.amazonaws.athena.connector.lambda.proto.metadata.optimizations.OptimizationSubType, but proto doesn't allow for repeated in a map. So, we have to use
+  // this wrapper field.
+  map<string, ListOptimizationSubType> capabilities = 3;
 }

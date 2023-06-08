@@ -36,8 +36,8 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -62,6 +62,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE;
 
 public class TimestreamMetadataHandler
         extends GlueMetadataHandler
@@ -151,7 +152,7 @@ public class TimestreamMetadataHandler
         // In this situation we want to loop through all the pages to return up to the MAX_RESULTS size
         // And only do this if we don't have a token passed in, otherwise if we have a token that takes precedence
         // over the fact that the page size was set to unlimited.
-        if (request.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE && request.getNextToken() == null) {
+        if (request.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE && request.getNextToken().isEmpty()) {
             logger.info("Request page size is UNLIMITED_PAGE_SIZE_VALUE");
 
             List<TableName> allTableNames = getTableNamesInSchema(request.getSchemaName())
@@ -175,7 +176,11 @@ public class TimestreamMetadataHandler
             .collect(Collectors.toList());
 
         // Pass through whatever token we got from Glue to the user
-        ListTablesResponse result = ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tableNames).setNextToken(timestreamResults.getNextToken()).build();
+        ListTablesResponse.Builder resultBuilder = ListTablesResponse.newBuilder().setCatalogName(request.getCatalogName()).addAllTables(tableNames);
+        if (timestreamResults.getNextToken() != null) {
+            resultBuilder.setNextToken(timestreamResults.getNextToken());
+        }
+        ListTablesResponse result = resultBuilder.build();
         logger.debug("doListTables [paginated] result: {}", result);
         return result;
     }

@@ -307,7 +307,7 @@ public class ElasticsearchRecordHandlerTest
 
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
-        split = Split.newBuilder(makeSpillLocation(), null)
+        split = Split.newBuilder().setSpillLocation(makeSpillLocation())
                 .putProperties("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
                 .putProperties(ElasticsearchMetadataHandler.SHARD_KEY, "_shards:5")
                 .putProperties(ElasticsearchMetadataHandler.INDEX_KEY, "index1")

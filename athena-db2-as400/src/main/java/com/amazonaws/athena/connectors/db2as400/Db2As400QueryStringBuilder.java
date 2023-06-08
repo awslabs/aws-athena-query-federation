@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.db2as400;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
@@ -69,11 +69,11 @@ public class Db2As400QueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        String column = split.getProperty(Db2As400MetadataHandler.PARTITIONING_COLUMN);
+        String column = split.getPropertiesMap().get(Db2As400MetadataHandler.PARTITIONING_COLUMN);
         if (column != null) {
             LOGGER.debug("Fetching data using Partition");
             //example query: select * from EMP_TABLE WHERE DATAPARTITIONNUM(EMP_NO) = 0
-            return Collections.singletonList(" DATAPARTITIONNUM(" + column + ") = " + split.getProperty(Db2As400MetadataHandler.PARTITION_NUMBER));
+            return Collections.singletonList(" DATAPARTITIONNUM(" + column + ") = " + split.getPropertiesMap().get(Db2As400MetadataHandler.PARTITION_NUMBER));
         }
         else {
             LOGGER.debug("Fetching data without Partition");

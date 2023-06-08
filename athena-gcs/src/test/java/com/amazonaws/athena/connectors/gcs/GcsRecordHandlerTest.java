@@ -83,12 +83,8 @@ public class GcsRecordHandlerTest extends GenericGcsTest
     @Mock
     GoogleCredentials credentials;
 
-    @Mock
-    StorageMetadata storageMetadata;
-
-    private AmazonS3 amazonS3;
-
-    private BlockSpiller spillWriter;
+    private S3BlockSpiller spillWriter;
+    private BlockAllocator allocator;
 
 
     private final EncryptionKeyFactory keyFactory = new LocalKeyFactory();
@@ -100,7 +96,6 @@ public class GcsRecordHandlerTest extends GenericGcsTest
             .setDirectory(true)
             .build();
     private FederatedIdentity federatedIdentity;
-    private BlockAllocator allocator;
     GcsRecordHandler gcsRecordHandler;
 
     private static final BufferAllocator bufferAllocator = new RootAllocator();
@@ -114,8 +109,7 @@ public class GcsRecordHandlerTest extends GenericGcsTest
         LOGGER.info("Starting init.");
         federatedIdentity = FederatedIdentity.newBuilder().build();
         allocator = new BlockAllocatorImpl();
-        amazonS3 = mock(AmazonS3.class);
-        mockS3Client();
+        AmazonS3 amazonS3 = mock(AmazonS3.class);
         //Create Spill config
         //This will be enough for a single block
         //This will force the writer to spill.
@@ -177,16 +171,12 @@ public class GcsRecordHandlerTest extends GenericGcsTest
             .setMaxBlockSize(0)
             .setMaxInlineBlockSize(0)
             .build();
-        ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);  //This is ignored when directly calling readWithConstraints.
-        //Always return true for the evaluator to keep all rows.
 
-        when(evaluator.apply(any(String.class), any(Object.class))).thenAnswer((InvocationOnMock invocationOnMock) -> true);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
         //Execute the test
         gcsRecordHandler.readWithConstraint(allocator, spillWriter, request, queryStatusChecker);
-        assertEquals("Total records should be 2", 2, spillWriter.getBlock().getRowCount());
+        assertEquals(2, spillWriter.getBlock().getRowCount(), "Total records should be 2");
     
     }
 

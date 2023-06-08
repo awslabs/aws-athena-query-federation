@@ -27,8 +27,6 @@ import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -38,12 +36,15 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Top
 import com.amazonaws.athena.connector.lambda.proto.domain.Split;
 import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufUtils;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -134,7 +135,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              Statement stmt = connection.createStatement();
-             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
+             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase())) {
             boolean isTablePartitioned = false;
             ResultSet partitionResultset = stmt.executeQuery("show table extended in " + getTableLayoutRequest.getTableName().getSchemaName() + " like " + getTableLayoutRequest.getTableName().getTableName().toUpperCase());
             while (partitionResultset != null && partitionResultset.next()) {
@@ -148,7 +149,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
             }
             LOGGER.debug("isTablePartitioned:" + isTablePartitioned);
              if (isTablePartitioned) {
-                 ResultSet partitionRs = stmt.executeQuery("show partitions " + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase());
+                 ResultSet partitionRs = stmt.executeQuery("show partitions " + ProtobufUtils.getQualifiedTableName(getTableLayoutRequest.getTableName()).toUpperCase());
                  Set<String> partition = new HashSet<>();
                  while (partitionRs != null && partitionRs.next()) {
                      partition.add(partitionRs.getString("Partition"));
@@ -271,7 +272,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
                 LimitPushdownSubType.INTEGER_CONSTANT
         ));
 
-        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+        return GetDataSourceCapabilitiesResponse.newBuilder().setCatalogName(request.getCatalogName()).putAllCapabilities(ProtobufMessageConverter.toProtoCapabilities(capabilities.build())).build();
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)
@@ -318,7 +319,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
                 Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
+            try (PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + ProtobufUtils.getQualifiedTableName(tableName).toUpperCase())) {
                 Map<String, String> meteHashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),

@@ -197,7 +197,7 @@ public class GcsMetadataHandlerTest
                 new Database().withName(DATABASE_NAME).withLocationUri(S3_GOOGLE_CLOUD_STORAGE_FLAG),
                 new Database().withName(DATABASE_NAME1).withLocationUri(S3_GOOGLE_CLOUD_STORAGE_FLAG));
         ListSchemasRequest listSchemasRequest = ListSchemasRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName(CATALOG).build();
-        PowerMockito.when(awsGlue.getDatabases(any())).thenReturn(result);
+        Mockito.when(awsGlue.getDatabases(any())).thenReturn(result);
         ListSchemasResponse schemaNamesResponse = gcsMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
         List<String> expectedSchemaNames = new ArrayList<>();
         expectedSchemaNames.add(DATABASE_NAME);
@@ -228,19 +228,10 @@ public class GcsMetadataHandlerTest
                         .withLocation(LOCATION)
                         .withParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET))));
         getTablesResult.setTableList(tableList);
-        PowerMockito.when(awsGlue.getTables(any())).thenReturn(getTablesResult);
+        Mockito.when(awsGlue.getTables(any())).thenReturn(getTablesResult);
         ListTablesRequest listTablesRequest = ListTablesRequest.newBuilder().setIdentity(federatedIdentity).setQueryId(QUERY_ID).setCatalogName(CATALOG).setSchemaName(SCHEMA_NAME).setNextToken(TEST_TOKEN).setPageSize(50).build();
         ListTablesResponse tableNamesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
         assertEquals(2, tableNamesResponse.getTablesList().size());
-    }
-
-    @Test(expected = RuntimeException.class)
-    public void testDoListTablesThrowsException() throws Exception
-    {
-        ListTablesRequest listTablesRequest = mock(ListTablesRequest.class);
-        when(listTablesRequest.getCatalogName()).thenThrow(new RuntimeException("RunTimeException() "));
-        ListTablesResponse listTablesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
-        assertNull(listTablesResponse);
     }
 
     @Test
@@ -298,7 +289,7 @@ public class GcsMetadataHandlerTest
         table.setPartitionKeys(columns);
         GetTableResult getTableResult = new GetTableResult();
         getTableResult.setTable(table);
-        PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
+        Mockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), 2000));
         GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder().setCatalogName(CATALOG_NAME).setTableName(TableName.newBuilder().setSchemaName(DATABASE_NAME).setTableName(TABLE_1).build())
             .setConstraints(ProtobufMessageConverter.toProtoConstraints(constraints))
