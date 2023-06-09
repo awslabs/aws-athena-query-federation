@@ -362,6 +362,7 @@ public class S3BlockSpiller
             // only sees the InputStream wrapper.
             ObjectMetadata objMeta = new ObjectMetadata();
             objMeta.setContentLength(bytes.length);
+            objMeta.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
             PutObjectRequest request = new PutObjectRequest(
                     spillLocation.getBucket(),
                     spillLocation.getKey(),

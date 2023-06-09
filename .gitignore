@@ -19,3 +19,9 @@ node_modules
 package-lock.json
 cdk.out
 .env
+athena-cloudera-hive/pom.xml
+athena-cloudera-impala/src/main/java/com/amazonaws/athena/connectors/cloudera/ImpalaFederationExpressionParser.java
+athena-cloudera-impala/src/main/java/com/amazonaws/athena/connectors/cloudera/ImpalaRecordHandler.java
+athena-cloudera-impala/src/test/java/com/amazonaws/athena/connectors/cloudera/ImpalaQueryStringBuilderTest.java
+athena-cloudera-impala/src/test/java/com/amazonaws/athena/connectors/cloudera/ImpalaRecordHandlerTest.java
+.gitignore

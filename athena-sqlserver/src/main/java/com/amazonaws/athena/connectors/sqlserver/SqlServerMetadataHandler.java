@@ -499,7 +499,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     {
         String queryToListUserCreatedSchemas = "select s.name as schema_name from " +
                 "sys.schemas s inner join sys.sysusers u on u.uid = s.principal_id " +
-                "where u.issqluser = 1 " +
+                "where (u.issqluser = 1 or u.isntuser =1 ) " +
                 "and u.name not in ('sys', 'guest', 'INFORMATION_SCHEMA') " +
                 "order by s.name";
         try (Statement st = jdbcConnection.createStatement();
