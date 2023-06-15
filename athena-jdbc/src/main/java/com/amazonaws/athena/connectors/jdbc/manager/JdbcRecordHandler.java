@@ -76,13 +76,20 @@ import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.RowFilter.Entry;
+
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLDataException;
 import java.sql.SQLException;
+import java.sql.Struct;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -135,14 +142,21 @@ public abstract class JdbcRecordHandler
         return null;
     }
 
+    protected java.util.Optional<Boolean> getAutoCommit()
+    {
+      return java.util.Optional.of(false);
+    }
+
     @Override
     public void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
+        LOGGER.info("Read Record Request {}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
         try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
-            connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            if (this.getAutoCommit().isPresent()) {
+                connection.setAutoCommit(this.getAutoCommit().get()); // For consistency. This is needed to be false to enable streaming for some database types.
+            }
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -152,6 +166,9 @@ public abstract class JdbcRecordHandler
                 for (Field next : readRecordsRequest.getSchema().getFields()) {
                     if (next.getType() instanceof ArrowType.List) {
                         rowWriterBuilder.withFieldWriterFactory(next.getName(), makeFactory(next));
+                    }
+                    else if (next.getType() instanceof ArrowType.Struct) {
+                        rowWriterBuilder.withFieldWriterFactory(next.getName(), makeStructFactory(next));
                     }
                     else {
                         rowWriterBuilder.withExtractor(next.getName(), makeExtractor(next, resultSet, partitionValues));
@@ -168,8 +185,9 @@ public abstract class JdbcRecordHandler
                     rowsReturnedFromDatabase++;
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
-
-                connection.commit();
+                if (this.getAutoCommit().isPresent()) {
+                    connection.commit();
+                }
             }
         }
     }
@@ -188,6 +206,54 @@ public abstract class JdbcRecordHandler
                     if (!((ResultSet) context).wasNull()) {
                         List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
                         BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                    }
+                    return true;
+                };
+    }
+
+    public static void printResultSet(ResultSet rs) throws SQLException
+    {
+        LOGGER.info("Printing Record Handler Result Set:");
+        ResultSetMetaData rsmd = rs.getMetaData();
+        int columns = rsmd.getColumnCount();
+    
+        // Print the column names
+        String columnNames = "";
+        for (int i = 1; i <= columns; i++) {
+            columnNames += rsmd.getColumnName(i) + ", ";
+        }
+        LOGGER.info(columnNames);
+    
+        // Print the column values
+        while (rs.next()) {
+            String newColumn = "";
+            for (int i = 1; i <= columns; i++) {
+                newColumn += rs.getObject(i) + ", ";
+            }
+            LOGGER.info(newColumn);
+        }
+    }
+
+    /**
+     * Create a field extractor for complex Nested type.
+     * @param field Field's metadata information.
+     * @return Extractor for the List type.
+     */
+    protected FieldWriterFactory makeStructFactory(Field field)
+    {
+        return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                (FieldWriter) (Object context, int rowNum) ->
+                {
+                    Object nestedObj = ((ResultSet) context).getObject(field.getName());
+                    if (!((ResultSet) context).wasNull() && nestedObj instanceof Struct) {
+                        Map<String, Object> renestedMap = new HashMap<>();
+                        for (Object obj : ((Struct) nestedObj).getAttributes()) {
+                            Map.Entry<?, ?> entry = (Map.Entry<?, ?>) obj;
+                            String key = entry.getKey().toString();
+                            Object value = entry.getValue();
+                            renestedMap.put(key, value);
+                        }
+                        BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, renestedMap);
                     }
                     return true;
                 };
@@ -278,8 +344,17 @@ public abstract class JdbcRecordHandler
             case DATEMILLI:
                 return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) ->
                 {
-                    if (resultSet.getTimestamp(fieldName) != null) {
-                        dst.value = resultSet.getTimestamp(fieldName).getTime();
+                    //try catch needed for OpenSearch type date which actually is returned as timestamp
+                    try {
+                        if (resultSet.getTimestamp(fieldName) != null) {
+                            dst.value = resultSet.getTimestamp(fieldName).getTime();
+                        }
+                    }
+                    catch (SQLDataException e) {
+                        //OpenSearch returns it as type String
+                        if (resultSet.getString(fieldName) != null) {
+                            dst.value = Timestamp.valueOf(resultSet.getString(fieldName)).getTime();
+                        }
                     }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };

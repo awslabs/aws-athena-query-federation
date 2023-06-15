@@ -76,7 +76,7 @@ public abstract class JdbcMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
     private static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
     private static final int DEFAULT_NUM_SPLITS = 20;
-    private final JdbcConnectionFactory jdbcConnectionFactory;
+    protected final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final SplitterFactory splitterFactory = new SplitterFactory();
 
@@ -275,7 +275,7 @@ public abstract class JdbcMetadataHandler
         return metadata.getColumns(
                 catalogName,
                 escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape),
+                escapeNamePattern(tableHandle.getTableName(), null), 
                 null);
     }
 

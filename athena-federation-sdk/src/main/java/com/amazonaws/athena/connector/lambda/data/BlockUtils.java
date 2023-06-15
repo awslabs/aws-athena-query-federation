@@ -849,6 +849,12 @@ public class BlockUtils
                     if (value == null) {
                         float4Writer.writeNull();
                     }
+                    else if (value instanceof java.lang.Integer) {
+                        float4Writer.writeFloat4((int) value);
+                    }
+                    else if (value instanceof java.lang.Double) {
+                        float4Writer.writeFloat4(((Double) value).floatValue());
+                    }
                     else {
                         float4Writer.writeFloat4((float) value);
                     }
@@ -925,6 +931,9 @@ public class BlockUtils
                     BigIntWriter bigIntWriter = fromMapOrStruct ? writer.bigInt(field.getName()) : writer.bigInt();
                     if (value == null) {
                         bigIntWriter.writeNull();
+                    }
+                    else if (value instanceof java.lang.Integer) {
+                        bigIntWriter.writeBigInt(((Integer) value).longValue());
                     }
                     else {
                         bigIntWriter.writeBigInt((long) value);

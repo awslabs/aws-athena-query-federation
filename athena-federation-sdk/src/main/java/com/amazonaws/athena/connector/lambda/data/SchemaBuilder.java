@@ -90,6 +90,18 @@ public class SchemaBuilder
     }
 
     /**
+     * Adds a new Nested STRUCT Field to the Schema as a top-level Field.
+     *
+     * @param fieldName The name of the field to add.
+     * @return This SchemaBuilder itself.
+     */
+    public SchemaBuilder addNestedField(String fieldName, FieldBuilder newField)
+    {
+        nestedFieldBuilderMap.put(fieldName, newField);
+        return this;
+    }
+
+    /**
      * Adds a new LIST Field to the Schema as a top-level Field.
      *
      * @param fieldName The name of the field to add.
