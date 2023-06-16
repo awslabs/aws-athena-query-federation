@@ -210,8 +210,6 @@ public class BigQueryMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException, InterruptedException
     {
-        int constraintsSize = request.getConstraints().getSummary().size();
-
         //Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
 
