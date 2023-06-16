@@ -231,7 +231,7 @@ public class BigQueryMetadataHandlerTest
 
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
-        assertNotNull(response);
+        assertEquals(response.getSplits().size(), 1);
     }
 
     @Test
