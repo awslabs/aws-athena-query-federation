@@ -51,10 +51,6 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.JobId;
-import com.google.cloud.bigquery.JobInfo;
-import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
@@ -70,12 +66,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
@@ -223,48 +214,11 @@ public class BigQueryMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException, InterruptedException
     {
-        int constraintsSize = request.getConstraints().getSummary().size();
-        if (constraintsSize > 0) {
-            //Every split must have a unique location if we wish to spill to avoid failures
-            SpillLocation spillLocation = makeSpillLocation(request);
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
 
-            return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
-                    makeEncryptionKey()).build());
-        }
-        else {
-            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
-            String dataSetName = fixCaseForDatasetName(projectName, request.getTableName().getSchemaName(), bigQuery);
-            String tableName = fixCaseForTableName(projectName, dataSetName, request.getTableName().getTableName(), bigQuery);
-            QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder("SELECT count(*) FROM `" + projectName + "." + dataSetName + "." + tableName + "` ").setUseLegacySql(false).build();
-            // Create a job ID so that we can safely retry.
-            JobId jobId = JobId.of(UUID.randomUUID().toString());
-            Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build()).waitFor();
-            TableResult result = queryJob.getQueryResults();
-
-            double numberOfRows = result.iterateAll().iterator().next().get(0).getLongValue();
-            logger.debug("numberOfRows: " + numberOfRows);
-            int concurrencyLimit = Integer.parseInt(configOptions.get("concurrencyLimit"));
-            logger.debug("concurrencyLimit: " + numberOfRows);
-            long pageCount = (long) numberOfRows / concurrencyLimit;
-            long totalPageCountLimit = (pageCount == 0) ? (long) numberOfRows : pageCount;
-            double limit = (int) Math.ceil(numberOfRows / totalPageCountLimit);
-            Set<Split> splits = new HashSet<>();
-            long offSet = 0;
-
-            for (int i = 1; i <= limit; i++) {
-                if (i > 1) {
-                    offSet = offSet + totalPageCountLimit;
-                }
-                // Every split must have a unique location if we wish to spill to avoid failures
-                SpillLocation spillLocation = makeSpillLocation(request);
-                // Create a new split (added to the splits set) that includes the domain and endpoint, and
-                // shard information (to be used later by the Record Handler).
-                Map<String, String> map = new HashMap<>();
-                map.put(Long.toString(totalPageCountLimit), Long.toString(offSet));
-                splits.add(new Split(spillLocation, makeEncryptionKey(), map));
-            }
-            return new GetSplitsResponse(request.getCatalogName(), splits);
-        }
+        return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
+                makeEncryptionKey()).build());
     }
 
     /**

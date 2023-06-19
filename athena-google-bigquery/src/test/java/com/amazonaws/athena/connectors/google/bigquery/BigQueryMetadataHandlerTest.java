@@ -107,8 +107,6 @@ public class BigQueryMetadataHandlerTest
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         job = mock(Job.class);
         jobStatus = mock(JobStatus.class);
-        when(bigQuery.create(nullable(JobInfo.class), any())).thenReturn(job);
-        when(job.waitFor(any())).thenReturn(job);
         mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
         mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
     }
@@ -248,11 +246,10 @@ public class BigQueryMetadataHandlerTest
 
         Page<FieldValueList> pageNoSchema = new BigQueryPage<>(tableRows);
         TableResult result = new TableResult(tableSchema, tableRows.size(), pageNoSchema);
-        when(job.getQueryResults()).thenReturn(result);
 
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
-        assertNotNull(response);
+        assertEquals(response.getSplits().size(), 1);
     }
 
     @Test

@@ -78,7 +78,7 @@ public class BigQuerySqlUtils
     {
         LOGGER.info("Inside buildSqlFromSplit(): ");
         StringBuilder sqlBuilder = new StringBuilder("SELECT ");
-        Map<String, String> limitAndOffsets = split.getProperties();
+
         StringJoiner sj = new StringJoiner(",");
         if (schema.getFields().isEmpty()) {
             sj.add("null");
@@ -111,13 +111,6 @@ public class BigQuerySqlUtils
             sqlBuilder.append(" limit " + constraints.getLimit());
         }
 
-        else if (limitAndOffsets.size() > 0) {
-            for (Map.Entry<String, String> entry : limitAndOffsets.entrySet()) {
-                LOGGER.info("entry.getValue())" + entry.getValue());
-                LOGGER.info("entry.getKey()" + entry.getKey());
-                sqlBuilder.append(" limit " + entry.getKey() + " offset " + entry.getValue());
-            }
-        }
         LOGGER.info("Generated SQL : {}", sqlBuilder.toString());
         return sqlBuilder.toString();
     }
