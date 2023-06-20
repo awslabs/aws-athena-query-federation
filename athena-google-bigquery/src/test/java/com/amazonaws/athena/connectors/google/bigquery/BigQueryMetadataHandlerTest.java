@@ -42,6 +42,7 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.JobStatus;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
@@ -205,6 +206,23 @@ public class BigQueryMetadataHandlerTest
 
         //Number of Fields
         assertEquals(tableSchema.getFields().size(), response.getSchema().getFields().size());
+
+        Schema tableSchemaComplex = BigQueryTestUtils.getTestSchemaComplexSchema();
+        StandardTableDefinition tableDefinitionComplex = StandardTableDefinition.newBuilder()
+                .setSchema(tableSchemaComplex).build();
+
+        when(table.getDefinition()).thenReturn(tableDefinitionComplex);
+        when(bigQuery.getTable(nullable(TableId.class))).thenReturn(table);
+        //Make the call
+        GetTableRequest getTableRequest1 = new GetTableRequest(federatedIdentity,
+                QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,
+                new TableName(datasetName, tableName));
+
+        GetTableResponse responseComplex = bigQueryMetadataHandler.doGetTable(blockAllocator, getTableRequest1);
+
+        assertNotNull(responseComplex);
+        //Number of Fields
+        assertEquals(tableSchemaComplex.getFields().size(), responseComplex.getSchema().getFields().size());
     }
 
     @Test

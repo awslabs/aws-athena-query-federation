@@ -54,7 +54,10 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -238,7 +241,20 @@ public class BigQueryMetadataHandler
             if (field.getType().getStandardType().toString().equals("TIMESTAMP")) {
                 timeStampColsList.add(field.getName());
             }
-            schemaBuilder.addField(field.getName(), translateToArrowType(field.getType()));
+            if (null != field.getMode() && field.getMode().name().equals("REPEATED")) {
+                if (field.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
+                    schemaBuilder.addField(field.getName(), Types.MinorType.LIST.getType(), ImmutableList.of(new org.apache.arrow.vector.types.pojo.Field(field.getName(), FieldType.nullable(Types.MinorType.STRUCT.getType()), BigQueryUtils.getChildFieldList(field))));
+                }
+                else {
+                    schemaBuilder.addField(field.getName(), Types.MinorType.LIST.getType(), BigQueryUtils.getChildFieldList(field));
+                }
+            }
+            else if (field.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
+                schemaBuilder.addField(field.getName(), Types.MinorType.STRUCT.getType(), BigQueryUtils.getChildFieldList(field));
+            }
+            else {
+                schemaBuilder.addField(field.getName(), translateToArrowType(field.getType()));
+            }
         }
         schemaBuilder.addMetadata("timeStampCols", timeStampColsList.toString());
         logger.debug("BigQuery table schema {}", schemaBuilder.toString());

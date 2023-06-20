@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -58,6 +59,7 @@ import static com.amazonaws.athena.connectors.google.bigquery.BigQueryExceptionF
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.getObjectFromFieldValue;
+import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
 /**
  * This record handler is an example of how you can implement a lambda that calls bigquery and pulls data.
@@ -164,9 +166,19 @@ public class BigQueryRecordHandler
                     boolean isMatched = true;
                     for (Field field : recordsRequest.getSchema().getFields()) {
                         FieldValue fieldValue = row.get(field.getName());
-                        Object val = getObjectFromFieldValue(field.getName(), fieldValue,
-                                field.getFieldType().getType(), timeStampColsList.contains(field.getName()));
-                        isMatched &= block.offerValue(field.getName(), rowNum, val);
+                        Object val;
+                        switch (getMinorTypeForArrowType(field.getFieldType().getType())) {
+                            case LIST:
+                            case STRUCT:
+                                val = BigQueryUtils.getComplexObjectFromFieldValue(field, fieldValue, timeStampColsList.contains(field.getName()));
+                                isMatched &= block.offerComplexValue(field.getName(), rowNum, FieldResolver.DEFAULT, val);
+                                break;
+                            default:
+                                val = getObjectFromFieldValue(field.getName(), fieldValue,
+                                        field, timeStampColsList.contains(field.getName()));
+                                isMatched &= block.offerValue(field.getName(), rowNum, val);
+                                break;
+                        }
                         if (!isMatched) {
                             return 0;
                         }
