@@ -44,12 +44,13 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_DRIVER_CLASS;
+import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_FETCH_SIZE;
 import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_NAME;
-import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_QUOTE_CHARACTER;;
-
+import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_QUOTE_CHARACTER;
 
 /**
  * Data handler, user must have necessary permissions to read from necessary tables.
@@ -58,8 +59,6 @@ public class OpensearchRecordHandler
         extends JdbcRecordHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OpensearchRecordHandler.class);
-
-    private static final String OPENSEARCH_QUOTE_CHARACTER = "`";
 
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
 
@@ -98,14 +97,14 @@ public class OpensearchRecordHandler
     {
         PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, null, tableName.getTableName(), schema, constraints, split);
 
-        // Disable fetching all rows.
-        preparedStatement.setFetchSize(10000);
+        // by setting fetch size we explicitly force pagination to happen, otherwise it will fall back to legacy engine and only return 200 rows
+        preparedStatement.setFetchSize(OPENSEARCH_FETCH_SIZE);
         return preparedStatement;
     }
 
     @Override
-    protected java.util.Optional<Boolean> getAutoCommit()
+    protected Optional<Boolean> getAutoCommit()
     {
-      return java.util.Optional.empty();
+      return Optional.empty();
     }
 }

@@ -28,9 +28,9 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import java.util.Arrays;
 import java.util.List;
 
-public class OpensearchUtils
+public class OpensearchNestedStructBuilder
 {
-    private OpensearchUtils()
+    private OpensearchNestedStructBuilder()
     {
     }
 

@@ -81,17 +81,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IN_PREDICATE_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_NULL_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.LIKE_PATTERN_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NEGATE_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
 import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_DRIVER_CLASS;
 import static com.amazonaws.athena.connectors.opensearch.OpensearchConstants.OPENSEARCH_NAME;
-
-import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
-import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
-import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NEGATE_FUNCTION_NAME;
-import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.LIKE_PATTERN_FUNCTION_NAME;
-import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_NULL_FUNCTION_NAME;
-import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IN_PREDICATE_FUNCTION_NAME;
-
 
 /**
  * Handles metadata for Opensearch. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in
@@ -107,10 +105,11 @@ public class OpensearchMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(OpensearchMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private final String schemaName;
-    private static final String DATA_STREAM_REGEX = "(\\.ds-)(.+)(-\\d\\d\\d\\d\\d\\d)";
+    // data streams follow the following naming convention: .ds-<data-stream>-<generation> where generation is a six-digit, zero-padded integer
+    private static final String DATA_STREAM_REGEX = "(\\.ds-)(.+)(-\\d{6})";
 
     private OpensearchGlueHandler glueHandler;
-    private final boolean awsGlue;
+    private final boolean isGlueDisabled;
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -133,10 +132,10 @@ public class OpensearchMetadataHandler
     public OpensearchMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
-        this.schemaName = configOptions.getOrDefault("schema_name", "default");
+        this.schemaName = configOptions.getOrDefault("glue_database", "default");
         
         this.glueHandler = new OpensearchGlueHandler(configOptions);
-        this.awsGlue = glueHandler.isDisabled();
+        this.isGlueDisabled = glueHandler.isDisabled();
     }
 
     @VisibleForTesting
@@ -148,10 +147,10 @@ public class OpensearchMetadataHandler
         java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
-        this.schemaName = configOptions.getOrDefault("schema_name", "default");
+        this.schemaName = configOptions.getOrDefault("glue_database", "default");
 
         this.glueHandler = new OpensearchGlueHandler(configOptions);
-        this.awsGlue = glueHandler.isDisabled();
+        this.isGlueDisabled = glueHandler.isDisabled();
     }
 
     @Override
@@ -259,7 +258,7 @@ public class OpensearchMetadataHandler
 
         // Look at GLUE catalog first.
         try {
-            if (!this.awsGlue) {
+            if (!this.isGlueDisabled) {
                 schema = glueHandler.doGetTable(blockAllocator, getTableRequest).getSchema();
                 LOGGER.info("glueDoGetTable: Retrieved schema for table[{}] from AWS Glue.", getTableRequest.getTableName());
             }
@@ -311,7 +310,7 @@ public class OpensearchMetadataHandler
                     else {
                         if (columnName.contains(".")) {
                             FieldBuilder rootField = schemaBuilder.getNestedField(columnName.split("\\.")[0]);
-                            FieldBuilder newField = OpensearchUtils.createNestedStruct(columnName, rootField, columnType);
+                            FieldBuilder newField = OpensearchNestedStructBuilder.createNestedStruct(columnName, rootField, columnType);
                             schemaBuilder.addNestedField(columnName.split("\\.")[0], newField);
                         }
                         else {
@@ -369,22 +368,17 @@ public class OpensearchMetadataHandler
             throws SQLException
     {
         try (ResultSet resultSet = getTables(jdbcConnection, databaseName)) {
-            ImmutableList.Builder<TableName> list = ImmutableList.builder();
+            HashSet<TableName> list = new HashSet<TableName>();
+            ImmutableList.Builder<TableName> finalList = ImmutableList.builder();
             while (resultSet.next()) {
                 // checks if table name is internal table ex: .kibana
                 String tableName = resultSet.getString("TABLE_NAME");
-                if (tableName.startsWith(".")) {
-                    if (!tableName.matches(DATA_STREAM_REGEX)) {
-                        continue;
-                    }
+                if (tableName.startsWith(".") && !tableName.matches(DATA_STREAM_REGEX)) {
+                    continue;
                 }
-                // update schema from null because Opensearch doesn't have schema but change later
-                // resultSet.updateString("TABLE_SCHEM", databaseName);
-                
-                // Temporary in schemaName 
                 list.add(getSchemaTableName(resultSet, databaseName));
             }
-            return list.build();
+            return finalList.addAll(list).build();
         }
     }
 
@@ -393,6 +387,9 @@ public class OpensearchMetadataHandler
     {
         String tableName = resultSet.getString("TABLE_NAME");
         String tableSchema = resultSet.getString("TABLE_SCHEM");
+        // Data streams follow the following naming convention: (.ds-)(<data-stream>)(-<generation>) where generation is a six-digit, zero-padded integer 
+        // and each paranthesis signifies matching groups.
+        // Therefore I use the second matching group as table name because it represents the single resource name that stores time series data across multiple indices
         Pattern pattern = Pattern.compile(DATA_STREAM_REGEX);
         Matcher matcher = pattern.matcher(tableName);
         if (matcher.find()) {

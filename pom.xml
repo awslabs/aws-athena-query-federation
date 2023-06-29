@@ -97,6 +97,7 @@
         <module>athena-hbase</module>
         <module>athena-example</module>
         <module>athena-elasticsearch</module>
+        <module>athena-opensearch</module>
         <module>athena-tpcds</module>
         <module>athena-jdbc</module>
         <module>athena-mysql</module>

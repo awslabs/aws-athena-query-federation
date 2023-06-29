@@ -82,7 +82,6 @@ import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLDataException;
 import java.sql.SQLException;
 import java.sql.Struct;
@@ -92,6 +91,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -142,9 +142,9 @@ public abstract class JdbcRecordHandler
         return null;
     }
 
-    protected java.util.Optional<Boolean> getAutoCommit()
+    protected Optional<Boolean> getAutoCommit()
     {
-      return java.util.Optional.of(false);
+      return Optional.of(false);
     }
 
     @Override
@@ -209,29 +209,6 @@ public abstract class JdbcRecordHandler
                     }
                     return true;
                 };
-    }
-
-    public static void printResultSet(ResultSet rs) throws SQLException
-    {
-        LOGGER.info("Printing Record Handler Result Set:");
-        ResultSetMetaData rsmd = rs.getMetaData();
-        int columns = rsmd.getColumnCount();
-    
-        // Print the column names
-        String columnNames = "";
-        for (int i = 1; i <= columns; i++) {
-            columnNames += rsmd.getColumnName(i) + ", ";
-        }
-        LOGGER.info(columnNames);
-    
-        // Print the column values
-        while (rs.next()) {
-            String newColumn = "";
-            for (int i = 1; i <= columns; i++) {
-                newColumn += rs.getObject(i) + ", ";
-            }
-            LOGGER.info(newColumn);
-        }
     }
 
     /**

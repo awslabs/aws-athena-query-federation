@@ -17,6 +17,9 @@ Parameters:
     Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
+  GlueDatabaseName:
+    Description: 'Name of Glue Database that contains schemas of indices in OpenSearch Domain, also used as Database name.'
+    Type: String
   DefaultConnectionString:
     Description: 'The default connection string is used when catalog is "lambda:${LambdaFunctionName}". Catalog specific Connection Strings can be added later. Format: ${DatabaseType}://${NativeJdbcConnectionString}.'
     Type: String
@@ -68,6 +71,7 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
+          glue_database: !Ref GlueDatabaseName
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.opensearch.OpensearchMuxCompositeHandler"

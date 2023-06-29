@@ -31,7 +31,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.Types;
 
-public class OpensearchUtilsTest {
+public class OpensearchNestedStructBuilderTest {
     
     @Test
     public void createNestedStructTest()
@@ -40,8 +40,8 @@ public class OpensearchUtilsTest {
         String attribute1 = "Struct1.attributeString";
         String attribute2 = "Struct1.attributeInt";
 
-        FieldBuilder simpleStruct = OpensearchUtils.createNestedStruct(attribute1, null, Types.MinorType.VARCHAR.getType());
-        simpleStruct = OpensearchUtils.createNestedStruct(attribute2, simpleStruct, Types.MinorType.INT.getType());
+        FieldBuilder simpleStruct = OpensearchNestedStructBuilder.createNestedStruct(attribute1, null, Types.MinorType.VARCHAR.getType());
+        simpleStruct = OpensearchNestedStructBuilder.createNestedStruct(attribute2, simpleStruct, Types.MinorType.INT.getType());
 
         FieldBuilder expectedSimpleStruct = 
             FieldBuilder.newBuilder("Struct1", Types.MinorType.STRUCT.getType());
@@ -57,11 +57,11 @@ public class OpensearchUtilsTest {
         String nested_attribute4 = "Struct1.Struct2.attributeString2";
         String nested_attribute5 = "Struct1.Struct3.attributeFloat1";
 
-        FieldBuilder nestedStruct = OpensearchUtils.createNestedStruct(nested_attribute1, null, Types.MinorType.DATEDAY.getType());
-        nestedStruct = OpensearchUtils.createNestedStruct(nested_attribute2, nestedStruct, Types.MinorType.VARCHAR.getType());
-        nestedStruct = OpensearchUtils.createNestedStruct(nested_attribute3, nestedStruct, Types.MinorType.INT.getType());
-        nestedStruct = OpensearchUtils.createNestedStruct(nested_attribute4, nestedStruct, Types.MinorType.VARCHAR.getType());
-        nestedStruct = OpensearchUtils.createNestedStruct(nested_attribute5, nestedStruct, Types.MinorType.FLOAT8.getType());
+        FieldBuilder nestedStruct = OpensearchNestedStructBuilder.createNestedStruct(nested_attribute1, null, Types.MinorType.DATEDAY.getType());
+        nestedStruct = OpensearchNestedStructBuilder.createNestedStruct(nested_attribute2, nestedStruct, Types.MinorType.VARCHAR.getType());
+        nestedStruct = OpensearchNestedStructBuilder.createNestedStruct(nested_attribute3, nestedStruct, Types.MinorType.INT.getType());
+        nestedStruct = OpensearchNestedStructBuilder.createNestedStruct(nested_attribute4, nestedStruct, Types.MinorType.VARCHAR.getType());
+        nestedStruct = OpensearchNestedStructBuilder.createNestedStruct(nested_attribute5, nestedStruct, Types.MinorType.FLOAT8.getType());
 
         FieldBuilder struct2 = 
             FieldBuilder.newBuilder("Struct2", Types.MinorType.STRUCT.getType());

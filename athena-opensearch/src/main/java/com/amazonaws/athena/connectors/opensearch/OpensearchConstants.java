@@ -25,6 +25,7 @@ public final class OpensearchConstants
     public static final String OPENSEARCH_DRIVER_CLASS = "org.opensearch.jdbc.Driver";
     public static final int OPENSEARCH_DEFAULT_PORT = 443;
     public static final String OPENSEARCH_QUOTE_CHARACTER = "`";
+    public static final int OPENSEARCH_FETCH_SIZE = 10000;
 
     private OpensearchConstants() {}
 }

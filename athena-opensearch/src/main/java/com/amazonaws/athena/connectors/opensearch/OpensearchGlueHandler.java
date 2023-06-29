@@ -68,11 +68,6 @@ public class OpensearchGlueHandler
 
     public boolean isDisabled()
     {
-        if (super.getAwsGlue() == null) {
-            return true;
-        }
-        else {
-            return false;
-        }
+        return super.getAwsGlue() == null;
     }
 }
