@@ -42,16 +42,20 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.base.Strings;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCursor;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Handles metadata requests for the Athena DocumentDB Connector.
@@ -143,7 +147,11 @@ public class DocDBMetadataHandler
         MongoClient client = getOrCreateConn(request);
         try (MongoCursor<String> itr = client.listDatabaseNames().iterator()) {
             while (itr.hasNext()) {
-                schemas.add(itr.next());
+                //On MongoDB, Schema return empties if no permission settings
+                String schema = itr.next();
+                if (!Strings.isNullOrEmpty(schema)) {
+                    schemas.add(schema);
+                }
             }
 
             return new ListSchemasResponse(request.getCatalogName(), schemas);
@@ -160,15 +168,58 @@ public class DocDBMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
         MongoClient client = getOrCreateConn(request);
-        List<TableName> tables = new ArrayList<>();
 
         try (MongoCursor<String> itr = client.getDatabase(request.getSchemaName()).listCollectionNames().iterator()) {
+            List<TableName> tables = new ArrayList<>();
             while (itr.hasNext()) {
                 tables.add(new TableName(request.getSchemaName(), itr.next()));
             }
 
             return new ListTablesResponse(request.getCatalogName(), tables, null);
         }
+        catch (MongoCommandException mongoCommandException) {
+            //do this in failed case instead of replace method in case API changes on doc db.
+            logger.warn("Exception on listCollectionNames on Mongo JAVA client, trying with mongo command line.", mongoCommandException);
+            List<TableName> tableNames = doListTablesWithCommand(client, request);
+
+            return new ListTablesResponse(request.getCatalogName(), tableNames.isEmpty() ? List.of() : tableNames, null);
+        }
+    }
+
+    /**
+     * This method uses MongoDB command line call to retrieve only list of collections that owner has permission to.
+     *
+     * Currently, Mongo Java client does not support additional config/parameters on listCollections for authorizedCollections only.
+     * Attempt use Mongo Java client `listCollectionNames` to read whole collections without permission for 1+ collection will result in exception
+     *
+     * Example return document
+     * {
+     *   cursor: {
+     *     id: Long("0"),
+     *     ns: 'sample_analytics.$cmd.listCollections',
+     *     firstBatch: [
+                ......
+     *       { name: 'people', type: 'collection' }
+     *     ]
+     *   },
+     *  .....
+     *   }
+     * @param client
+     * @param request
+     * @return
+     */
+    private List<TableName> doListTablesWithCommand(MongoClient client, ListTablesRequest request)
+    {
+        logger.debug("doListTablesWithCommand Start");
+        List<TableName> tables = new ArrayList<>();
+        Document document = client.getDatabase(request.getSchemaName()).runCommand(new Document("listCollections", 1).append("nameOnly", true).append("authorizedCollections", true));
+
+        List<Document> list = ((Document) document.get("cursor")).getList("firstBatch", Document.class);
+        for (Document doc : list) {
+            tables.add(new TableName(request.getSchemaName(), doc.getString("name")));
+        }
+
+        return tables;
     }
 
     /**

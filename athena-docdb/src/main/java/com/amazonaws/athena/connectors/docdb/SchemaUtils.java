@@ -111,6 +111,7 @@ public class SchemaUtils
             }
 
             Schema schema = schemaBuilder.build();
+            logger.warn("inferSchema, schema: " + docCount);
             if (schema.getFields().isEmpty()) {
                 throw new RuntimeException("No columns found after scanning " + fieldCount + " values across " +
                         docCount + " documents. Please ensure the collection is not empty and contains at least 1 supported column type.");
