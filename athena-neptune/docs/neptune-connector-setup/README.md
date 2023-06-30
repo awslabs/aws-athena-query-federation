@@ -1,3 +1,8 @@
+> **New feature support - Custom Schema/Gremlin Query**
+>
+> Neptune Athena Connector now supports Query feature. You can now create a custom schema and specify a gremlin query to fetch the data for the schema from the graph databases. This enhancement allows users to specify a gremlin query instead of doing table join operations to retrieve data. You can also put a limit on number of records you want to retrieve. Refer [Glue Catalog - setup instructions](../aws-glue-sample-scripts/README.md)
+<br/>
+
 # Deploy Amazon Athena Neptune Connector
 
 To deploy the Amazon Athena Neptune connector, we will need the following pre-requisite information:
@@ -41,11 +46,13 @@ Scroll down to “Application Settings” and specify the following field values
 
   * AthenaCatalogName: The name you want to use for this catalog in Athena which will also be used as the connector lambda function name. Example: athena-catalog-neptune
 
-  * DisableSpillEncryption: This option helps in disabling or enabling encryption of spilled over data in S3 bucket. Choose which ever option makes sense for your use case. Default value is “false”.
+  * DisableSpillEncryption: This option helps in disabling or enabling encryption of spilled over data in S3 bucket. Choose which ever option makes sense for your use case. Default value is "false".
+
+  * EnableCaseInsensitiveMatch: This should be set to "true" for connector to perform a case insensitive search
 
   * GlueDatabaseName: This should be same as the glue database you created in one of the earlier steps. Example: graph-database.
 
-  * IAMEnabled: This option indicates whether you have IAM DB Auth enabled on your Neptune Cluster or not. Default value is false.
+  * IAMEnabled: This option indicates whether you have IAM DB Auth enabled on your Neptune Cluster or not. Default value is "false".
 
   * LambdaMemory: The memory allocation for the connector lambda function ranging between 128 – 3008 MB. The default is 3008 MB.
 

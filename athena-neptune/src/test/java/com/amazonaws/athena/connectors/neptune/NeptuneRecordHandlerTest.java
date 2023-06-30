@@ -57,6 +57,8 @@ import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.driver.Client;
+import org.apache.tinkerpop.gremlin.driver.Result;
+import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -84,6 +86,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @RunWith(MockitoJUnitRunner.class)
 public class NeptuneRecordHandlerTest extends TestBase {
@@ -93,12 +96,14 @@ public class NeptuneRecordHandlerTest extends TestBase {
         private BlockAllocatorImpl allocator;
         private Schema schemaPGVertexForRead;
         private Schema schemaPGEdgeForRead;
+        private Schema schemaPGQueryForRead;
         private AmazonS3 amazonS3;
         private AWSSecretsManager awsSecretsManager;
         private AmazonAthena athena;
         private S3BlockSpillReader spillReader;
         private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
         private List<ByteHolder> mockS3Storage = new ArrayList<>();
+        public CompletableFuture<List<Result>> results;
 
         @Mock
         private NeptuneConnection neptuneConnection;
@@ -136,6 +141,19 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 .addStringField("in")
                                 .addStringField("out")
                                 .addStringField("id")
+                                .addIntField("property1")
+                                .addStringField("property2")
+                                .addFloat8Field("property3")
+                                .addBitField("property4")
+                                .addBigIntField("property5")
+                                .addFloat4Field("property6")
+                                .addDateMilliField("property7")
+                                .build();
+                
+                schemaPGQueryForRead = SchemaBuilder
+                                .newBuilder()
+                                .addMetadata("componenttype", "query")
+                                .addMetadata("query", "g.V().hasLabel('default').valueMap()")
                                 .addIntField("property1")
                                 .addStringField("property2")
                                 .addFloat8Field("property3")
@@ -193,7 +211,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 // Build Tinker Pop Graph
                 TinkerGraph tinkerGraph = TinkerGraph.open();
                 // Create new Vertex objects to add to traversal for mock
-                Vertex vertex1 = tinkerGraph.addVertex(T.label, "default");
+                Vertex vertex1 = tinkerGraph.addVertex(T.id, "vertex1", T.label, "default");
                 vertex1.property("property1", 10);
                 vertex1.property("property2", "string1");
                 vertex1.property("property3", 12.4);
@@ -203,7 +221,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex1.property("property7", (new Date()));
                 vertex1.property("Property8", "string8");
 
-                Vertex vertex2 = tinkerGraph.addVertex(T.label, "default");
+                Vertex vertex2 = tinkerGraph.addVertex(T.id, "vertex2", T.label, "default");
                 vertex2.property("property1", 5);
                 vertex2.property("property2", "string2");
                 vertex2.property("property3", 20.4);
@@ -212,7 +230,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex2.property("property6", 13.4523);
                 vertex2.property("property7", (new Date()));
 
-                Vertex vertex3 = tinkerGraph.addVertex(T.label, "default");
+                Vertex vertex3 = tinkerGraph.addVertex(T.id, "vertex3", T.label, "default");
                 vertex3.property("property1", 9);
                 vertex3.property("property2", "string3");
                 vertex3.property("property3", 15.4);
@@ -220,7 +238,6 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex3.property("property5", 12379878123l);
                 vertex3.property("property6", 13.4523);
                 vertex3.property("property7", (new Date()));
-
 
                 //add vertex with missing property values to check for nulls
                 tinkerGraph.addVertex(T.label, "default");
@@ -234,10 +251,10 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 when(graphTraversalSource.V()).thenReturn(vertextTraversal);
 
                 //add edge from vertex1 to vertex2
-                tinkerGraph.traversal().addE("default").from(vertex1).to(vertex2).next();
+                tinkerGraph.traversal().addE("default").from(vertex1).to(vertex2).property(T.id, "vertex1-vertex2").next();
 
                 //add edge from vertex1 to vertex2 with attributes
-                tinkerGraph.traversal().addE("default").from(vertex2).to(vertex3).property(Cardinality.single, "property1", 21, 21).next();
+                tinkerGraph.traversal().addE("default").from(vertex2).to(vertex3).property(T.id, "vertex2-vertex3").property(Cardinality.single, "property1", 21).next();
 
                 GraphTraversal<Edge, Edge>  edgeTraversal = (GraphTraversal<Edge, Edge>) tinkerGraph.traversal().E();
         }

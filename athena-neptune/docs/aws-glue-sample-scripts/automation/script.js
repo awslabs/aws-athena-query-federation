@@ -5,7 +5,7 @@ const { cwd } = require('process');
 
 //update region to AWS region where Amazon Neptune database resides
 AWS.config.update({
-    region: 'us-east-1'
+    region: 'us-west-2'
 })
 
 var glue = new AWS.Glue();
@@ -29,7 +29,7 @@ function addDatabase(addTablesAfterDatabase) {
     });
 }
 
-function addTable(tableType, tableName, tableColumns) {
+function addTable(tableType, tableName, tableColumns,query) {
     var params = {
         DatabaseName: databaseName, /* required */
         TableInput: { /* required */
@@ -37,7 +37,7 @@ function addTable(tableType, tableName, tableColumns) {
             Parameters: {
                 "separatorChar": ",",
                 "componenttype": tableType,
-                "glabel":tableName
+                "glabel": tableName
             },
             StorageDescriptor: {
                 Columns: [],
@@ -52,7 +52,7 @@ function addTable(tableType, tableName, tableColumns) {
                 Name: 'id', /* required */
                 Type: 'string'
             });
-    } else {
+    } else if (tableType === 'edge') {
         params.TableInput.StorageDescriptor.Columns.push(
             {
                 Name: 'id', /* required */
@@ -70,6 +70,9 @@ function addTable(tableType, tableName, tableColumns) {
                 Name: 'out', /* required */
                 Type: 'string'
             });
+    }
+    else {
+        params.TableInput.Parameters.query = query;
     }
 
     tableColumns.forEach(column => {
@@ -120,6 +123,10 @@ function addTables(data) {
 
     data.edges.forEach(edge => {
         addTable('edge', edge.label, edge.properties);
+    });
+
+    data.queries.forEach(query => {
+        addTable('query', query.label, query.properties,query.query);
     });
 }
 
