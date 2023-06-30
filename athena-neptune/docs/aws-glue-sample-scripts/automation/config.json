@@ -1,4 +1,36 @@
 {
+  "queries": [
+    {
+      "label":"report1",
+      "query": "g.V().hasLabel('person').out('follows').valueMap()",
+      "properties":[ {
+        "property" : "lastName",
+        "dataType" : "String",
+        "isMultiValue" : false,
+        "isNullable" : false
+      }, {
+        "property" : "created",
+        "dataType" : "Date",
+        "isMultiValue" : false,
+        "isNullable" : false
+      }, {
+        "property" : "firstname",
+        "dataType" : "String",
+        "isMultiValue" : false,
+        "isNullable" : false
+      }, {
+        "property" : "salary",
+        "dataType" : "Integer",
+        "isMultiValue" : false,
+        "isNullable" : false
+      }, {
+        "property" : "JobTitle",
+        "dataType" : "String",
+        "isMultiValue" : false,
+        "isNullable" : false
+      } ]
+    }
+  ],
   "edges" : [ {
     "label" : "knows",
     "properties" : [ {

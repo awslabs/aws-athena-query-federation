@@ -5,6 +5,7 @@
 
 echo $1;
 echo $2;
+echo $3;
 
 dbname='graph-database'
 
@@ -12,7 +13,8 @@ dbname='graph-database'
 aws glue create-database \
 --database-input "{\"Name\":\"${dbname}\"}" \
 --profile $1 \
---endpoint https://glue.$2.amazonaws.com
+--endpoint https://glue.$2.amazonaws.com \
+--region $3
 
 
 aws glue create-table \
@@ -36,11 +38,13 @@ aws glue create-table \
         "Location":"s3://dummy-bucket/"},
         "Parameters":{ 
             "separatorChar":",",
-            "componenttype":"vertex"
+            "componenttype":"vertex",
+            "glabel":"airport"
             } 
         }' \
     --profile $1 \
-    --endpoint https://glue.$2.amazonaws.com
+    --endpoint https://glue.$2.amazonaws.com \
+    --region $3
 
 aws glue create-table \
     --database-name $dbname \
@@ -53,10 +57,13 @@ aws glue create-table \
         "Location":"s3://dummy-bucket/"},
         "Parameters":{ 
              "separatorChar":",",
-            "componenttype":"vertex"} 
+             "componenttype":"vertex",
+                "glabel":"country"
+            } 
         }' \
     --profile $1 \
-    --endpoint https://glue.$2.amazonaws.com
+    --endpoint https://glue.$2.amazonaws.com \
+    --region $3
 
 aws glue create-table \
     --database-name $dbname \
@@ -69,10 +76,12 @@ aws glue create-table \
         "Location":"s3://dummy-bucket/"},
         "Parameters":{ 
             "separatorChar":",",
-            "componenttype":"vertex"} 
+            "componenttype":"vertex",
+             "glabel":"continent"} 
         }' \
     --profile $1 \
-    --endpoint https://glue.$2.amazonaws.com
+    --endpoint https://glue.$2.amazonaws.com \
+    --region $3
 
 aws glue create-table \
     --database-name $dbname \
@@ -86,7 +95,28 @@ aws glue create-table \
         "Location":"s3://dummy-bucket/"},
         "Parameters":{ 
              "separatorChar":",",
-            "componenttype":"edge"} 
+            "componenttype":"edge",
+            "glabel":"route"} 
         }' \
     --profile $1 \
-    --endpoint https://glue.$2.amazonaws.com
+    --endpoint https://glue.$2.amazonaws.com \
+    --region $3
+
+
+aws glue create-table \
+    --database-name $dbname \
+    --table-input  '{"Name":"sourcetodestinationairport", "StorageDescriptor":{ 
+        "Columns":[ 
+            {"Name":"source", "Type":"string"}, 
+            {"Name":"destination", "Type":"string"}
+        ], 
+        "Location":"s3://dummy-bucket/"},
+        "Parameters":{ 
+            "separatorChar":",",
+            "componenttype":"query",
+            "query":"g.V().hasLabel(\"airport\").as(\"s\").out(\"route\").as(\"d\").project(\"source\",\"destination\").by(select(\"s\").id()).by(select(\"d\").id()).limit(10)"
+            } 
+        }' \
+    --profile $1 \
+    --endpoint https://glue.$2.amazonaws.com \
+    --region $3

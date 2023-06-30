@@ -26,7 +26,7 @@ public class Enums
     }
 
     public enum TableSchemaMetaType {
-        VERTEX, EDGE
+        VERTEX, EDGE, QUERY
     }
 
     public enum GraphType{
