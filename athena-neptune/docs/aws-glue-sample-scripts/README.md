@@ -143,10 +143,22 @@ Refer example scripts on how to create a table [here](./manual/sample-cli-script
 
 ### Example query patterns 
 
+##### project node properties
+
+```
+g.V().hasLabel("airport").valueMap("code","city","country").limit(10000)
+```
+
+##### project edge properties
+
+```
+g.E().hasLabel("route").valueMap("dist").limit(10000)
+```
+
 ##### n hop query with select clause
 
 ```
-g.V().hasLabel("airport").as("source").out("route").as("destination").select("source","destination").by(id()).limit(10)
+g.V().hasLabel("airport").as("source").out("route").as("destination").select("source","destination").by("code").limit(10)
 
 ```
 
