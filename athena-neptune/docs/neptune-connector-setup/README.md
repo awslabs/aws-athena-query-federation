@@ -72,6 +72,8 @@ Scroll down to “Application Settings” and specify the following field values
 
   * SubnetIds: Subnet IDs that you have captured in one of the earlier steps separated by commas.
 
+  * NeptuneGraphType: PROPERTYGRAPH or RDF.
+
 Provide Acknowledgement on the custom IAM roles creation and click on “Deploy”.
 Sample screenshots below:
 ![](./assets/connector-parameters1.png)

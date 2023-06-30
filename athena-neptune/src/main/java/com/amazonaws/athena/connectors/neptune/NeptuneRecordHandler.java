@@ -23,8 +23,11 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.GraphType;
+import com.amazonaws.athena.connectors.neptune.Enums.GraphType;
+import com.amazonaws.athena.connectors.neptune.propertygraph.NeptuneGremlinConnection;
 import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
+import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
+import com.amazonaws.athena.connectors.neptune.rdf.RDFHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -32,7 +35,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.tinkerpop.gremlin.driver.Client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +61,29 @@ public class NeptuneRecordHandler extends RecordHandler
      * catalog id to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "neptune";
-    private final NeptuneConnection neptuneConnection;
+    private NeptuneConnection neptuneConnection = null;
+    private java.util.Map<String, String> configOptions = null;
+
+    private static NeptuneConnection createConnection(java.util.Map<String, String> configOptions) 
+    {
+        GraphType graphType = GraphType.PROPERTYGRAPH;
+        if (System.getenv("neptune_graphtype") != null) {
+            graphType = GraphType.valueOf(System.getenv("neptune_graphtype").toUpperCase());
+        }
+
+        switch(graphType){
+            case PROPERTYGRAPH: 
+                return new NeptuneGremlinConnection(configOptions.get("neptune_endpoint"),
+                configOptions.get("neptune_port"), Boolean.parseBoolean(configOptions.get("iam_enabled")), 
+                configOptions.get("AWS_REGION"));
+
+            case RDF:
+                return new NeptuneSparqlConnection(configOptions.get("neptune_endpoint"),
+                        configOptions.get("neptune_port"), Boolean.parseBoolean(configOptions.get("iam_enabled")), 
+                        configOptions.get("AWS_REGION"));
+        }
+        return null;
+    }
 
     public NeptuneRecordHandler(java.util.Map<String, String> configOptions) 
     {
@@ -67,10 +91,7 @@ public class NeptuneRecordHandler extends RecordHandler
             AmazonS3ClientBuilder.defaultClient(),
             AWSSecretsManagerClientBuilder.defaultClient(),
             AmazonAthenaClientBuilder.defaultClient(),
-            new NeptuneConnection(
-                configOptions.get("neptune_endpoint"),
-                configOptions.get("neptune_port"),
-                Boolean.parseBoolean(configOptions.get("iam_enabled"))),
+            createConnection(configOptions),
             configOptions);
     }
 
@@ -84,6 +105,7 @@ public class NeptuneRecordHandler extends RecordHandler
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.neptuneConnection = neptuneConnection;
+        this.configOptions = configOptions;
     }
 
     /**
@@ -110,7 +132,7 @@ public class NeptuneRecordHandler extends RecordHandler
      final QueryStatusChecker queryStatusChecker) throws Exception 
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
-        Client client = null;
+        //Client client = null; NOT USED
         GraphType graphType = GraphType.PROPERTYGRAPH;
 
         if (configOptions.get("neptune_graphtype") != null) {
@@ -124,7 +146,7 @@ public class NeptuneRecordHandler extends RecordHandler
                     break;
 
                 case RDF:
-                    logger.info("readWithConstraint: Support for RDF is not implemented yet!!");
+                    (new RDFHandler(neptuneConnection)).executeQuery(recordsRequest, queryStatusChecker, spiller, configOptions);   
                     break;
             }
         } 
@@ -142,10 +164,5 @@ public class NeptuneRecordHandler extends RecordHandler
             logger.info("readWithContraint: Exception occured " + e);
             throw e;
         } 
-        finally {
-            if (client != null) {
-                client.close();
-            }
-        }
     }
 }

@@ -18,6 +18,10 @@
 >
 > You can now create a custom schema and specify a gremlin query to fetch the data for the schema from the graph databases. This enhancement allows users to specify a gremlin query instead of doing table join operations to retrieve data. You can also put a limit on number of records you want to retrieve.  Go to custom query example section for details
 
+> **New feature support - RDF support**
+>
+> You can now query RDF data using the connector
+
 
 <br/>
 
