@@ -254,8 +254,8 @@ public abstract class JdbcSplitQueryBuilder
                 disjuncts.add(String.format("(%s IS NULL)", quote(columnName)));
             }
 
-            Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
-            if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
+            List<Range> rangeList = ((SortedRangeSet) valueSet).getOrderedRanges();
+            if (rangeList.size() == 1 && !valueSet.isNullAllowed() && rangeList.get(0).getLow().isLowerUnbounded() && rangeList.get(0).getHigh().isUpperUnbounded()) {
                 return String.format("(%s IS NOT NULL)", quote(columnName));
             }
 
