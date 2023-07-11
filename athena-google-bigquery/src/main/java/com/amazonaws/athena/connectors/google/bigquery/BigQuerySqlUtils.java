@@ -1,4 +1,3 @@
-
 /*-
  * #%L
  * athena-google-bigquery
@@ -78,7 +77,7 @@ public class BigQuerySqlUtils
     {
         LOGGER.info("Inside buildSqlFromSplit(): ");
         StringBuilder sqlBuilder = new StringBuilder("SELECT ");
-        Map<String, String> limitAndOffsets = split.getProperties();
+
         StringJoiner sj = new StringJoiner(",");
         if (schema.getFields().isEmpty()) {
             sj.add("null");
@@ -89,10 +88,10 @@ public class BigQuerySqlUtils
             }
         }
         sqlBuilder.append(sj.toString())
-            .append(" from ")
-            .append(quote(tableName.getSchemaName()))
-            .append(".")
-            .append(quote(tableName.getTableName()));
+                .append(" from ")
+                .append(quote(tableName.getSchemaName()))
+                .append(".")
+                .append(quote(tableName.getTableName()));
 
         LOGGER.info("constraints: " + constraints);
         List<String> clauses = toConjuncts(schema.getFields(), constraints, split.getProperties(), parameterValues);
@@ -111,13 +110,6 @@ public class BigQuerySqlUtils
             sqlBuilder.append(" limit " + constraints.getLimit());
         }
 
-        else if (limitAndOffsets.size() > 0) {
-            for (Map.Entry<String, String> entry : limitAndOffsets.entrySet()) {
-                LOGGER.info("entry.getValue())" + entry.getValue());
-                LOGGER.info("entry.getKey()" + entry.getKey());
-                sqlBuilder.append(" limit " + entry.getKey() + " offset " + entry.getValue());
-            }
-        }
         LOGGER.info("Generated SQL : {}", sqlBuilder.toString());
         return sqlBuilder.toString();
     }
@@ -224,7 +216,7 @@ public class BigQuerySqlUtils
     }
 
     private static String toPredicate(String columnName, String operator, Object value, ArrowType type,
-            List<QueryParameterValue> parameterValues)
+                                      List<QueryParameterValue> parameterValues)
     {
         parameterValues.add(getValueForWhereClause(columnName, value, type));
         return quote(columnName) + " " + operator + " ?";
@@ -283,7 +275,7 @@ public class BigQuerySqlUtils
                 throw new UnsupportedOperationException("The Arrow type: " + arrowType.getTypeID().name() + " is currently not supported");
             default:
                 throw new IllegalArgumentException("Unknown type has been encountered during range processing: " + columnName +
-                    " Field Type: " + arrowType.getTypeID().name());
+                        " Field Type: " + arrowType.getTypeID().name());
         }
     }
 

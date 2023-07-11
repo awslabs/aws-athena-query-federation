@@ -23,9 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.FieldList;
-import com.google.cloud.bigquery.FieldValue;
-import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
@@ -49,11 +46,15 @@ public class BigQueryTestUtils
     public static final String INTEGER_FIELD_NAME_1 = "int1";
     public static final String STRING_FIELD_NAME_1 = "string1";
     public static final String FLOAT_FIELD_NAME_1 = "float1";
-
-    private BigQueryTestUtils() {
-    }
-
+    public static final String STRUCT_FIELD = "StructField";
+    public static final String LIST_FIELD = "ListField";
+    public static final String LIST_OF_STRUCT_FIELD = "ListOfStructField";
     public static final String PROJECT_1_NAME = "testProject";
+    private static final String STRUCT_OF_LIST_FIELD = "StructOfListField";
+
+    private BigQueryTestUtils()
+    {
+    }
 
     //Returns a list of mocked Datasets.
     static List<Dataset> getDatasetList(String projectName, int numDatasets)
@@ -89,13 +90,25 @@ public class BigQueryTestUtils
         );
     }
 
+    //Returns the schema by returning a list of fields in Google BigQuery Format.
+    static Schema getTestSchemaComplexSchema()
+    {
+        return Schema.of(Arrays.asList(
+                        Field.of(STRUCT_FIELD, LegacySQLTypeName.RECORD, Field.of("intField", LegacySQLTypeName.INTEGER)),
+                        Field.newBuilder(LIST_OF_STRUCT_FIELD, LegacySQLTypeName.RECORD, Field.of("intField", LegacySQLTypeName.INTEGER)).setMode(Field.Mode.REPEATED).build(),
+                        Field.newBuilder(LIST_FIELD, LegacySQLTypeName.INTEGER).setMode(Field.Mode.REPEATED).build(),
+                        Field.of(STRUCT_OF_LIST_FIELD, LegacySQLTypeName.RECORD, Field.newBuilder(LIST_FIELD, LegacySQLTypeName.INTEGER).setMode(Field.Mode.REPEATED).build())
+                )
+        );
+    }
+
     static Schema getTestSchema()
     {
         return Schema.of(getTestSchemaFields());
     }
 
     //Gets the schema in Arrow Format.
-    static org.apache.arrow.vector.types.pojo.Schema getBlockTestSchema()
+    public static org.apache.arrow.vector.types.pojo.Schema getBlockTestSchema()
     {
         return SchemaBuilder.newBuilder()
                 .addBitField(BOOL_FIELD_NAME_1)
@@ -117,24 +130,5 @@ public class BigQueryTestUtils
                 new org.apache.arrow.vector.types.pojo.Field(FLOAT_FIELD_NAME_1,
                         FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null)
         );
-    }
-
-    static List<FieldValue> generateBigQueryRowValue(Boolean bool, Integer integer, String string, Double floatVal)
-    {
-        return Arrays.asList(
-                //Primitives are stored as Strings.
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, bool == null ? null : String.valueOf(bool)),
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, integer == null ? null : String.valueOf(integer)),
-                //Timestamps are stored as a number, where the integer component of the number is seconds since epoch
-                //and the microsecond part is the decimal part.
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, string),
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, floatVal == null ? null : String.valueOf(floatVal))
-        );
-    }
-
-    static FieldValueList getBigQueryFieldValueList(Boolean bool, Integer integer, String string, Double floatVal)
-    {
-        return FieldValueList.of(generateBigQueryRowValue(bool, integer, string, floatVal),
-                FieldList.of(getTestSchemaFields()));
     }
 }

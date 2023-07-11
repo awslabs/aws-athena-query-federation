@@ -51,15 +51,13 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.JobId;
-import com.google.cloud.bigquery.JobInfo;
-import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableResult;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,12 +65,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
@@ -141,8 +134,7 @@ public class BigQueryMetadataHandler
 
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
         }
-        catch
-        (Exception e) {
+        catch (Exception e) {
             logger.error("Error: ", e);
         }
         return null;
@@ -179,8 +171,7 @@ public class BigQueryMetadataHandler
             }
             return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
         }
-        catch
-        (Exception e) {
+        catch (Exception e) {
             logger.error("Error:", e);
         }
         return null;
@@ -196,7 +187,6 @@ public class BigQueryMetadataHandler
     }
 
     /**
-     *
      * Currently not supporting Partitions since Bigquery having quota limits with triggering concurrent queries and having bit complexity to extract and use the partitions
      * in the query instead we are using limit and offset for non constraints query with basic concurrency limit
      */
@@ -210,9 +200,10 @@ public class BigQueryMetadataHandler
     /**
      * Making minimum(10) splits based on constraints. Since without constraints query may give lambda timeout if table has large data,
      * concurrencyLimit is configurable and it can be changed based on Google BigQuery Quota Limits.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request Provides details of the catalog, database, table, and partition(s) being queried as well as
-     * any filter predicate.
+     * @param request   Provides details of the catalog, database, table, and partition(s) being queried as well as
+     *                  any filter predicate.
      * @return
      * @throws IOException
      * @throws InterruptedException
@@ -220,52 +211,16 @@ public class BigQueryMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException, InterruptedException
     {
-        int constraintsSize = request.getConstraints().getSummary().size();
-        if (constraintsSize > 0) {
-            //Every split must have a unique location if we wish to spill to avoid failures
-            SpillLocation spillLocation = makeSpillLocation(request);
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
 
-            return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
-                    makeEncryptionKey()).build());
-        }
-        else {
-            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
-            String dataSetName = fixCaseForDatasetName(projectName, request.getTableName().getSchemaName(), bigQuery);
-            String tableName = fixCaseForTableName(projectName, dataSetName, request.getTableName().getTableName(), bigQuery);
-            QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder("SELECT count(*) FROM `" + projectName + "." + dataSetName + "." + tableName + "` ").setUseLegacySql(false).build();
-            // Create a job ID so that we can safely retry.
-            JobId jobId = JobId.of(UUID.randomUUID().toString());
-            Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build()).waitFor();
-            TableResult result = queryJob.getQueryResults();
-
-            double numberOfRows = result.iterateAll().iterator().next().get(0).getLongValue();
-            logger.debug("numberOfRows: " + numberOfRows);
-            int concurrencyLimit = Integer.parseInt(configOptions.get("concurrencyLimit"));
-            logger.debug("concurrencyLimit: " + numberOfRows);
-            long pageCount = (long) numberOfRows / concurrencyLimit;
-            long totalPageCountLimit = (pageCount == 0) ? (long) numberOfRows : pageCount;
-            double limit = (int) Math.ceil(numberOfRows / totalPageCountLimit);
-            Set<Split> splits = new HashSet<>();
-            long offSet = 0;
-
-            for (int i = 1; i <= limit; i++) {
-                if (i > 1) {
-                    offSet = offSet + totalPageCountLimit;
-                }
-                // Every split must have a unique location if we wish to spill to avoid failures
-                SpillLocation spillLocation = makeSpillLocation(request);
-                // Create a new split (added to the splits set) that includes the domain and endpoint, and
-                // shard information (to be used later by the Record Handler).
-                Map<String, String> map = new HashMap<>();
-                map.put(Long.toString(totalPageCountLimit), Long.toString(offSet));
-                splits.add(new Split(spillLocation, makeEncryptionKey(), map));
-            }
-            return new GetSplitsResponse(request.getCatalogName(), splits);
-        }
+        return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
+                makeEncryptionKey()).build());
     }
 
     /**
      * Getting Bigquery table schema details
+     *
      * @param datasetName
      * @param tableName
      * @return
@@ -275,6 +230,7 @@ public class BigQueryMetadataHandler
         BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
         datasetName = fixCaseForDatasetName(projectName, datasetName, bigQuery);
         tableName = fixCaseForTableName(projectName, datasetName, tableName, bigQuery);
+
         TableId tableId = TableId.of(projectName, datasetName, tableName);
         Table response = bigQuery.getTable(tableId);
         TableDefinition tableDefinition = response.getDefinition();
@@ -285,7 +241,20 @@ public class BigQueryMetadataHandler
             if (field.getType().getStandardType().toString().equals("TIMESTAMP")) {
                 timeStampColsList.add(field.getName());
             }
-            schemaBuilder.addField(field.getName(), translateToArrowType(field.getType()));
+            if (null != field.getMode() && field.getMode().name().equals("REPEATED")) {
+                if (field.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
+                    schemaBuilder.addField(field.getName(), Types.MinorType.LIST.getType(), ImmutableList.of(new org.apache.arrow.vector.types.pojo.Field(field.getName(), FieldType.nullable(Types.MinorType.STRUCT.getType()), BigQueryUtils.getChildFieldList(field))));
+                }
+                else {
+                    schemaBuilder.addField(field.getName(), Types.MinorType.LIST.getType(), BigQueryUtils.getChildFieldList(field));
+                }
+            }
+            else if (field.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
+                schemaBuilder.addField(field.getName(), Types.MinorType.STRUCT.getType(), BigQueryUtils.getChildFieldList(field));
+            }
+            else {
+                schemaBuilder.addField(field.getName(), translateToArrowType(field.getType()));
+            }
         }
         schemaBuilder.addMetadata("timeStampCols", timeStampColsList.toString());
         logger.debug("BigQuery table schema {}", schemaBuilder.toString());

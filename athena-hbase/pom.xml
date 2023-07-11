@@ -10,7 +10,7 @@
     <version>2022.47.1</version>
     <properties>
         <jetty.version>11.0.15</jetty.version>
-        <hbase.version>2.5.4-hadoop3</hbase.version>
+        <hbase.version>2.5.5-hadoop3</hbase.version>
     </properties>
     <dependencies>
         <dependency>
@@ -65,7 +65,7 @@
         <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
-            <version>1.11.1</version>
+            <version>1.11.2</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
@@ -125,7 +125,7 @@
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <version>3.3.5</version>
+            <version>3.3.6</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.eclipse.jetty</groupId>

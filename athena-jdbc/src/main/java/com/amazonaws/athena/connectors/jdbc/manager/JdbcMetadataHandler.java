@@ -188,7 +188,7 @@ public abstract class JdbcMetadataHandler
                 connection.getCatalog(),
                 escapeNamePattern(schemaName, escape),
                 null,
-                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE"});
+                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"});
     }
 
     private TableName getSchemaTableName(final ResultSet resultSet)

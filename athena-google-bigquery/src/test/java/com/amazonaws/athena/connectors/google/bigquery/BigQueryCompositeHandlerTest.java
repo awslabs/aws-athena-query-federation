@@ -23,44 +23,60 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.auth.oauth2.ServiceAccountCredentials;
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.testng.annotations.BeforeMethod;
 
 import java.io.IOException;
 import java.util.Arrays;
 
-
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
 
 
 @RunWith(MockitoJUnitRunner.class)
-public class BigQueryCompositeHandlerTest {
+public class BigQueryCompositeHandlerTest
+{
+    static {
+        System.setProperty("aws.region", "us-east-1");
+    }
+
+    MockedStatic<AWSSecretsManagerClientBuilder> awsSecretManagerClient;
+    MockedStatic<ServiceAccountCredentials> serviceAccountCredentialsStatic;
+    MockedStatic<BigQueryUtils> bigQueryUtils;
     private BigQueryCompositeHandler bigQueryCompositeHandler;
     @Mock
     private AWSSecretsManager secretsManager;
     @Mock
     private ServiceAccountCredentials serviceAccountCredentials;
 
-    @BeforeMethod
-    public void setUp() {
-
+    @Before
+    public void setUp()
+    {
+        bigQueryUtils = mockStatic(BigQueryUtils.class);
+        serviceAccountCredentialsStatic = mockStatic(ServiceAccountCredentials.class);
+        awsSecretManagerClient = mockStatic(AWSSecretsManagerClientBuilder.class);
     }
 
-    static{
-        System.setProperty("aws.region", "us-east-1");
+    @After
+    public void cleanup()
+    {
+        awsSecretManagerClient.close();
+        serviceAccountCredentialsStatic.close();
+        bigQueryUtils.close();
     }
 
     @Test
-    public void bigQueryCompositeHandlerTest() throws IOException {
+    public void bigQueryCompositeHandlerTest() throws IOException
+    {
         Exception ex = null;
-        Mockito.mockStatic(AWSSecretsManagerClientBuilder.class);
+
         Mockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
         GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(Arrays.asList("v1")).withSecretString("{\n" +
                 "  \"type\": \"service_account\",\n" +
@@ -70,7 +86,7 @@ public class BigQueryCompositeHandlerTest {
                 "  \"client_email\": \"mockabc@mockprojectid.iam.gserviceaccount.com\",\n" +
                 "  \"client_id\": \"000000000000000000000\"\n" +
                 "}");
-        Mockito.mockStatic(ServiceAccountCredentials.class);
+
         Mockito.when(ServiceAccountCredentials.fromStream(any())).thenReturn(serviceAccountCredentials);
         bigQueryCompositeHandler = new BigQueryCompositeHandler();
         assertTrue(bigQueryCompositeHandler instanceof BigQueryCompositeHandler);
