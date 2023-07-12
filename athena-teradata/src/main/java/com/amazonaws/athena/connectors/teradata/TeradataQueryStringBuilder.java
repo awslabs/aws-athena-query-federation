@@ -21,6 +21,7 @@
 package com.amazonaws.athena.connectors.teradata;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
@@ -58,5 +59,12 @@ public class TeradataQueryStringBuilder extends JdbcSplitQueryBuilder
         }
 
         return Collections.emptyList();
+    }
+
+    //Returning empty string as Teradata does not support LIMIT clause
+    @Override
+    protected String appendLimitOffset(Split split, Constraints constraints)
+    {
+        return emptyString;
     }
 }

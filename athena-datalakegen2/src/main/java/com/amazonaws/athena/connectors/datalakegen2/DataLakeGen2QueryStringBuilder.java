@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.datalakegen2;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
@@ -61,5 +62,12 @@ public class DataLakeGen2QueryStringBuilder extends JdbcSplitQueryBuilder
     {
         LOGGER.debug("Fetching data ");
         return Collections.emptyList();
+    }
+
+    //Returning empty string as DatalakeGen2 does not support LIMIT clause
+    @Override
+    protected String appendLimitOffset(Split split, Constraints constraints)
+    {
+        return emptyString;
     }
 }

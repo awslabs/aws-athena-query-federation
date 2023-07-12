@@ -63,7 +63,7 @@ public abstract class JdbcSplitQueryBuilder
     private static final int MILLIS_SHIFT = 12;
 
     private final String quoteCharacters;
-    private final String emptyString = "";
+    protected final String emptyString = "";
 
     private final FederationExpressionParser jdbcFederationExpressionParser;
 
