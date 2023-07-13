@@ -21,7 +21,7 @@
 package com.amazonaws.athena.connectors.neptune.propertygraph;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
-import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.SpecialKeys;
+import com.amazonaws.athena.connectors.neptune.Enums.SpecialKeys;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
