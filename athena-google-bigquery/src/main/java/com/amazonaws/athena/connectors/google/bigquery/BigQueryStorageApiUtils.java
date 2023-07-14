@@ -50,7 +50,7 @@ import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Utf8;
  */
 public class BigQueryStorageApiUtils
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageApiUtils.class);
 
     private static final String BIGQUERY_QUOTE_CHAR = "\"";
 

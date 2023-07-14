@@ -128,8 +128,8 @@ public class BigQueryRecordHandler
     private void getData(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker, List<QueryParameterValue> parameterValues, BigQuery bigQueryClient, String datasetName, String tableName) throws TimeoutException
     {
         logger.debug("Got Request with constraints: {}", recordsRequest.getConstraints());
-        String sqlToExecute = BigQuerySqlUtils.buildSqlFromSplit(new TableName(datasetName, tableName),
-                recordsRequest.getSchema(), recordsRequest.getConstraints(), recordsRequest.getSplit(), parameterValues);
+        String sqlToExecute = BigQuerySqlUtils.buildSql(new TableName(datasetName, tableName),
+                recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues);
         logger.debug("Executing SQL Query: {} for Split: {}", sqlToExecute, recordsRequest.getSplit());
         QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(sqlToExecute).setUseLegacySql(false).setPositionalParameters(parameterValues).build();
         Job queryJob;

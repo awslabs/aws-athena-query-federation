@@ -34,7 +34,7 @@ import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.setu
 public class BigQueryCompositeHandler
         extends CompositeHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(BigQueryCompositeHandler.class);
     private static final BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
 
     public BigQueryCompositeHandler()
