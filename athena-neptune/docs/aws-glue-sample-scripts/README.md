@@ -27,9 +27,12 @@
 
 
 <br/>
-Each table within the AWS Glue Catalog based database maps to one node/vertex or edge/relatoinship type within your Amazon Neptune Property Graph model. Each Column for a Table maps to one property of the graph node or edge with the corresponding datatypes.
+Each table within the AWS Glue Catalog based database maps to:
 
-Here's a reference of the Glue DataTypes that you can use:
+- One node/vertex or edge/relationship type within your Amazon Neptune Property Graph model
+- One resource or one SPARQL query result within your Amazon Neptune RDF model
+
+We support the following datatypes for table columns:
         
 |Glue DataType|Apache Arrow Type|
 |-------------|-----------------|
