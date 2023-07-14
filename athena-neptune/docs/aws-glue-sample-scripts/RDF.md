@@ -2,8 +2,8 @@
 
 ### Create AWS Glue Database and Tables manually
 
-To create If you want to create database and tables manually, you can use the sample shell script [here](./manual/sample-cli-script.sh) to create a 
-Glue Database by the name "graph-database" and tables: airport, country, continent and route  corresponding to the Air Routes Property Graph sample dataset. 
+To create If you want to create database and tables manually, you can use the sample shell script [here](./manual/sample-cli-rdf.sh) to create a 
+Glue Database by the name "graph-database-rdf" with tables airport_rdf and route_rdf corresponding to the Air Routes RDF sample dataset. 
 
 If you're planning to use your own data set instead of the Air Routes sample dataset, then you need to modify the script according to your data structure. 
 
