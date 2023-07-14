@@ -1,11 +1,12 @@
 # RDF Glue Data Catalog Setup
 
-### Create AWS Glue Database and Tables manually
+To query RDF data using this connector, create a table in the Glue data catalog that maps to RDF data in the Neptune database. There are styles of mapping available:
 
-To create If you want to create database and tables manually, you can use the sample shell script [here](./manual/sample-cli-rdf.sh) to create a 
-Glue Database by the name "graph-database-rdf" with tables airport_rdf and route_rdf corresponding to the Air Routes RDF sample dataset. 
-
-If you're planning to use your own data set instead of the Air Routes sample dataset, then you need to modify the script according to your data structure. 
+- Class-based: The table represents an RDFS class. Each row represents an RDF resource whose type of that class. Columns represents datatype or object properties. See the airport_rdf example below.
+- Query-based: The table represents the resultset of a SPARQL query. Each row is one result. See the route_rdf example below.
+  
+## Create AWS Glue Database and Tables manually
+We provide two example tables. Run the sample shell script [here](./manual/sample-cli-rdf.sh) to create a Glue database and tables corresponding to the air routes dataset. 
 
 Ensure to have the right executable permissions on the script once you download it.
 
@@ -23,3 +24,17 @@ AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
 
 If all goes well you now have the Glue Database and Tables that are required for your Athena Neptune Connector setup and 
 you can move on to those steps mentioned [here](../neptune-connector-setup/).
+
+TODO .. how did I arrive at this.
+
+- Explaining the airport_rdf. How GENERALLY to do this
+
+- select distinct ?p where {?s rdf:type $MYCLASS . ?s ?p ?o } LIMIT 100
+- 
+- Explaining route_rdf inc. the funny named graph stuff.  
+
+## Then deploy the connector
+
+## Then run queries in Athena such as ...
+
+
