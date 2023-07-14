@@ -23,8 +23,6 @@
 > You can now query RDF data using the connector
 
 
-<br/>
-
 
 <br/>
 Each table within the AWS Glue Catalog based database maps to:
@@ -46,5 +44,9 @@ We support the following datatypes for table columns:
 |timestamp|DATEMILLI|
 
 <br/>
+
+For more on creating tables for property graph data, see [PropertyGraph.md](PropertyGraph.md).
+For more on creating tables for RDF data, see [RDF.md](RDF.md).
+
 
 
