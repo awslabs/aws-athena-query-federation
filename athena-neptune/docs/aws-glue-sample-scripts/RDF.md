@@ -22,11 +22,14 @@ In each case, you define columns and use table properties to map RDF to that col
 ## Examples
 We provide examples of both class-based and query-based tables. The examples use the Air Routes dataset. 
 
-### Step 1: Seed Air Routes Data in Neptune
-In your Neptune cluster, seed that dataset as RDF using the instructions in [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). TODO .. is that link correct.
+### Step 1: Create Neptune Cluster and Seed Air Routes Data in Neptune
+In your Neptune cluster, seed the Air Routes dataset as RDF using the instructions in [../neptune-cluster-setup/README.md](../neptune-cluster-setup/README.md). 
 
-### Step 2: Create Glue Tables
-Then create the Glue tables. We provide a shell script [manual/sample-cli-script.sh](manual/sample-cli-script.sh). 
+### Step 2: Deploy the Athena Connector
+Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
+
+### Step 3: Create Glue Tables
+Create the Glue tables. We provide a shell script [manual/sample-cli-script.sh](manual/sample-cli-script.sh). 
 
 Ensure to have the right executable permissions on the script once you download it.
 
@@ -44,7 +47,7 @@ AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
 ```
 TODO .. some pictures of the tables...
 
-### Step 3: Understanding Class-Based Tables
+### Step 4: Understanding Class-Based Tables
 The **airport_rdf** table is a class-based table. Its rows represent individual RDF resources that have a specified RDF type. The column names represent predicates. The column values represent objects. 
 
 We set the table properties as follows:
@@ -56,7 +59,9 @@ We set the table properties as follows:
 - prefix_class: http://kelvinlawrence.net/air-routes/class/
 - prefix_prop: http://kelvinlawrence.net/air-routes/datatypeProperty/
 
-We set componenttype to rdf to indicate this is an RDF-based table. We set querymode to class to indicate the RDF mapping is classed-based. We indicate the class using classuri. The value is given in CURIR form as class:Airport. Here class is a prefix. The full value is deinfed by the prefix_class property. We can see that the fully-qualified class URI is http://kelvinlawrence.net/air-routes/class/Airport.
+We set **componenttype** to **rdf** to indicate this is an RDF-based table. We set **querymode** to **class** to indicate the RDF mapping is class-based. We indicate the class using **classuri**. The value is given in CURIE form as **class:Airport**. Here **class** is a prefix. The full value is deinfed by the **prefix_class** property. We can see that the fully-qualified class URI is **http://kelvinlawrence.net/air-routes/class/Airport**.
+
+
 
 TODO ... 
 
