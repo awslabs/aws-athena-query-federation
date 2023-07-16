@@ -124,6 +124,11 @@ Query mode is the most flexible way to map RDF to table structure. We recommend 
 ### Step 5: Deploy the Athena Connector
 Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
 
-### Step 7; Query
+In this example, use the following settings:
+
+- GlueDatabaseName: graph-database-rdf
+- NeptuneGraphType: RDF
+
+### Step 6; Query
 Notes: you can put where conditions and limits in your SQL, and even join tables together, Athena does this work. The connector mainly just grabs ALL the rows back. So careful if that data is huge. Might want to use query model and limit results.
 
