@@ -48,7 +48,7 @@ AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
 TODO .. some pictures of the tables...
 
 ### Step 4: Understanding Class-Based Tables
-The **airport_rdf** table is a class-based table. Its rows represent individual RDF resources that have a specified RDF type. The column names represent predicates. The column values represent objects. 
+The **airport_rdf** table is a class-based table. Its rows represent individual RDF resources that have a specified RDFS class. The column names represent predicates. The column values represent objects. 
 
 We set the table properties as follows:
 - componenttype:rdf
@@ -61,33 +61,41 @@ We set the table properties as follows:
 
 We set **componenttype** to **rdf** to indicate this is an RDF-based table. We set **querymode** to **class** to indicate the RDF mapping is class-based. We indicate the class using **classuri**. The value is given in CURIE form as **class:Airport**. Here **class** is a prefix. The full value is deinfed by the **prefix_class** property. We can see that the fully-qualified class URI is **http://kelvinlawrence.net/air-routes/class/Airport**.
 
+One column must map to the URI of the resource itself. That is given by **subject**. In this example, the **subject** is **id**. Each other column must map to the local name of the predicate. **prefix_prop** is the prefix of the predicates.
 
+The connector creates a SPARQL query based on these settings, runs it against the Neptune cluster, and returns the results in the tabular form specified. The query for the above example is the following
 
-TODO ... 
+```
+PREFIX class: <http://kelvinlawrence.net/air-routes/class/> # from predicate_class
+PREFIX prop: <http://kelvinlawrence.net/air-routes/datatypeProperty/> # from predicate_prop
 
+# each variable selected must be a column name
+SELECT ?id ?type ?code ?icao ?desc ?region ?runways ?longest ?elev ?country ?city ?lat ?lon
+WHERE {
+    ?id rdf:type class:Airport . # id is subject, class prefix is defined by prefix_class, Airport is defined by classuri
+    ?id prop:type ?type . # type is a column name, prop is prefix defined by prefix_prop
+    ?id prop:code ?code .
+    ?id prop:icao ?icao .
+    ?id prop:desc ?desc .
+    ?id prop:region ?region .
+    ?id prop:runways ?runways .
+    ?id prop:longest ?longest .
+    ?id prop:elev ?elev .
+    ?id prop:country ?country .
+    ?id prop:city ?city .
+    ?id prop:lat ?lat .
+    ?id prop:lon ?lon .
+}
+```
+In the above, the ?id variable brings back a URI rather than a literal. The connector returns it as a string containing the full URI. You can specify **strip_uri** to force the connector to return only the local part, that is the part after the final hash or slash. 
 
-It is based on RDF class class:Airport where class is a prefix for http://kelvinlawrence.net/air-routes/class/. 
-Each row in the table has triples whose subject is the id column. The remaining columns are objects of preficates preds_prefix:type, preds_prefix:code, 
-and preds_prefix:icao, where preds_prefix is http://kelvinlawrence.net/air-routes/datatypeProperty/. 
+The class-based approach is suitable if your RDF model follows the convention where resources belong to a specific class and properties have the same predicate URI structure. If your data does not follow this approach, or if you simply need more flexibility, use the query-based approach discussed below.
 
-    
-Next, I define a table airport_route with columns incode, outcode, dist. I obtain results using custom SPARQL
+To apply this approach to your own dataset, we recommend running a SPARQL query against your data to introspect its structure. The following query checks for distinct predicates in a sample of 1000 resources of a given class. These predicates can then be columns in the tabular representation of that class.
 
-Set table properties as follows:
-
-- componenttype:rdf
-- querymode: sparql
-- sparql: select ?incode ?outcode ?dist where { ?resin op:route ?resout . GRAPH ?route { ?resin op:route ?resout } . ?route prop:dist ?dist . ?resin prop:code ?incode .?resout prop:code ?outcode . }
-- prefix_op: http://kelvinlawrence.net/air-routes/objectProperty/
-- prefix_prop: http://kelvinlawrence.net/air-routes/datatypeProperty/
-
-- - Explaining the airport_rdf. How GENERALLY to do this
-
-- select distinct ?p where {?s rdf:type $MYCLASS . ?s ?p ?o } LIMIT 100
-- 
-- Explaining route_rdf inc. the funny named graph stuff.  
-
-
+```
+select distinct ?p where { ?s rdf:type #MYCLASS . ?s ?p ?o } LIMIT 1000
+```
 
 
 ### Step 4: Deploy Connector
