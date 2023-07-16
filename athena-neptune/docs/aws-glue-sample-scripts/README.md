@@ -46,6 +46,7 @@ We support the following datatypes for table columns:
 <br/>
 
 For more on creating tables for property graph data, see [PropertyGraph.md](PropertyGraph.md).
+
 For more on creating tables for RDF data, see [RDF.md](RDF.md).
 
 
