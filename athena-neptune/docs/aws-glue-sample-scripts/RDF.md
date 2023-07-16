@@ -103,7 +103,26 @@ We set the table properties as follows:
 - prefix_op: http://kelvinlawrence.net/air-routes/objectProperty/
 - strip_uri :true
 
-The connector TODO dadatadata
+The connector creates a SPARQL query given by **query** with the prefixes given by **prefix_prop** and **prefix_op**.
+
+```
+PREFIX prop: <http://kelvinlawrence.net/air-routes/datatypeProperty/>
+PREFIX op: <http://kelvinlawrence.net/air-routes/objectProperty/>
+
+select ?incode ?outcode ?dist where {
+   ?resin op:route ?resout .
+   GRAPH ?route { ?resin op:route ?resout } .
+   ?route prop:dist ?dist  .
+   ?resin prop:code ?incode .
+   ?resout prop:code ?outcode .
+}
+```
+The connector maps the results **incode**, **output**, **dist** from SPARQL to the column structure of the table.
+
+Explaining this query ...
+
+Query mode is the most flexible way to map RDF to table structure. We recommend testing the query by directly running against the Neptune cluster. When you are happy with its results, use that query to define the Glue table. 
+
 
 ### Step 5: Deploy the Athena Connector
 Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
