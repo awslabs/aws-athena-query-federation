@@ -126,9 +126,25 @@ Deploy the Athena connector using RDF as the graph type. See [../neptune-connect
 
 In this example, use the following settings:
 
+- 
 - GlueDatabaseName: graph-database-rdf
 - NeptuneGraphType: RDF
 
 ### Step 6; Query
-Notes: you can put where conditions and limits in your SQL, and even join tables together, Athena does this work. The connector mainly just grabs ALL the rows back. So careful if that data is huge. Might want to use query model and limit results.
+Once connector is deployed, you can run SQL queries against the Athena service to retrieve this RDF data. 
+
+The following query accesses the class-based table to retrieve 100 airports.
+
+```
+select * from "graph-database-rdf"."airport_rdf"
+LIMIT 100
+```
+
+The following query accesses query-based table to retrieve 100 routes.
+
+```
+select * from "graph-database-rdf"."route_rdf"
+LIMIT 100
+```
+
 
