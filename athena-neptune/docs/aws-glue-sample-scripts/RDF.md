@@ -103,18 +103,18 @@ We set the table properties as follows:
 - prefix_op: http://kelvinlawrence.net/air-routes/objectProperty/
 - strip_uri :true
 
-The connector creates a SPARQL query given by **query** with the prefixes given by **prefix_prop** and **prefix_op**.
+The connector creates a SPARQL query given by **query** with the prefixes given by **prefix_prop** and **prefix_op**. For clarity, we add comments to explain the query.
 
 ```
 PREFIX prop: <http://kelvinlawrence.net/air-routes/datatypeProperty/>
 PREFIX op: <http://kelvinlawrence.net/air-routes/objectProperty/>
 
 select ?incode ?outcode ?dist where {
-   ?resin op:route ?resout .
-   GRAPH ?route { ?resin op:route ?resout } .
-   ?route prop:dist ?dist  .
-   ?resin prop:code ?incode .
-   ?resout prop:code ?outcode .
+   ?resin op:route ?resout . # Find two airport resources with an op:route relationship
+   GRAPH ?route { ?resin op:route ?resout } . # The distance of the route is modeled as a named graph. Get the route
+   ?route prop:dist ?dist  . # Get distance from named graph
+   ?resin prop:code ?incode . # Get airport code of first airport
+   ?resout prop:code ?outcode . # Get airport code of second airport
 }
 ```
 The connector maps the results **incode**, **output**, **dist** from SPARQL to the column structure of the table.
