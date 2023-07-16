@@ -119,10 +119,7 @@ select ?incode ?outcode ?dist where {
 ```
 The connector maps the results **incode**, **output**, **dist** from SPARQL to the column structure of the table.
 
-Explaining this query ...
-
 Query mode is the most flexible way to map RDF to table structure. We recommend testing the query by directly running against the Neptune cluster. When you are happy with its results, use that query to define the Glue table. 
-
 
 ### Step 5: Deploy the Athena Connector
 Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
