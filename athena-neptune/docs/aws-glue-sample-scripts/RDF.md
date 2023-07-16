@@ -140,11 +140,18 @@ select * from "graph-database-rdf"."airport_rdf"
 LIMIT 100
 ```
 
-The following query accesses query-based table to retrieve 100 routes.
+The following query accesses the query-based table to retrieve 100 routes.
 
 ```
 select * from "graph-database-rdf"."route_rdf"
 LIMIT 100
+```
+
+The following query accesses the query-based table to retrieve routes from YOW airport.
+
+```
+select * from "graph-database-rdf"."route_rdf"
+where incode='YOW'
 ```
 
 
