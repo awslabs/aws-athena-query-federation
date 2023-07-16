@@ -25,10 +25,7 @@ We provide examples of both class-based and query-based tables. The examples use
 ### Step 1: Create Neptune Cluster and Seed Air Routes Data in Neptune
 In your Neptune cluster, seed the Air Routes dataset as RDF using the instructions in [../neptune-cluster-setup/README.md](../neptune-cluster-setup/README.md). 
 
-### Step 2: Deploy the Athena Connector
-Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
-
-### Step 3: Create Glue Tables
+### Step 2: Create Glue Tables
 Create the Glue tables. We provide a shell script [manual/sample-cli-script.sh](manual/sample-cli-script.sh). 
 
 Ensure to have the right executable permissions on the script once you download it.
@@ -47,7 +44,7 @@ AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
 ```
 TODO .. some pictures of the tables...
 
-### Step 4: Understanding Class-Based Tables
+### Step 3: Understanding Class-Based Tables
 The **airport_rdf** table is a class-based table. Its rows represent individual RDF resources that have a specified RDFS class. The column names represent predicates. The column values represent objects. 
 
 We set the table properties as follows:
@@ -87,7 +84,7 @@ WHERE {
     ?id prop:lon ?lon .
 }
 ```
-In the above, the ?id variable brings back a URI rather than a literal. The connector returns it as a string containing the full URI. You can specify **strip_uri** to force the connector to return only the local part, that is the part after the final hash or slash. 
+In the above, the **?id*** variable brings back a URI rather than a literal. The connector returns it as a string containing the full URI. You can specify **strip_uri** to force the connector to return only the local part, that is the part after the final hash or slash. 
 
 The class-based approach is suitable if your RDF model follows the convention where resources belong to a specific class and properties have the same predicate URI structure. If your data does not follow this approach, or if you simply need more flexibility, use the query-based approach discussed below.
 
@@ -96,10 +93,23 @@ To apply this approach to your own dataset, we recommend running a SPARQL query 
 ```
 select distinct ?p where { ?s rdf:type #MYCLASS . ?s ?p ?o } LIMIT 1000
 ```
+### Step 4: Understanding Query-Based Tables
+The **route_rdf** table is a query-based table. Its rows represent results from a SPARQL select query.
 
+We set the table properties as follows:
+- querymode: sparql
+- sparql: select ?incode ?outcode ?dist where {  ?resin op:route ?resout . GRAPH ?route { ?resin op:route ?resout } .  ?route prop:dist ?dist  . ?resin prop:code ?incode .?resout prop:code ?outcode . }
+- prefix_prop: http://kelvinlawrence.net/air-routes/datatypeProperty/
+- prefix_op: http://kelvinlawrence.net/air-routes/objectProperty/
+- strip_uri :true
 
-### Step 4: Deploy Connector
+The connector TODO dadatadata
 
-### Step 5; Query
+### Step 5: Deploy the Athena Connector
+Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
 
+### Step 7: Deploy Connector
+
+### Step 7; Query
+Notes: you can put where conditios and limits in your SQL, and even join tables together, Athena does this work. The connector mainly just grabs ALL the rows back. So careful if that data is huge. Might want to use query model and limit results.
 
