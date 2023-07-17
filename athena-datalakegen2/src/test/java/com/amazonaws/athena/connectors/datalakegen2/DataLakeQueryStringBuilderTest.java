@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.datalakegen2;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -55,5 +56,15 @@ public class DataLakeQueryStringBuilderTest
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
         Assert.assertEquals(new ArrayList<>(), builder.getPartitionWhereClauses(split));
+    }
+
+    @Test
+    public void testLimitClause()
+    {
+        Split split = Mockito.mock(Split.class);
+        DataLakeGen2QueryStringBuilder builder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        org.testng.Assert.assertEquals("", builder.appendLimitOffset(split, constraints));
     }
 }

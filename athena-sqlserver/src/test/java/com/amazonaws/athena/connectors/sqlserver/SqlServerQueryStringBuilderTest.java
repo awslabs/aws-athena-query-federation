@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.sqlserver;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -63,4 +64,15 @@ public class SqlServerQueryStringBuilderTest
         Assert.assertEquals(Collections.singletonList(" $PARTITION.pf(col) = 1"), builder.getPartitionWhereClauses(split1));
 
     }
+
+    @Test
+    public void testLimitClause()
+    {
+        Split split = Mockito.mock(Split.class);
+        SqlServerQueryStringBuilder builder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        Assert.assertEquals("", builder.appendLimitOffset(split, constraints));
+    }
+
 }
