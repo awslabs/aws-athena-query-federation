@@ -42,10 +42,15 @@ AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
 ./sample-cli-script.sh  <aws-profile> <aws-region>
 
 ```
-TODO .. some pictures of the tables...
+
+Next we study the structure of each of the tables created.
 
 ### Step 3: Understanding Class-Based Tables
 The **airport_rdf** table is a class-based table. Its rows represent individual RDF resources that have a specified RDFS class. The column names represent predicates. The column values represent objects. 
+
+The next figure shows the column structure of the table:
+
+![](./assets/airportrdf_schema.png)
 
 We set the table properties as follows:
 - componenttype:rdf
@@ -55,6 +60,10 @@ We set the table properties as follows:
 - preds_prefix: prop
 - prefix_class: http://kelvinlawrence.net/air-routes/class/
 - prefix_prop: http://kelvinlawrence.net/air-routes/datatypeProperty/
+
+The next figure shows the properties:
+
+![](./assets/airportrdf_props.png)
 
 We set **componenttype** to **rdf** to indicate this is an RDF-based table. We set **querymode** to **class** to indicate the RDF mapping is class-based. We indicate the class using **classuri**. The value is given in CURIE form as **class:Airport**. Here **class** is a prefix. The full value is deinfed by the **prefix_class** property. We can see that the fully-qualified class URI is **http://kelvinlawrence.net/air-routes/class/Airport**.
 
@@ -96,6 +105,8 @@ select distinct ?p where { ?s rdf:type #MYCLASS . ?s ?p ?o } LIMIT 1000
 ### Step 4: Understanding Query-Based Tables
 The **route_rdf** table is a query-based table. Its rows represent results from a SPARQL select query.
 
+![](./assets/routerdf.png)
+
 We set the table properties as follows:
 - querymode: sparql
 - sparql: select ?incode ?outcode ?dist where {  ?resin op:route ?resout . GRAPH ?route { ?resin op:route ?resout } .  ?route prop:dist ?dist  . ?resin prop:code ?incode .?resout prop:code ?outcode . }
@@ -126,7 +137,8 @@ Deploy the Athena connector using RDF as the graph type. See [../neptune-connect
 
 In this example, use the following settings:
 
-- 
+- ApplicationName: AthenaNeptuneConnectorRDF
+- AthenaCatalogName: athena-catalog-neptune-rdf
 - GlueDatabaseName: graph-database-rdf
 - NeptuneGraphType: RDF
 
