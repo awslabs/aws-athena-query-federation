@@ -142,7 +142,7 @@ In this example, use the following settings:
 - GlueDatabaseName: graph-database-rdf
 - NeptuneGraphType: RDF
 
-### Step 6; Query
+### Step 6: Query
 Once connector is deployed, you can run SQL queries against the Athena service to retrieve this RDF data. 
 
 The following query accesses the class-based table to retrieve 100 airports.
