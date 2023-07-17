@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
@@ -211,6 +212,31 @@ public class MySqlMetadataHandler
         }
 
         return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+    }
+
+    @Override
+    protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
+                                                     final String tableName) throws Exception
+    {
+        String resolvedName = null;
+        String sql = getTableNameQuery(tableName);
+        PreparedStatement statement = connection.prepareStatement(sql);
+        try (ResultSet resultSet = statement.executeQuery()) {
+            if (resultSet.next()) {
+                resolvedName = resultSet.getString("table_name");
+                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
+            }
+            else {
+                throw new RuntimeException(String.format("Could not find Table %s in Database %s", tableName, databaseName));
+            }
+        }
+        return new TableName(databaseName, resolvedName);
+    }
+
+    private String getTableNameQuery(String tableName)
+    {
+        return String.format("SELECT table_name, lower(table_name) FROM information_schema.tables " + 
+        "WHERE table_name = '%s' or lower(table_name) = '%s' LIMIT 1", tableName, tableName);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)

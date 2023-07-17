@@ -238,7 +238,7 @@ public abstract class JdbcMetadataHandler
         }
     }
 
-    private TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
+    protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
                                                      final String tableName) throws Exception
     {
         List<TableName> tables = listTables(connection, databaseName)
