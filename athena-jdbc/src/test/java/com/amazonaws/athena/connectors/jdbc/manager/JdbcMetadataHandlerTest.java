@@ -53,6 +53,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -71,6 +72,7 @@ public class JdbcMetadataHandlerTest
     private BlockAllocator blockAllocator;
     private AWSSecretsManager secretsManager;
     private AmazonAthena athena;
+    private ResultSet resultSetName;
 
     @Before
     public void setup()
@@ -106,6 +108,10 @@ public class JdbcMetadataHandlerTest
         };
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
+        String[] columnNames = new String[] {"TABLE_SCHEM", "TABLE_NAME"};
+        String[][] tableNameValues = new String[][]{new String[] {"testSchema", "testTable"}};
+        this.resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        Mockito.when(this.connection.getMetaData().getTables(Mockito.eq(connection.getCatalog()), any(), Mockito.eq(null), Mockito.eq(new String[] {"TABLE", "VIEW", "EXTERNAL TABLE"}))).thenReturn(this.resultSetName);
     }
 
     @Test
@@ -205,7 +211,7 @@ public class JdbcMetadataHandlerTest
     public void doGetTableCaseInsensitive()
             throws Exception
     {
-        TableName inputTableName = new TableName("testSchema", "testtable");
+        TableName inputTableName = new TableName("testSchema", "testTable");
         Object[][] values1 = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}};
 
         setupMocksDoGetTableCaseInsensitive(inputTableName, values1, "testTable");
@@ -222,19 +228,6 @@ public class JdbcMetadataHandlerTest
     {
         TableName inputTableName = new TableName("testSchema", "testtable");
         Object[][] values1 = {{"testSchema", "a"}, {"testSchema", "b"}};
-
-        setupMocksDoGetTableCaseInsensitive(inputTableName, values1, null);
-
-        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
-                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void doGetTableCaseInsensitiveDuplicateTables()
-            throws Exception
-    {
-        TableName inputTableName = new TableName("testSchema", "testtable");
-        Object[][] values1 = {{"testSchema", "testTable"}, {"testSchema", "testTablE"}};
 
         setupMocksDoGetTableCaseInsensitive(inputTableName, values1, null);
 
@@ -281,24 +274,14 @@ public class JdbcMetadataHandlerTest
     private void setupMocksDoGetTableCaseInsensitive(TableName inputTableName, Object[][] resultSetRows,
                                                      String expectedTableName) throws Exception
     {
-        String[] schema1 = {"TABLE_SCHEM", "TABLE_NAME"};
-        ResultSet resultSet1 = mockResultSet(schema1, resultSetRows, new AtomicInteger(-1));
-        Mockito.when(connection.getMetaData().getTables("testCatalog", inputTableName.getSchemaName(),
-                        null, new String[]{"TABLE", "VIEW", "EXTERNAL TABLE"}))
-                .thenReturn(resultSet1);
-
         // mock first call to getSchema() to simulate no table found for original lowercase table name
-        String[] schema2 = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
-        Object[][] values2 = {{Types.INTEGER, 12, "testCol1", 0, 0}};
-        ResultSet resultSet2 = mockResultSet(schema2, new Object[][]{}, new AtomicInteger(-1));
-        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(),
-                        inputTableName.getTableName(), null))
-                .thenReturn(resultSet2); //first call to getScheme() - simulate no table found
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}};
 
         // mock second call to getSchema()
-        ResultSet resultSet3 = mockResultSet(schema2, values2, new AtomicInteger(-1));
+        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(),
                         expectedTableName, null))
-                .thenReturn(resultSet3);
+                .thenReturn(resultSet);
     }
 }

@@ -252,25 +252,7 @@ public class PostGreSqlMetadataHandler
     protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
                                                      final String tableName) throws Exception
     {
-        String resolvedName = null;
-        String sql = getTableNameQuery(tableName);
-        PreparedStatement statement = connection.prepareStatement(sql);
-        try (ResultSet resultSet = statement.executeQuery()) {
-            if (resultSet.next()) {
-                resolvedName = resultSet.getString("table_name");
-                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
-            }
-            else {
-                throw new RuntimeException(String.format("Could not find Table %s in Database %s", tableName, databaseName));
-            }
-        }
-        return new TableName(databaseName, resolvedName);
-    }
-
-    private String getTableNameQuery(String tableName)
-    {
-        return String.format("SELECT table_name, lower(table_name) FROM information_schema.tables " + 
-        "WHERE table_name = '%s' or lower(table_name) = '%s' LIMIT 1", tableName, tableName);
+        return JDBCUtil.informationSchemaCaseInsensitiveTableMatch(connection, databaseName, tableName);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)
