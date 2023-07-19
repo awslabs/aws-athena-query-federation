@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -130,5 +132,27 @@ public class BigQueryTestUtils
                 new org.apache.arrow.vector.types.pojo.Field(FLOAT_FIELD_NAME_1,
                         FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null)
         );
+    }
+
+    static org.apache.arrow.vector.types.pojo.Schema makeSchema(Map<String, ValueSet> constraintMap)
+    {
+        SchemaBuilder builder = new SchemaBuilder();
+        for (Map.Entry<String, ValueSet> field : constraintMap.entrySet()) {
+            ArrowType.ArrowTypeID typeId = field.getValue().getType().getTypeID();
+            switch (typeId) {
+                case Int:
+                    builder.addIntField(field.getKey());
+                    break;
+                case Bool:
+                    builder.addBitField(field.getKey());
+                    break;
+                case Utf8:
+                    builder.addStringField(field.getKey());
+                    break;
+                default:
+                    throw new UnsupportedOperationException("Type Not Implemented: " + typeId.name());
+            }
+        }
+        return builder.build();
     }
 }

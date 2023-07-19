@@ -224,10 +224,9 @@ public class BigQueryStorageApiUtils
         List<String> clauses = toConjuncts(schema.getFields(), constraints);
 
         if (!clauses.isEmpty()) {
-            for (String clause : clauses) {
-                LOGGER.debug("clause {}", clause);
-                optionsBuilder = optionsBuilder.setRowRestriction(clause);
-            }
+            String clause = Joiner.on(" AND ").join(clauses);
+            LOGGER.debug("clause {}", clause);
+            optionsBuilder = optionsBuilder.setRowRestriction(clause);
         }
         return optionsBuilder;
     }

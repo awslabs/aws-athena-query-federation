@@ -100,8 +100,8 @@ import static org.mockito.Mockito.when;
 public class BigQueryRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandlerTest.class);
-    static RootAllocator rootAllocator = new RootAllocator(Long.MAX_VALUE);
-    private static BlockAllocator allocator;
+    RootAllocator rootAllocator = new RootAllocator(Long.MAX_VALUE);
+    private BlockAllocator allocator;
     @Mock
     BigQuery bigQuery;
 
@@ -136,8 +136,10 @@ public class BigQueryRecordHandlerTest
     private FederatedIdentity federatedIdentity;
     private MockedStatic<BigQueryUtils> mockedStatic;
     private MockedStatic<MessageSerializer> messageSer;
+    MockedConstruction<VectorSchemaRoot> mockedDefaultVectorSchemaRoot;
+    MockedConstruction<VectorLoader> mockedDefaultVectorLoader;
 
-    public static List<FieldVector> getFieldVectors()
+    public List<FieldVector> getFieldVectors()
     {
         List<FieldVector> fieldVectors = new ArrayList<>();
         IntVector intVector = new IntVector("int1", rootAllocator);
@@ -236,8 +238,11 @@ public class BigQueryRecordHandlerTest
     @After
     public void close()
     {
+        mockedDefaultVectorLoader.close();
+        mockedDefaultVectorSchemaRoot.close();
         mockedStatic.close();
         messageSer.close();
+        allocator.close();
     }
 
     @Test
@@ -272,11 +277,11 @@ public class BigQueryRecordHandlerTest
             when(BigQueryReadClient.create()).thenReturn(bigQueryReadClient);
             messageSer = mockStatic(MessageSerializer.class);
             when(MessageSerializer.deserializeSchema((ReadChannel) any())).thenReturn(BigQueryTestUtils.getBlockTestSchema());
-            MockedConstruction<VectorLoader> mockedDefaultVectorLoader = Mockito.mockConstruction(VectorLoader.class,
+            mockedDefaultVectorLoader = Mockito.mockConstruction(VectorLoader.class,
                     (mock, context) -> {
                         Mockito.doNothing().when(mock).load(any());
                     });
-            MockedConstruction<VectorSchemaRoot> mockedDefaultVectorSchemaRoot = Mockito.mockConstruction(VectorSchemaRoot.class,
+            mockedDefaultVectorSchemaRoot = Mockito.mockConstruction(VectorSchemaRoot.class,
                     (mock, context) -> {
                         when(mock.getRowCount()).thenReturn(2);
                         when(mock.getFieldVectors()).thenReturn(getFieldVectors());

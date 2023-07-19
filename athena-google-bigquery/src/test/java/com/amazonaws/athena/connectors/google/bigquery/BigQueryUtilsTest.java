@@ -31,7 +31,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 
@@ -44,7 +44,6 @@ public class BigQueryUtilsTest
     BigQueryPage<Dataset> datasets;
     BigQueryPage<Table> tables;
     String datasetName;
-    private BigQueryCompositeHandler bigQueryCompositeHandler;
 
     @Before
     public void init()
@@ -64,9 +63,9 @@ public class BigQueryUtilsTest
     public void bigQueryUtils()
     {
         String newDatasetName = BigQueryUtils.fixCaseForDatasetName(BigQueryTestUtils.PROJECT_1_NAME, "testDataset", bigQuery);
-        assertEquals(null, newDatasetName);
+        assertNull(newDatasetName);
 
         String tableName = BigQueryUtils.fixCaseForTableName(BigQueryTestUtils.PROJECT_1_NAME, datasetName, "test", bigQuery);
-        assertEquals(null, tableName);
+        assertNull(tableName);
     }
 }
