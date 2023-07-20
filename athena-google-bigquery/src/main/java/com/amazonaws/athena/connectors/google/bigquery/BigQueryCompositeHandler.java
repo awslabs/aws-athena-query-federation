@@ -35,6 +35,7 @@ public class BigQueryCompositeHandler
         extends CompositeHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryCompositeHandler.class);
+    //TODO: To be removed, once we expose a way to reuse the BufferAllocator created via the Federation SDK.
     private static final BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
 
     public BigQueryCompositeHandler()

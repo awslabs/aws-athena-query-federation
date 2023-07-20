@@ -254,17 +254,12 @@ public class BigQueryMetadataHandlerTest
         assertEquals(1, response.getSplits().size());
     }
 
-    @Test
+    @Test(expected = Exception.class)
     public void testDoListSchemaNamesForException() throws IOException
     {
-        final int numDatasets = 5;
-        BigQueryPage<Dataset> datasetPage =
-                new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-
         ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());
         when(bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request)).thenThrow(new BigQueryExceptions.TooManyTablesException());
-        ListSchemasResponse schemaNames = bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
-        assertEquals(null, schemaNames);
+        bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
     }
 }
