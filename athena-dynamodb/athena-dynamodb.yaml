@@ -24,6 +24,20 @@ Parameters:
     Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
     Default: athena-spill
+  SpillPutRequestHeaders:
+    Description: '(Optional) A JSON encoded map of request headers and values for the Amazon S3 putObject request that is used for spilling. (for example, {"x-amz-server-side-encryption" : "aws:kms"}).'
+    Type: String
+  DisableGlue:
+    Description: "(Optional) If present and set to 'true', the connector does not attempt to retrieve supplemental metadata from AWS Glue."
+    Default: 'false'
+    Type: String
+  GlueCatalog:
+    Description: '(Optional) Use this option to specify the account id of a different account for a cross-account AWS Glue catalog. By default, the connector attempts to get metadata from its own AWS Glue account.'
+    Type: String
+  DisableProjectionAndCasing:
+    Description: "(Optional) Disables projection and casing. Use if you want to query DynamoDB tables that have casing in their column names and you do not want to specify a columnMapping property on your AWS Glue table. Can be set to 'auto' or 'always', set to 'auto' by default. See documentation for more information."
+    Default: 'auto'
+    Type: String
   LambdaTimeout:
     Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
     Default: 900
@@ -51,6 +65,8 @@ Parameters:
 
 Conditions:
   HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
+  HasSpillPutRequestHeaders: !Not [!Equals [!Ref HasSpillPutRequestHeaders, ""]]
+  HasGlueCatalog: !Not [!Equals [!Ref GlueCatalog, ""]]
   NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 
@@ -60,9 +76,13 @@ Resources:
     Properties:
       Environment:
         Variables:
+          disable_projection_and_casing: !Ref DisableProjectionAndCasing
           disable_spill_encryption: !Ref DisableSpillEncryption
+          disable_glue: !Ref DisableGlue
+          glue_catalog: !If [HasGlueCatalog, !Ref GlueCatalog, !Ref "AWS::NoValue"]
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
+          spill_put_request_headers: !If [HasSpillPutRequestHeaders, !Ref SpillPutRequestHeaders, !Ref "AWS::NoValue"]
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.dynamodb.DynamoDBCompositeHandler"
