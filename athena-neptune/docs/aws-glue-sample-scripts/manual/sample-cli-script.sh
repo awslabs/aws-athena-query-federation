@@ -5,7 +5,6 @@
 
 echo $1;
 echo $2;
-echo $3;
 
 dbname='graph-database'
 
@@ -14,7 +13,7 @@ aws glue create-database \
 --database-input "{\"Name\":\"${dbname}\"}" \
 --profile $1 \
 --endpoint https://glue.$2.amazonaws.com \
---region $3
+--region $2
 
 
 aws glue create-table \
@@ -35,7 +34,7 @@ aws glue create-table \
             {"Name":"lat", "Type":"double"},
             {"Name":"lon", "Type":"double"}
         ], 
-        "Location":"s3://dummy-bucket/"},
+        "Location":"s2://dummy-bucket/"},
         "Parameters":{ 
             "separatorChar":",",
             "componenttype":"vertex",
@@ -44,7 +43,7 @@ aws glue create-table \
         }' \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com \
-    --region $3
+    --region $2
 
 aws glue create-table \
     --database-name $dbname \
@@ -54,7 +53,7 @@ aws glue create-table \
             {"Name":"code", "Type":"string"}, 
             {"Name":"desc", "Type":"string"}
         ], 
-        "Location":"s3://dummy-bucket/"},
+        "Location":"s2://dummy-bucket/"},
         "Parameters":{ 
              "separatorChar":",",
              "componenttype":"vertex",
@@ -63,7 +62,7 @@ aws glue create-table \
         }' \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com \
-    --region $3
+    --region $2
 
 aws glue create-table \
     --database-name $dbname \
@@ -73,7 +72,7 @@ aws glue create-table \
             {"Name":"code", "Type":"string"}, 
             {"Name":"desc", "Type":"string"}
         ], 
-        "Location":"s3://dummy-bucket/"},
+        "Location":"s2://dummy-bucket/"},
         "Parameters":{ 
             "separatorChar":",",
             "componenttype":"vertex",
@@ -81,7 +80,7 @@ aws glue create-table \
         }' \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com \
-    --region $3
+    --region $2
 
 aws glue create-table \
     --database-name $dbname \
@@ -92,7 +91,7 @@ aws glue create-table \
             {"Name":"in", "Type":"string"},
             {"Name":"dist", "Type":"int"} 
         ], 
-        "Location":"s3://dummy-bucket/"},
+        "Location":"s2://dummy-bucket/"},
         "Parameters":{ 
              "separatorChar":",",
             "componenttype":"edge",
@@ -100,7 +99,7 @@ aws glue create-table \
         }' \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com \
-    --region $3
+    --region $2
 
 
 aws glue create-table \
@@ -110,7 +109,7 @@ aws glue create-table \
             {"Name":"source", "Type":"string"}, 
             {"Name":"destination", "Type":"string"}
         ], 
-        "Location":"s3://dummy-bucket/"},
+        "Location":"s2://dummy-bucket/"},
         "Parameters":{ 
             "separatorChar":",",
             "componenttype":"query",
@@ -119,4 +118,4 @@ aws glue create-table \
         }' \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com \
-    --region $3
+    --region $2
