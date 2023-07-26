@@ -71,7 +71,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+
 
 public class RedshiftMetadataHandlerTest
         extends TestBase
@@ -329,6 +331,11 @@ public class RedshiftMetadataHandlerTest
         Schema expected = expectedSchemaBuilder.build();
 
         TableName inputTableName = new TableName("testSchema", "testTable");
+        String[] columnNames = new String[] {"table_name"};
+        String[][] tableNameValues = new String[][]{new String[] {"testTable"}};
+        ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        String sql = "SELECT table_name, lower(table_name) FROM information_schema.tables WHERE table_name = 'testTable' or lower(table_name) = 'testTable' LIMIT 1";
+        Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
 

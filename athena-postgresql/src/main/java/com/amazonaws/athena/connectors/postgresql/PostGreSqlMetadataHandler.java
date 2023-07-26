@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
@@ -245,6 +246,13 @@ public class PostGreSqlMetadataHandler
         }
 
         return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+    }
+
+    @Override
+    protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
+                                                     final String tableName) throws Exception
+    {
+        return JDBCUtil.informationSchemaCaseInsensitiveTableMatch(connection, databaseName, tableName);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)
