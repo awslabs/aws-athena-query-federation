@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.synapse;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
@@ -93,5 +94,12 @@ public class SynapseQueryStringBuilder extends JdbcSplitQueryBuilder
             LOGGER.debug("Fetching data without Partition");
         }
         return Collections.emptyList();
+    }
+
+    //Returning empty string as Synapse does not support LIMIT clause
+    @Override
+    protected String appendLimitOffset(Split split, Constraints constraints)
+    {
+        return emptyString;
     }
 }
