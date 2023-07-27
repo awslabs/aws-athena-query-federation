@@ -1,8 +1,8 @@
 # RDF Glue Data Catalog Setup
 
-To query RDF data using this connector, create a table in the Glue data catalog that maps to RDF data in the Neptune database. There are styles of mapping available:
+To query RDF data using this connector, create a table in the Glue data catalog that maps to RDF data in the Neptune database. There are two styles of mapping available:
 
-- **Class-based**: The table represents an RDFS class. Each row represents an RDF resource whose type of that class. Columns represents datatype or object properties. See the airport_rdf example below.
+- **Class-based**: The table represents an RDFS class. Each row represents an RDF resource whose type of that class. Columns represent datatype or object properties. See the airport_rdf example below.
 - **Query-based**: The table represents the resultset of a SPARQL query. Each row is one result. See the route_rdf example below.
 
 In each case, you define columns and use table properties to map RDF to that column structure. Here is a summary of table properties to indicate RDF mapping:
@@ -65,7 +65,7 @@ The next figure shows the properties:
 
 ![](./assets/airportrdf_props.png)
 
-We set **componenttype** to **rdf** to indicate this is an RDF-based table. We set **querymode** to **class** to indicate the RDF mapping is class-based. We indicate the class using **classuri**. The value is given in CURIE form as **class:Airport**. Here **class** is a prefix. The full value is deinfed by the **prefix_class** property. We can see that the fully-qualified class URI is **http://kelvinlawrence.net/air-routes/class/Airport**.
+We set **componenttype** to **rdf** to indicate this is an RDF-based table. We set **querymode** to **class** to indicate the RDF mapping is class-based. We indicate the class using **classuri**. The value is given in CURIE form as **class:Airport**. Here **class** is a prefix. The full value is defined by the **prefix_class** property. We can see that the fully-qualified class URI is **http://kelvinlawrence.net/air-routes/class/Airport**.
 
 One column must map to the URI of the resource itself. That is given by **subject**. In this example, the **subject** is **id**. Each other column must map to the local name of the predicate. **prefix_prop** is the prefix of the predicates.
 
@@ -132,6 +132,10 @@ The connector maps the results **incode**, **output**, **dist** from SPARQL to t
 
 Query mode is the most flexible way to map RDF to table structure. We recommend testing the query by directly running against the Neptune cluster. When you are happy with its results, use that query to define the Glue table. 
 
+The **route_rdf_nopfx** table is similar to **route_rdf** except the prefixes are included in the SPARQL. 
+
+![](./assets/routerdf_nopfx.png)
+
 ### Step 5: Deploy the Athena Connector
 Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
 
@@ -152,17 +156,17 @@ select * from "graph-database-rdf"."airport_rdf"
 LIMIT 100
 ```
 
-The following query accesses the query-based table to retrieve 100 routes.
+The following query accesses the query-based table to retrieve 100 routes. You can run this against either route_rdf or route_rdf_pfx tables.
 
 ```
 select * from "graph-database-rdf"."route_rdf"
 LIMIT 100
 ```
 
-The following query accesses the query-based table to retrieve routes from YOW airport.
+The following query accesses the query-based table to retrieve routes from YOW airport. You can run this against either route_rdf or route_rdf_pfx tables.
 
 ```
-select * from "graph-database-rdf"."route_rdf"
+select * from "graph-database-rdf"."route_rdf". 
 where incode='YOW'
 ```
 
