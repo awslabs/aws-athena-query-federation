@@ -132,7 +132,7 @@ The connector maps the results **incode**, **output**, **dist** from SPARQL to t
 
 Query mode is the most flexible way to map RDF to table structure. We recommend testing the query by directly running against the Neptune cluster. When you are happy with its results, use that query to define the Glue table. 
 
-The **route_rdf_nopfx** table is similar to **route_rdf** except the prefixes are included in the SPARQL. 
+The **route_rdf_nopfx** table is similar to **route_rdf** except the prefixes are included in the SPARQL rather than kept in separate table properties.
 
 ![](./assets/routerdf_nopfx.png)
 
