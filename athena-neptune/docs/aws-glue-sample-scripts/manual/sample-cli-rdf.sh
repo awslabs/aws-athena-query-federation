@@ -1,20 +1,14 @@
 #!/bin/bash
 
-# id is the reserved column for vertex tables
-# id, from, to are the reserved columns for edge tables
-
 echo $1;
 echo $2;
-echo $3;
 
 dbname='graph-database-rdf'
-
 
 aws glue create-database \
 --database-input "{\"Name\":\"${dbname}\"}" \
 --profile $1 \
---endpoint https://glue.$2.amazonaws.com \
---region $3
+--endpoint https://glue.$2.amazonaws.com 
     
 aws glue create-table \
     --database-name $dbname \
@@ -48,12 +42,11 @@ aws glue create-table \
         } 
         }' \
     --profile $1 \
-    --endpoint https://glue.$2.amazonaws.com
-    --region $3
+    --endpoint https://glue.$2.amazonaws.com 
     
 aws glue create-table \
     --database-name $dbname \
-    --table-input  '{"Name":"airport_route", "StorageDescriptor":{ 
+    --table-input  '{"Name":"route_rdf", "StorageDescriptor":{ 
         "Columns":[ 
             {"Name":"incode", "Type":"string"}, 
             {"Name":"outcode", "Type":"string"}, 
@@ -67,11 +60,29 @@ aws glue create-table \
             "prefix_op":"http://kelvinlawrence.net/air-routes/objectProperty/",
             "querymode":"sparql",
             "sparql": "select ?incode ?outcode ?dist where {  ?resin op:route ?resout . GRAPH ?route { ?resin op:route ?resout } .  ?route prop:dist ?dist  . ?resin prop:code ?incode .?resout prop:code ?outcode . } ",
-            "strip_uri":"true",
+            "strip_uri":"true"
         } 
         }' \
     --profile $1 \
-    --endpoint https://glue.$2.amazonaws.com
-    --region $3
+    --endpoint https://glue.$2.amazonaws.com 
 
+aws glue create-table \
+    --database-name $dbname \
+    --table-input  '{"Name":"route_rdf_nopfx", "StorageDescriptor":{ 
+        "Columns":[ 
+            {"Name":"incode", "Type":"string"}, 
+            {"Name":"outcode", "Type":"string"}, 
+            {"Name":"dist", "Type":"int"}
+        ], 
+        "Location":"s3://dummy-bucket/"},
+        "Parameters":{ 
+             "separatorChar":",",
+            "componenttype":"rdf",
+            "querymode":"sparql",
+            "sparql": "PREFIX prop: <http://kelvinlawrence.net/air-routes/datatypeProperty/>  PREFIX op: <http://kelvinlawrence.net/air-routes/objectProperty/> select ?incode ?outcode ?dist where {  ?resin op:route ?resout . GRAPH ?route { ?resin op:route ?resout } .  ?route prop:dist ?dist  . ?resin prop:code ?incode .?resout prop:code ?outcode . } ",
+            "strip_uri":"true"
+        } 
+        }' \
+    --profile $1 \
+    --endpoint https://glue.$2.amazonaws.com 
     
