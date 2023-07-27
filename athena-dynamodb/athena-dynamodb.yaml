@@ -43,8 +43,8 @@ Parameters:
     Default: 'auto'
     Type: String
     AllowedValues:
-      - true
-      - false
+      - auto
+      - always
   LambdaTimeout:
     Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
     Default: 900
