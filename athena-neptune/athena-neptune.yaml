@@ -28,6 +28,7 @@ Parameters:
     Description: 'Type of graph created in Neptune, defaults to PROPERTYGRAPH. Allowed values: PROPERTYGRAPH, RDF'
     Type: String
     Default: 'PROPERTYGRAPH'
+    AllowedValues: ["PROPERTYGRAPH", "RDF"]
   GlueDatabaseName:
     Description: 'Name of the Neptune cluster specific Glue Database that contains schemas of graph vertices'
     Type: String
