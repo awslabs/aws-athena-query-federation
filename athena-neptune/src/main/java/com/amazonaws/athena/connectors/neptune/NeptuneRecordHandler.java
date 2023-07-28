@@ -132,7 +132,6 @@ public class NeptuneRecordHandler extends RecordHandler
      final QueryStatusChecker queryStatusChecker) throws Exception 
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
-        //Client client = null; NOT USED
         GraphType graphType = GraphType.PROPERTYGRAPH;
 
         if (configOptions.get("neptune_graphtype") != null) {
