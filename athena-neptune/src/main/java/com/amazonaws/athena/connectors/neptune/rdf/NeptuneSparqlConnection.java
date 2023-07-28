@@ -48,8 +48,6 @@ public class NeptuneSparqlConnection extends NeptuneConnection
     private static final Logger logger = LoggerFactory.getLogger(NeptuneSparqlConnection.class);
 
     String connectionString = null;
-    boolean enabledIAM = false;
-    String region = null;
     boolean trimURI = false;
     NeptuneSparqlRepository neptuneSparqlRepo = null;
     RepositoryConnection connection = null;
@@ -59,23 +57,15 @@ public class NeptuneSparqlConnection extends NeptuneConnection
     {
         super(neptuneEndpoint, neptunePort, enabledIAM, region);
         this.connectionString = "https://" + neptuneEndpoint + ":" + neptunePort;
-        this.enabledIAM = enabledIAM;
-        this.region = region;
-        connect();
     }
 
-    public void connect() 
+    public void connect() throws NeptuneSigV4SignerException
     {
-        if (this.enabledIAM) {
+        safeCloseConn();
+        if (isEnabledIAM()) {
             logger.info("Connecting with IAM auth to " + this.connectionString);
             final AWSCredentialsProvider awsCredentialsProvider = new DefaultAWSCredentialsProviderChain();
-            try {
-                this.neptuneSparqlRepo = new NeptuneSparqlRepository(this.connectionString, awsCredentialsProvider, this.region);
-            } 
-            catch (NeptuneSigV4SignerException e) {
-                e.printStackTrace();
-                logger.error("Error connecting with IAM auth", e);
-            }
+            this.neptuneSparqlRepo = new NeptuneSparqlRepository(this.connectionString, awsCredentialsProvider, getRegion());
         } 
         else {
             logger.info("Connecting without IAM auth to " + this.connectionString);
