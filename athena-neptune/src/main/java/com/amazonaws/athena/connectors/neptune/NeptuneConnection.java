@@ -29,8 +29,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 public class NeptuneConnection
 {
     private static Cluster cluster = null;
+    
+    private String neptuneEndpoint;
+    private String neptunePort;
+    private boolean enabledIAM;
+    private String region;
 
-    protected NeptuneConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM, String region)
+    protected NeptuneConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM, String region) 
     {
         Cluster.Builder builder = Cluster.build();
         builder.addContactPoint(neptuneEndpoint)
@@ -42,6 +47,30 @@ public class NeptuneConnection
         }
         
         cluster = builder.create();
+        this.neptuneEndpoint = neptuneEndpoint;
+        this.neptunePort = neptunePort;
+        this.enabledIAM = enabledIAM;
+        this.region = region;
+    }
+    
+    public String getNeptuneEndpoint()
+    {
+        return this.neptuneEndpoint;
+    }
+
+    public String getNeptunePort()
+    {
+        return this.neptunePort;
+    }
+    
+    public boolean isEnabledIAM() 
+    {
+        return this.enabledIAM;
+    }
+
+    public String getRegion()
+    {
+        return this.region;
     }
 
     public Client getNeptuneClientConnection()
