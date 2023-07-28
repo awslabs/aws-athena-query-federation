@@ -59,9 +59,10 @@ public class RDFHandler
     private final NeptuneSparqlConnection neptuneConnection;
 
     // @VisibleForTesting
-    public RDFHandler(NeptuneConnection neptuneConnection) 
+    public RDFHandler(NeptuneConnection neptuneConnection) throws Exception
     {
         this.neptuneConnection = (NeptuneSparqlConnection) neptuneConnection;
+        this.neptuneConnection.connect();
     }
 
     /**
@@ -156,11 +157,7 @@ public class RDFHandler
             throw new RuntimeException("Illegal RDF params");
         }
 
-        // 3. Add filters. This means adding FILTER conditions to the SPARQL.
-        // No longer used
-        //sparql = getQueryPartForContraintsMap(sparql, recordsRequest);
-        
-        // 4. Create the builder and add row writer exttractors for each field
+        // 3. Create the builder and add row writer exttractors for each field
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter
                 .newBuilder(recordsRequest.getConstraints());
         for (final Field nextField : recordsRequest.getSchema().getFields()) {
