@@ -29,7 +29,7 @@ function addDatabase(addTablesAfterDatabase) {
     });
 }
 
-function addTable(tableType, tableName, tableColumns,query) {
+function addTable(tableType, tableName, tableColumns, query) {
     var params = {
         DatabaseName: databaseName, /* required */
         TableInput: { /* required */
@@ -125,8 +125,8 @@ function addTables(data) {
         addTable('edge', edge.label, edge.properties);
     });
 
-    data.queries.forEach(query => {
-        addTable('query', query.label, query.properties,query.query);
+    data.views.forEach(view => {
+        addTable('view', view.label, view.properties,view.query);
     });
 }
 

@@ -1,34 +1,19 @@
 {
-  "queries": [
+  "views": [
     {
-      "label":"report1",
-      "query": "g.V().hasLabel('person').out('follows').valueMap()",
+      "label":"sourcetodestinationairport",
+      "query": "g.V().hasLabel('airport').as('source').out('route').as('destination').select('source','destination').by('code').limit(10)",
       "properties":[ {
-        "property" : "lastName",
+        "property" : "source",
         "dataType" : "String",
         "isMultiValue" : false,
         "isNullable" : false
       }, {
-        "property" : "created",
-        "dataType" : "Date",
-        "isMultiValue" : false,
-        "isNullable" : false
-      }, {
-        "property" : "firstname",
+        "property" : "destination",
         "dataType" : "String",
         "isMultiValue" : false,
         "isNullable" : false
-      }, {
-        "property" : "salary",
-        "dataType" : "Integer",
-        "isMultiValue" : false,
-        "isNullable" : false
-      }, {
-        "property" : "JobTitle",
-        "dataType" : "String",
-        "isMultiValue" : false,
-        "isNullable" : false
-      } ]
+      }]
     }
   ],
   "edges" : [ {

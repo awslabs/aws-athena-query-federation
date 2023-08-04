@@ -112,8 +112,8 @@ aws glue create-table \
         "Location":"s2://dummy-bucket/"},
         "Parameters":{ 
             "separatorChar":",",
-            "componenttype":"query",
-            "query":"g.V().hasLabel(\"airport\").as(\"s\").out(\"route\").as(\"d\").project(\"source\",\"destination\").by(select(\"s\").id()).by(select(\"d\").id()).limit(10)"
+            "componenttype":"view",
+            "query":"g.V().hasLabel(\"airport\").as(\"source\").out(\"route\").as(\"destination\").select(\"source\",\"destination\").by(\"code\").limit(10)"
             } 
         }' \
     --profile $1 \

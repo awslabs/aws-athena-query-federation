@@ -143,7 +143,7 @@ public class PropertyGraphHandler
 
                     break;
                     
-                case QUERY: 
+                case VIEW: 
                     String query = recordsRequest.getSchema().getCustomMetadata().get("query");
                     Iterator<Result> resultIterator = client.submit(query).iterator();
 
