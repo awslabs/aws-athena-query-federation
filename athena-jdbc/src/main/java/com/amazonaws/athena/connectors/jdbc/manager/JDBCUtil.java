@@ -19,11 +19,17 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +37,7 @@ public final class JDBCUtil
 {
     private static final String DEFAULT_CATALOG_PREFIX = "lambda:";
     private static final String LAMBDA_FUNCTION_NAME_PROPERTY = "AWS_LAMBDA_FUNCTION_NAME";
+    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCUtil.class);
 
     private JDBCUtil() {}
 
@@ -128,5 +135,29 @@ public final class JDBCUtil
         }
 
         return recordHandlerMap.build();
+    }
+
+    public static TableName informationSchemaCaseInsensitiveTableMatch(Connection connection, final String databaseName,
+                                                     final String tableName) throws Exception
+    {
+        String resolvedName = null;
+        String sql = getTableNameQuery(tableName);
+        PreparedStatement statement = connection.prepareStatement(sql);
+        try (ResultSet resultSet = statement.executeQuery()) {
+            if (resultSet.next()) {
+                resolvedName = resultSet.getString("table_name");
+                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
+            }
+            else {
+                throw new RuntimeException(String.format("Could not find Table %s in Database %s", tableName, databaseName));
+            }
+        }
+        return new TableName(databaseName, resolvedName);
+    }
+
+    private static String getTableNameQuery(String tableName)
+    {
+        return String.format("SELECT table_name, lower(table_name) FROM information_schema.tables " +
+        "WHERE table_name = '%s' or lower(table_name) = '%s' LIMIT 1", tableName, tableName);
     }
 }

@@ -112,6 +112,8 @@ public class SynapseRecordHandlerTest
                 .put("testCol4", valueSet)
                 .build());
 
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
+
         String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\" FROM \"testSchema\".\"testTable\"  WHERE (\"testCol4\" = ?) AND id > 100000 and id <= 300000";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);

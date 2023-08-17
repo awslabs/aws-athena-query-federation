@@ -152,6 +152,7 @@ public class TeradataRecordHandlerTest
                 .put("testCol8", valueSet8)
                 .build());
 
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.teradataRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -168,5 +169,15 @@ public class TeradataRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setByte(9, (byte) 0);
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(10, 1.2d);
         Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(11, true);
+    }
+
+    @Test
+    public void testLimitClause()
+    {
+        Split split = Mockito.mock(Split.class);
+        TeradataQueryStringBuilder builder = new TeradataQueryStringBuilder(TERADATA_QUOTE_CHARACTER, new TeradataFederationExpressionParser(TERADATA_QUOTE_CHARACTER));
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        org.testng.Assert.assertEquals("", builder.appendLimitOffset(split, constraints));
     }
 }

@@ -40,7 +40,7 @@ public class DatabaseConnectionConfigBuilder
 
     private static final String CONNECTION_STRING_REGEX = "([a-zA-Z0-9]+)://(.*)";
     private static final Pattern CONNECTION_STRING_PATTERN = Pattern.compile(CONNECTION_STRING_REGEX);
-    private static final String SECRET_PATTERN_STRING = "\\$\\{([a-zA-Z0-9:/_+=.@-]+)}";
+    private static final String SECRET_PATTERN_STRING = "\\$\\{(([a-z-]+!)?[a-zA-Z0-9:/_+=.@-]+)}";
     public static final Pattern SECRET_PATTERN = Pattern.compile(SECRET_PATTERN_STRING);
 
     private Map<String, String> properties;
@@ -144,8 +144,9 @@ public class DatabaseConnectionConfigBuilder
     private Optional<String> extractSecretName(final String jdbcConnectionString)
     {
         Matcher secretMatcher = SECRET_PATTERN.matcher(jdbcConnectionString);
+        boolean isValidGroupCount = secretMatcher.groupCount() == 1 || secretMatcher.groupCount() == 2;
         String secretName = null;
-        if (secretMatcher.find() && secretMatcher.groupCount() == 1) {
+        if (secretMatcher.find() && isValidGroupCount) {
             secretName = secretMatcher.group(1);
         }
 

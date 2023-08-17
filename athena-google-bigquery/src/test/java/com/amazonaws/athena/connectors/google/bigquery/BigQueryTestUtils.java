@@ -20,19 +20,15 @@
 package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.FieldList;
-import com.google.cloud.bigquery.FieldValue;
-import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
-import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
@@ -40,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -51,19 +48,15 @@ public class BigQueryTestUtils
     public static final String INTEGER_FIELD_NAME_1 = "int1";
     public static final String STRING_FIELD_NAME_1 = "string1";
     public static final String FLOAT_FIELD_NAME_1 = "float1";
-    public static final String LIST_FIELD_NAME_1 = "list1";
-    public static final String STRUCT_FIELD_NAME_1 = "struct1";
-    public static final String STRUCT_INT_FIELD_NAME_1 = "struct_int_field_1";
     public static final String STRUCT_FIELD = "StructField";
     public static final String LIST_FIELD = "ListField";
     public static final String LIST_OF_STRUCT_FIELD = "ListOfStructField";
+    public static final String PROJECT_1_NAME = "testProject";
     private static final String STRUCT_OF_LIST_FIELD = "StructOfListField";
 
     private BigQueryTestUtils()
     {
     }
-
-    public static final String PROJECT_1_NAME = "testProject";
 
     //Returns a list of mocked Datasets.
     static List<Dataset> getDatasetList(String projectName, int numDatasets)
@@ -117,7 +110,7 @@ public class BigQueryTestUtils
     }
 
     //Gets the schema in Arrow Format.
-    static org.apache.arrow.vector.types.pojo.Schema getBlockTestSchema()
+    public static org.apache.arrow.vector.types.pojo.Schema getBlockTestSchema()
     {
         return SchemaBuilder.newBuilder()
                 .addBitField(BOOL_FIELD_NAME_1)
@@ -141,72 +134,25 @@ public class BigQueryTestUtils
         );
     }
 
-    static List<FieldValue> generateBigQueryRowValue(Boolean bool, Integer integer, String string, Double floatVal)
+    static org.apache.arrow.vector.types.pojo.Schema makeSchema(Map<String, ValueSet> constraintMap)
     {
-        return Arrays.asList(
-                //Primitives are stored as Strings.
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, bool == null ? null : String.valueOf(bool)),
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, integer == null ? null : String.valueOf(integer)),
-                //Timestamps are stored as a number, where the integer component of the number is seconds since epoch
-                //and the microsecond part is the decimal part.
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, string),
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, floatVal == null ? null : String.valueOf(floatVal))
-        );
-    }
-
-    static FieldValueList getBigQueryFieldValueList(Boolean bool, Integer integer, String string, Double floatVal)
-    {
-        return FieldValueList.of(generateBigQueryRowValue(bool, integer, string, floatVal),
-                FieldList.of(getTestSchemaFields()));
-    }
-
-    static FieldValueList getBigQueryComplexTypeFieldValueList(List<Integer> values, Integer structFieldValue)
-    {
-        return FieldValueList.of(generateBigQueryRowValueForComplexTypes(values, structFieldValue),
-                FieldList.of(getComplexTypeTestSchemaFields()));
-    }
-
-    static List<Field> getComplexTypeTestSchemaFields()
-    {
-        return ImmutableList.of(
-                Field.newBuilder(LIST_FIELD_NAME_1, LegacySQLTypeName.INTEGER)
-                        .setMode(Field.Mode.REPEATED).build(),
-                Field.newBuilder(STRUCT_FIELD_NAME_1, LegacySQLTypeName.RECORD,
-                                FieldList.of(ImmutableList.of(Field.of(STRUCT_INT_FIELD_NAME_1, LegacySQLTypeName.INTEGER))))
-                        .setMode(Field.Mode.REPEATED).build()
-        );
-    }
-
-    static Schema getComplextTypeTestSchema()
-    {
-        return Schema.of(getComplexTypeTestSchemaFields());
-    }
-
-    static org.apache.arrow.vector.types.pojo.Schema getComplexTypeTestSchema()
-    {
-        return SchemaBuilder.newBuilder()
-                .addListField(LIST_FIELD_NAME_1, Types.MinorType.INT.getType())
-                .addStructField(STRUCT_FIELD_NAME_1).addChildField(STRUCT_FIELD_NAME_1,
-                        org.apache.arrow.vector.types.pojo.Field.nullable(STRUCT_INT_FIELD_NAME_1, Types.MinorType.INT.getType()))
-                .build();
-    }
-
-    static List<FieldValue> generateBigQueryRowValueForComplexTypes(List<Integer> intList, Integer structFieldValue)
-    {
-        List<FieldValue> values = new ArrayList<>();
-        intList.forEach(i -> values.add(FieldValue.of(FieldValue.Attribute.PRIMITIVE, String.valueOf(i))));
-        List<Field> fields = Arrays.asList(
-                Field.newBuilder(STRUCT_FIELD_NAME_1, LegacySQLTypeName.RECORD,
-                                FieldList.of(ImmutableList.of(Field.of(STRUCT_INT_FIELD_NAME_1, LegacySQLTypeName.INTEGER))))
-                        .setMode(Field.Mode.REPEATED).build()
-        );
-        List<FieldValue> fieldValues = ImmutableList.of(
-                FieldValue.of(FieldValue.Attribute.PRIMITIVE, String.valueOf(structFieldValue))
-        );
-        return ImmutableList.of(
-                FieldValue.of(FieldValue.Attribute.REPEATED, values),
-                FieldValue.of(FieldValue.Attribute.REPEATED,
-                        FieldValueList.of(fieldValues, FieldList.of(fields)))
-        );
+        SchemaBuilder builder = new SchemaBuilder();
+        for (Map.Entry<String, ValueSet> field : constraintMap.entrySet()) {
+            ArrowType.ArrowTypeID typeId = field.getValue().getType().getTypeID();
+            switch (typeId) {
+                case Int:
+                    builder.addIntField(field.getKey());
+                    break;
+                case Bool:
+                    builder.addBitField(field.getKey());
+                    break;
+                case Utf8:
+                    builder.addStringField(field.getKey());
+                    break;
+                default:
+                    throw new UnsupportedOperationException("Type Not Implemented: " + typeId.name());
+            }
+        }
+        return builder.build();
     }
 }
