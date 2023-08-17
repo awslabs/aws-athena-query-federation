@@ -13,15 +13,15 @@
         <!--<maven.compiler.release>8</maven.compiler.release>-->
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
-        <aws-sdk.version>1.12.490</aws-sdk.version>
+        <aws-sdk.version>1.12.514</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
-        <aws-cdk.version>1.203.0</aws-cdk.version>
+        <aws-cdk.version>1.204.0</aws-cdk.version>
         <jsii.version>1.84.0</jsii.version>
         <slf4j-log4j.version>2.0.7</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.7.3</jqwik.version>
+        <jqwik.version>1.7.4</jqwik.version>
         <assertj.version>3.24.2</assertj.version>
         <testng.version>7.8.0</testng.version>
         <fasterxml.jackson.version>2.15.2</fasterxml.jackson.version>
@@ -29,8 +29,8 @@
         <log4j2Version>2.20.0</log4j2Version>
         <apache.arrow.version>10.0.1</apache.arrow.version>
         <netty.version>4.1.93.Final</netty.version>
-        <guava.version>32.0.1-jre</guava.version>
-        <protobuf3.version>3.23.3</protobuf3.version>
+        <guava.version>32.1.1-jre</guava.version>
+        <protobuf3.version>3.23.4</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
@@ -288,7 +288,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.1.0</version>
+                <version>2.2.0</version>
                 <configuration>
                     <verbose>false</verbose>
                     <addSvnKeyWords>false</addSvnKeyWords>
