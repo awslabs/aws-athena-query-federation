@@ -119,6 +119,7 @@ aws glue create-table \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com \
     
+<<<<<<< HEAD
 aws glue create-table \
     --database-name $dbname \
     --table-input  '{"Name":"airport_rdf", "StorageDescriptor":{ 
@@ -182,4 +183,6 @@ aws glue create-table \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com
     --region $3
+=======
+>>>>>>> fd0c7fc7 (Update sample-cli-script.sh)
 
