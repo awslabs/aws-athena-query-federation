@@ -29,8 +29,8 @@
     </Appenders>
     <Loggers>
         <Logger name="com.amazonaws.athena.connector.lambda" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-warn}" />
-        <Logger name="com.amazonaws.athena.connectors.neptune" level="info" />
-        <Logger name="com.amazonaws.athena.connectors.neptune.rdf" level="info" />
+        <Logger name="com.amazonaws.athena.connectors.neptune" level="warn" />
+        <Logger name="com.amazonaws.athena.connectors.neptune.rdf" level="warn" />
         <Root level="info">
             <AppenderRef ref="Lambda" />
         </Root>
