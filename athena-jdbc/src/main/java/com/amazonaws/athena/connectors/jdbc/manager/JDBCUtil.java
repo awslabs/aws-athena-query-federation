@@ -141,23 +141,26 @@ public final class JDBCUtil
                                                      final String tableName) throws Exception
     {
         String resolvedName = null;
-        String sql = getTableNameQuery(tableName);
+        String sql = getTableNameQuery(tableName, databaseName);
         PreparedStatement statement = connection.prepareStatement(sql);
         try (ResultSet resultSet = statement.executeQuery()) {
             if (resultSet.next()) {
                 resolvedName = resultSet.getString("table_name");
+                if (resultSet.next()) {
+                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
+                }
                 LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
             }
             else {
-                throw new RuntimeException(String.format("Could not find Table %s in Database %s", tableName, databaseName));
+                throw new RuntimeException(String.format("During Case Insensitive look up could not find Table '%s' in Database '%s'", tableName, databaseName));
             }
         }
         return new TableName(databaseName, resolvedName);
     }
 
-    private static String getTableNameQuery(String tableName)
+    private static String getTableNameQuery(String tableName, String databaseName)
     {
         return String.format("SELECT table_name, lower(table_name) FROM information_schema.tables " +
-        "WHERE table_name = '%s' or lower(table_name) = '%s' LIMIT 1", tableName, tableName);
+        "WHERE (table_name = '%s' or lower(table_name) = '%s') AND table_schema = '%s'", tableName, tableName, databaseName);
     }
 }
