@@ -19,7 +19,7 @@
         <aws-cdk.version>1.204.0</aws-cdk.version>
         <jsii.version>1.88.0</jsii.version>
         <slf4j-log4j.version>2.0.7</slf4j-log4j.version>
-        <mockito.version>4.11.0</mockito.version>
+        <mockito.version>5.2.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.7.4</jqwik.version>
         <assertj.version>3.24.2</assertj.version>
