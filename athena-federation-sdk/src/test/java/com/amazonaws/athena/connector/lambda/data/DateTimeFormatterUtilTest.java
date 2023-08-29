@@ -153,12 +153,12 @@ public class DateTimeFormatterUtilTest {
         ZonedDateTime expectedZdt = ZonedDateTime.of(localDateTimeExpected, zoneIdExpected);
         long expectedUnpackedLong = expectedZdt.toInstant().toEpochMilli();
 
-        assertEquals(expectedPackedLong, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(expectedZdt).value);
+        assertEquals(expectedPackedLong, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(expectedZdt, null).value);
         assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedPackedLong, arrowType));
 
         // Now disable packing and test again
         DateTimeFormatterUtil.disableTimezonePacking();
-        TimeStampMilliTZHolder holder = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(expectedZdt);
+        TimeStampMilliTZHolder holder = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(expectedZdt, null);
         assertEquals(expectedUnpackedLong, holder.value);
         assertEquals("-05:00", holder.timezone);
         assertNotEquals(expectedPackedLong, holder.value);
@@ -180,7 +180,7 @@ public class DateTimeFormatterUtilTest {
         assertEquals(expectedInstant, expectedZdt.toInstant());
 
         try {
-            DateTimeFormatterUtil.timestampMicroTzHolderFromObject(expectedZdt);
+            DateTimeFormatterUtil.timestampMicroTzHolderFromObject(expectedZdt, null);
             fail("Exception was expected since packing should not work for microseconds");
         }
         catch (RuntimeException ex) {
@@ -188,7 +188,7 @@ public class DateTimeFormatterUtilTest {
 
         // Now disable packing and test again
         DateTimeFormatterUtil.disableTimezonePacking();
-        TimeStampMicroTZHolder holder = DateTimeFormatterUtil.timestampMicroTzHolderFromObject(expectedZdt);
+        TimeStampMicroTZHolder holder = DateTimeFormatterUtil.timestampMicroTzHolderFromObject(expectedZdt, null);
         assertEquals(expectedMicros, holder.value);
         assertEquals("-05:00", holder.timezone);
         ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MICROSECOND, "-05:00");
@@ -203,7 +203,7 @@ public class DateTimeFormatterUtilTest {
             ZonedDateTime.of(LocalDateTime.of(2015, 12, 21, 17, 42, 34, 0), ZoneOffset.UTC),
             ZonedDateTime.ofInstant(Instant.ofEpochMilli(45423958493L), ZoneOffset.of("-11:00"))
         ).forEach(zonedDateTime -> {
-            org.apache.arrow.vector.holders.TimeStampMilliTZHolder holder = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zonedDateTime);
+            org.apache.arrow.vector.holders.TimeStampMilliTZHolder holder = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zonedDateTime, null);
             ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, holder.timezone);
             ZonedDateTime zonedDateTimeBack = DateTimeFormatterUtil.constructZonedDateTime(holder.value, arrowType);
 
