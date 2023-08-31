@@ -373,7 +373,7 @@ public class DateTimeFormatterUtil
         throw new UnsupportedOperationException(String.format("Type: %s not supported", value.getClass()));
     }
 
-    public static org.apache.arrow.vector.holders.TimeStampMilliTZHolder timestampMilliTzHolderFromObject(Object value, String targetTimeZoneId)
+    public static org.apache.arrow.vector.holders.TimeStampMilliTZHolder timestampMilliTzHolderFromObject(Object value)
     {
         ZonedDateTime zdt = zonedDateTimeFromObject(value);
         org.apache.arrow.vector.holders.TimeStampMilliTZHolder holder = new org.apache.arrow.vector.holders.TimeStampMilliTZHolder();
@@ -384,30 +384,21 @@ public class DateTimeFormatterUtil
         // Note that it doesn't matter if we already also have the timezone
         // set in the holder, since engines that expect packing will not be
         // looking at that field.
-        // Also note that we are packing the original timezone for backwards compatibility
-        // because this is what Athena expects rather than using the target timezone.
         if (packTimezone) {
             holder.value = packDateTimeWithZone(holder.value, holder.timezone);
         }
 
-        // epoch time is timezone agnostic, so we can set any target timezone without doing any
-        // extra conversion.
-        if (targetTimeZoneId != null) {
-          holder.timezone = targetTimeZoneId;
-        }
         return holder;
     }
 
-    public static org.apache.arrow.vector.holders.TimeStampMicroTZHolder timestampMicroTzHolderFromObject(Object value, String targetTimeZoneId)
+    public static org.apache.arrow.vector.holders.TimeStampMicroTZHolder timestampMicroTzHolderFromObject(Object value)
     {
         if (packTimezone) {
             throw new UnsupportedOperationException("Packing for TimeStampMicroTZ is not currently supported");
         }
 
         ZonedDateTime zdt = zonedDateTimeFromObject(value);
-        // epoch time is timezone agnostic, so we can set any target timezone without doing any
-        // extra conversion.
-        String zone = targetTimeZoneId != null ? targetTimeZoneId : zdt.getZone().getId();
+        String zone = zdt.getZone().getId();
         Instant instant = zdt.toInstant();
 
         // From: https://stackoverflow.com/a/47869726
