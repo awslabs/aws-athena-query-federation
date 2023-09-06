@@ -334,8 +334,12 @@ public class RedshiftMetadataHandlerTest
         String[] columnNames = new String[] {"table_name"};
         String[][] tableNameValues = new String[][]{new String[] {"testTable"}};
         ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-        String sql = "SELECT table_name, lower(table_name) FROM information_schema.tables WHERE (table_name = 'testtable' or lower(table_name) = 'testtable') AND table_schema = 'testSchema'";
-        Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        PreparedStatement preparedStatement = this.connection.prepareStatement(sql);
+        preparedStatement.setString(1, "testtable");
+        preparedStatement.setString(2, "testtable");
+        preparedStatement.setString(3, "testSchema");
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
         String resolvedTableName = "testTable";
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), resolvedTableName, null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");

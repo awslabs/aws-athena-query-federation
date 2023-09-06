@@ -332,9 +332,14 @@ public class PostGreSqlMetadataHandlerTest
         String[] columnNames = new String[] {"table_name"};
         String[][] tableNameValues = new String[][]{new String[] {"testTable"}};
         ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-        String sql = "SELECT table_name, lower(table_name) FROM information_schema.tables WHERE (table_name = 'testtable' or lower(table_name) = 'testtable') AND table_schema = 'testSchema'";
-        Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, "testtable");
+        preparedStatement.setString(2, "testtable");
+        preparedStatement.setString(3, "testSchema");
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
         String resolvedTableName = "testTable";
+
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), resolvedTableName, null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
 
@@ -350,4 +355,73 @@ public class PostGreSqlMetadataHandlerTest
 
         logger.info("doGetTableWithArrayColumns - exit");
    }
+
+   @Test
+   public void doGetTableMaterializedView()
+           throws Exception
+   {
+       logger.info("doGetTableWithArrayColumns - enter");
+
+       String[] schema = {"DATA_TYPE", "COLUMN_NAME",  "COLUMN_SIZE", "DECIMAL_DIGITS", "TYPE_NAME"};
+       Object[][] values = {
+               {Types.ARRAY, "bool_array", 0, 0, "_bool"},
+               {Types.ARRAY, "int_array", 0, 0, "_int4"},
+               {Types.ARRAY, "bigint_array", 0, 0, "_int8"},
+               {Types.ARRAY, "float_array", 0, 0, "_float4"}
+       };
+       AtomicInteger rowNumber = new AtomicInteger(-1);
+       ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+       SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+       expectedSchemaBuilder
+               .addListField("bool_array", new ArrowType.Bool())
+               .addListField("int_array", new ArrowType.Int(32, true))
+               .addListField("bigint_array", new ArrowType.Int(64, true))
+               .addListField("float_array", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
+       postGreSqlMetadataHandler.getPartitionSchema("testCatalog").getFields()
+               .forEach(expectedSchemaBuilder::addField);
+       Schema expected = expectedSchemaBuilder.build();
+
+       // Simulates table look up in information_schema.tables and returns empty result set, because materialized views are stored separately
+       ResultSet resultSetName = Mockito.mock(ResultSet.class);
+       String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+       PreparedStatement preparedStatement = connection.prepareStatement(sql);
+       preparedStatement.setString(1, "testmatview");
+       preparedStatement.setString(2, "testmatview");
+       preparedStatement.setString(3, "testSchema");
+
+       Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
+       Mockito.when(resultSetName.next()).thenReturn(false);
+
+       // Simulates Materialized View look up in pg_catalog.pgmatviews system table
+       sql = "select matviewname as \"TABLE_NAME\" from pg_catalog.pg_matviews mv where (matviewname = ? or lower(matviewname) = ?) and schemaname = ?";
+       preparedStatement = connection.prepareStatement(sql);
+       preparedStatement.setString(1, "testmatview");
+       preparedStatement.setString(2, "testmatview");
+       preparedStatement.setString(3, "testSchema");
+
+       TableName inputTableName = new TableName("testSchema", "testmatview");
+       String[] columnNames = new String[] {"table_name"};
+       String[][] tableNameValues = new String[][]{new String[] {"testMatView"}};
+       resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+       
+       Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
+
+       String resolvedTableName = "testMatView";
+
+       Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), resolvedTableName, null)).thenReturn(resultSet);
+       Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+
+       GetTableResponse getTableResponse = this.postGreSqlMetadataHandler.doGetTable(new BlockAllocatorImpl(),
+               new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+
+       logger.info("Schema: {}", getTableResponse.getSchema());
+
+       TableName expectedTableName = new TableName("testSchema", "testMatView");
+       Assert.assertEquals(expected, getTableResponse.getSchema());
+       Assert.assertEquals(expectedTableName, getTableResponse.getTableName());
+       Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+
+       logger.info("doGetTableWithArrayColumns - exit");
+  }
 }
