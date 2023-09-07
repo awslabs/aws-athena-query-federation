@@ -1,5 +1,6 @@
 {
   "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "athena_result_location": "<bucket_path (without s3://)>", /* The s3 bucket path used to store results of Athena queries */
   "secrets_manager_secret" : "",          /* Not Used */
   "environment_vars" : {                  /* Parameters used by the connector's internal logic */
     "spill_bucket" : "<Enter Value>",     /* The S3 bucket used for spilling excess data */

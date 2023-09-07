@@ -116,7 +116,7 @@ public class MySqlIntegTest extends IntegrationTestBase
      */
     @BeforeClass
     @Override
-    protected void setUp()
+    protected void setUp() throws Exception
     {
         cloudFormationClient = new CloudFormationClient(theApp, getMySqlStack());
         try {
@@ -223,6 +223,7 @@ public class MySqlIntegTest extends IntegrationTestBase
      * Creates the DB schema used for the integration tests.
      */
     private void createDbSchema()
+            throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB Schema: {}", mysqlDbName);
@@ -270,7 +271,7 @@ public class MySqlIntegTest extends IntegrationTestBase
      * Sets up the DB tables used by the tests.
      */
     @Override
-    protected void setUpTableData()
+    protected void setUpTableData() throws Exception
     {
         setUpMoviesTable();
         setUpBdayTable();
@@ -283,6 +284,7 @@ public class MySqlIntegTest extends IntegrationTestBase
      * Creates the 'movies' table and inserts rows.
      */
     private void setUpMoviesTable()
+            throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", mysqlTableMovies);
@@ -298,6 +300,7 @@ public class MySqlIntegTest extends IntegrationTestBase
      * Creates the 'bday' table and inserts rows.
      */
     private void setUpBdayTable()
+            throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", mysqlTableBday);
@@ -314,6 +317,7 @@ public class MySqlIntegTest extends IntegrationTestBase
      * Creates the 'datatypes' table and inserts rows.
      */
     protected void setUpDatatypesTable()
+            throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", TEST_DATATYPES_TABLE_NAME);
@@ -339,6 +343,7 @@ public class MySqlIntegTest extends IntegrationTestBase
      * Creates the 'null_table' table and inserts rows.
      */
     protected void setUpNullTable()
+            throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", TEST_NULL_TABLE_NAME);
@@ -353,6 +358,7 @@ public class MySqlIntegTest extends IntegrationTestBase
      * Creates the 'empty_table' table and inserts rows.
      */
     protected void setUpEmptyTable()
+            throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", TEST_EMPTY_TABLE_NAME);
@@ -369,6 +375,7 @@ public class MySqlIntegTest extends IntegrationTestBase
 
     @Test
     public void listDatabasesIntegTest()
+            throws Exception
     {
         logger.info("--------------------------------------");
         logger.info("Executing listDatabasesIntegTest");
@@ -381,6 +388,7 @@ public class MySqlIntegTest extends IntegrationTestBase
 
     @Test
     public void listTablesIntegTest()
+            throws Exception
     {
         logger.info("-----------------------------------");
         logger.info("Executing listTablesIntegTest");
@@ -397,6 +405,7 @@ public class MySqlIntegTest extends IntegrationTestBase
 
     @Test
     public void listTableSchemaIntegTest()
+            throws Exception
     {
         logger.info("--------------------------------------");
         logger.info("Executing listTableSchemaIntegTest");
@@ -419,6 +428,7 @@ public class MySqlIntegTest extends IntegrationTestBase
 
     @Test
     public void selectColumnWithPredicateIntegTest()
+            throws Exception
     {
         logger.info("--------------------------------------------------");
         logger.info("Executing selectColumnWithPredicateIntegTest");
@@ -439,7 +449,9 @@ public class MySqlIntegTest extends IntegrationTestBase
     }
 
     @Test
-    public void selectColumnBetweenDatesIntegTest() {
+    public void selectColumnBetweenDatesIntegTest()
+            throws Exception
+    {
         logger.info("--------------------------------------------------");
         logger.info("Executing selectColumnBetweenDatesIntegTest");
         logger.info("--------------------------------------------------");

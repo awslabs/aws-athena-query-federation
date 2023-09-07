@@ -19,8 +19,11 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
-import com.amazonaws.athena.connectors.jdbc.connection.*;
-import com.google.common.collect.ImmutableMap;
+import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
+import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredential;
+import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connectors.jdbc.connection.StaticJdbcCredentialProvider;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -28,7 +31,6 @@ import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Map;
 
 public class OracleJdbcConnectionFactoryTest {
 
@@ -38,9 +40,8 @@ public class OracleJdbcConnectionFactoryTest {
         JdbcCredentialProvider jdbcCredentialProvider = new StaticJdbcCredentialProvider(expectedCredential);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", OracleConstants.ORACLE_NAME,
                 "oracle://jdbc:oracle:thin:username/password@//127.0.0.1:1521/orcl", "test");
-        Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
         DatabaseConnectionInfo DatabaseConnectionInfo = new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS,OracleConstants.ORACLE_DEFAULT_PORT);
-        Connection connection =  new OracleJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,DatabaseConnectionInfo).getConnection(jdbcCredentialProvider);
+        Connection connection =  new OracleJdbcConnectionFactory(databaseConnectionConfig, DatabaseConnectionInfo).getConnection(jdbcCredentialProvider);
         String originalURL = connection.getMetaData().getURL();
         Driver drv = DriverManager.getDriver(originalURL);
         String driverClass = drv.getClass().getName();

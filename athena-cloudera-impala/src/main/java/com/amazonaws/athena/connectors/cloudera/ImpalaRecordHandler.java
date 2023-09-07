@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.cloudera;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connectors.hortonworks.ImpalaFederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -52,23 +53,23 @@ import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.JDBC_PROP
 public class ImpalaRecordHandler extends JdbcRecordHandler
 {
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    public ImpalaRecordHandler()
+    public ImpalaRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(IMPALA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(IMPALA_NAME, configOptions), configOptions);
     }
-    public ImpalaRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public ImpalaRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(IMPALA_DRIVER_CLASS, IMPALA_DEFAULT_PORT)));
+        this(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(IMPALA_DRIVER_CLASS, IMPALA_DEFAULT_PORT)), configOptions);
     }
-    public ImpalaRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public ImpalaRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                jdbcConnectionFactory, new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER));
+                jdbcConnectionFactory, new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER)), configOptions);
     }
     @VisibleForTesting
-    ImpalaRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    ImpalaRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
     @Override

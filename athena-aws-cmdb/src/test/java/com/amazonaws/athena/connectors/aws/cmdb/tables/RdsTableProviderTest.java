@@ -31,7 +31,6 @@ import com.amazonaws.services.elasticmapreduce.model.DescribeClusterRequest;
 import com.amazonaws.services.elasticmapreduce.model.DescribeClusterResult;
 import com.amazonaws.services.elasticmapreduce.model.ListClustersRequest;
 import com.amazonaws.services.elasticmapreduce.model.ListClustersResult;
-import com.amazonaws.services.elasticmapreduce.model.Tag;
 import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.DBInstanceStatusInfo;
@@ -44,13 +43,15 @@ import com.amazonaws.services.rds.model.DescribeDBInstancesResult;
 import com.amazonaws.services.rds.model.DomainMembership;
 import com.amazonaws.services.rds.model.Endpoint;
 import com.amazonaws.services.rds.model.Subnet;
+import com.amazonaws.services.rds.model.Tag;
+
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +63,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -109,7 +110,7 @@ public class RdsTableProviderTest
     protected void setUpRead()
     {
         final AtomicLong requestCount = new AtomicLong(0);
-        when(mockRds.describeDBInstances(any(DescribeDBInstancesRequest.class)))
+        when(mockRds.describeDBInstances(nullable(DescribeDBInstancesRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     DescribeDBInstancesResult mockResult = mock(DescribeDBInstancesResult.class);
                     List<DBInstance> values = new ArrayList<>();
@@ -232,6 +233,7 @@ public class RdsTableProviderTest
                 .withInstanceCreateTime(new Date(100000))
                 .withIops(100)
                 .withMultiAZ(true)
-                .withPubliclyAccessible(true);
+                .withPubliclyAccessible(true)
+                .withTagList(new Tag().withKey("key").withValue("value"));
     }
 }

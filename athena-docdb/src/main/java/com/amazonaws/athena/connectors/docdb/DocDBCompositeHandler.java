@@ -30,6 +30,6 @@ public class DocDBCompositeHandler
 {
     public DocDBCompositeHandler()
     {
-        super(new DocDBMetadataHandler(), new DocDBRecordHandler());
+        super(new DocDBMetadataHandler(System.getenv()), new DocDBRecordHandler(System.getenv()));
     }
 }

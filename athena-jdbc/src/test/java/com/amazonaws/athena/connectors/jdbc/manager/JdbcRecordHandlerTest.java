@@ -46,6 +46,7 @@ import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
@@ -64,6 +65,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class JdbcRecordHandlerTest
         extends TestBase
 {
@@ -80,11 +84,11 @@ public class JdbcRecordHandlerTest
 
     @Before
     public void setup()
-            throws SQLException
+            throws Exception
     {
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         this.amazonS3 = Mockito.mock(AmazonS3.class);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
@@ -94,7 +98,7 @@ public class JdbcRecordHandlerTest
         Mockito.when(this.connection.prepareStatement("someSql")).thenReturn(this.preparedStatement);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new JdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, databaseConnectionConfig, this.jdbcConnectionFactory)
+        this.jdbcRecordHandler = new JdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, databaseConnectionConfig, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of())
         {
             @Override
             public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
@@ -105,13 +109,12 @@ public class JdbcRecordHandlerTest
         };
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
-
     @Test
     public void readWithConstraint()
-            throws SQLException
+            throws Exception
     {
         ConstraintEvaluator constraintEvaluator = Mockito.mock(ConstraintEvaluator.class);
-        Mockito.when(constraintEvaluator.apply(Mockito.anyString(), Mockito.any())).thenReturn(true);
+        Mockito.when(constraintEvaluator.apply(nullable(String.class), any())).thenReturn(true);
 
         TableName inputTableName = new TableName("testSchema", "testTable");
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
@@ -137,10 +140,10 @@ public class JdbcRecordHandlerTest
 
         SpillConfig spillConfig = Mockito.mock(SpillConfig.class);
         Mockito.when(spillConfig.getSpillLocation()).thenReturn(s3SpillLocation);
-        BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator);
+        BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator, com.google.common.collect.ImmutableMap.of());
         ReadRecordsRequest readRecordsRequest = new ReadRecordsRequest(this.federatedIdentity, "testCatalog", "testQueryId", inputTableName, fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
 
-        Mockito.when(amazonS3.putObject(Mockito.any())).thenAnswer((Answer<PutObjectResult>) invocation -> {
+        Mockito.when(amazonS3.putObject(any())).thenAnswer((Answer<PutObjectResult>) invocation -> {
             ByteArrayInputStream byteArrayInputStream = (ByteArrayInputStream) ((PutObjectRequest) invocation.getArguments()[0]).getInputStream();
             int n = byteArrayInputStream.available();
             byte[] bytes = new byte[n];
@@ -154,12 +157,12 @@ public class JdbcRecordHandlerTest
     }
     @Test
     public void makeExtractor()
-            throws SQLException
+            throws Exception
     {
-        String[] schema = {"testCol1", "testCol2"};
-        int[] columnTypes = {Types.INTEGER, Types.VARCHAR};
-        Object[][] values = {{1, "testVal1"}, {2, "testVal2"}};
-        AtomicInteger rowNumber = new AtomicInteger(-1);
+        String[] schema = {"testCol1", "testCol2", "testCol10"};
+        int[] columnTypes = {Types.INTEGER, Types.VARCHAR, Types.DOUBLE};
+        Object[][] values = {{1, "testVal1", "$1,000.50"}, {2, "testVal2", "$100.00"}};
+        AtomicInteger rowNumber = new AtomicInteger(0);
 
         ResultSet resultSet = mockResultSet(schema, columnTypes, values, rowNumber);
         Mockito.when(this.preparedStatement.executeQuery()).thenReturn(resultSet);
@@ -189,5 +192,8 @@ public class JdbcRecordHandlerTest
         Assert.assertTrue(actualDateDay instanceof DateDayExtractor);
         Assert.assertTrue(actualDateMilli instanceof DateMilliExtractor);
 
+        NullableFloat8Holder dollarValue = new NullableFloat8Holder();
+        ((Float8Extractor) actualFloat8).extract(null, dollarValue);
+        Assert.assertEquals(dollarValue.value, 1000.5, 0.0);
     }
 }

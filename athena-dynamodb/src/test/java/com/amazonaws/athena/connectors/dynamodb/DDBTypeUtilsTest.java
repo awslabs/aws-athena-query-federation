@@ -40,7 +40,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -74,7 +74,6 @@ public class DDBTypeUtilsTest
     {
         ddbRecordMetadata = mock(DDBRecordMetadata.class);
     }
-
 
     @Test
     public void makeDecimalExtractorTest()
@@ -165,14 +164,28 @@ public class DDBTypeUtilsTest
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
         logger.info("makeBitExtractorTest - exit");
     }
+    
+    @Test
+    public void inferArrowFieldListWithNullTest() throws Exception
+    {
+        java.util.ArrayList inputArray = new java.util.ArrayList<String>();
+        inputArray.add("value1");
+        inputArray.add(null);
+        inputArray.add("value3");
 
+        Field testField = DDBTypeUtils.inferArrowField("asdf", inputArray);
+
+        assertEquals("Type does not match!", ArrowType.List.INSTANCE, testField.getType());
+        assertEquals("Children Length Off!", 1, testField.getChildren().size());
+        assertEquals("Wrong Child Type!", ArrowType.Utf8.INSTANCE, testField.getChildren().get(0).getType());
+    }
 
     private Map<String, Object> testField(Schema mapping, Map<String, AttributeValue> values)
             throws Exception
     {
         Map<String, Object> results = new HashMap<>();
         for (Field field : mapping.getFields()) {
-            Optional<Extractor> optionalExtractor = DDBTypeUtils.makeExtractor(field, ddbRecordMetadata);
+            Optional<Extractor> optionalExtractor = DDBTypeUtils.makeExtractor(field, ddbRecordMetadata, false);
 
             if (optionalExtractor.isPresent()) {
                 Extractor extractor = optionalExtractor.get();

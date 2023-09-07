@@ -87,21 +87,24 @@ public class RedisRecordHandler
     private final RedisConnectionFactory redisConnectionFactory;
     private final AmazonS3 amazonS3;
 
-    public RedisRecordHandler()
+    public RedisRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.standard().build(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                new RedisConnectionFactory());
+        this(
+            AmazonS3ClientBuilder.standard().build(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            new RedisConnectionFactory(),
+            configOptions);
     }
 
     @VisibleForTesting
     protected RedisRecordHandler(AmazonS3 amazonS3,
             AWSSecretsManager secretsManager,
             AmazonAthena athena,
-            RedisConnectionFactory redisConnectionFactory)
+            RedisConnectionFactory redisConnectionFactory,
+            java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
         this.redisConnectionFactory = redisConnectionFactory;
     }

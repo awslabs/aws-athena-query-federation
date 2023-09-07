@@ -68,11 +68,12 @@ public class SnowflakeMuxJdbcRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "snowflake",
                 "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
-        this.jdbcRecordHandler = new SnowflakeMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap);
+        this.jdbcRecordHandler = new SnowflakeMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
     public void readWithConstraint()
+            throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -83,6 +84,7 @@ public class SnowflakeMuxJdbcRecordHandlerTest
 
     @Test(expected = RuntimeException.class)
     public void readWithConstraintWithUnsupportedCatalog()
+            throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);

@@ -51,6 +51,7 @@ public class BlockAllocatorImpl
     private final String id;
     //The Apache Arrow Buffer Allocator that we are wrapping with reference counting and clean up.
     private final BufferAllocator rootAllocator;
+    private final boolean ownRootAllocator;
     //The Blocks that have been allocated via this BlockAllocator
     private final List<Block> blocks = new ArrayList<>();
     //The record batches that have been allocated via this BlockAllocator
@@ -69,6 +70,14 @@ public class BlockAllocatorImpl
     }
 
     /**
+     * Default constructor that takes in a shared RootAllocator
+     */
+    public BlockAllocatorImpl(RootAllocator rootAllocator)
+    {
+        this(UUID.randomUUID().toString(), rootAllocator);
+    }
+
+    /**
      * Constructs a BlockAllocatorImpl with the given id.
      *
      * @param id The id used to identify this BlockAllocatorImpl
@@ -76,6 +85,19 @@ public class BlockAllocatorImpl
     public BlockAllocatorImpl(String id)
     {
         this(id, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Constructs a BlockAllocatorImpl with the given id and a shared RootAllocator
+     *
+     * @param id The id used to identify this BlockAllocatorImpl
+     * @param rootAllocator the shared RootAllocator
+     */
+    public BlockAllocatorImpl(String id, RootAllocator rootAllocator)
+    {
+        this.rootAllocator = rootAllocator;
+        this.ownRootAllocator = false;
+        this.id = id;
     }
 
     /**
@@ -87,6 +109,7 @@ public class BlockAllocatorImpl
     public BlockAllocatorImpl(String id, long memoryLimit)
     {
         this.rootAllocator = new RootAllocator(memoryLimit);
+        this.ownRootAllocator = true;
         this.id = id;
     }
 
@@ -270,7 +293,10 @@ public class BlockAllocatorImpl
             closeBatches();
             closeBlocks();
             closeBuffers();
-            rootAllocator.close();
+            // Do not close rootAllocators that we do not own
+            if (ownRootAllocator) {
+                rootAllocator.close();
+            }
         }
     }
 

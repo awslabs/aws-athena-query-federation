@@ -24,7 +24,9 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
+
+import static com.amazonaws.athena.connectors.hortonworks.HiveConstants.HIVE_QUOTE_CHARACTER;
 
 @SuppressWarnings("deprecation")
 @RunWith(MockitoJUnitRunner.class)
@@ -39,7 +41,7 @@ public class HiveQueryStringBuilderTest
 	{
 	    String expectedFrom1 = " FROM default.schema.table ";
 	    String expectedFrom2 = " FROM default.table ";
-		HiveQueryStringBuilder builder = new HiveQueryStringBuilder("");
+		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
 		String fromResult1 = builder.getFromClauseWithSplit("default", "schema", "table", split);
 		String fromResult2 = builder.getFromClauseWithSplit("default", "", "table", split);
 		Assert.assertEquals(expectedFrom1, fromResult1);

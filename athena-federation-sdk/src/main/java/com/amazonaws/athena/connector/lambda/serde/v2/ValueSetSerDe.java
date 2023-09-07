@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableSet;
 
 public class ValueSetSerDe
 {
-    private ValueSetSerDe(){}
+    private ValueSetSerDe() {}
 
     public static final class Serializer extends DelegatingSerializer<ValueSet>
     {

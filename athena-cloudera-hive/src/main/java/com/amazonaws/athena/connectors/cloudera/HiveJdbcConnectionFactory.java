@@ -28,7 +28,6 @@ import org.apache.commons.lang3.Validate;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -57,26 +56,19 @@ public class HiveJdbcConnectionFactory extends GenericJdbcConnectionFactory
 
     @Override
     public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
+            throws Exception
     {
-        try {
-            final String derivedJdbcString;
-            if (null != jdbcCredentialProvider) {
-                Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                final String secretReplacement = String.format("UID=%s;PWD=%s",
-                        jdbcCredentialProvider.getCredential().getUser(), jdbcCredentialProvider.getCredential().getPassword());
-                derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
-            }
-            else {
-                derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
-            }
-            Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
-            return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+        final String derivedJdbcString;
+        if (null != jdbcCredentialProvider) {
+            Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
+            final String secretReplacement = String.format("UID=%s;PWD=%s",
+                    jdbcCredentialProvider.getCredential().getUser(), jdbcCredentialProvider.getCredential().getPassword());
+            derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
         }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
+        else {
+            derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
         }
-        catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
-            throw new RuntimeException(ex);
-        }
+        Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
+        return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
     }
 }

@@ -1,0 +1,139 @@
+name: Cut release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cut_release:
+    name: Cut a release
+    runs-on:
+      group: aws-athena-query-federation
+    steps:
+      - name: Setup dependencies
+        run: |
+          sudo apt-get install -y libxml2-utils python3
+          pip3 install lxml beautifulsoup4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # See: https://stackoverflow.com/a/57969570
+      - name: Setup previous release version environment variable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "PREVIOUS_RELEASE_VERSION=$(gh release list --exclude-drafts --exclude-pre-releases -L 1 | sed 's/.*\s\+Latest\s\+v\(.*\)\s\+.*/\1/g')" >> $GITHUB_ENV
+
+      - name: Setup previous release version tag environment variable
+        run: echo "PREVIOUS_RELEASE_TAG=v$PREVIOUS_RELEASE_VERSION" >> $GITHUB_ENV
+
+      - name: Setup new release version environment variable
+        run: |
+          NEW_RELEASE_VERSION=$((echo $PREVIOUS_RELEASE_VERSION | grep "$(date +'%Y.%-U')" || date +'%Y.%-U.0') | python3 -c 'version = input().split("."); print(f"{version[0]}.{version[1]}.{int(version[2]) + 1}")')
+          echo "NEW_RELEASE_VERSION=$NEW_RELEASE_VERSION" >> $GITHUB_ENV
+
+      - name: Create branch locally on the runner
+        run: git checkout -b release_${NEW_RELEASE_VERSION} origin/master
+
+      - name: Bump the versions in the branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/bump_versions/bump_sdk_version.py
+          python3 tools/bump_versions/bump_connectors_version.py
+
+      # See: https://joht.github.io/johtizen/build/2022/01/20/github-actions-push-into-repository.html
+      - name: Setup workflow git committer user
+        run: |
+          git config --global user.name "athena_federation_cut_release_workflow"
+          git config --global user.email "athena_federation_cut_release_workflow@users.noreply.github.com"
+
+      - name: Create the release bump commit
+        run: |
+          echo "Cut release $NEW_RELEASE_VERSION" > /tmp/RELEASE_MESSAGE
+          echo >> /tmp/RELEASE_MESSAGE
+          git fetch --tag origin
+          git log --format='  - %s' $PREVIOUS_RELEASE_TAG..HEAD >> /tmp/RELEASE_MESSAGE
+          git commit -a -F /tmp/RELEASE_MESSAGE
+
+      - name: Build Java 11 jars
+        run: |
+          mvn clean package -T 1C -DskipTests
+
+          # Copy over the sdk jars
+          mkdir -p /tmp/java11_sdk_jars/
+          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}.jar /tmp/java11_sdk_jars/
+          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-withdep.jar /tmp/java11_sdk_jars/
+
+          # Copy over the connector jars
+          mkdir -p /tmp/java11_connector_jars/
+          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | grep -v "athena-jdbc" | xargs -I{} cp {} /tmp/java11_connector_jars/
+
+          # Copy over the connector zips
+          mkdir -p /tmp/java11_connector_zips/
+          find athena-*/target/ -name "*.zip" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java11_connector_zips/
+
+      - name: Push the release branch
+        run: |
+          git push origin release_${NEW_RELEASE_VERSION}:release_${NEW_RELEASE_VERSION}
+
+      - name: Sync up with origin again now that the new branch has been pushed
+        run: |
+          git fetch origin
+          git pull --rebase origin release_${NEW_RELEASE_VERSION}
+
+      - name: Create the release on github
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat <<EOF > /tmp/RELEASE_NOTES
+          This version includes improvements and bugfixes in some connectors. See [here](https://github.com/awslabs/aws-athena-query-federation/compare/v$PREVIOUS_RELEASE_VERSION..v$NEW_RELEASE_VERSION) for changes since the last release.
+          
+          Binary distribution of the SDK can be found here. For pre-built versions of the connector and UDF suite please:
+          
+          1. Navigate to Serverless Application Repository and search for "athena-federation".  Also check the checkbox labeled "Show apps that create custom IAM roles or resource policies".
+          
+          2. Look for entries published by the "Amazon Athena Federation" author.
+          
+          You can assert the validity of the binary distribution by comparing against the below cksums.
+          
+          Athena Federation SDK jars
+          |CheckSum|File|
+          |----------|----|
+          $(cd /tmp/java11_sdk_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+
+          Athena Federation Connector Lambda jars
+          |CheckSum|File|
+          |----------|----|
+          $(cd /tmp/java11_connector_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+
+          Athena Federation Connector Lambda zips
+          |CheckSum|File|
+          |----------|----|
+          $(cd /tmp/java11_connector_zips && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+
+          ## What's Changed
+          $(git log --format='- %s' v$PREVIOUS_RELEASE_VERSION..HEAD~1)
+          
+          **Full Changelog**: https://github.com/awslabs/aws-athena-query-federation/compare/v$PREVIOUS_RELEASE_VERSION..v$NEW_RELEASE_VERSION
+          EOF
+          # ------------------------------------------------------------------------------------------
+          
+          # Create the draft github release:
+          gh release create "v$NEW_RELEASE_VERSION" -d --latest \
+            --target release_${NEW_RELEASE_VERSION} \
+            -t "Release v$NEW_RELEASE_VERSION of Athena Query Federation" \
+            --notes-file /tmp/RELEASE_NOTES
+          # Upload the jar attachments
+          gh release upload "v$NEW_RELEASE_VERSION" \
+            $(find /tmp/java11_sdk_jars -type f) \
+            $(find /tmp/java11_connector_jars -type f) \
+            $(find /tmp/java11_connector_zips -type f) \
+            --clobber

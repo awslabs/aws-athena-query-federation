@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.athena.connector.credentials.CrossAccountCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -27,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
@@ -91,33 +93,49 @@ public class DynamoDBRecordHandler
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBRecordHandler.class);
     private static final String sourceType = "ddb";
 
+    private static final String DISABLE_PROJECTION_AND_CASING_ENV = "disable_projection_and_casing";
+
     private static final String HASH_KEY_VALUE_ALIAS = ":hashKeyValue";
 
     private static final TypeReference<HashMap<String, String>> STRING_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, String>>() {};
     private static final TypeReference<HashMap<String, AttributeValue>> ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, AttributeValue>>() {};
 
-    private final LoadingCache<String, ThrottlingInvoker> invokerCache = CacheBuilder.newBuilder().build(
-        new CacheLoader<String, ThrottlingInvoker>() {
-            @Override
-            public ThrottlingInvoker load(String tableName)
-                    throws Exception
-            {
-                return ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
-            }
-        });
+    private final LoadingCache<String, ThrottlingInvoker> invokerCache;
     private final AmazonDynamoDB ddbClient;
 
-    public DynamoDBRecordHandler()
+    public DynamoDBRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(sourceType);
-        this.ddbClient = AmazonDynamoDBClientBuilder.standard().build();
+        super(sourceType, configOptions);
+        this.ddbClient = AmazonDynamoDBClientBuilder.standard()
+            .withCredentials(CrossAccountCredentialsProvider.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBRecordHandler_CrossAccountRoleSession"))
+            .build();
+        this.invokerCache = CacheBuilder.newBuilder().build(
+            new CacheLoader<String, ThrottlingInvoker>() {
+                @Override
+                public ThrottlingInvoker load(String tableName)
+                        throws Exception
+                {
+                    return ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+                }
+            }
+        );
     }
 
     @VisibleForTesting
-    DynamoDBRecordHandler(AmazonDynamoDB ddbClient, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType)
+    DynamoDBRecordHandler(AmazonDynamoDB ddbClient, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, sourceType);
+        super(amazonS3, secretsManager, athena, sourceType, configOptions);
         this.ddbClient = ddbClient;
+        this.invokerCache = CacheBuilder.newBuilder().build(
+            new CacheLoader<String, ThrottlingInvoker>() {
+                @Override
+                public ThrottlingInvoker load(String tableName)
+                        throws Exception
+                {
+                    return ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+                }
+            }
+        );
     }
 
     /**
@@ -134,27 +152,62 @@ public class DynamoDBRecordHandler
         // use the property instead of the request table name because of case sensitivity
         String tableName = split.getProperty(TABLE_METADATA);
         invokerCache.get(tableName).setBlockSpiller(spiller);
-        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema());
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
+
+        String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "auto").toLowerCase();
+        logger.info(DISABLE_PROJECTION_AND_CASING_ENV + " environment variable set to: " + disableProjectionAndCasingEnvValue);
+
+        boolean disableProjectionAndCasing = false;
+        if (disableProjectionAndCasingEnvValue.equals("always")) {
+            // This is when the user wants to turn this on unconditionally to
+            // solve their casing issues even when they do not have `set` or
+            // `decimal` columns.
+            disableProjectionAndCasing = true;
+        }
+        else { // *** We default to auto when the variable is not set ***
+            // In the automatic case, we will try to mimic the behavior prior to the support of `set` and `decimal` types as much
+            // as possible.
+            //
+            // Previously, when the user used a Glue Table and had `set` and `decimal` types present, the code would have failed over
+            // to using internal type inference.
+            // Internal type inferencing uses the original column names from DDB since it is doing a partial scan of the DDB table and is
+            // therefore able to read the fields with casing.
+            //
+            // To mimic this behavior at a similar cost, we will just disable projection and casing, where we don't need an additional partial
+            // table scan to infer types, because we are using the glue types.
+            // The only side effect of this is increased network bandwidth usage and latency increase (DDB read units remains the same).
+            // If the DDB Connector and DDB Table are within the same region, this does not cost the user anything extra.
+            // Additionally in regards to bandwidth and latency, in many cases, this will be a wash because we avoid doing a partial table scan
+            // for type inference in this situation now.
+            //
+            // If the user is using `columnMapping`, then we will assume that they have correctly mapped their column names, and we will not
+            // disable projection and casing.
+            disableProjectionAndCasing = recordMetadata.getGlueTableContainedPreviouslyUnsupportedTypes() && recordMetadata.getColumnNameMapping().isEmpty();
+            logger.info("GlueTableContainedPreviouslyUnsupportedTypes: " + recordMetadata.getGlueTableContainedPreviouslyUnsupportedTypes());
+            logger.info("ColumnNameMapping isEmpty: " + recordMetadata.getColumnNameMapping().isEmpty());
+            logger.info("Resolving disableProjectionAndCasing to: " + disableProjectionAndCasing);
+        }
+
+        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema(), recordsRequest.getConstraints(), disableProjectionAndCasing);
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
 
         GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
         //register extract and field writer factory for each field.
         for (Field next : recordsRequest.getSchema().getFields()) {
-            Optional<Extractor> extractor = DDBTypeUtils.makeExtractor(next, recordMetadata);
+            Optional<Extractor> extractor = DDBTypeUtils.makeExtractor(next, recordMetadata, disableProjectionAndCasing);
             //generate extractor for supported data types
             if (extractor.isPresent()) {
                 rowWriterBuilder.withExtractor(next.getName(), extractor.get());
             }
             else {
                 //generate field writer factor for complex data types.
-                rowWriterBuilder.withFieldWriterFactory(next.getName(), DDBTypeUtils.makeFactory(next, recordMetadata, resolver));
+                rowWriterBuilder.withFieldWriterFactory(next.getName(), DDBTypeUtils.makeFactory(next, recordMetadata, resolver, disableProjectionAndCasing));
             }
         }
 
         GeneratedRowWriter rowWriter = rowWriterBuilder.build();
         long numRows = 0;
-
+        boolean canApplyLimit = canApplyLimit(recordsRequest.getConstraints());
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated
@@ -169,14 +222,22 @@ public class DynamoDBRecordHandler
             }
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
+            if (canApplyLimit && numRows >= recordsRequest.getConstraints().getLimit()) {
+                return;
+            }
         }
         logger.info("readWithConstraint: numRows[{}]", numRows);
+    }
+
+    private boolean canApplyLimit(Constraints constraints)
+    {
+        return constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause();
     }
 
     /*
     Converts a split into a Query or Scan request
      */
-    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName, Schema schema)
+    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing)
     {
         validateExpectedMetadata(split.getProperties());
         // prepare filters
@@ -195,7 +256,7 @@ public class DynamoDBRecordHandler
         }
 
         // Only read columns that are needed in the query
-        String projectionExpression = schema.getFields()
+        String projectionExpression = disableProjectionAndCasing ? null : schema.getFields()
                 .stream()
                 .map(field -> {
                     String aliasedName = DDBPredicateUtils.aliasColumn(field.getName());
@@ -218,7 +279,7 @@ public class DynamoDBRecordHandler
             expressionAttributeNames.put(hashKeyAlias, hashKeyName);
             expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class));
 
-            return new QueryRequest()
+            QueryRequest queryRequest = new QueryRequest()
                     .withTableName(tableName)
                     .withIndexName(indexName)
                     .withKeyConditionExpression(keyConditionExpression)
@@ -226,12 +287,16 @@ public class DynamoDBRecordHandler
                     .withExpressionAttributeNames(expressionAttributeNames)
                     .withExpressionAttributeValues(expressionAttributeValues)
                     .withProjectionExpression(projectionExpression);
+            if (canApplyLimit(constraints)) {
+                queryRequest.setLimit((int) constraints.getLimit());
+            }
+            return queryRequest;
         }
         else {
             int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
             int segmentCount = Integer.parseInt(split.getProperty(SEGMENT_COUNT_METADATA));
 
-            return new ScanRequest()
+            ScanRequest scanRequest = new ScanRequest()
                     .withTableName(tableName)
                     .withSegment(segmentId)
                     .withTotalSegments(segmentCount)
@@ -239,15 +304,19 @@ public class DynamoDBRecordHandler
                     .withExpressionAttributeNames(expressionAttributeNames.isEmpty() ? null : expressionAttributeNames)
                     .withExpressionAttributeValues(expressionAttributeValues.isEmpty() ? null : expressionAttributeValues)
                     .withProjectionExpression(projectionExpression);
+            if (canApplyLimit(constraints)) {
+                scanRequest.setLimit((int) constraints.getLimit());
+            }
+            return scanRequest;
         }
     }
 
     /*
     Creates an iterator that can iterate through a Query or Scan, sending paginated requests as necessary
      */
-    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema)
+    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing)
     {
-        AmazonWebServiceRequest request = buildReadRequest(split, tableName, schema);
+        AmazonWebServiceRequest request = buildReadRequest(split, tableName, schema, constraints, disableProjectionAndCasing);
         return new Iterator<Map<String, AttributeValue>>() {
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
             AtomicReference<Iterator<Map<String, AttributeValue>>> currentPageIterator = new AtomicReference<>();

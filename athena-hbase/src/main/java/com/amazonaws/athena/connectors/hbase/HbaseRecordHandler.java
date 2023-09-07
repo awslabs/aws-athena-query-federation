@@ -81,18 +81,20 @@ public class HbaseRecordHandler
     private final AmazonS3 amazonS3;
     private final HbaseConnectionFactory connectionFactory;
 
-    public HbaseRecordHandler()
+    public HbaseRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                new HbaseConnectionFactory());
+        this(
+            AmazonS3ClientBuilder.defaultClient(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            new HbaseConnectionFactory(),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected HbaseRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, HbaseConnectionFactory connectionFactory)
+    protected HbaseRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, HbaseConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
         this.connectionFactory = connectionFactory;
     }

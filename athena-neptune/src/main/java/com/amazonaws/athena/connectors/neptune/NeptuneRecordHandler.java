@@ -61,18 +61,28 @@ public class NeptuneRecordHandler extends RecordHandler
     private static final String SOURCE_TYPE = "neptune";
     private final NeptuneConnection neptuneConnection;
 
-    public NeptuneRecordHandler() 
+    public NeptuneRecordHandler(java.util.Map<String, String> configOptions) 
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), new NeptuneConnection(System.getenv("neptune_endpoint"),
-                        System.getenv("neptune_port"), Boolean.parseBoolean(System.getenv("iam_enabled"))));
+        this(
+            AmazonS3ClientBuilder.defaultClient(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            new NeptuneConnection(
+                configOptions.get("neptune_endpoint"),
+                configOptions.get("neptune_port"),
+                Boolean.parseBoolean(configOptions.get("iam_enabled"))),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected NeptuneRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
-     final AmazonAthena amazonAthena, final NeptuneConnection neptuneConnection)
+    protected NeptuneRecordHandler(
+        AmazonS3 amazonS3,
+        AWSSecretsManager secretsManager,
+        AmazonAthena amazonAthena,
+        NeptuneConnection neptuneConnection,
+        java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.neptuneConnection = neptuneConnection;
     }
 
@@ -103,14 +113,14 @@ public class NeptuneRecordHandler extends RecordHandler
         Client client = null;
         GraphType graphType = GraphType.PROPERTYGRAPH;
 
-        if (System.getenv("neptune_graphtype") != null) {
-            graphType = GraphType.valueOf(System.getenv("neptune_graphtype").toUpperCase());
+        if (configOptions.get("neptune_graphtype") != null) {
+            graphType = GraphType.valueOf(configOptions.get("neptune_graphtype").toUpperCase());
         }
 
         try {
             switch(graphType){
                 case PROPERTYGRAPH:
-                    (new PropertyGraphHandler(neptuneConnection)).executeQuery(recordsRequest, queryStatusChecker, spiller);    
+                    (new PropertyGraphHandler(neptuneConnection)).executeQuery(recordsRequest, queryStatusChecker, spiller, configOptions);
                     break;
 
                 case RDF:

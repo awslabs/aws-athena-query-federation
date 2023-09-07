@@ -47,6 +47,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2Constants.QUOTE_CHARACTER;
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class DataLakeRecordHandlerTest
 {
     private DataLakeGen2RecordHandler dataLakeGen2RecordHandler;
@@ -59,6 +62,7 @@ public class DataLakeRecordHandlerTest
 
     @Before
     public void setup()
+            throws Exception
     {
         System.setProperty("aws.region", "us-east-1");
         this.amazonS3 = Mockito.mock(AmazonS3.class);
@@ -66,12 +70,12 @@ public class DataLakeRecordHandlerTest
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new DataLakeGen2QueryStringBuilder("`");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        jdbcSplitQueryBuilder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", DataLakeGen2Constants.NAME,
                 "datalakegentwo://jdbc:sqlserver://hostname;databaseName=fakedatabase");
 
-        this.dataLakeGen2RecordHandler = new DataLakeGen2RecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.dataLakeGen2RecordHandler = new DataLakeGen2RecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     private ValueSet getSingleValueSet(Object value) {
@@ -104,8 +108,9 @@ public class DataLakeRecordHandlerTest
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
                 .put("testCol4", valueSet)
                 .build());
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4` FROM `testSchema`.`testTable`  WHERE (`testCol4` = ?)";
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\" FROM \"testSchema\".\"testTable\"  WHERE (\"testCol4\" = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.dataLakeGen2RecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);

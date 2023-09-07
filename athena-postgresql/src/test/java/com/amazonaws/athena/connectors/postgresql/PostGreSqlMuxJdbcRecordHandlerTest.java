@@ -64,11 +64,12 @@ public class PostGreSqlMuxJdbcRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "postgres",
                 "postgres://jdbc:postgresql://hostname/${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new PostGreSqlMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap);
+        this.jdbcRecordHandler = new PostGreSqlMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
     public void readWithConstraint()
+            throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -79,6 +80,7 @@ public class PostGreSqlMuxJdbcRecordHandlerTest
 
     @Test(expected = RuntimeException.class)
     public void readWithConstraintWithUnsupportedCatalog()
+            throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);

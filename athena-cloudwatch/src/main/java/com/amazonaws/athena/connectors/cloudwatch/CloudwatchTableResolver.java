@@ -127,7 +127,7 @@ public class CloudwatchTableResolver
                 String logStreamName = nextStream.getLogStreamName();
                 CloudwatchTableName nextCloudwatch = new CloudwatchTableName(logGroup, logStreamName);
                 tableCache.put(nextCloudwatch.toTableName(), nextCloudwatch);
-                if (nextCloudwatch.getLogStreamName().equalsIgnoreCase(logStreamName)) {
+                if (nextCloudwatch.getLogStreamName().equalsIgnoreCase(logStream)) {
                     //We stop loading once we find the one we care about. This is an optimization that
                     //attempt to exploit the fact that we likely access more recent logstreams first.
                     logger.info("loadLogStreams: Matched {} for {}", nextCloudwatch, logStream);
@@ -163,14 +163,13 @@ public class CloudwatchTableResolver
                     LAMBDA_PATTERN, effectiveTableName);
             effectiveTableName = effectiveTableName.replace(LAMBDA_PATTERN, LAMBDA_ACTUAL_PATTERN);
         }
-
         DescribeLogStreamsRequest request = new DescribeLogStreamsRequest(logGroup)
                 .withLogStreamNamePrefix(effectiveTableName);
         DescribeLogStreamsResult result = invoker.invoke(() -> awsLogs.describeLogStreams(request));
         for (LogStream nextStream : result.getLogStreams()) {
             String logStreamName = nextStream.getLogStreamName();
             CloudwatchTableName nextCloudwatch = new CloudwatchTableName(logGroup, logStreamName);
-            if (nextCloudwatch.getLogStreamName().equalsIgnoreCase(logStreamName)) {
+            if (nextCloudwatch.getLogStreamName().equalsIgnoreCase(logStream)) {
                 logger.info("loadLogStream: Matched {} for {}:{}", nextCloudwatch, logGroup, logStream);
                 return nextCloudwatch;
             }
@@ -202,7 +201,7 @@ public class CloudwatchTableResolver
             validateSchemaResult = invoker.invoke(() -> awsLogs.describeLogGroups(validateSchemaRequest));
             for (LogGroup next : validateSchemaResult.getLogGroups()) {
                 String nextLogGroupName = next.getLogGroupName();
-                schemaCache.put(schemaName.toLowerCase(), nextLogGroupName);
+                schemaCache.put(schemaName, nextLogGroupName);
                 if (nextLogGroupName.equalsIgnoreCase(schemaName)) {
                     logger.info("loadLogGroups: Matched {} for {}", nextLogGroupName, schemaName);
                     return nextLogGroupName;
@@ -255,7 +254,6 @@ public class CloudwatchTableResolver
             if (actual == null) {
                 throw new IllegalArgumentException("Unknown table[" + tableName + "]");
             }
-
             return actual;
         }
         catch (ExecutionException ex) {

@@ -19,7 +19,7 @@ For those seeking to write their own connectors, we recommend you being by going
 * **Federated Identity** - When Athena federates a query to your connector, you may want to perform Authz based on the identitiy of the entity that executed the Athena Query. 
 * **Partition Pruning** - Athena will call you connector to understand how the table being queried is partitioned as well as to obtain which partitions need to be read for a given query. If your source supports partitioning, this give you an opportunity to use the query predicate to perform partition prunning.
 * **Parallelized & Pipelined Reads** - Athena will parallelize reading your tables based on the partitioning information you provide. You also have the opportunity to tell Athena how (and if) it should split each partition into multiple (potentially concurrent) read operations. Behind the scenes Athena will parallelize reading the split (work units) you've created and pipeline reads to reduce the performance impact of reading a remote source. 
-* **Predicate Pushdown** - (Associative Predicates) Where relevant, Athena will supply you with the associative portion of the query predicate so that you can perform filtering or push the predicate into your source system for even better performance. It is important to note that the predicate is not always the query's full predicate. For example, if the query's predicate was "where (col0 < 1 or col1 < 10) and col2 + 10 < 100" only the "col0 < 1 or col1 < 10" will be supplied to you at this time. We are still considering the best form for supplying connectors with a more complete view of the query and its predicate and expect a future release to provide this to connectors that are capable of utilizing
+* **Predicate Pushdown** - Based on the response provided in the MetadataHandler's doGetDataSourceCapabilities API, Athena will supply your RecordHandler's readWithConstraints with a Constraints object containing information about associative predicates (also called simple filters), complex expressions, order by fields, and a limit value. Athena provides these constraints under the assumption that the connector will be responsible for correctly pushing down these predicates and clauses into the underlying data source. This will help reduce the query execution runtime as well as data scanned of your queries.
 * **Column Projection** - Where relevant, Athena will supply you with the columns that need to be projected so that you can reduce data scanned.
 * **Limited Scans** - While Athena is not yet able to push down limits to you connector, the SDK does expose a mechanism by which you can abandon a scan early. Athena will already avoid scanning partitions and splits that are not needed once a limit, failure, or user cancellation occurs but this functionality will allow connectors that are in the middle of processing a split to stop regardless of the cause. This works even when the query's limit can not be semantically pushed down (e.g. limit happens after a filtered join). In a future release we may also introduce traditional limit pushdwon for the simple cases that would support that.
 * **Congestion Control** - Some of the source you may wish to federate to may not be as scalable as Athena or may be running performance sensitive workloads that you wish to protect from an overzealous federated query. Athena will automatically detect congestion by listening for FederationThrottleException(s) as well as many other AWS service exceptions that indicate your source is overwhelmed. When Athena detects congestion it reducing parallelism against your source. Within the SDK you can make use of ThrottlingInvoker to more tightly control congestion yourself. Lastly, you can reduce the concurrency your Lambda functions are allowed to achieve in the Lambda console and Athena will respect that setting.
@@ -34,7 +34,8 @@ The below table lists the supported Apache Arrow types as well as the correspond
 |-------------|-----------------|
 |BIT|int, boolean|
 |DATEMILLI|Date, long|
-|TIMESTAMPMILLITZ|Date, long|
+|TIMESTAMPMILLITZ|LocalDateTime, ZonedDateTime, Date, long|
+|TIMESTAMPMICROTZ|LocalDateTime, ZonedDateTime, Date, long|
 |DATEDAY|Date, long, int|
 |FLOAT8|double|
 |FLOAT4|float|
@@ -60,7 +61,7 @@ UDFs have access to the same type system. When extending UserDefinedFunctionHand
  | DOUBLE      | java.lang.Double                               |Yes|
  | DECIMAL     | java.math.BigDecimal                           |Yes|
  | BIGINT      | java.lang.Long                                 |Yes|
- | INTEGER     | java.lang.Int                                  |Yes, Int(32)|
+ | INTEGER     | java.lang.Integer                              |Yes, Int(32)|
  | VARCHAR     | java.lang.String                               |Yes|
  | VARBINARY   | byte[]                                         |No|
  | BOOLEAN     | java.lang.Boolean                              |Yes|
@@ -78,7 +79,7 @@ Alternatively, you can deploy a single Lambda function which combines the two ab
 
 In the next section we take a closer look at the methods we must implement on the MetadataHandler and RecordHandler.
 
-Included with this SDK is a set of examples in src/com/amazonaws/athena/connector/lambda/examples . You can deploy the examples using the included athena-federation-sdk.yaml file. Run `../tools/publish.sh S3_BUCKET_NAME athena-federation-sdk` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form in the Serverless Application Repository console. After you've used the Serverless Application Repository UX to deploy and instance of your connection you can run the validation script `../tools/validate_connector.sh <function_name>` be sure to replace <function_name> with the name you gave to your function/catalog when you deployed it via Serverless Application Repository. To ensure you connector is valid before running an Athena query. For detailed steps on building and deploying please view the README.md in the athena-example module of this repository.
+Included with this SDK is a set of examples in src/com/amazonaws/athena/connector/lambda/examples . You can deploy the examples using the included athena-federation-sdk.yaml file. Run `sam deploy --template-file athena-federation-sdk.yaml -g` and follow the guided deployment to deploy your CloudFormation stack and synthesize your Lambda function. Once this is complete, you can run the validation script `../tools/validate_connector.sh <function_name>` be sure to replace <function_name> with the name you gave to your function/catalog when you deployed it via Serverless Application Repository. To ensure you connector is valid before running an Athena query. For detailed steps on building and deploying please view the README.md in the athena-example module of this repository.
 
 You can then run `SELECT count(*) from "lambda:<catalog>"."custom_source"."fake_table" where year > 2010` from your Athena console. Be sure you replace <catalog> with the catalog name you gave your connector when you deployed it.
 
@@ -134,6 +135,21 @@ public class MyMetadataHandler extends MetadataHandler
       //scheduling each Split for execution. Sources that don't support parallelism can return
       //a single split. Splits are mostly opaque to Athena and are just used to call your RecordHandler.
     }
+    
+    /**
+     * Used to describe the types of capabilities supported by a data source. An engine can use this to determine what
+     * portions of the query to push down. A connector that returns any optimization will guarantee that the associated
+     * predicate will be pushed down.
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details about the catalog being used.
+     * @return A GetDataSourceCapabilitiesResponse object which returns a map of supported optimizations that
+     * the connector is advertising to the consumer. The connector assumes all responsibility for whatever is passed here.
+     */
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), Collections.emptyMap());
+    }
+}
 }
 ```
 
@@ -157,8 +173,10 @@ public class MyRecordHandler
        //read the data represented by the Split in the request and use the blockSpiller.writeRow() 
        //to write rows into the response. The Amazon Athena Query Federation SDK handles all the 
        //boiler plate of spilling large response to S3, and optionally encrypting any spilled data.
-       //If you source supports filtering, use the Constraints objects on the request to push the predicate
-       //down into your source. You can also use the provided ConstraintEvaluator to performing filtering
+       //If you source supports pushdowns (supplied by your metadata handler's doGetDataSourceCapabilities method),
+       // use the Constraints object to access your simple filters, complex expressions,
+       // order by fields, and limit fields. Then you can push them down into your source.
+       // You can also use the provided ConstraintEvaluator to performing filtering
        //in this code block.
     }
 }
@@ -245,6 +263,12 @@ You can configure ThrottlingInvoker via its builder or for pre-built connectors 
 1. **throttle_max_delay_ms** - (Default: 1000ms) This is the max delay between calls. You can derive TPS by dividing it into 1000ms.
 1. **throttle_decrease_factor** - (Default: 0.5) This is the factor by which we reduce our call rate.
 1. **throttle_increase_ms** - (Default: 10ms) This is the rate at which we decrease the call delay.
+
+### Predicate Pushdown
+
+The SDK has functionality to allow connectors to handle filters (.e.g `colA > 10`), complex expressions (.e.g `colB IN ("string1", "string2") AND colC <> ""`), order by clauses (.e.g `ORDER BY colC DESC, colA ASC`), and limits (.e.g `LIMIT 500`). How this works is the query engine asks a connector what pushdowns it can support, via the `MetadataHandler::doGetDataSourceCapabilities` method. The connector returns the type of pushdowns it promises it can execute. Then, when processing splits, the engine will send down a Constraints object with data that reflects the promised pushdown functionality in the `RecordHandler::readWithConstraint` method. The connector is then responsible for pushing down the contents of the Constraints object to the underlying data source, and also for making sure it does not push down anything that could produce incorrect results. One known limitation is if the connector supports limits, but not TopN, it should only apply the limit if there is no order-by clause to avoid this scenario. This way, the engine does not need to do all the extra work of reading in unfiltered data and processing predicates and clauses that a connector is already able to do. 
+
+Supporting and implementing some or all of the possible pushdowns will reduce the data scanned by Athena and also reduce the query execution runtime, when compared to implementations that do not support these pushdowns.
 
 ## License
 

@@ -23,17 +23,13 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
+
 
 import static org.junit.Assert.assertEquals;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(JDBCUtil.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*"})
+@RunWith(MockitoJUnitRunner.class)
 public class OracleCompositeHandlerTest {
 
     private OracleCompositeHandler oracleCompositeHandler;
@@ -41,21 +37,13 @@ public class OracleCompositeHandlerTest {
         System.setProperty("aws.region", "us-east-1");
     }
     @Test
-    public void oracleCompositeHandlerTest(){
-        Exception ex = null;
-        try {
-            DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", OracleConstants.ORACLE_NAME,
-                    "oracle://jdbc:oracle:thin:abc/abc@//hostname:1521/orcl");
-            PowerMockito.mockStatic(JDBCUtil.class);
-            JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(OracleConstants.ORACLE_NAME)).thenReturn(databaseConnectionConfig);
-            oracleCompositeHandler = new OracleCompositeHandler();
-        }catch (Exception e){
-           ex = e;
-        }
-        assertEquals(null,ex);
+    public void oracleCompositeHandlerTest() throws Exception {
+        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", OracleConstants.ORACLE_NAME,
+                "oracle://jdbc:oracle:thin:abc/abc@//hostname:1521/orcl");
+        Mockito.mockStatic(JDBCUtil.class);
+        JDBCUtil tested = Mockito.mock(JDBCUtil.class);
+        Mockito.when(tested.getSingleDatabaseConfigFromEnv(OracleConstants.ORACLE_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
+        oracleCompositeHandler = new OracleCompositeHandler();
 
     }
-
-
 }

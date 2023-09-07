@@ -51,20 +51,20 @@ public final class ReadRecordsRequestSerDe
     private static final String MAX_BLOCK_SIZE_FIELD = "maxBlockSize";
     private static final String MAX_INLINE_BLOCK_SIZE_FIELD = "maxInlineBlockSize";
 
-    private ReadRecordsRequestSerDe(){}
+    private ReadRecordsRequestSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationRequest>
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
         private final TableNameSerDe.Serializer tableNameSerializer;
-        private final ConstraintsSerDe.Serializer constraintsSerializer;
+        private final VersionedSerDe.Serializer<Constraints> constraintsSerializer;
         private final VersionedSerDe.Serializer<Schema> schemaSerializer;
         private final SplitSerDe.Serializer splitSerializer;
 
         public Serializer(
                 FederatedIdentitySerDe.Serializer identitySerializer,
                 TableNameSerDe.Serializer tableNameSerializer,
-                ConstraintsSerDe.Serializer constraintsSerializer,
+                VersionedSerDe.Serializer<Constraints> constraintsSerializer,
                 VersionedSerDe.Serializer<Schema> schemaSerializer,
                 SplitSerDe.Serializer splitSerializer)
         {
@@ -109,14 +109,14 @@ public final class ReadRecordsRequestSerDe
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
         private final TableNameSerDe.Deserializer tableNameDeserializer;
-        private final ConstraintsSerDe.Deserializer constraintsDeserializer;
+        private final VersionedSerDe.Deserializer<Constraints> constraintsDeserializer;
         private final VersionedSerDe.Deserializer<Schema> schemaDeserializer;
         private final SplitSerDe.Deserializer splitDeserializer;
 
         public Deserializer(
                 FederatedIdentitySerDe.Deserializer identityDeserializer,
                 TableNameSerDe.Deserializer tableNameDeserializer,
-                ConstraintsSerDe.Deserializer constraintsDeserializer,
+                VersionedSerDe.Deserializer<Constraints> constraintsDeserializer,
                 VersionedSerDe.Deserializer<Schema> schemaDeserializer,
                 SplitSerDe.Deserializer splitDeserializer)
         {

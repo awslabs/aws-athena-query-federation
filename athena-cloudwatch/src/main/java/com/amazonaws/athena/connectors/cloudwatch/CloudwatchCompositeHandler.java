@@ -30,6 +30,6 @@ public class CloudwatchCompositeHandler
 {
     public CloudwatchCompositeHandler()
     {
-        super(new CloudwatchMetadataHandler(), new CloudwatchRecordHandler());
+        super(new CloudwatchMetadataHandler(System.getenv()), new CloudwatchRecordHandler(System.getenv()));
     }
 }

@@ -29,7 +29,7 @@ import com.google.common.collect.ImmutableSet;
 
 public final class FederationResponseSerDe
 {
-    private FederationResponseSerDe(){}
+    private FederationResponseSerDe() {}
 
     public static final class Serializer extends DelegatingSerializer<FederationResponse>
     {

@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
+import com.amazonaws.athena.connector.lambda.data.AthenaFederationIpcOption;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
@@ -33,7 +34,6 @@ import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -51,7 +51,7 @@ import static java.util.Objects.requireNonNull;
 @Deprecated
 public final class ArrowRecordBatchSerDe
 {
-    private ArrowRecordBatchSerDe(){}
+    private ArrowRecordBatchSerDe() {}
 
     static final class Serializer extends BaseSerializer<ArrowRecordBatch>
     {
@@ -65,9 +65,7 @@ public final class ArrowRecordBatchSerDe
                 throws IOException
         {
             try {
-                IpcOption option = new IpcOption();
-                option.write_legacy_ipc_format = true;
-                option.metadataVersion = MetadataVersion.V4;
+                IpcOption option = AthenaFederationIpcOption.DEFAULT;
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), arrowRecordBatch, option);
                 jgen.writeBinary(out.toByteArray());

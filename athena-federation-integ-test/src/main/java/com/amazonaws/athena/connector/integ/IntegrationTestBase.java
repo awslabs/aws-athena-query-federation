@@ -34,6 +34,7 @@ import com.amazonaws.services.athena.model.GetQueryResultsRequest;
 import com.amazonaws.services.athena.model.GetQueryResultsResult;
 import com.amazonaws.services.athena.model.ListDatabasesRequest;
 import com.amazonaws.services.athena.model.ListDatabasesResult;
+import com.amazonaws.services.athena.model.ResultConfiguration;
 import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.athena.model.StartQueryExecutionRequest;
 import org.slf4j.Logger;
@@ -65,6 +66,7 @@ public abstract class IntegrationTestBase
     private static final Logger logger = LoggerFactory.getLogger(IntegrationTestBase.class);
 
     private static final String TEST_CONFIG_WORK_GROUP = "athena_work_group";
+    private static final String TEST_CONFIG_RESULT_LOCATION = "athena_result_location";
     private static final String TEST_CONFIG_USER_SETTINGS = "user_settings";
     private static final String ATHENA_QUERY_QUEUED_STATE = "QUEUED";
     private static final String ATHENA_QUERY_RUNNING_STATE = "RUNNING";
@@ -97,6 +99,7 @@ public abstract class IntegrationTestBase
     private final Optional<ConnectorVpcAttributes> vpcAttributes;
     private final Optional<SecretsManagerCredentials> secretCredentials;
     private final String athenaWorkgroup;
+    private final String athenaResultLocation;
     private CloudFormationClient cloudFormationClient;
 
     public IntegrationTestBase()
@@ -127,6 +130,7 @@ public abstract class IntegrationTestBase
         lambdaFunctionName = connectorStackProvider.getLambdaFunctionName();
         athenaClient = AmazonAthenaClientBuilder.defaultClient();
         athenaWorkgroup = getAthenaWorkgroup();
+        athenaResultLocation = getAthenaResultLocation();
     }
 
     /**
@@ -143,6 +147,17 @@ public abstract class IntegrationTestBase
         logger.info("Athena Workgroup: {}", athenaWorkgroup);
 
         return athenaWorkgroup;
+    }
+
+    private String getAthenaResultLocation()
+            throws RuntimeException
+    {
+        String athenaResultLocation = "s3://" + testConfig.getStringItem(TEST_CONFIG_RESULT_LOCATION).orElseThrow(() ->
+                new RuntimeException(TEST_CONFIG_RESULT_LOCATION + " must be specified in test-config.json."));
+
+        logger.info("Athena Result Location: {}", athenaResultLocation);
+
+        return athenaResultLocation;
     }
 
     /**
@@ -187,7 +202,7 @@ public abstract class IntegrationTestBase
     /**
      * Must be overridden in the extending class to setup the DB table (i.e. insert rows into table, etc...)
      */
-    protected abstract void setUpTableData();
+    protected abstract void setUpTableData() throws Exception;
 
     /**
      * Must be overridden in the extending class (can be a no-op) to create a connector-specific CloudFormation stack
@@ -217,7 +232,7 @@ public abstract class IntegrationTestBase
      * with Athena.
      */
     @BeforeClass
-    protected void setUp()
+    protected void setUp() throws Exception
     {
         cloudFormationClient = new CloudFormationClient(connectorStackProvider.getStack());
         try {
@@ -311,7 +326,8 @@ public abstract class IntegrationTestBase
     {
         StartQueryExecutionRequest startQueryExecutionRequest = new StartQueryExecutionRequest()
                 .withWorkGroup(athenaWorkgroup)
-                .withQueryString(query);
+                .withQueryString(query)
+                .withResultConfiguration(new ResultConfiguration().withOutputLocation(athenaResultLocation));
 
         String queryExecutionId = sendAthenaQuery(startQueryExecutionRequest);
         logger.info("Query: [{}], Query Id: [{}]", query, queryExecutionId);

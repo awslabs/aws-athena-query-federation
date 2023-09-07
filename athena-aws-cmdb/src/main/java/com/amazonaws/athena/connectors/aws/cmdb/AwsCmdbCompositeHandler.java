@@ -30,6 +30,6 @@ public class AwsCmdbCompositeHandler
 {
     public AwsCmdbCompositeHandler()
     {
-        super(new AwsCmdbMetadataHandler(), new AwsCmdbRecordHandler());
+        super(new AwsCmdbMetadataHandler(System.getenv()), new AwsCmdbRecordHandler(System.getenv()));
     }
 }

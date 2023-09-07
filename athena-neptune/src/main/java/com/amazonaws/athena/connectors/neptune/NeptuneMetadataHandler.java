@@ -54,6 +54,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * This class is part of an tutorial that will walk you through how to build a
  * connector for your custom data source. The README for this module
@@ -78,20 +80,30 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     private final AWSGlue glue;
     private final String glueDBName;
 
-    public NeptuneMetadataHandler()
+    public NeptuneMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(false, SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.glue = getAwsGlue();
-        this.glueDBName = System.getenv("glue_database_name");
+        // The original interface passed "false" for "disable_glue" previously so this requires
+        // check is enforcing this connector's contract.
+        requireNonNull(this.glue);
+        this.glueDBName = configOptions.get("glue_database_name");
     }
 
     @VisibleForTesting
-    protected NeptuneMetadataHandler(AWSGlue glue, NeptuneConnection neptuneConnection, EncryptionKeyFactory keyFactory,
-            AWSSecretsManager awsSecretsManager, AmazonAthena athena, String spillBucket, String spillPrefix)
-            {
-        super(glue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+    protected NeptuneMetadataHandler(
+        AWSGlue glue,
+        NeptuneConnection neptuneConnection,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager awsSecretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
+    {
+        super(glue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.glue = glue;
-        this.glueDBName = System.getenv("glue_database_name");
+        this.glueDBName = configOptions.get("glue_database_name");
     }
 
     /**

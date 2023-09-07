@@ -109,6 +109,11 @@ public class S3BlockSpiller
     //Time this BlockSpiller wss created.
     private final long startTime = System.currentTimeMillis();
 
+    // Config options
+    // These are from System.getenv() when the connector is being used from an AWS Lambda (*CompositeHandler).
+    // When being used from Spark, it is from the Spark session's options.
+    private final java.util.Map<String, String> configOptions;
+
     /**
      * Constructor which uses the default maxRowsPerCall.
      *
@@ -118,13 +123,15 @@ public class S3BlockSpiller
      * @param schema The schema for blocks that should be written.
      * @param constraintEvaluator The ConstraintEvaluator that should be used to constrain writes.
      */
-    public S3BlockSpiller(AmazonS3 amazonS3,
-            SpillConfig spillConfig,
-            BlockAllocator allocator,
-            Schema schema,
-            ConstraintEvaluator constraintEvaluator)
+    public S3BlockSpiller(
+        AmazonS3 amazonS3,
+        SpillConfig spillConfig,
+        BlockAllocator allocator,
+        Schema schema,
+        ConstraintEvaluator constraintEvaluator,
+        java.util.Map<String, String> configOptions)
     {
-        this(amazonS3, spillConfig, allocator, schema, constraintEvaluator, MAX_ROWS_PER_CALL);
+        this(amazonS3, spillConfig, allocator, schema, constraintEvaluator, MAX_ROWS_PER_CALL, configOptions);
     }
 
     /**
@@ -137,13 +144,16 @@ public class S3BlockSpiller
      * @param constraintEvaluator The ConstraintEvaluator that should be used to constrain writes.
      * @param maxRowsPerCall The max number of rows to allow callers to write in one call.
      */
-    public S3BlockSpiller(AmazonS3 amazonS3,
-            SpillConfig spillConfig,
-            BlockAllocator allocator,
-            Schema schema,
-            ConstraintEvaluator constraintEvaluator,
-            int maxRowsPerCall)
+    public S3BlockSpiller(
+        AmazonS3 amazonS3,
+        SpillConfig spillConfig,
+        BlockAllocator allocator,
+        Schema schema,
+        ConstraintEvaluator constraintEvaluator,
+        int maxRowsPerCall,
+        java.util.Map<String, String> configOptions)
     {
+        this.configOptions = configOptions;
         this.amazonS3 = requireNonNull(amazonS3, "amazonS3 was null");
         this.spillConfig = requireNonNull(spillConfig, "spillConfig was null");
         this.allocator = requireNonNull(allocator, "allocator was null");
@@ -309,13 +319,13 @@ public class S3BlockSpiller
      */
     private void setRequestHeadersFromEnv(PutObjectRequest request)
     {
-        String headersFromEnvStr = System.getenv(SPILL_PUT_REQUEST_HEADERS_ENV);
+        String headersFromEnvStr = configOptions.get(SPILL_PUT_REQUEST_HEADERS_ENV);
         if (headersFromEnvStr == null || headersFromEnvStr.isEmpty()) {
             return;
         }
         try {
             ObjectMapper mapper = new ObjectMapper();
-            TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>(){};
+            TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>() {};
             Map<String, String> headers = mapper.readValue(headersFromEnvStr, typeRef);
             for (Map.Entry<String, String> entry : headers.entrySet()) {
                 String oldValue = request.putCustomRequestHeader(entry.getKey(), entry.getValue());
@@ -489,8 +499,8 @@ public class S3BlockSpiller
     private ThreadPoolExecutor makeAsyncSpillPool(SpillConfig config)
     {
         int spillQueueCapacity = config.getNumSpillThreads();
-        if (System.getenv(SPILL_QUEUE_CAPACITY) != null) {
-            spillQueueCapacity = Integer.parseInt(System.getenv(SPILL_QUEUE_CAPACITY));
+        if (configOptions.get(SPILL_QUEUE_CAPACITY) != null) {
+            spillQueueCapacity = Integer.parseInt(configOptions.get(SPILL_QUEUE_CAPACITY));
             logger.debug("Setting Spill Queue Capacity to {}", spillQueueCapacity);
         }
 

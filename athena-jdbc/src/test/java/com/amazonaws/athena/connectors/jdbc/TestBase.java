@@ -27,6 +27,9 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+
 public class TestBase
 {
     protected ResultSet mockResultSet(String[] columnNames, int[] columnTypes, Object[][] rows, AtomicInteger rowNumber)
@@ -43,7 +46,7 @@ public class TestBase
                     return rowNumber.getAndIncrement() + 1 < rows.length;
                 });
 
-        Mockito.when(resultSet.getInt(Mockito.any())).thenAnswer((Answer<Integer>) invocation -> {
+        Mockito.when(resultSet.getInt(any())).thenAnswer((Answer<Integer>) invocation -> {
             Object argument = invocation.getArguments()[0];
 
             if (argument instanceof Integer) {
@@ -59,7 +62,7 @@ public class TestBase
             }
         });
 
-        Mockito.when(resultSet.getString(Mockito.any())).thenAnswer((Answer<String>) invocation -> {
+        Mockito.when(resultSet.getString(any())).thenAnswer((Answer<String>) invocation -> {
             Object argument = invocation.getArguments()[0];
             if (argument instanceof Integer) {
                 int colIndex = (Integer) argument - 1;
@@ -74,10 +77,29 @@ public class TestBase
             }
         });
 
+
+        Mockito.when(resultSet.getDouble(any())).thenAnswer((Answer<Double>) invocation -> {
+            Object argument = invocation.getArguments()[0];
+            if (argument instanceof Integer) {
+                int colIndex = (Integer) argument - 1;
+                return (Double) rows[rowNumber.get()][colIndex];
+            }
+            else if (argument instanceof String) {
+                throw new java.sql.SQLException("Postgres Money Type");
+            }
+            else if (argument instanceof Double) {
+                int colIndex = Arrays.asList(columnNames).indexOf(argument);
+                return (Double) rows[rowNumber.get()][colIndex];
+            }
+            else {
+                throw new RuntimeException("Unexpected argument type " + argument.getClass());
+            }
+        });
+
         if (columnTypes != null) {
             Mockito.when(resultSet.getMetaData().getColumnCount()).thenReturn(columnNames.length);
-            Mockito.when(resultSet.getMetaData().getColumnDisplaySize(Mockito.anyInt())).thenReturn(10);
-            Mockito.when(resultSet.getMetaData().getColumnType(Mockito.anyInt())).thenAnswer((Answer<Integer>) invocation -> columnTypes[(Integer) invocation.getArguments()[0] - 1]);
+            Mockito.when(resultSet.getMetaData().getColumnDisplaySize(anyInt())).thenReturn(10);
+            Mockito.when(resultSet.getMetaData().getColumnType(anyInt())).thenAnswer((Answer<Integer>) invocation -> columnTypes[(Integer) invocation.getArguments()[0] - 1]);
         }
 
         return resultSet;

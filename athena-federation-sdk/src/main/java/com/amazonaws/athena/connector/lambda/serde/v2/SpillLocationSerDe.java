@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableSet;
 
 public final class SpillLocationSerDe
 {
-    private SpillLocationSerDe(){}
+    private SpillLocationSerDe() {}
 
     public static final class Serializer extends DelegatingSerializer<SpillLocation>
     {

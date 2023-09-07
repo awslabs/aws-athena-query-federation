@@ -19,17 +19,17 @@
  */
 package com.amazonaws.athena.connectors.teradata;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link TeradataMuxMetadataHandler} and {@link TeradataMuxRecordHandler}.
  */
 public class TeradataMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public TeradataMuxCompositeHandler()
+    public TeradataMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new TeradataMuxMetadataHandler(), new TeradataMuxRecordHandler());
+        super(TeradataMuxMetadataHandler.class, TeradataMuxRecordHandler.class, TeradataMetadataHandler.class, TeradataRecordHandler.class);
     }
 }

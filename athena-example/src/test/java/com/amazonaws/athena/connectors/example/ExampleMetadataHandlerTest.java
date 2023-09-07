@@ -62,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
@@ -74,7 +75,8 @@ public class ExampleMetadataHandlerTest
             mock(AWSSecretsManager.class),
             mock(AmazonAthena.class),
             "spill-bucket",
-            "spill-prefix");
+            "spill-prefix",
+            com.google.common.collect.ImmutableMap.of());
 
     private boolean enableTests = System.getenv("publishing") != null &&
             System.getenv("publishing").equalsIgnoreCase("true");
@@ -99,9 +101,8 @@ public class ExampleMetadataHandlerTest
     public void doListSchemaNames()
     {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
+            //We do this because until you complete the tutorial these tests will fail.
+            //This is how we avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
             //on purpose since this is a somewhat odd pattern.
             logger.info("doListSchemaNames: Tests are disabled, to enable them set the 'publishing' environment variable " +
                     "using maven clean install -Dpublishing=true");
@@ -120,9 +121,8 @@ public class ExampleMetadataHandlerTest
     public void doListTables()
     {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
+            //We do this because until you complete the tutorial these tests will fail.
+            //This is how we avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
             //on purpose since this is a somewhat odd pattern.
             logger.info("doListTables: Tests are disabled, to enable them set the 'publishing' environment variable " +
                     "using maven clean install -Dpublishing=true");
@@ -177,9 +177,8 @@ public class ExampleMetadataHandlerTest
     public void doGetTable()
     {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
+            //We do this because until you complete the tutorial these tests will fail.
+            //This is how we avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
             //on purpose since this is a somewhat odd pattern.
             logger.info("doGetTable: Tests are disabled, to enable them set the 'publishing' environment variable " +
                     "using maven clean install -Dpublishing=true");
@@ -201,9 +200,8 @@ public class ExampleMetadataHandlerTest
             throws Exception
     {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
+            //We do this because until you complete the tutorial these tests will fail.
+            //This is how we avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
             //on purpose since this is a somewhat odd pattern.
             logger.info("getPartitions: Tests are disabled, to enable them set the 'publishing' environment variable " +
                     "using maven clean install -Dpublishing=true");
@@ -240,7 +238,7 @@ public class ExampleMetadataHandlerTest
 
             req = new GetTableLayoutRequest(fakeIdentity(), "queryId", "default",
                     new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                     tableSchema,
                     partitionCols);
 
@@ -271,9 +269,8 @@ public class ExampleMetadataHandlerTest
     public void doGetSplits()
     {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
+            //We do this because until you complete the tutorial these tests will fail.
+            //This is how we avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
             //on purpose since this is a somewhat odd pattern.
             logger.info("doGetSplits: Tests are disabled, to enable them set the 'publishing' environment variable " +
                     "using maven clean install -Dpublishing=true");
@@ -316,7 +313,7 @@ public class ExampleMetadataHandlerTest
                 new TableName("schema", "table_name"),
                 partitions,
                 partitionCols,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
         int numContinuations = 0;
         do {

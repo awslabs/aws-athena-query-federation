@@ -49,20 +49,20 @@ public final class GetSplitsRequestSerDe
     private static final String CONSTRAINTS_FIELD = "constraints";
     private static final String CONTINUATION_TOKEN_FIELD = "continuationToken";
 
-    private GetSplitsRequestSerDe(){}
+    private GetSplitsRequestSerDe() {}
 
     public static final class Serializer extends MetadataRequestSerializer
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
         private final TableNameSerDe.Serializer tableNameSerializer;
         private final VersionedSerDe.Serializer<Block> blockSerializer;
-        private final ConstraintsSerDe.Serializer constraintsSerializer;
+        private final VersionedSerDe.Serializer<Constraints> constraintsSerializer;
 
         public Serializer(
                 FederatedIdentitySerDe.Serializer identitySerializer,
                 TableNameSerDe.Serializer tableNameSerializer,
                 VersionedSerDe.Serializer<Block> blockSerializer,
-                ConstraintsSerDe.Serializer constraintsSerializer)
+                VersionedSerDe.Serializer<Constraints> constraintsSerializer)
         {
             super(GetSplitsRequest.class, identitySerializer);
             this.identitySerializer = requireNonNull(identitySerializer, "identitySerializer is null");
@@ -97,13 +97,13 @@ public final class GetSplitsRequestSerDe
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
         private final TableNameSerDe.Deserializer tableNameDeserializer;
         private final VersionedSerDe.Deserializer<Block> blockDeserializer;
-        private final ConstraintsSerDe.Deserializer constraintsDeserializer;
+        private final VersionedSerDe.Deserializer<Constraints> constraintsDeserializer;
 
         public Deserializer(
                 FederatedIdentitySerDe.Deserializer identityDeserializer,
                 TableNameSerDe.Deserializer tableNameDeserializer,
                 VersionedSerDe.Deserializer<Block> blockDeserializer,
-                ConstraintsSerDe.Deserializer constraintsDeserializer)
+                VersionedSerDe.Deserializer<Constraints> constraintsDeserializer)
         {
             super(GetSplitsRequest.class, identityDeserializer);
             this.identityDeserializer = requireNonNull(identityDeserializer, "identityDeserializer is null");

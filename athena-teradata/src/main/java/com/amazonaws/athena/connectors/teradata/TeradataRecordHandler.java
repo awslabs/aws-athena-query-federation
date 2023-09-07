@@ -43,31 +43,32 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import static com.amazonaws.athena.connectors.teradata.TeradataConstants.TERADATA_QUOTE_CHARACTER;
+
 public class TeradataRecordHandler extends JdbcRecordHandler
 {
-    private static final String TERADATA_QUOTE_CHARACTER = "\"";
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    public TeradataRecordHandler()
+    public TeradataRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(TeradataConstants.TERADATA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(TeradataConstants.TERADATA_NAME, configOptions), configOptions);
     }
-    public TeradataRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public TeradataRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS, TeradataConstants.TERADATA_DEFAULT_PORT)));
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS, TeradataConstants.TERADATA_DEFAULT_PORT)), configOptions);
     }
 
-    public TeradataRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public TeradataRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                jdbcConnectionFactory, new TeradataQueryStringBuilder(TERADATA_QUOTE_CHARACTER));
+                jdbcConnectionFactory, new TeradataQueryStringBuilder(TERADATA_QUOTE_CHARACTER, new TeradataFederationExpressionParser(TERADATA_QUOTE_CHARACTER)), configOptions);
     }
 
     @VisibleForTesting
-    TeradataRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
-                        final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    TeradataRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
+                        final AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
 

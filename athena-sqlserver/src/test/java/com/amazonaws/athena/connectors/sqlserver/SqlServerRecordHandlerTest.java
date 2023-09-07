@@ -48,6 +48,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class SqlServerRecordHandlerTest
 {
     private SqlServerRecordHandler sqlServerRecordHandler;
@@ -60,6 +63,7 @@ public class SqlServerRecordHandlerTest
 
     @Before
     public void setup()
+            throws Exception
     {
         System.setProperty("aws.region", "us-east-1");
         this.amazonS3 = Mockito.mock(AmazonS3.class);
@@ -67,12 +71,12 @@ public class SqlServerRecordHandlerTest
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new SqlServerQueryStringBuilder("`");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        jdbcSplitQueryBuilder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER ,new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SqlServerConstants.NAME,
                 "sqlserver://jdbc:sqlserver://hostname;databaseName=fakedatabase");
 
-        this.sqlServerRecordHandler = new SqlServerRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.sqlServerRecordHandler = new SqlServerRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     private ValueSet getSingleValueSet(Object value) {
@@ -108,7 +112,8 @@ public class SqlServerRecordHandlerTest
                 .put("testCol4", valueSet)
                 .build());
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4` FROM `testSchema`.`testTable`  WHERE (`testCol4` = ?) AND  $PARTITION.pf(testCol1) = 1";
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\" FROM \"testSchema\".\"testTable\"  WHERE (\"testCol4\" = ?) AND  $PARTITION.pf(testCol1) = 1";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);

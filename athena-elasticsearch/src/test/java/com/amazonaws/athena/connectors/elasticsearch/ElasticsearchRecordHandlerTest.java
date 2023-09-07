@@ -62,7 +62,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -79,12 +78,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
@@ -114,6 +113,9 @@ public class ElasticsearchRecordHandlerTest
     private SearchResponse mockResponse;
 
     @Mock
+    private SearchResponse mockScrollResponse;
+
+    @Mock
     private AmazonS3 amazonS3;
 
     @Mock
@@ -127,6 +129,9 @@ public class ElasticsearchRecordHandlerTest
 
     @Mock
     S3Object s3Object;
+
+    String[] expectedDocuments = {"[mytext : My favorite Sci-Fi movie is Interstellar.], [mykeyword : I love keywords.], [mylong : {11,12,13}], [myinteger : 666115], [myshort : 1972], [mybyte : 5], [mydouble : 47.5], [myscaled : 7], [myfloat : 5.6], [myhalf : 6.2], [mydatemilli : 2020-05-15T06:49:30], [mydatenano : {2020-05-15T06:50:01.457}], [myboolean : true], [mybinary : U29tZSBiaW5hcnkgYmxvYg==], [mynested : {[l1long : 357345987],[l1date : 2020-05-15T06:57:44.123],[l1nested : {[l2short : {1,2,3,4,5,6,7,8,9,10}],[l2binary : U29tZSBiaW5hcnkgYmxvYg==]}]}], [objlistouter : {}]"
+            ,"[mytext : My favorite TV comedy is Seinfeld.], [mykeyword : I hate key-values.], [mylong : {14,null,16}], [myinteger : 732765666], [myshort : 1971], [mybyte : 7], [mydouble : 27.6], [myscaled : 10], [myfloat : 7.8], [myhalf : 7.3], [mydatemilli : null], [mydatenano : {2020-05-15T06:49:30.001}], [myboolean : false], [mybinary : U29tZSBiaW5hcnkgYmxvYg==], [mynested : {[l1long : 7322775555],[l1date : 2020-05-15T01:57:44.777],[l1nested : {[l2short : {11,12,13,14,15,16,null,18,19,20}],[l2binary : U29tZSBiaW5hcnkgYmxvYg==]}]}], [objlistouter : {{[objlistinner : {{[title : somebook],[hi : hi]}}],[test2 : title]}}]"};
 
     @Before
     public void setUp()
@@ -175,7 +180,8 @@ public class ElasticsearchRecordHandlerTest
                 "      ],\n" +
                 "      \"l2binary\" : \"U29tZSBiaW5hcnkgYmxvYg==\"\n" +
                 "    }\n" +
-                "  }\n" +
+                "  },\n" +
+                "  \"objlistouter\": []" +
                 "}\n", HashMap.class);
 
         Map <String, Object> document2 = new ObjectMapper().readValue(
@@ -216,7 +222,14 @@ public class ElasticsearchRecordHandlerTest
                 "      ],\n" +
                 "      \"l2binary\" : \"U29tZSBiaW5hcnkgYmxvYg==\"\n" +
                 "    }\n" +
-                "  }\n" +
+                "  },\n" +
+                "  \"objlistouter\": [{\n" +
+                "        \"objlistinner\": [{\n" +
+                "            \"title\": \"somebook\",\n" +
+                "            \"hi\": \"hi\"\n" +
+                "        }],\n" +
+                "        \"test2\": \"title\"\n" +
+                "    }]"        +
                 "}\n", HashMap.class);
 
         mapping = SchemaBuilder.newBuilder()
@@ -248,11 +261,22 @@ public class ElasticsearchRecordHandlerTest
                                         Collections.singletonList(new Field("l2short",
                                                 FieldType.nullable(Types.MinorType.SMALLINT.getType()), null))),
                                 new Field("l2binary", FieldType.nullable(Types.MinorType.VARCHAR.getType()),
-                                        null))))).build();
+                                        null)))))
+                .addField("objlistouter", Types.MinorType.LIST.getType(),
+                        ImmutableList.of(
+                                new Field("objlistouter", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                                        ImmutableList.of(
+                                                new Field("objlistinner", FieldType.nullable(Types.MinorType.LIST.getType()),
+                                                        ImmutableList.of(new Field("objlistinner", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                                                                ImmutableList.of(
+                                                                        new Field("title", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null),
+                                                                        new Field("hi", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))))),
+                                                new Field("test2", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null)))))
+                .build();
 
         allocator = new BlockAllocatorImpl();
 
-        when(amazonS3.putObject(anyObject()))
+        when(amazonS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
@@ -264,7 +288,7 @@ public class ElasticsearchRecordHandlerTest
                     return mock(PutObjectResult.class);
                 });
 
-        when(amazonS3.getObject(Matchers.anyString(), Matchers.anyString()))
+        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
@@ -283,13 +307,17 @@ public class ElasticsearchRecordHandlerTest
 
         split = Split.newBuilder(makeSpillLocation(), null)
                 .add("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
+                .add(ElasticsearchMetadataHandler.SHARD_KEY, "_shards:5")
+                .add(ElasticsearchMetadataHandler.INDEX_KEY, "index1")
                 .build();
 
-        when(clientFactory.getOrCreateClient(anyString())).thenReturn(mockClient);
-        when(mockClient.getDocuments(any())).thenReturn(mockResponse);
+        when(clientFactory.getOrCreateClient(nullable(String.class))).thenReturn(mockClient);
         when(mockClient.getDocument(any())).thenReturn(document1, document2);
+        when(mockClient.search(any(), any())).thenReturn(mockResponse);
+        when(mockScrollResponse.getHits()).thenReturn(null);
+        when(mockClient.scroll(any(), any())).thenReturn(mockScrollResponse);
 
-        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory, 720);
+        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory, 720, 60, com.google.common.collect.ImmutableMap.of());
 
         logger.info("setUpBefore - exit");
     }
@@ -312,6 +340,7 @@ public class ElasticsearchRecordHandlerTest
         SearchHits searchHits =
                 new SearchHits(searchHit, new TotalHits(2, TotalHits.Relation.EQUAL_TO), 4);
         when(mockResponse.getHits()).thenReturn(searchHits);
+        when(mockResponse.getScrollId()).thenReturn("123");
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("myshort", SortedRangeSet.copyOf(Types.MinorType.SMALLINT.getType(),
@@ -328,7 +357,7 @@ public class ElasticsearchRecordHandlerTest
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -338,7 +367,7 @@ public class ElasticsearchRecordHandlerTest
         // Capture the SearchRequest object from the call to client.getDocuments().
         // The former contains information such as the projection and predicate.
         ArgumentCaptor<SearchRequest> argumentCaptor = ArgumentCaptor.forClass(SearchRequest.class);
-        verify(mockClient).getDocuments(argumentCaptor.capture());
+        verify(mockClient).search(argumentCaptor.capture(), any());
         SearchRequest searchRequest = argumentCaptor.getValue();
         // Get the actual projection and compare to the expected one.
         List<String> actualProjection = ImmutableList.copyOf(searchRequest.source().fetchSource().includes());
@@ -355,6 +384,7 @@ public class ElasticsearchRecordHandlerTest
         assertEquals(2, response.getRecords().getRowCount());
         for (int i = 0; i < response.getRecords().getRowCount(); ++i) {
             logger.info("doReadRecordsNoSpill - Row: {}, {}", i, BlockUtils.rowToString(response.getRecords(), i));
+            assertEquals(expectedDocuments[i], BlockUtils.rowToString(response.getRecords(), i));
         }
 
         logger.info("doReadRecordsNoSpill: exit");
@@ -393,7 +423,7 @@ public class ElasticsearchRecordHandlerTest
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 10_000L, //10KB Expect this to spill
                 0L
         );
@@ -405,15 +435,18 @@ public class ElasticsearchRecordHandlerTest
         try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
             logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
 
-            assertEquals(3, response.getNumberBlocks());
+            assertEquals(1, response.getNumberBlocks());
 
             int blockNum = 0;
             for (SpillLocation next : response.getRemoteBlocks()) {
                 S3SpillLocation spillLocation = (S3SpillLocation) next;
                 try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
                     logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
-                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
-                    assertNotNull(BlockUtils.rowToString(block, 0));
+                    assertEquals(expectedDocuments.length, block.getRowCount());
+                    for (int rowCount = 0; rowCount < block.getRowCount(); rowCount++) {
+                        logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, rowCount));
+                        assertEquals(expectedDocuments[rowCount], BlockUtils.rowToString(block, rowCount));
+                    }
                 }
             }
         }

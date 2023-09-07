@@ -37,6 +37,7 @@ import org.mockito.Mockito;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class SaphanaMuxJdbcMetadataHandlerTest {
 
@@ -54,7 +55,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
     {
         //this.allocator = Mockito.mock(BlockAllocator.class);
         this.allocator = new BlockAllocatorImpl();
-        //Mockito.when(this.allocator.createBlock(Mockito.any(Schema.class))).thenReturn(Mockito.mock(Block.class));
+        //Mockito.when(this.allocator.createBlock(nullable(Schema.class))).thenReturn(Mockito.mock(Block.class));
         this.saphanaMetadataHandler = Mockito.mock(SaphanaMetadataHandler.class);
         this.metadataHandlerMap = Collections.singletonMap("fakedatabase", this.saphanaMetadataHandler);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
@@ -63,10 +64,11 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new SaphanaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig);
+        this.jdbcMetadataHandler = new SaphanaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
     @Test
     public void doListSchemaNames()
+            throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
         Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("fakedatabase");
@@ -76,6 +78,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
 
     @Test
     public void doListTables()
+            throws Exception
     {
         ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
         Mockito.when(listTablesRequest.getCatalogName()).thenReturn("fakedatabase");
@@ -85,6 +88,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
 
     @Test
     public void doGetTable()
+            throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
         Mockito.when(getTableRequest.getCatalogName()).thenReturn("fakedatabase");
@@ -124,7 +128,7 @@ public class SaphanaMuxJdbcMetadataHandlerTest {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("fakedatabase");
         this.jdbcMetadataHandler.getPartitions(Mockito.mock(BlockWriter.class), getTableLayoutRequest, queryStatusChecker);
-        Mockito.verify(this.saphanaMetadataHandler, Mockito.times(1)).getPartitions(Mockito.any(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
+        Mockito.verify(this.saphanaMetadataHandler, Mockito.times(1)).getPartitions(nullable(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
     }
 
     @Test

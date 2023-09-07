@@ -42,7 +42,7 @@ public final class PingRequestSerDe
     private static final String QUERY_ID_FIELD = "queryId";
     // new fields should only be appended to the end for backwards compatibility
 
-    private PingRequestSerDe(){}
+    private PingRequestSerDe() {}
 
     public static class Serializer extends TypedSerializer<FederationRequest>
     {

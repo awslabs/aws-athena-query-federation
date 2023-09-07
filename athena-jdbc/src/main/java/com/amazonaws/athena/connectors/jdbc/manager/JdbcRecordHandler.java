@@ -100,17 +100,22 @@ public abstract class JdbcRecordHandler
     /**
      * Used only by Multiplexing handler. All invocations will be delegated to respective database handler.
      */
-    protected JdbcRecordHandler(String sourceType)
+    protected JdbcRecordHandler(String sourceType, java.util.Map<String, String> configOptions)
     {
-        super(sourceType);
+        super(sourceType, configOptions);
         this.jdbcConnectionFactory = null;
         this.databaseConnectionConfig = null;
     }
 
-    protected JdbcRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, AmazonAthena athena, final DatabaseConnectionConfig databaseConnectionConfig,
-            final JdbcConnectionFactory jdbcConnectionFactory)
+    protected JdbcRecordHandler(
+        AmazonS3 amazonS3,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        DatabaseConnectionConfig databaseConnectionConfig,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig.getEngine());
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig.getEngine(), configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }
@@ -132,6 +137,7 @@ public abstract class JdbcRecordHandler
 
     @Override
     public void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
+            throws Exception
     {
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
@@ -166,9 +172,6 @@ public abstract class JdbcRecordHandler
                 connection.commit();
             }
         }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-        }
     }
 
     /**
@@ -197,7 +200,6 @@ public abstract class JdbcRecordHandler
     protected Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
-
         final String fieldName = field.getName();
 
         if (partitionValues.containsKey(fieldName)) {
@@ -249,7 +251,14 @@ public abstract class JdbcRecordHandler
             case FLOAT8:
                 return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
                 {
-                    dst.value = resultSet.getDouble(fieldName);
+                    try {
+                        dst.value = resultSet.getDouble(fieldName);
+                    }
+                    catch (java.sql.SQLException ex) {
+                        // We need to use Double.parseDouble()
+                        // replaceAll() use to strip commas "$25,000.00"
+                        dst.value = Double.parseDouble(resultSet.getString(fieldName).replaceAll(",", "").replaceAll("\\$", ""));
+                    }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case DECIMAL:
@@ -277,8 +286,8 @@ public abstract class JdbcRecordHandler
             case VARCHAR:
                 return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
                 {
-                    if (null != resultSet.getString(fieldName)) { // fixed char issue
-                        dst.value = resultSet.getString(fieldName).trim();
+                    if (null != resultSet.getString(fieldName)) {
+                        dst.value = resultSet.getString(fieldName);
                     }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };

@@ -28,12 +28,21 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -45,6 +54,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -75,29 +85,57 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SaphanaMetadataHandler.class);
 
-    public SaphanaMetadataHandler()
+    public SaphanaMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SaphanaConstants.SAPHANA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SaphanaConstants.SAPHANA_NAME, configOptions), configOptions);
     }
     /**
      * Used by Mux.
      */
-    public SaphanaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SaphanaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig,
                 SaphanaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(SaphanaConstants.SAPHANA_DRIVER_CLASS,
-                SaphanaConstants.SAPHANA_DEFAULT_PORT)));
+                SaphanaConstants.SAPHANA_DEFAULT_PORT)), configOptions);
     }
     @VisibleForTesting
-    protected SaphanaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                     AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected SaphanaMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
 
-    public SaphanaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory)
+    public SaphanaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-            super(databaseConnectionConfig, jdbcConnectionFactory);
+            super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+                FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+                LimitPushdownSubType.INTEGER_CONSTANT
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
+
+        capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(TopNPushdownSubType.SUPPORTS_ORDER_BY));
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     @Override
@@ -136,10 +174,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                     viewFlag = true;
                 }
                 LOGGER.debug("viewFlag: {}", viewFlag);
-            }
-            catch (SQLException sqlException) {
-                LOGGER.debug("Exception while querying view details for view {}", getTableLayoutRequest.getTableName().getTableName());
-                throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
         //For view create a single split
@@ -180,9 +214,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                         while (resultSet.next());
                     }
                 }
-            }
-            catch (SQLException sqlException) {
-                throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
     }
@@ -231,6 +262,7 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
 
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
@@ -239,9 +271,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
             return getTableResponse;
         }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
-        }
     }
     /**
      *
@@ -249,100 +278,94 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
      * @param tableName
      * @param partitionSchema
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+            throws Exception
     {
         LOGGER.debug("SaphanaMetadataHandler:getSchema starting");
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            boolean found = false;
             HashMap<String, String> hashMap = new HashMap<String, String>();
-            try {
-                // fetch data types for columns for appropriate datatype to arrowtype conversions.
-                ResultSet dataTypeResultSet = getColumnDatatype(connection, tableName);
-                String type = "";
-                String name = "";
+            // fetch data types for columns for appropriate datatype to arrowtype conversions.
+            ResultSet dataTypeResultSet = getColumnDatatype(connection, tableName);
+            String type = "";
+            String name = "";
 
-                while (dataTypeResultSet.next()) {
-                    type = dataTypeResultSet.getString("DATA_TYPE");
-                    name = dataTypeResultSet.getString(SaphanaConstants.COLUMN_NAME);
-                    hashMap.put(name.trim().toLowerCase(), type.trim());
+            while (dataTypeResultSet.next()) {
+                type = dataTypeResultSet.getString("DATA_TYPE");
+                name = dataTypeResultSet.getString(SaphanaConstants.COLUMN_NAME);
+                hashMap.put(name.trim().toLowerCase(), type.trim());
+            }
+
+            LOGGER.debug("Data types resolved by column names {}", hashMap);
+
+            if (hashMap.isEmpty() == true) {
+                LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
+            }
+
+            boolean found = false;
+            while (resultSet.next()) {
+                boolean isSpatialDataType = false;
+                String columnName = resultSet.getString(SaphanaConstants.COLUMN_NAME);
+
+                LOGGER.debug("SaphanaMetadataHandler:getSchema determining column type of column {}", columnName);
+                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                        resultSet.getInt("DATA_TYPE"),
+                        resultSet.getInt("COLUMN_SIZE"),
+                        resultSet.getInt("DECIMAL_DIGITS"),
+                        configOptions);
+
+                LOGGER.debug("SaphanaMetadataHandler:getSchema column type of column {} is {}",
+                        columnName, columnType);
+                String dataType = hashMap.get(columnName.toLowerCase());
+                LOGGER.debug("columnName: " + columnName);
+                LOGGER.debug("dataType: " + dataType);
+                /**
+                 * Converting ST_POINT/ST_GEOMETRY data type into VARCHAR
+                 */
+                if (dataType != null
+                        && (dataType.contains("ST_POINT") || dataType.contains("ST_GEOMETRY"))) {
+                    columnType = Types.MinorType.VARCHAR.getType();
+                    isSpatialDataType = true;
+                }
+                /*
+                 * converting into VARCHAR for Unsupported data types.
+                 */
+                if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
+                    columnType = Types.MinorType.VARCHAR.getType();
                 }
 
-                LOGGER.debug("Data types resolved by column names {}", hashMap);
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    LOGGER.debug("Adding column {} to schema of type {}", columnName, columnType);
 
-                if (hashMap.isEmpty() == true) {
-                    LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
-                }
-
-                while (resultSet.next()) {
-                    boolean isSpatialDataType = false;
-                    String columnName = resultSet.getString(SaphanaConstants.COLUMN_NAME);
-
-                    LOGGER.debug("SaphanaMetadataHandler:getSchema determining column type of column {}", columnName);
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                            resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"));
-
-                    LOGGER.debug("SaphanaMetadataHandler:getSchema column type of column {} is {}",
-                            columnName, columnType);
-                    String dataType = hashMap.get(columnName.toLowerCase());
-                    LOGGER.debug("columnName: " + columnName);
-                    LOGGER.debug("dataType: " + dataType);
-
-                    InferredColumnType inferredColumnType = InferredColumnType.fromType(dataType);
-                    columnType = inferredColumnType.columnType;
-                    isSpatialDataType = inferredColumnType.isSpatialType;
-
-                    /**
-                     * converting into VARCHAR not supported by Framework.
-                     */
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        LOGGER.debug("Adding column {} to schema of type {}", columnName, columnType);
-
-                        if (isSpatialDataType) {
-                            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType)
-                                    .addField(new Field(quoteColumnName(columnName) + TO_WELL_KNOWN_TEXT_FUNCTION,
-                                            new FieldType(true, columnType, null), List.of()))
-                                    .build());
-                        }
-                        else {
-                            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        }
-                        found = true;
+                    if (isSpatialDataType) {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType)
+                                .addField(new Field(quoteColumnName(columnName) + TO_WELL_KNOWN_TEXT_FUNCTION,
+                                        new FieldType(true, columnType, null), com.google.common.collect.ImmutableList.of()))
+                                .build());
                     }
                     else {
-                        LOGGER.debug("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
-                        LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
                     }
+
+                    found = true;
                 }
-            }
-            catch (SQLException e) {
-                LOGGER.debug("Error getting schema: " + e.getMessage());
-                LOGGER.error(e.toString());
+                else {
+                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                }
             }
 
             if (!found) {
-                LOGGER.error(" Table not found ---  Throwing exception ");
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
 
-            LOGGER.debug(schemaBuilder.toString());
-            return schemaBuilder.build();
+            partitionSchema.getFields().forEach(schemaBuilder::addField);
         }
+        LOGGER.debug(schemaBuilder.toString());
+        return schemaBuilder.build();
     }
 
     private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
@@ -458,59 +481,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         }
         else {
             return new TableName(table.getSchemaName().toUpperCase(), tableName.toUpperCase());
-        }
-    }
-
-    private static class InferredColumnType
-    {
-        private final ArrowType columnType;
-        private final boolean isSpatialType;
-        public InferredColumnType(ArrowType columnType, boolean isSpatialType)
-        {
-            this.columnType = columnType;
-            this.isSpatialType = isSpatialType;
-        }
-
-        private static InferredColumnType nullType()
-        {
-            return new InferredColumnType(null, false);
-        }
-
-        public static InferredColumnType fromType(String dataType)
-        {
-            if (dataType != null && (dataType.contains("DECIMAL"))) {
-                return new InferredColumnType(Types.MinorType.BIGINT.getType(), false);
-            }
-            if (dataType != null && (dataType.contains("INTEGER"))) {
-                return new InferredColumnType(Types.MinorType.INT.getType(), false);
-            }
-            if (dataType != null && (dataType.contains("date") || dataType.contains("DATE"))) {
-                return new InferredColumnType(Types.MinorType.DATEMILLI.getType(), false);
-            }
-            /**
-             * Converting TIMESTAMP data type into TIMESTAMPMILLI
-             */
-            if (dataType != null && (dataType.contains("TIMESTAMP"))
-            ) {
-                return new InferredColumnType(Types.MinorType.DATEMILLI.getType(), false);
-            }
-            /**
-             * Converting ST_POINT data type into VARBINARY
-             */
-            if (dataType != null
-                    && (dataType.contains("ST_POINT") || dataType.contains("ST_GEOMETRY"))
-            ) {
-                return new InferredColumnType(Types.MinorType.VARCHAR.getType(), true);
-            }
-            /**
-             * Converting DAYDATE data type into DATEDAY
-             */
-            if (dataType != null
-                    && (dataType.contains("DAYDATE") || dataType.contains("DATE"))
-            ) {
-                return new InferredColumnType(Types.MinorType.DATEDAY.getType(), true);
-            }
-            return nullType();
         }
     }
 

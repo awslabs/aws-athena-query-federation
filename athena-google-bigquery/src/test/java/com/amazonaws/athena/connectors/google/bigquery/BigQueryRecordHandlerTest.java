@@ -20,7 +20,11 @@
 package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
-import com.amazonaws.athena.connector.lambda.data.*;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
+import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
@@ -33,65 +37,88 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.google.api.gax.paging.Page;
-import com.google.cloud.bigquery.*;
-import com.google.common.io.ByteStreams;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
+import com.google.api.gax.rpc.ServerStream;
+import com.google.api.gax.rpc.ServerStreamingCallable;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition;
+import com.google.cloud.bigquery.storage.v1.ArrowSchema;
+import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
+import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.ReadStream;
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.ByteString;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.VectorLoader;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.ipc.ReadChannel;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
+import static com.amazonaws.athena.connectors.google.bigquery.BigQueryTestUtils.getBlockTestSchema;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
-})
+@RunWith(MockitoJUnitRunner.class)
 public class BigQueryRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandlerTest.class);
-
-    private String bucket = "bucket";
-    private String prefix = "prefix";
-
+    RootAllocator rootAllocator = new RootAllocator(Long.MAX_VALUE);
+    private BlockAllocator allocator;
     @Mock
     BigQuery bigQuery;
 
     @Mock
     AWSSecretsManager awsSecretsManager;
+    private String bucket = "bucket";
 
+    private String prefix = "prefix";
     @Mock
     private AmazonAthena athena;
-
+    @Mock
+    private BigQueryReadClient bigQueryReadClient;
+    @Mock
+    private ServerStream<ReadRowsResponse> serverStream;
+    @Mock
+    private ArrowSchema arrowSchema;
     private BigQueryRecordHandler bigQueryRecordHandler;
-
-    private BlockAllocator allocator;
-    private List<ByteHolder> mockS3Storage = new ArrayList<>();
     private AmazonS3 amazonS3;
     private S3BlockSpiller spillWriter;
     private S3BlockSpillReader spillReader;
@@ -107,19 +134,72 @@ public class BigQueryRecordHandlerTest
             .withIsDirectory(true)
             .build();
     private FederatedIdentity federatedIdentity;
+    private MockedStatic<BigQueryUtils> mockedStatic;
+    private MockedStatic<MessageSerializer> messageSer;
+    MockedConstruction<VectorSchemaRoot> mockedDefaultVectorSchemaRoot;
+    MockedConstruction<VectorLoader> mockedDefaultVectorLoader;
+
+    public List<FieldVector> getFieldVectors()
+    {
+        List<FieldVector> fieldVectors = new ArrayList<>();
+        IntVector intVector = new IntVector("int1", rootAllocator);
+        intVector.allocateNew(1024);
+        intVector.setSafe(0, 42);  // Example: Set the value at index 0 to 42
+        intVector.setSafe(1, 3);
+        intVector.setValueCount(2);
+        fieldVectors.add(intVector);
+        VarCharVector varcharVector = new VarCharVector("string1", rootAllocator);
+        varcharVector.allocateNew(1024);
+        varcharVector.setSafe(0, "test".getBytes(StandardCharsets.UTF_8));  // Example: Set the value at index 0 to 42
+        varcharVector.setSafe(1, "test1".getBytes(StandardCharsets.UTF_8));
+        varcharVector.setValueCount(2);
+        fieldVectors.add(varcharVector);
+        BitVector bitVector = new BitVector("bool1", rootAllocator);
+        bitVector.allocateNew(1024);
+        bitVector.setSafe(0, 1);  // Example: Set the value at index 0 to 42
+        bitVector.setSafe(1, 0);
+        bitVector.setValueCount(2);
+        fieldVectors.add(bitVector);
+        Float8Vector float8Vector = new Float8Vector("float1", rootAllocator);
+        float8Vector.allocateNew(1024);
+        float8Vector.setSafe(0, 1.00f);  // Example: Set the value at index 0 to 42
+        float8Vector.setSafe(1, 0.0f);
+        float8Vector.setValueCount(2);
+        fieldVectors.add(float8Vector);
+        IntVector innerVector = new IntVector("innerVector", rootAllocator);
+        innerVector.allocateNew(1024);
+        innerVector.setSafe(0, 10);
+        innerVector.setSafe(1, 20);
+        innerVector.setSafe(2, 30);
+        innerVector.setValueCount(3);
+
+        // Create a ListVector and add the inner vector to it
+        ListVector listVector = ListVector.empty("listVector", rootAllocator);
+        UnionListWriter writer = listVector.getWriter();
+        for (int i = 0; i < 2; i++) {
+            writer.startList();
+            writer.setPosition(i);
+            for (int j = 0; j < 5; j++) {
+                writer.writeInt(j * i);
+            }
+            writer.setValueCount(5);
+            writer.endList();
+        }
+        listVector.setValueCount(2);
+        fieldVectors.add(listVector);
+        return fieldVectors;
+    }
 
     @Before
     public void init()
     {
         System.setProperty("aws.region", "us-east-1");
         logger.info("Starting init.");
+        mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
+        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
-        //MockitoAnnotations.initMocks(this);
-
         allocator = new BlockAllocatorImpl();
         amazonS3 = mock(AmazonS3.class);
-
-        mockS3Client();
 
         //Create Spill config
         spillConfig = SpillConfig.newBuilder()
@@ -135,19 +215,34 @@ public class BigQueryRecordHandlerTest
                 .build();
 
         schemaForRead = new Schema(BigQueryTestUtils.getTestSchemaFieldsArrow());
-        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator());
+        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
         //Mock the BigQuery Client to return Datasets, and Table Schema information.
         BigQueryPage<Dataset> datasets = new BigQueryPage<Dataset>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, 2));
-        when(bigQuery.listDatasets(any(String.class))).thenReturn(datasets);
+        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasets);
         BigQueryPage<Table> tables = new BigQueryPage<Table>(BigQueryTestUtils.getTableList(BigQueryTestUtils.PROJECT_1_NAME, "dataset1", 2));
-        when(bigQuery.listTables(any(DatasetId.class))).thenReturn(tables);
+        when(bigQuery.listTables(nullable(DatasetId.class))).thenReturn(tables);
+        Table table = mock(Table.class);
+        TableDefinition def = mock(TableDefinition.class);
+        when(bigQuery.getTable(any())).thenReturn(table);
+        when(table.getDefinition()).thenReturn(def);
+        when(def.getType()).thenReturn(TableDefinition.Type.TABLE);
 
         //The class we want to test.
-        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena, bigQuery);
+        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of(BigQueryConstants.GCP_PROJECT_ID, "test"), rootAllocator);
 
         logger.info("Completed init.");
+    }
+
+    @After
+    public void close()
+    {
+        mockedDefaultVectorLoader.close();
+        mockedDefaultVectorSchemaRoot.close();
+        mockedStatic.close();
+        messageSer.close();
+        allocator.close();
     }
 
     @Test
@@ -159,7 +254,7 @@ public class BigQueryRecordHandlerTest
                 BigQueryTestUtils.PROJECT_1_NAME,
                 "queryId",
                 new TableName("dataset1", "table1"),
-                BigQueryTestUtils.getBlockTestSchema(),
+                getBlockTestSchema(),
                 Split.newBuilder(S3SpillLocation.newBuilder()
                                 .withBucket(bucket)
                                 .withPrefix(prefix)
@@ -170,155 +265,59 @@ public class BigQueryRecordHandlerTest
                         keyFactory.create()).build(),
                 new Constraints(Collections.EMPTY_MAP),
                 0,          //This is ignored when directly calling readWithConstraints.
-                0)) {   //This is ignored when directly calling readWithConstraints.
-            //Always return try for the evaluator to keep all rows.
-            ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-            when(evaluator.apply(any(String.class), any(Object.class))).thenAnswer(
-                    (InvocationOnMock invocationOnMock) -> {
-                        return true;
-                    }
-            );
+                0)) {
 
-            //Populate the schema and data that the mocked Google BigQuery client will return.
-            com.google.cloud.bigquery.Schema tableSchema = BigQueryTestUtils.getTestSchema();
-            List<FieldValueList> tableRows = Arrays.asList(
-                    BigQueryTestUtils.getBigQueryFieldValueList(false, 1000, "test1", 123123.12312),
-                    BigQueryTestUtils.getBigQueryFieldValueList(true, 500, "test2", 5345234.22111),
-                    BigQueryTestUtils.getBigQueryFieldValueList(false, 700, "test3", 324324.23423),
-                    BigQueryTestUtils.getBigQueryFieldValueList(true, 900, null, null),
-                    BigQueryTestUtils.getBigQueryFieldValueList(null, null, "test5", 2342.234234),
-                    BigQueryTestUtils.getBigQueryFieldValueList(true, 1200, "test6", 1123.12312),
-                    BigQueryTestUtils.getBigQueryFieldValueList(false, 100, "test7", 1313.12312),
-                    BigQueryTestUtils.getBigQueryFieldValueList(true, 120, "test8", 12313.1312),
-                    BigQueryTestUtils.getBigQueryFieldValueList(false, 300, "test9", 12323.1312)
-            );
-            Page<FieldValueList> fieldValueList = new BigQueryPage<>(tableRows);
-            TableResult result = new TableResult(tableSchema, tableRows.size(), fieldValueList);
+            // Mocking necessary dependencies
+            ReadSession readSession = mock(ReadSession.class);
+            ReadRowsResponse readRowsResponse = mock(ReadRowsResponse.class);
+            ServerStreamingCallable ssCallable = mock(ServerStreamingCallable.class);
 
-            //Mock out the Google BigQuery Job.
-            Job mockBigQueryJob = mock(Job.class);
-            when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
-            when(mockBigQueryJob.getQueryResults()).thenReturn(result);
-            when(bigQuery.create(any(JobInfo.class))).thenReturn(mockBigQueryJob);
+            // Mocking method calls
+            mockStatic(BigQueryReadClient.class);
+            when(BigQueryReadClient.create()).thenReturn(bigQueryReadClient);
+            messageSer = mockStatic(MessageSerializer.class);
+            when(MessageSerializer.deserializeSchema((ReadChannel) any())).thenReturn(BigQueryTestUtils.getBlockTestSchema());
+            mockedDefaultVectorLoader = Mockito.mockConstruction(VectorLoader.class,
+                    (mock, context) -> {
+                        Mockito.doNothing().when(mock).load(any());
+                    });
+            mockedDefaultVectorSchemaRoot = Mockito.mockConstruction(VectorSchemaRoot.class,
+                    (mock, context) -> {
+                        when(mock.getRowCount()).thenReturn(2);
+                        when(mock.getFieldVectors()).thenReturn(getFieldVectors());
+                    });
+            when(bigQueryReadClient.createReadSession(any(CreateReadSessionRequest.class))).thenReturn(readSession);
+            when(readSession.getArrowSchema()).thenReturn(arrowSchema);
+            when(readSession.getStreamsCount()).thenReturn(1);
+            ReadStream readStream = mock(ReadStream.class);
+            when(readSession.getStreams(anyInt())).thenReturn(readStream);
+            when(readStream.getName()).thenReturn("testStream");
+            byte[] byteArray1 = {(byte) 0xFF};
+            ByteString byteString1 = ByteString.copyFrom(byteArray1);
+
+            ByteString bs = mock(ByteString.class);
+            when(arrowSchema.getSerializedSchema()).thenReturn(bs);
+            when(bs.toByteArray()).thenReturn(byteArray1);
+            when(bigQueryReadClient.readRowsCallable()).thenReturn(ssCallable);
+            when(ssCallable.call(any(ReadRowsRequest.class))).thenReturn(serverStream);
+            when(serverStream.iterator()).thenReturn(ImmutableList.of(readRowsResponse).iterator());
+            when(readRowsResponse.hasArrowRecordBatch()).thenReturn(true);
+            com.google.cloud.bigquery.storage.v1.ArrowRecordBatch arrowRecordBatch = mock(com.google.cloud.bigquery.storage.v1.ArrowRecordBatch.class);
+            when(readRowsResponse.getArrowRecordBatch()).thenReturn(arrowRecordBatch);
+            byte[] byteArray = {(byte) 0xFF};
+            ByteString byteString = ByteString.copyFrom(byteArray);
+            when(arrowRecordBatch.getSerializedRecordBatch()).thenReturn(byteString);
+            ArrowRecordBatch apacheArrowRecordBatch = mock(ArrowRecordBatch.class);
+            when(MessageSerializer.deserializeRecordBatch(any(ReadChannel.class), any())).thenReturn(apacheArrowRecordBatch);
+            Mockito.doNothing().when(apacheArrowRecordBatch).close();
 
             QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-            when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
-            PowerMockito.mockStatic(System.class);
-            PowerMockito.when(System.getenv(anyString())).thenReturn("test");
-            logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName()));
 
             //Ensure that there was a spill so that we can read the spilled block.
             assertTrue(spillWriter.spilled());
-        }
-    }
-
-    @Test
-    public void getObjectFromFieldValue()
-            throws Exception
-    {
-        org.apache.arrow.vector.types.pojo.Schema testSchema = SchemaBuilder.newBuilder()
-                .addDateDayField("datecol")
-                .addDateMilliField("datetimecol")
-                .addStringField("timestampcol")
-                .build();
-
-        try (ReadRecordsRequest request = new ReadRecordsRequest(
-                federatedIdentity,
-                BigQueryTestUtils.PROJECT_1_NAME,
-                "queryId",
-                new TableName("dataset1", "table1"),
-                testSchema,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                                .withBucket(bucket)
-                                .withPrefix(prefix)
-                                .withSplitId(UUID.randomUUID().toString())
-                                .withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true)
-                                .build(),
-                        keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP),
-                0,          //This is ignored when directly calling readWithConstraints.
-                0)) {   //This is ignored when directly calling readWithConstraints.
-            //Always return try for the evaluator to keep all rows.
-            ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-            when(evaluator.apply(any(String.class), any(Object.class))).thenAnswer(
-                    (InvocationOnMock invocationOnMock) -> {
-                        return true;
-                    }
-            );
-
-            // added schema with columns datecol, datetimecol, timestampcol
-            List<com.google.cloud.bigquery.Field> testSchemaFields = Arrays.asList(com.google.cloud.bigquery.Field.of("datecol", LegacySQLTypeName.DATE),
-                    com.google.cloud.bigquery.Field.of("datetimecol", LegacySQLTypeName.DATETIME),
-                    com.google.cloud.bigquery.Field.of("timestampcol", LegacySQLTypeName.TIMESTAMP));
-            com.google.cloud.bigquery.Schema tableSchema = com.google.cloud.bigquery.Schema.of(testSchemaFields);
-
-            // mocked table rows
-            List<FieldValue> firstRowValues = Arrays.asList(FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2016-02-05"),
-                    FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2021-10-30T10:10:10"),
-                    FieldValue.of(FieldValue.Attribute.PRIMITIVE, "2014-12-03T12:30:00.450Z"));
-            FieldValueList firstRow = FieldValueList.of(firstRowValues,FieldList.of(testSchemaFields));
-            List<FieldValueList> tableRows = Arrays.asList(firstRow);
-
-            Page<FieldValueList> fieldValueList = new BigQueryPage<>(tableRows);
-            TableResult result = new TableResult(tableSchema, tableRows.size(), fieldValueList);
-
-            //Mock out the Google BigQuery Job.
-            Job mockBigQueryJob = mock(Job.class);
-            when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
-            when(mockBigQueryJob.getQueryResults()).thenReturn(result);
-            when(bigQuery.create(any(JobInfo.class))).thenReturn(mockBigQueryJob);
-
-            QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-            when(queryStatusChecker.isQueryRunning()).thenReturn(true);
-
-            //Execute the test
-            bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
-            PowerMockito.mockStatic(System.class);
-            PowerMockito.when(System.getenv(anyString())).thenReturn("test");
-            logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName()));
-
-        }
-    }
-    //Mocks the S3 client by storing any putObjects() and returning the object when getObject() is called.
-    private void mockS3Client()
-    {
-        when(amazonS3.putObject(anyObject()))
-                .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
-                    ByteHolder byteHolder = new ByteHolder();
-                    byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
-                    mockS3Storage.add(byteHolder);
-                    return mock(PutObjectResult.class);
-                });
-
-        when(amazonS3.getObject(anyString(), anyString()))
-                .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    S3Object mockObject = mock(S3Object.class);
-                    ByteHolder byteHolder = mockS3Storage.get(0);
-                    mockS3Storage.remove(0);
-                    when(mockObject.getObjectContent()).thenReturn(
-                            new S3ObjectInputStream(
-                                    new ByteArrayInputStream(byteHolder.getBytes()), null));
-                    return mockObject;
-                });
-    }
-
-    private class ByteHolder
-    {
-        private byte[] bytes;
-
-        void setBytes(byte[] bytes)
-        {
-            this.bytes = bytes;
-        }
-
-        byte[] getBytes()
-        {
-            return bytes;
         }
     }
 }

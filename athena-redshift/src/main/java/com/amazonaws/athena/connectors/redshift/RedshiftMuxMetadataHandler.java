@@ -43,24 +43,24 @@ class RedshiftMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new RedshiftMetadataHandler(config);
+        return new RedshiftMetadataHandler(config, configOptions);
     }
 }
 
 public class RedshiftMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public RedshiftMuxMetadataHandler()
+    public RedshiftMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new RedshiftMetadataHandlerFactory());
+        super(new RedshiftMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected RedshiftMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-            final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected RedshiftMuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+          Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

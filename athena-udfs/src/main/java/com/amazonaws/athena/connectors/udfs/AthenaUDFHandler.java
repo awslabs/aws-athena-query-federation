@@ -74,6 +74,10 @@ public class AthenaUDFHandler
      */
     public String compress(String input)
     {
+        if (input == null) {
+            return null;
+        }
+
         byte[] inputBytes = input.getBytes(StandardCharsets.UTF_8);
 
         // create compressor
@@ -110,6 +114,10 @@ public class AthenaUDFHandler
      */
     public String decompress(String input)
     {
+        if (input == null) {
+            return null;
+        }
+
         byte[] inputBytes = Base64.getDecoder().decode((input));
 
         // create decompressor
@@ -156,6 +164,10 @@ public class AthenaUDFHandler
      */
     public String decrypt(String ciphertext, String secretName)
     {
+        if (ciphertext == null) {
+            return null;
+        }
+
         String secretString = cachableSecretsManager.getSecret(secretName);
         byte[] plaintextKey = Base64.getDecoder().decode(secretString);
 
@@ -183,6 +195,10 @@ public class AthenaUDFHandler
      */
     public String encrypt(String plaintext, String secretName)
     {
+        if (plaintext == null) {
+            return null;
+        }
+
         String secretString = cachableSecretsManager.getSecret(secretName);
         byte[] plaintextKey = Base64.getDecoder().decode(secretString);
 

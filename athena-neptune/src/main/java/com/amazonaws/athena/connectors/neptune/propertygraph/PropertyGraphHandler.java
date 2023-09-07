@@ -23,29 +23,24 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
-import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
-import com.amazonaws.athena.connectors.neptune.NeptuneRecordHandler;
 import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.TableSchemaMetaType;
+import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.CustomSchemaRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.EdgeRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.VertexRowWriter;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.driver.Client;
-import org.apache.tinkerpop.gremlin.groovy.jsr223.GroovyTranslator;
+import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a
@@ -63,7 +58,7 @@ import java.util.Set;
  */
 public class PropertyGraphHandler 
 {
-    private static final Logger logger = LoggerFactory.getLogger(NeptuneRecordHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(PropertyGraphHandler.class);
 
     /**
      * used to aid in debugging. Athena will use this name in conjunction with your
@@ -98,8 +93,11 @@ public class PropertyGraphHandler
      *       performance.
      */
 
-    public void executeQuery(ReadRecordsRequest recordsRequest, final QueryStatusChecker queryStatusChecker,
-            final BlockSpiller spiller) throws Exception 
+    public void executeQuery(
+        ReadRecordsRequest recordsRequest,
+        QueryStatusChecker queryStatusChecker,
+        BlockSpiller spiller,
+        java.util.Map<String, String> configOptions) throws Exception
     {
         logger.debug("readWithConstraint: enter - " + recordsRequest.getSplit());
         long numRows = 0;
@@ -109,119 +107,79 @@ public class PropertyGraphHandler
         String labelName = recordsRequest.getTableName().getTableName();
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
         String type = recordsRequest.getSchema().getCustomMetadata().get("componenttype");
+        String glabel = recordsRequest.getSchema().getCustomMetadata().get("glabel");
         TableSchemaMetaType tableSchemaMetaType = TableSchemaMetaType.valueOf(type.toUpperCase());
-        
+
         logger.debug("readWithConstraint: schema type is " + tableSchemaMetaType.toString());
+        
+        //AWS Glue converts table name to lowercase, table property 'glabel' stores Amazon Neptune Vertex/Edge labels to be used in Gremlin query
+        if (glabel != null && !glabel.trim().isEmpty()) {
+            labelName = glabel;
+        }
 
         if (tableSchemaMetaType != null) {
             switch (tableSchemaMetaType) {
                 case VERTEX:
                     graphTraversal = graphTraversalSource.V().hasLabel(labelName);
-                    getQueryPartForContraintsMap(graphTraversal, recordsRequest);
                     graphTraversal = graphTraversal.valueMap().with(WithOptions.tokens);
 
                     for (final Field nextField : recordsRequest.getSchema().getFields()) {
-                        VertexRowWriter.writeRowTemplate(builder, nextField);
+                        VertexRowWriter.writeRowTemplate(builder, nextField, configOptions);
                     }
+
+                    parseNodeOrEdge(queryStatusChecker, spiller, numRows, graphTraversal, builder);
 
                     break;
 
                 case EDGE:
                     graphTraversal = graphTraversalSource.E().hasLabel(labelName);
-                    getQueryPartForContraintsMap(graphTraversal, recordsRequest);
                     graphTraversal = graphTraversal.elementMap();
 
                     for (final Field nextField : recordsRequest.getSchema().getFields()) {
-                        EdgeRowWriter.writeRowTemplate(builder, nextField);
+                        EdgeRowWriter.writeRowTemplate(builder, nextField, configOptions);
+                    }
+
+                    parseNodeOrEdge(queryStatusChecker, spiller, numRows, graphTraversal, builder);
+
+                    break;
+                    
+                case VIEW: 
+                    String query = recordsRequest.getSchema().getCustomMetadata().get("query");
+                    Iterator<Result> resultIterator = client.submit(query).iterator();
+
+                    for (final Field nextField : recordsRequest.getSchema().getFields()) {
+                        CustomSchemaRowWriter.writeRowTemplate(builder, nextField);
+                    }
+
+                    final GeneratedRowWriter rowWriter = builder.build();
+
+                    while (resultIterator.hasNext() && queryStatusChecker.isQueryRunning()) {
+                        spiller.writeRows((final Block block, final int rowNum) -> {
+                            final Result obj = (Result) resultIterator.next();
+                            return (rowWriter.writeRow(block, rowNum, (Object) obj.getObject()) ? 1 : 0);
+                        });
                     }
 
                     break;
             }
         }
+    }
 
-        // log string equivalent of gremlin query
-        logger.debug("readWithConstraint: enter - "
-                + GroovyTranslator.of("g").translate(graphTraversal.asAdmin().getBytecode()));
-
+    private void parseNodeOrEdge(final QueryStatusChecker queryStatusChecker, final BlockSpiller spiller, long numRows,
+            GraphTraversal graphTraversal, GeneratedRowWriter.RowWriterBuilder builder) 
+    {
         final GraphTraversal graphTraversalFinal1 = graphTraversal;
-        final GeneratedRowWriter rowWriter1 = builder.build();
+        final GeneratedRowWriter rowWriter = builder.build();
 
         while (graphTraversalFinal1.hasNext() && queryStatusChecker.isQueryRunning()) {
             numRows++;
 
             spiller.writeRows((final Block block, final int rowNum) -> {
                 final Map obj = (Map) graphTraversalFinal1.next();
-                return (rowWriter1.writeRow(block, rowNum, (Object) obj) ? 1 : 0);
+                return (rowWriter.writeRow(block, rowNum, (Object) obj) ? 1 : 0);
             });
         }
 
         logger.info("readWithConstraint: numRows[{}]", numRows);
-    }
-
-    /**
-     * Used to generate Gremlin Query part for Constraint Map
-     * 
-     * @param traversal Gremlin Traversal, traversal is updated based on constraints
-     *                  map
-     * @param hasMap    Constraint Hash Map
-     * 
-     * @return A Gremlin Query Part equivalent to Contraint.
-     */
-    public GraphTraversal getQueryPartForContraintsMap(GraphTraversal traversal,
-            final ReadRecordsRequest recordsRequest) 
-            {
-        final Map<String, ValueSet> hashMap = recordsRequest.getConstraints().getSummary();
-        if (hashMap.size() == 0) {
-            return traversal;
-        }
-
-        logger.info("readWithContraint: Constaints Map " + hashMap.toString());
-
-        final Set<String> setOfkeys = (Set<String>) (hashMap.keySet());
-        for (final String key : setOfkeys) {
-            if (hashMap.get(key) instanceof SortedRangeSet) {
-                final List<Range> ranges = ((SortedRangeSet) hashMap.get(key)).getOrderedRanges();
-
-                for (final Range range : ranges) {
-                    if (!range.getLow().isNullValue() && !range.getHigh().isNullValue()) {
-                        if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {
-                            traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                                    range.getLow().getValue().toString(), range.getType(), range.getLow().getBound(),
-                                    GremlinQueryPreProcessor.Operator.EQUALTO);
-                            break;
-                        }
-                    }
-
-                    if (!range.getLow().isNullValue()) {
-                        traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                                range.getLow().getValue().toString(), range.getType(), range.getLow().getBound(),
-                                GremlinQueryPreProcessor.Operator.GREATERTHAN);
-                    }
-
-                    if (!range.getHigh().isNullValue()) {
-                        traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                                range.getHigh().getValue().toString(), range.getType(), range.getHigh().getBound(),
-                                GremlinQueryPreProcessor.Operator.LESSTHAN);
-                    }
-                }
-            }
-
-            if (hashMap.get(key) instanceof EquatableValueSet) {
-                final EquatableValueSet valueSet = ((EquatableValueSet) hashMap.get(key));
-
-                if (valueSet.isWhiteList()) {
-                    traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                            valueSet.getValue(0).toString(), valueSet.getType(), null,
-                            GremlinQueryPreProcessor.Operator.EQUALTO);
-                } 
-                else {
-                    traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                            valueSet.getValue(0).toString(), valueSet.getType(), null,
-                            GremlinQueryPreProcessor.Operator.NOTEQUALTO);
-                }
-            }
-        }
-
-        return traversal;
     }
 }

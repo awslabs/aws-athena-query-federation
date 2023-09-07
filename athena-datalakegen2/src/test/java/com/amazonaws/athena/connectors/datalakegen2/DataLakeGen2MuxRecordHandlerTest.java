@@ -64,11 +64,12 @@ public class DataLakeGen2MuxRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", DataLakeGen2Constants.NAME,
                 "datalakegentwo://jdbc:sqlserver://hostname/${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new DataLakeGen2MuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap);
+        this.jdbcRecordHandler = new DataLakeGen2MuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
     public void readWithConstraint()
+            throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -79,6 +80,7 @@ public class DataLakeGen2MuxRecordHandlerTest
 
     @Test(expected = RuntimeException.class)
     public void readWithConstraintWithUnsupportedCatalog()
+            throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);

@@ -34,7 +34,7 @@ public final class EncryptionKeySerDe
     private static final String KEY_FIELD = "key";
     private static final String NONCE_FIELD = "nonce";
 
-    private EncryptionKeySerDe(){}
+    private EncryptionKeySerDe() {}
 
     public static final class Serializer extends BaseSerializer<EncryptionKey>
     {

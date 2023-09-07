@@ -30,7 +30,7 @@ public class BigQueryConstants
     /**
      * The maximum number of datasets and tables that can be returned from Google BigQuery API calls for metadata.
      */
-    public static final long MAX_RESULTS = 10_000;
+    public static final long MAX_RESULTS = 100_000;
 
     /**
      * The Project ID within the Google Cloud Platform where the datasets and tables exist to query.
@@ -38,10 +38,16 @@ public class BigQueryConstants
     public static final String GCP_PROJECT_ID = "gcp_project_id";
 
     /**
+     * The Private Endpoint which is configured with Google BigQuery.
+     */
+    public static final String BIG_QUERY_ENDPOINT = "big_query_endpoint";
+    /**
      * The name of the secret within Secrets Manager that contains credentials JSON that provides this Lambda access
      * to call Google BigQuery.
      */
     public static final String ENV_BIG_QUERY_CREDS_SM_ID = "secret_manager_gcp_creds_name";
+
+    public static final String TMP_SERVICE_ACCOUNT_JSON = "/tmp/service-account.json";
 
     private BigQueryConstants()
     {

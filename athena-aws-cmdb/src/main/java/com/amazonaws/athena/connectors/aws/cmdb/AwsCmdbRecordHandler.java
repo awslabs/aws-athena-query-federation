@@ -49,16 +49,16 @@ public class AwsCmdbRecordHandler
     //Map of available fully qualified TableNames to their respective TableProviders.
     private Map<TableName, TableProvider> tableProviders;
 
-    public AwsCmdbRecordHandler()
+    public AwsCmdbRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
-        tableProviders = new TableProviderFactory().getTableProviders();
+        super(SOURCE_TYPE, configOptions);
+        tableProviders = new TableProviderFactory(configOptions).getTableProviders();
     }
 
     @VisibleForTesting
-    protected AwsCmdbRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, TableProviderFactory tableProviderFactory)
+    protected AwsCmdbRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, TableProviderFactory tableProviderFactory, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         tableProviders = tableProviderFactory.getTableProviders();
     }
 

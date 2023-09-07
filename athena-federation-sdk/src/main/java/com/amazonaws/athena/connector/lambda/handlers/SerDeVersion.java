@@ -28,7 +28,7 @@ package com.amazonaws.athena.connector.lambda.handlers;
  */
 public class SerDeVersion
 {
-    private SerDeVersion(){}
+    private SerDeVersion() {}
 
-    public static final int SERDE_VERSION = 2;
+    public static final int SERDE_VERSION = 4;
 }

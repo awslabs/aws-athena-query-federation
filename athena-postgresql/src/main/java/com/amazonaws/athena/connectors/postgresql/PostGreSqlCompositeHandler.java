@@ -32,6 +32,6 @@ public class PostGreSqlCompositeHandler
 {
     public PostGreSqlCompositeHandler()
     {
-        super(new PostGreSqlMetadataHandler(), new PostGreSqlRecordHandler());
+        super(new PostGreSqlMetadataHandler(System.getenv()), new PostGreSqlRecordHandler(System.getenv()));
     }
 }

@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER;
+
 public class SnowflakeQueryStringBuilderTest
 {
     @Mock
@@ -37,7 +39,7 @@ public class SnowflakeQueryStringBuilderTest
     public void testQueryBuilderNew()
     {
         Split split = Mockito.mock(Split.class);
-        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder("'");
+        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
         Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p1-p2-p3-p4-p5");
         builder.getFromClauseWithSplit("default", "", "table", split);
@@ -47,7 +49,7 @@ public class SnowflakeQueryStringBuilderTest
     @Test
     public void testGetPartitionWhereClauses()
     {
-        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder("'");
+        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
         List<String> fromClauseWithSplit = builder.getPartitionWhereClauses(split);
         List<String> expected = new ArrayList<>();
         Assert.assertEquals(expected, fromClauseWithSplit);

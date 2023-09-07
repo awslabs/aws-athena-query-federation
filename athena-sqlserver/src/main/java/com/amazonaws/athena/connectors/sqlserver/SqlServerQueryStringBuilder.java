@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.sqlserver;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
@@ -31,9 +33,9 @@ import java.util.List;
 public class SqlServerQueryStringBuilder extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlServerQueryStringBuilder.class);
-    public SqlServerQueryStringBuilder(String quoteCharacters)
+    public SqlServerQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, federationExpressionParser);
     }
 
     @Override
@@ -72,5 +74,11 @@ public class SqlServerQueryStringBuilder extends JdbcSplitQueryBuilder
             LOGGER.info("Fetching data without Partition");
         }
         return Collections.emptyList();
+    }
+    //Returning empty string as SQLServer does not support LIMIT clause
+    @Override
+    protected String appendLimitOffset(Split split, Constraints constraints)
+    {
+        return emptyString;
     }
 }

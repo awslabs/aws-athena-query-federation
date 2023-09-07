@@ -21,12 +21,15 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  */
 
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Set;
 
 /**
@@ -44,9 +47,13 @@ public class GlueFieldLexer
 
     private static final String STRUCT = "struct";
 
-    private static final Set<String> LIST_EQUIVALENTS = Set.of("array", "set");
+    private static final String MAP = "map";
+
+    private static final Set<String> LIST_EQUIVALENTS = ImmutableSet.of("array", "set");
 
     private static final BaseTypeMapper DEFAULT_TYPE_MAPPER = (String type) -> DefaultGlueType.toArrowType(type);
+
+    public static final boolean MAP_DISABLED = true;
 
     private GlueFieldLexer() {}
 
@@ -83,6 +90,9 @@ public class GlueFieldLexer
             final String typeTokenValueLower = typeToken.getValue().toLowerCase();
             if (typeTokenValueLower.equals(STRUCT)) {
                 return parseStruct(name, typeToken, parser, mapper);
+            }
+            else if (typeTokenValueLower.equals(MAP)) {
+                return parseMap(name, typeToken, parser, mapper);
             }
             else if (LIST_EQUIVALENTS.contains(typeTokenValueLower)) {
                 return parseList(name, typeToken, parser, mapper);
@@ -129,6 +139,32 @@ public class GlueFieldLexer
         // and > if the enclosing type is a list
         expectTokenMarkerIsFieldEnd(closingToken);
         return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType()).addField(child).build();
+    }
+
+    private static Field parseMap(String name, GlueTypeParser.Token typeToken, GlueTypeParser parser, BaseTypeMapper mapper)
+    {
+        if (MAP_DISABLED) {
+            throw new RuntimeException("Map type is currently unsupported");
+        }
+
+        expectTokenMarkerIsFieldStart(typeToken);
+        // Recursive calls to resolve key and value types
+        Field keyType = lexInternal("key", parser, mapper);
+        Field valueType = lexInternal("value", parser, mapper);
+        // The next field must always be a closing token since we are building the field here
+        // So consume the closing token for this field
+        GlueTypeParser.Token closingToken = parser.next();
+        // Note that the closing token is , if the enclosing type is a struct
+        // and > if the enclosing type is a list
+        expectTokenMarkerIsFieldEnd(closingToken);
+
+        FieldType keyFieldTypeNotNullable = new FieldType(false, keyType.getType(), keyType.getDictionary(), keyType.getMetadata());
+        Field keyFieldNotNullable = new Field(keyType.getName(), keyFieldTypeNotNullable, keyType.getChildren());
+
+        return FieldBuilder.newBuilder(name, new ArrowType.Map(false))
+             .addField("ENTRIES", Types.MinorType.STRUCT.getType(), false,
+                  Arrays.asList(keyFieldNotNullable, valueType))
+             .build();
     }
 
     private static void expectTokenMarkerIsFieldStart(GlueTypeParser.Token token)

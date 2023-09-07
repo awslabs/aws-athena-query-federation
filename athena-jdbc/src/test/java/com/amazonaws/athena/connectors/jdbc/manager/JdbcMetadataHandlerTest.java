@@ -53,9 +53,12 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class JdbcMetadataHandlerTest
         extends TestBase
@@ -69,19 +72,22 @@ public class JdbcMetadataHandlerTest
     private BlockAllocator blockAllocator;
     private AWSSecretsManager secretsManager;
     private AmazonAthena athena;
+    private ResultSet resultSetName;
 
     @Before
     public void setup()
+            throws Exception
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new JdbcMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory)
+        this.jdbcMetadataHandler = new JdbcMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of())
         {
             @Override
             public Schema getPartitionSchema(final String catalogName)
@@ -102,6 +108,10 @@ public class JdbcMetadataHandlerTest
         };
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
+        String[] columnNames = new String[] {"TABLE_SCHEM", "TABLE_NAME"};
+        String[][] tableNameValues = new String[][]{new String[] {"testSchema", "testTable"}};
+        this.resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        Mockito.when(this.connection.getMetaData().getTables(Mockito.eq(connection.getCatalog()), any(), Mockito.eq(null), Mockito.eq(new String[] {"TABLE", "VIEW", "EXTERNAL TABLE"}))).thenReturn(this.resultSetName);
     }
 
     @Test
@@ -112,7 +122,7 @@ public class JdbcMetadataHandlerTest
 
     @Test
     public void doListSchemaNames()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"TABLE_SCHEM"};
         Object[][] values = {{"testDB"}, {"testdb2"}, {"information_schema"}};
@@ -126,7 +136,7 @@ public class JdbcMetadataHandlerTest
 
     @Test
     public void doListTables()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
         Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testtable2"}};
@@ -134,8 +144,7 @@ public class JdbcMetadataHandlerTest
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
-        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE"})).thenReturn(resultSet);
-        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
         ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
                 this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", null, UNLIMITED_PAGE_SIZE_VALUE));
@@ -144,15 +153,14 @@ public class JdbcMetadataHandlerTest
 
     @Test
     public void doListTablesEscaped()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
         Object[][] values = {{"test_Schema", "testTable"}, {"test_Schema", "testtable2"}};
         TableName[] expected = {new TableName("test_Schema", "testTable"), new TableName("test_Schema", "testtable2")};
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
-        Mockito.when(connection.getMetaData().getTables("testCatalog", "test\\_Schema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE"})).thenReturn(resultSet);
-        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "test\\_Schema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenReturn("\\");
         ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
                 this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
@@ -162,7 +170,7 @@ public class JdbcMetadataHandlerTest
 
     @Test(expected = IllegalArgumentException.class)
     public void doListTablesEscapedException()
-            throws SQLException
+            throws Exception
     {
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenReturn("_");
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,
@@ -171,7 +179,7 @@ public class JdbcMetadataHandlerTest
 
     @Test
     public void doGetTable()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
         Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
@@ -189,7 +197,6 @@ public class JdbcMetadataHandlerTest
 
         TableName inputTableName = new TableName("testSchema", "testTable");
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
-        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
 
         GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(
                 this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
@@ -199,38 +206,69 @@ public class JdbcMetadataHandlerTest
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 
+
+    @Test
+    public void doGetTableCaseInsensitive()
+            throws Exception
+    {
+        TableName inputTableName = new TableName("testSchema", "testTable");
+        Object[][] values1 = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}};
+
+        setupMocksDoGetTableCaseInsensitive(inputTableName, values1, "testTable");
+
+        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+
+        Assert.assertEquals("testTable", getTableResponse.getTableName().getTableName());
+    }
+
     @Test(expected = RuntimeException.class)
     public void doGetTableNoColumns()
+            throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
 
         this.jdbcMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doGetTableSQLException()
-            throws SQLException
+            throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
-        Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), Mockito.isNull()))
                 .thenThrow(new SQLException());
         this.jdbcMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doListSchemaNamesSQLException()
-            throws SQLException
+            throws Exception
     {
         Mockito.when(this.connection.getMetaData().getSchemas()).thenThrow(new SQLException());
         this.jdbcMetadataHandler.doListSchemaNames(this.blockAllocator, new ListSchemasRequest(this.federatedIdentity, "testQueryId", "testCatalog"));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doListTablesSQLException()
-            throws SQLException
+            throws Exception
     {
-        Mockito.when(this.connection.getMetaData().getTables(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any())).thenThrow(new SQLException());
+        Mockito.when(this.connection.getMetaData().getTables(nullable(String.class), nullable(String.class), Mockito.isNull(), any())).thenThrow(new SQLException());
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,
                 "testQueryId", "testCatalog", "testSchema", null, UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    private void setupMocksDoGetTableCaseInsensitive(TableName inputTableName, Object[][] resultSetRows,
+                                                     String expectedTableName) throws Exception
+    {
+        // mock first call to getSchema() to simulate no table found for original lowercase table name
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}};
+
+        // mock second call to getSchema()
+        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(),
+                        expectedTableName, null))
+                .thenReturn(resultSet);
     }
 }

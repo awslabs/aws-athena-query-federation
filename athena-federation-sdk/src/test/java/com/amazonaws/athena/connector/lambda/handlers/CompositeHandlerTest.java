@@ -50,12 +50,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.mockito.internal.util.reflection.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +64,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
 
-import static org.mockito.Matchers.any;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -100,30 +102,30 @@ public class CompositeHandlerTest
                 .addField("col1", new ArrowType.Int(32, true))
                 .build();
 
-        when(mockMetadataHandler.doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class)))
+        when(mockMetadataHandler.doGetTableLayout(nullable(BlockAllocatorImpl.class), nullable(GetTableLayoutRequest.class)))
                 .thenReturn(new GetTableLayoutResponse("catalog",
                         new TableName("schema", "table"),
                         BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)));
 
-        when(mockMetadataHandler.doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class)))
+        when(mockMetadataHandler.doListTables(nullable(BlockAllocatorImpl.class), nullable(ListTablesRequest.class)))
                 .thenReturn(new ListTablesResponse("catalog",
                         Collections.singletonList(new TableName("schema", "table")), null));
 
-        when(mockMetadataHandler.doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class)))
+        when(mockMetadataHandler.doGetTable(nullable(BlockAllocatorImpl.class), nullable(GetTableRequest.class)))
                 .thenReturn(new GetTableResponse("catalog",
                         new TableName("schema", "table"),
                         SchemaBuilder.newBuilder().addStringField("col1").build()));
 
-        when(mockMetadataHandler.doListSchemaNames(any(BlockAllocatorImpl.class), any(ListSchemasRequest.class)))
+        when(mockMetadataHandler.doListSchemaNames(nullable(BlockAllocatorImpl.class), nullable(ListSchemasRequest.class)))
                 .thenReturn(new ListSchemasResponse("catalog", Collections.singleton("schema1")));
 
-        when(mockMetadataHandler.doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class)))
+        when(mockMetadataHandler.doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class)))
                 .thenReturn(new GetSplitsResponse("catalog", Split.newBuilder(null, null).build()));
 
-        when(mockMetadataHandler.doPing(any(PingRequest.class)))
+        when(mockMetadataHandler.doPing(nullable(PingRequest.class)))
                 .thenReturn(new PingResponse("catalog", "queryId", "type", 23, 2));
 
-        when(mockRecordHandler.doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class)))
+        when(mockRecordHandler.doReadRecords(nullable(BlockAllocatorImpl.class), nullable(ReadRecordsRequest.class)))
                 .thenReturn(new ReadRecordsResponse("catalog",
                         BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))));
 
@@ -153,13 +155,13 @@ public class CompositeHandlerTest
                         .withSplitId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), null).build(),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockRecordHandler, times(1))
-                .doReadRecords(any(BlockAllocator.class), any(ReadRecordsRequest.class));
+                .doReadRecords(nullable(BlockAllocator.class), nullable(ReadRecordsRequest.class));
     }
 
     @Test
@@ -169,7 +171,7 @@ public class CompositeHandlerTest
         ListSchemasRequest req = mock(ListSchemasRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_SCHEMAS);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
-        verify(mockMetadataHandler, times(1)).doListSchemaNames(any(BlockAllocatorImpl.class), any(ListSchemasRequest.class));
+        verify(mockMetadataHandler, times(1)).doListSchemaNames(nullable(BlockAllocatorImpl.class), nullable(ListSchemasRequest.class));
     }
 
     @Test
@@ -179,7 +181,7 @@ public class CompositeHandlerTest
         ListTablesRequest req = mock(ListTablesRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_TABLES);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
-        verify(mockMetadataHandler, times(1)).doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class));
+        verify(mockMetadataHandler, times(1)).doListTables(nullable(BlockAllocatorImpl.class), nullable(ListTablesRequest.class));
     }
 
     @Test
@@ -189,7 +191,7 @@ public class CompositeHandlerTest
         GetTableRequest req = mock(GetTableRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
-        verify(mockMetadataHandler, times(1)).doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class));
+        verify(mockMetadataHandler, times(1)).doGetTable(nullable(BlockAllocatorImpl.class), nullable(GetTableRequest.class));
     }
 
     @Test
@@ -199,7 +201,7 @@ public class CompositeHandlerTest
         GetTableLayoutRequest req = mock(GetTableLayoutRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE_LAYOUT);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
-        verify(mockMetadataHandler, times(1)).doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class));
+        verify(mockMetadataHandler, times(1)).doGetTableLayout(nullable(BlockAllocatorImpl.class), nullable(GetTableLayoutRequest.class));
     }
 
     @Test
@@ -209,10 +211,10 @@ public class CompositeHandlerTest
         GetSplitsRequest req = mock(GetSplitsRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
         SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
-        doNothing().when(mockVerifier).checkBucketAuthZ(any(String.class));
-        Whitebox.setInternalState(mockMetadataHandler, "verifier", mockVerifier);
+        doNothing().when(mockVerifier).checkBucketAuthZ(nullable(String.class));
+        FieldUtils.writeField(mockMetadataHandler, "verifier", mockVerifier, true);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
-        verify(mockMetadataHandler, times(1)).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
+        verify(mockMetadataHandler, times(1)).doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class));
     }
 
     @Test
@@ -223,6 +225,6 @@ public class CompositeHandlerTest
         when(req.getCatalogName()).thenReturn("catalog");
         when(req.getQueryId()).thenReturn("queryId");
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
-        verify(mockMetadataHandler, times(1)).doPing(any(PingRequest.class));
+        verify(mockMetadataHandler, times(1)).doPing(nullable(PingRequest.class));
     }
 }

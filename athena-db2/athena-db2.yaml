@@ -1,0 +1,113 @@
+Transform: 'AWS::Serverless-2016-10-31'
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaDb2Connector
+    Description: 'This connector enables Amazon Athena to communicate with DB2 using JDBC driver.'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels:
+      - ibm
+      - db2
+      - athena-federation
+      - jdbc
+    HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+    SemanticVersion: 2022.47.1
+    SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+Parameters:
+  LambdaFunctionName:
+    Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  DefaultConnectionString:
+    Description: 'The default connection string is used when catalog is "lambda:${LambdaFunctionName}". Catalog specific Connection Strings can be added later. Format: ${DatabaseType}://${NativeJdbcConnectionString}.'
+    Type: String
+  SecretNamePrefix:
+    Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena JDBC Federation secret names can be prefixed with "AthenaJdbcFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaJdbcFederation*". Parameter value in this case should be "AthenaJdbcFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
+    Type: String
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
+    Default: 'false'
+    Type: String
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+Resources:
+  JdbcConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          default: !Ref DefaultConnectionString
+      FunctionName: !Ref LambdaFunctionName
+      Handler: "com.amazonaws.athena.connectors.db2.Db2MuxCompositeHandler"
+      CodeUri: "./target/athena-db2-2022.47.1.jar"
+      Description: "Enables Amazon Athena to communicate with DB2 using JDBC"
+      Runtime: java11
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
+      Policies:
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - logs:CreateLogGroup
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - athena:GetQueryExecution
+                - s3:ListAllMyBuckets
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
+        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds

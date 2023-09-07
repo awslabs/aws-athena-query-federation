@@ -33,6 +33,6 @@ public class OracleCompositeHandler
 {
     public OracleCompositeHandler()
     {
-        super(new OracleMetadataHandler(), new OracleRecordHandler());
+        super(new OracleMetadataHandler(System.getenv()), new OracleRecordHandler(System.getenv()));
     }
 }

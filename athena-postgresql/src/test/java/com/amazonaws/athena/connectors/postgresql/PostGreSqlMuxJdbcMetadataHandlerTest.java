@@ -41,6 +41,8 @@ import org.mockito.Mockito;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class PostGreSqlMuxJdbcMetadataHandlerTest
 {
     private Map<String, JdbcMetadataHandler> metadataHandlerMap;
@@ -57,7 +59,7 @@ public class PostGreSqlMuxJdbcMetadataHandlerTest
     {
         //this.allocator = Mockito.mock(BlockAllocator.class);
         this.allocator = new BlockAllocatorImpl();
-        //Mockito.when(this.allocator.createBlock(Mockito.any(Schema.class))).thenReturn(Mockito.mock(Block.class));
+        //Mockito.when(this.allocator.createBlock(nullable(Schema.class))).thenReturn(Mockito.mock(Block.class));
         this.postGreSqlMetadataHandler = Mockito.mock(PostGreSqlMetadataHandler.class);
         this.metadataHandlerMap = Collections.singletonMap("postgres", this.postGreSqlMetadataHandler);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
@@ -66,11 +68,12 @@ public class PostGreSqlMuxJdbcMetadataHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "postgres",
                 "postgres://jdbc:postgresql://hostname/${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new PostGreSqlMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig);
+        this.jdbcMetadataHandler = new PostGreSqlMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
     public void doListSchemaNames()
+            throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
         Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("postgres");
@@ -80,6 +83,7 @@ public class PostGreSqlMuxJdbcMetadataHandlerTest
 
     @Test
     public void doListTables()
+            throws Exception
     {
         ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
         Mockito.when(listTablesRequest.getCatalogName()).thenReturn("postgres");
@@ -89,6 +93,7 @@ public class PostGreSqlMuxJdbcMetadataHandlerTest
 
     @Test
     public void doGetTable()
+            throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
         Mockito.when(getTableRequest.getCatalogName()).thenReturn("postgres");
@@ -128,7 +133,7 @@ public class PostGreSqlMuxJdbcMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("postgres");
         this.jdbcMetadataHandler.getPartitions(Mockito.mock(BlockWriter.class), getTableLayoutRequest, queryStatusChecker);
-        Mockito.verify(this.postGreSqlMetadataHandler, Mockito.times(1)).getPartitions(Mockito.any(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
+        Mockito.verify(this.postGreSqlMetadataHandler, Mockito.times(1)).getPartitions(nullable(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
     }
 
     @Test

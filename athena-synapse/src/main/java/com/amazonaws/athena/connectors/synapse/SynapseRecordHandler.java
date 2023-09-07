@@ -29,7 +29,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
-import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
@@ -54,29 +53,30 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.synapse.SynapseConstants.QUOTE_CHARACTER;
+
 public class SynapseRecordHandler extends JdbcRecordHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SynapseRecordHandler.class);
-    private static final String QUOTE_CHARACTER = "\"";
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    public SynapseRecordHandler()
+    public SynapseRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME, configOptions), configOptions);
     }
-    public SynapseRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SynapseRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), new GenericJdbcConnectionFactory(databaseConnectionConfig,
+                AmazonAthenaClientBuilder.defaultClient(), new SynapseJdbcConnectionFactory(databaseConnectionConfig,
                         SynapseMetadataHandler.JDBC_PROPERTIES, new DatabaseConnectionInfo(SynapseConstants.DRIVER_CLASS, SynapseConstants.DEFAULT_PORT)),
-                new SynapseQueryStringBuilder(QUOTE_CHARACTER));
+                new SynapseQueryStringBuilder(QUOTE_CHARACTER, new SynapseFederationExpressionParser(QUOTE_CHARACTER)), configOptions);
     }
 
     @VisibleForTesting
-    SynapseRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
-                         final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    SynapseRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
+                         final AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
 
@@ -91,6 +91,7 @@ public class SynapseRecordHandler extends JdbcRecordHandler
 
     @Override
     public void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
+            throws Exception
     {
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
@@ -132,9 +133,6 @@ public class SynapseRecordHandler extends JdbcRecordHandler
                     connection.commit();
                 }
             }
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
     }
 }

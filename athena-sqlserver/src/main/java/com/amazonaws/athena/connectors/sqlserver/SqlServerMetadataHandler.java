@@ -29,7 +29,10 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -37,6 +40,11 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -119,26 +127,30 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
 
-    public SqlServerMetadataHandler()
+    public SqlServerMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SqlServerConstants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SqlServerConstants.NAME, configOptions), configOptions);
     }
     /**
      * Used by Mux.
      */
-    public SqlServerMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SqlServerMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new SqlServerJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT)));
+        this(databaseConnectionConfig, new SqlServerJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT)), configOptions);
     }
-    public SqlServerMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public SqlServerMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
     @VisibleForTesting
-    protected SqlServerMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                       AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected SqlServerMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
     @Override
     public Schema getPartitionSchema(String catalogName)
@@ -146,6 +158,26 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
                 .addField(PARTITION_NUMBER, Types.MinorType.VARCHAR.getType());
         return schemaBuilder.build();
+    }
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+                FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
+                TopNPushdownSubType.SUPPORTS_ORDER_BY
+        ));
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     /**
@@ -175,9 +207,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 viewFlag = "VIEW".equalsIgnoreCase(resultSet.getString("TYPE_DESC")) ? "Y" : "N";
             }
             LOGGER.info("viewFlag: {}", viewFlag);
-        }
-        catch (SQLException sqlException) {
-            throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
 
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
@@ -233,9 +262,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                     }
                 }
             }
-        }
-        catch (SQLException sqlException) {
-            throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
     }
 
@@ -303,7 +329,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @param parameters
      * @throws SQLException
      */
-    private List<String> getPartitionDetails(List<String> parameters) throws SQLException
+    private List<String> getPartitionDetails(List<String> parameters) throws Exception
     {
         List<String> partitionDetails = new ArrayList<>();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
@@ -316,9 +342,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("partitioningColumn: {}", partitionDetails.get(1));
             }
         }
-        catch (SQLException sqlException) {
-            throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-        }
         return partitionDetails;
     }
 
@@ -329,15 +352,13 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      */
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 
@@ -347,10 +368,10 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @param tableName
      * @param partitionSchema
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+            throws Exception
     {
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
                 "FROM SYS.COLUMNS C " +
@@ -381,7 +402,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
-                        resultSet.getInt("DECIMAL_DIGITS"));
+                        resultSet.getInt("DECIMAL_DIGITS"),
+                        configOptions);
                 columnName = resultSet.getString("COLUMN_NAME");
 
                 dataType = hashMap.get(columnName);
@@ -464,13 +486,11 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 

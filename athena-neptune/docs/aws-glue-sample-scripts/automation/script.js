@@ -29,14 +29,15 @@ function addDatabase(addTablesAfterDatabase) {
     });
 }
 
-function addTable(tableType, tableName, tableColumns) {
+function addTable(tableType, tableName, tableColumns, query) {
     var params = {
         DatabaseName: databaseName, /* required */
         TableInput: { /* required */
             Name: tableName, /* required */
             Parameters: {
                 "separatorChar": ",",
-                "componenttype": tableType
+                "componenttype": tableType,
+                "glabel": tableName
             },
             StorageDescriptor: {
                 Columns: [],
@@ -51,7 +52,7 @@ function addTable(tableType, tableName, tableColumns) {
                 Name: 'id', /* required */
                 Type: 'string'
             });
-    } else {
+    } else if (tableType === 'edge') {
         params.TableInput.StorageDescriptor.Columns.push(
             {
                 Name: 'id', /* required */
@@ -69,6 +70,9 @@ function addTable(tableType, tableName, tableColumns) {
                 Name: 'out', /* required */
                 Type: 'string'
             });
+    }
+    else {
+        params.TableInput.Parameters.query = query;
     }
 
     tableColumns.forEach(column => {
@@ -96,6 +100,13 @@ function addTable(tableType, tableName, tableColumns) {
                         Type: 'int'
                     });
                 break;
+            case "Date":
+                params.TableInput.StorageDescriptor.Columns.push(
+                    {
+                        Name: column.property, /* required */
+                        Type: 'timestamp'
+                    });
+                break;
         }
     });
 
@@ -112,6 +123,10 @@ function addTables(data) {
 
     data.edges.forEach(edge => {
         addTable('edge', edge.label, edge.properties);
+    });
+
+    data.views.forEach(view => {
+        addTable('view', view.label, view.properties,view.query);
     });
 }
 

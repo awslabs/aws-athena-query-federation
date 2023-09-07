@@ -105,7 +105,7 @@ public class MetricsMetadataHandler
     //The minimum number of splits we'd like to have for some parallelization
     private static final int MIN_NUM_SPLITS_FOR_PARALLELIZATION = 3;
     //Used to handle throttling events by applying AIMD congestion control
-    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker;
 
     private final AmazonCloudWatch metrics;
 
@@ -130,22 +130,26 @@ public class MetricsMetadataHandler
         TABLES.put(METRIC_SAMPLES_TABLE_NAME, METRIC_DATA_TABLE);
     }
 
-    public MetricsMetadataHandler()
+    public MetricsMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
-        metrics = AmazonCloudWatchClientBuilder.standard().build();
+        super(SOURCE_TYPE, configOptions);
+        this.metrics = AmazonCloudWatchClientBuilder.standard().build();
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
     }
 
     @VisibleForTesting
-    protected MetricsMetadataHandler(AmazonCloudWatch metrics,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected MetricsMetadataHandler(
+        AmazonCloudWatch metrics,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.metrics = metrics;
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
     }
 
     /**

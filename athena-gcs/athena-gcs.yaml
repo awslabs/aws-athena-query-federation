@@ -1,0 +1,102 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: AthenaGCSConnector
+    Description: 'This connector enables Amazon Athena to communicate with Google Cloud Storage (GCS) and fetch data from Parquet file format'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['athena-federation', 'GCS', 'Google-Cloud-Storage', 'parquet', 'csv']
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2022.47.1
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+
+Parameters:
+  LambdaFunctionName:
+    Description: 'The name you will give to this catalog is a Lambda name for Athena. Athena will use this name as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: "Lambda memory in MB (min 128 - 3008 max)."
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: "false"
+    Type: String
+  GCSSecretName:
+    Description: 'Secret key name in the AWS Secrets Manager.'
+    Type: String
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+
+Resources:
+  AthenaGCSConnector:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          secret_manager_gcp_creds_name: !Ref GCSSecretName
+      FunctionName: !Ref LambdaFunctionName
+      Handler: "com.amazonaws.athena.connectors.gcs.GcsCompositeHandler"
+      CodeUri: "./target/athena-gcs.zip"
+      Description: "Amazon Athena GCS Connector"
+      Runtime: java11
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
+      Policies:
+        - Statement:
+            - Action:
+                - athena:GetQueryExecution
+                - s3:ListAllMyBuckets
+                - glue:GetTableVersions
+                - glue:GetPartitions
+                - glue:GetTables
+                - glue:GetTableVersion
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetPartition
+                - glue:GetDatabase
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - s3:ListBucket
+              Effect: Allow
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:s3:::${SpillBucket}'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${GCSSecretName}*'
+        - S3ReadPolicy:
+            BucketName:
+              Ref: SpillBucket
+        - S3WritePolicy:
+            BucketName:
+              Ref: SpillBucket

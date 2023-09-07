@@ -50,7 +50,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
@@ -59,11 +59,12 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 
 @RunWith(MockitoJUnitRunner.class)
 
@@ -120,8 +121,8 @@ public class VerticaMetadataHandlerTest extends TestBase
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.amazonS3 = Mockito.mock(AmazonS3.class);
 
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
-        Mockito.when(this.verticaConnectionFactory.getOrCreateConn(anyString())).thenReturn(connection);
+        Mockito.lenient().when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
+        Mockito.when(this.verticaConnectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData()).thenReturn(databaseMetaData);
         Mockito.when(amazonS3.getRegion()).thenReturn(Region.US_West_2);
 
@@ -132,8 +133,8 @@ public class VerticaMetadataHandlerTest extends TestBase
                 "spill-bucket",
                 "spill-prefix",
                 verticaSchemaUtils,
-                amazonS3
-        );
+                amazonS3,
+                com.google.common.collect.ImmutableMap.of());
         this.allocator =  new BlockAllocatorImpl();
         this.databaseMetaData = this.connection.getMetaData();
         verticaMetadataHandlerMocked = Mockito.spy(this.verticaMetadataHandler);
@@ -261,13 +262,13 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(connection.getMetaData().getColumns(null, "schema1",
                 "table1", null)).thenReturn(resultSet);
 
-        Mockito.when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
+        Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
         Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
 
         try {
             req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
                     new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                     tableSchema,
                     partitionCols);
 
@@ -309,7 +310,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
 
     @Test
-    public void doGetSplits() {
+    public void doGetSplits() throws SQLException {
 
         logger.info("doGetSplits: enter");
 
@@ -352,16 +353,16 @@ public class VerticaMetadataHandlerTest extends TestBase
 
 
         Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
-        Mockito.when(listObjectsRequest.withBucketName(anyString())).thenReturn(listObjectsRequestObj);
-        Mockito.when(listObjectsRequest.withPrefix(anyString())).thenReturn(listObjectsRequestObj);
-        Mockito.when(amazonS3.listObjects(any(ListObjectsRequest.class))).thenReturn(objectListing);
+        Mockito.lenient().when(listObjectsRequest.withBucketName(nullable(String.class))).thenReturn(listObjectsRequestObj);
+        Mockito.lenient().when(listObjectsRequest.withPrefix(nullable(String.class))).thenReturn(listObjectsRequestObj);
+        Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class))).thenReturn(objectListing);
         Mockito.when(objectListing.getObjectSummaries()).thenReturn(s3ObjectSummariesList);
 
         GetSplitsRequest originalReq = new GetSplitsRequest(this.federatedIdentity, "queryId", "catalog_name",
                 new TableName("schema", "table_name"),
                 partitions,
                 partitionCols,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
 

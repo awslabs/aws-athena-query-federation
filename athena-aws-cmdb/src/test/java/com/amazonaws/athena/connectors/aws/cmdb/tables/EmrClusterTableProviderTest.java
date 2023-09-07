@@ -38,7 +38,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +48,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -94,7 +94,7 @@ public class EmrClusterTableProviderTest
     @Override
     protected void setUpRead()
     {
-        when(mockEmr.listClusters(any(ListClustersRequest.class)))
+        when(mockEmr.listClusters(nullable(ListClustersRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     ListClustersResult mockResult = mock(ListClustersResult.class);
                     List<ClusterSummary> values = new ArrayList<>();
@@ -105,7 +105,7 @@ public class EmrClusterTableProviderTest
                     return mockResult;
                 });
 
-        when(mockEmr.describeCluster(any(DescribeClusterRequest.class)))
+        when(mockEmr.describeCluster(nullable(DescribeClusterRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     DescribeClusterRequest request = (DescribeClusterRequest) invocation.getArguments()[0];
                     DescribeClusterResult mockResult = mock(DescribeClusterResult.class);

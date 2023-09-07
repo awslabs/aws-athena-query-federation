@@ -26,7 +26,6 @@ import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -60,9 +59,7 @@ public class RecordBatchSerDe
             throws IOException
     {
         try {
-            IpcOption option = new IpcOption();
-            option.metadataVersion = MetadataVersion.V4;
-            option.write_legacy_ipc_format = true;
+            IpcOption option = AthenaFederationIpcOption.DEFAULT;
             MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), batch, option);
         }
         finally {

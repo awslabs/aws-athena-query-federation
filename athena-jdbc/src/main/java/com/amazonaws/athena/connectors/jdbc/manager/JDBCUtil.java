@@ -19,11 +19,17 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +37,7 @@ public final class JDBCUtil
 {
     private static final String DEFAULT_CATALOG_PREFIX = "lambda:";
     private static final String LAMBDA_FUNCTION_NAME_PROPERTY = "AWS_LAMBDA_FUNCTION_NAME";
+    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCUtil.class);
 
     private JDBCUtil() {}
 
@@ -40,9 +47,9 @@ public final class JDBCUtil
      * @param databaseEngine database type.
      * @return database connection confuiguration. See {@link DatabaseConnectionConfig}.
      */
-    public static DatabaseConnectionConfig getSingleDatabaseConfigFromEnv(final String databaseEngine)
+    public static DatabaseConnectionConfig getSingleDatabaseConfigFromEnv(String databaseEngine, java.util.Map<String, String> configOptions)
     {
-        List<DatabaseConnectionConfig> databaseConnectionConfigs = DatabaseConnectionConfigBuilder.buildFromSystemEnv(databaseEngine);
+        List<DatabaseConnectionConfig> databaseConnectionConfigs = DatabaseConnectionConfigBuilder.buildFromSystemEnv(databaseEngine, configOptions);
 
         for (DatabaseConnectionConfig databaseConnectionConfig : databaseConnectionConfigs) {
             if (DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY.equals(databaseConnectionConfig.getCatalog())
@@ -58,17 +65,17 @@ public final class JDBCUtil
     /**
      * Creates a map of Catalog to respective metadata handler to be used by Multiplexer.
      *
-     * @param properties system properties.
+     * @param configOptions system configOptions.
      * @param metadataHandlerFactory factory for creating the appropriate metadata handler for the database type
      * @return Map of String -> {@link JdbcMetadataHandler}
      */
     public static Map<String, JdbcMetadataHandler> createJdbcMetadataHandlerMap(
-            final Map<String, String> properties, JdbcMetadataHandlerFactory metadataHandlerFactory)
+            final Map<String, String> configOptions, JdbcMetadataHandlerFactory metadataHandlerFactory)
     {
         ImmutableMap.Builder<String, JdbcMetadataHandler> metadataHandlerMap = ImmutableMap.builder();
 
-        final String functionName = Validate.notBlank(properties.get(LAMBDA_FUNCTION_NAME_PROPERTY), "Lambda function name not present in environment.");
-        List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder().engine(metadataHandlerFactory.getEngine()).properties(properties).build();
+        final String functionName = Validate.notBlank(configOptions.get(LAMBDA_FUNCTION_NAME_PROPERTY), "Lambda function name not present in environment.");
+        List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder().engine(metadataHandlerFactory.getEngine()).properties(configOptions).build();
 
         if (databaseConnectionConfigs.isEmpty()) {
             throw new RuntimeException("At least one connection string required.");
@@ -77,7 +84,7 @@ public final class JDBCUtil
         boolean defaultPresent = false;
 
         for (DatabaseConnectionConfig databaseConnectionConfig : databaseConnectionConfigs) {
-            JdbcMetadataHandler jdbcMetadataHandler = metadataHandlerFactory.createJdbcMetadataHandler(databaseConnectionConfig);
+            JdbcMetadataHandler jdbcMetadataHandler = metadataHandlerFactory.createJdbcMetadataHandler(databaseConnectionConfig, configOptions);
             metadataHandlerMap.put(databaseConnectionConfig.getCatalog(), jdbcMetadataHandler);
 
             if (DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY.equals(databaseConnectionConfig.getCatalog())) {
@@ -96,16 +103,16 @@ public final class JDBCUtil
     /**
      * Creates a map of Catalog to respective record handler to be used by Multiplexer.
      *
-     * @param properties system properties.
+     * @param configOptions system configOptions.
      * @param jdbcRecordHandlerFactory
      * @return Map of String -> {@link JdbcRecordHandler}
      */
-    public static Map<String, JdbcRecordHandler> createJdbcRecordHandlerMap(final Map<String, String> properties, JdbcRecordHandlerFactory jdbcRecordHandlerFactory)
+    public static Map<String, JdbcRecordHandler> createJdbcRecordHandlerMap(Map<String, String> configOptions, JdbcRecordHandlerFactory jdbcRecordHandlerFactory)
     {
         ImmutableMap.Builder<String, JdbcRecordHandler> recordHandlerMap = ImmutableMap.builder();
 
-        final String functionName = Validate.notBlank(properties.get(LAMBDA_FUNCTION_NAME_PROPERTY), "Lambda function name not present in environment.");
-        List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder().engine(jdbcRecordHandlerFactory.getEngine()).properties(properties).build();
+        final String functionName = Validate.notBlank(configOptions.get(LAMBDA_FUNCTION_NAME_PROPERTY), "Lambda function name not present in environment.");
+        List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder().engine(jdbcRecordHandlerFactory.getEngine()).properties(configOptions).build();
 
         if (databaseConnectionConfigs.isEmpty()) {
             throw new RuntimeException("At least one connection string required.");
@@ -114,7 +121,7 @@ public final class JDBCUtil
         boolean defaultPresent = false;
 
         for (DatabaseConnectionConfig databaseConnectionConfig : databaseConnectionConfigs) {
-            JdbcRecordHandler jdbcRecordHandler = jdbcRecordHandlerFactory.createJdbcRecordHandler(databaseConnectionConfig);
+            JdbcRecordHandler jdbcRecordHandler = jdbcRecordHandlerFactory.createJdbcRecordHandler(databaseConnectionConfig, configOptions);
             recordHandlerMap.put(databaseConnectionConfig.getCatalog(), jdbcRecordHandler);
 
             if (DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY.equals(databaseConnectionConfig.getCatalog())) {
@@ -128,5 +135,32 @@ public final class JDBCUtil
         }
 
         return recordHandlerMap.build();
+    }
+
+    public static TableName informationSchemaCaseInsensitiveTableMatch(Connection connection, final String databaseName,
+                                                     final String tableName) throws Exception
+    {
+        String resolvedName = null;
+        String sql = getTableNameQuery(tableName, databaseName);
+        PreparedStatement statement = connection.prepareStatement(sql);
+        try (ResultSet resultSet = statement.executeQuery()) {
+            if (resultSet.next()) {
+                resolvedName = resultSet.getString("table_name");
+                if (resultSet.next()) {
+                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
+                }
+                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
+            }
+            else {
+                throw new RuntimeException(String.format("During Case Insensitive look up could not find Table '%s' in Database '%s'", tableName, databaseName));
+            }
+        }
+        return new TableName(databaseName, resolvedName);
+    }
+
+    private static String getTableNameQuery(String tableName, String databaseName)
+    {
+        return String.format("SELECT table_name, lower(table_name) FROM information_schema.tables " +
+        "WHERE (table_name = '%s' or lower(table_name) = '%s') AND table_schema = '%s'", tableName, tableName, databaseName);
     }
 }

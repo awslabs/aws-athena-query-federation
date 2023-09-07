@@ -37,7 +37,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +47,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -93,7 +93,7 @@ public class RouteTableProviderTest
     @Override
     protected void setUpRead()
     {
-        when(mockEc2.describeRouteTables(any(DescribeRouteTablesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+        when(mockEc2.describeRouteTables(nullable(DescribeRouteTablesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             DescribeRouteTablesRequest request = (DescribeRouteTablesRequest) invocation.getArguments()[0];
 
             assertEquals(getIdValue(), request.getRouteTableIds().get(0));

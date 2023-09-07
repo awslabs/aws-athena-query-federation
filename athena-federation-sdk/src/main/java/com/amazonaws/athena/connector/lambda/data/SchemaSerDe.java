@@ -24,7 +24,6 @@ import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.IOException;
@@ -50,9 +49,7 @@ public class SchemaSerDe
     public void serialize(Schema schema, OutputStream out)
             throws IOException
     {
-        IpcOption option = new IpcOption();
-        option.metadataVersion = MetadataVersion.V4;
-        option.write_legacy_ipc_format = true;
+        IpcOption option = AthenaFederationIpcOption.DEFAULT;
         MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema, option);
     }
 

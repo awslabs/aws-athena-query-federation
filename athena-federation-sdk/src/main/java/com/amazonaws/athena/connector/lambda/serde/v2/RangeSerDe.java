@@ -37,7 +37,7 @@ public final class RangeSerDe
     private static final String LOW_FIELD = "low";
     private static final String HIGH_FIELD = "high";
 
-    private RangeSerDe(){}
+    private RangeSerDe() {}
 
     public static final class Serializer extends BaseSerializer<Range>
     {

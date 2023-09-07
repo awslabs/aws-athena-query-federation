@@ -48,7 +48,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,10 +56,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -127,7 +128,7 @@ public class AwsCmdbMetadataHandlerTest
 
         when(mockTableProviderFactory.getSchemas()).thenReturn(schemas);
 
-        handler = new AwsCmdbMetadataHandler(mockTableProviderFactory, new LocalKeyFactory(), mockSecretsManager, mockAthena, bucket, prefix);
+        handler = new AwsCmdbMetadataHandler(mockTableProviderFactory, new LocalKeyFactory(), mockSecretsManager, mockAthena, bucket, prefix, com.google.common.collect.ImmutableMap.of());
 
         verify(mockTableProviderFactory, times(1)).getTableProviders();
         verify(mockTableProviderFactory, times(1)).getSchemas();
@@ -199,7 +200,7 @@ public class AwsCmdbMetadataHandlerTest
                 new TableName("schema1", "table1"),
                 mockBlock,
                 Collections.emptyList(),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
 
         GetSplitsResponse response = handler.doGetSplits(blockAllocator, request);

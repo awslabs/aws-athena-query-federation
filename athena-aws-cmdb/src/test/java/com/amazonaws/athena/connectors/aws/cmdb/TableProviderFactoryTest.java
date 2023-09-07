@@ -28,7 +28,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.List;
 import java.util.Map;
@@ -53,7 +53,7 @@ public class TableProviderFactoryTest
     @Mock
     private AmazonS3 amazonS3;
 
-    private TableProviderFactory factory = new TableProviderFactory(mockEc2, mockEmr, mockRds, amazonS3);
+    private TableProviderFactory factory = new TableProviderFactory(mockEc2, mockEmr, mockRds, amazonS3, com.google.common.collect.ImmutableMap.of());
 
     @Test
     public void getTableProviders()

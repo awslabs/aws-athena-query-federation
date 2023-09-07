@@ -28,12 +28,20 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -44,6 +52,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
 import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -66,6 +76,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
+
 /**
  * Handles metadata for Teradata. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in
  * information_schema.
@@ -86,30 +98,67 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      *
      * Recommend using {@link TeradataMuxCompositeHandler} instead.
      */
-    public TeradataMetadataHandler()
+    public TeradataMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(TeradataConstants.TERADATA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(TeradataConstants.TERADATA_NAME, configOptions), configOptions);
     }
 
     /**
      * Used by Mux.
      */
-    public TeradataMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public TeradataMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-       this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS, TeradataConstants.TERADATA_DEFAULT_PORT)));
+        this(
+            databaseConnectionConfig,
+            new GenericJdbcConnectionFactory(databaseConnectionConfig,
+            null,
+            new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS,
+            TeradataConstants.TERADATA_DEFAULT_PORT)),
+            configOptions);
     }
 
-    public TeradataMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public TeradataMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     @VisibleForTesting
-    protected TeradataMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                      AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected TeradataMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        Set<StandardFunctions> unSupportedFunctions = ImmutableSet.of(IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME);
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+                FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                .filter(values -> !unSupportedFunctions.contains(values))
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
+                TopNPushdownSubType.SUPPORTS_ORDER_BY
+        ));
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
     @Override
     public Schema getPartitionSchema(final String catalogName)
     {
@@ -131,7 +180,8 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest getTableLayoutRequest,
-                              QueryStatusChecker queryStatusChecker) throws Exception
+                              QueryStatusChecker queryStatusChecker)
+            throws Exception
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
@@ -147,9 +197,6 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                     viewFlag = true;
                 }
                 LOGGER.debug("viewFlag: {}", viewFlag);
-            }
-            catch (SQLException sqlException) {
-                throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
         //if the input table is a view , there will be single split
@@ -179,9 +226,6 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                 try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
                     getPartitionDetails(blockWriter, getPartitionsQuery, parameters, connection);
                 }
-                catch (SQLException sqlException) {
-                    throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-                }
             }
         }
     }
@@ -192,13 +236,13 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      * partitions, if it exceeds the value, then there will be only single split.
      * @param getTableLayoutRequest
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
-    private boolean useNonPartitionApproach(GetTableLayoutRequest getTableLayoutRequest) throws SQLException
+    private boolean useNonPartitionApproach(GetTableLayoutRequest getTableLayoutRequest) throws Exception
     {
         final String getPartitionsCountQuery = "Select  count(distinct partition ) as partition_count FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
                 getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
-        String partitioncount = System.getenv().get("partitioncount");
+        String partitioncount = configOptions.get("partitioncount");
         int totalPartitionCount = Integer.parseInt(partitioncount);
         int  partitionCount = 0;
         boolean nonPartitionApproach = false;
@@ -213,9 +257,6 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                     nonPartitionApproach = true;
                 }
                 LOGGER.info("nonPartitionApproach: {}", nonPartitionApproach);
-            }
-            catch (SQLException sqlException) {
-                throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
         return nonPartitionApproach;
@@ -313,14 +354,12 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
 
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), getSchema(connection, getTableRequest.getTableName(), partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 
@@ -336,66 +375,65 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
             throws SQLException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
-                boolean found = false;
-                while (resultSet.next()) {
-                    ArrowType columnType = toArrowType(
-                            resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"));
-                    String columnName = resultSet.getString("COLUMN_NAME");
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
+            boolean found = false;
+            while (resultSet.next()) {
+                ArrowType columnType = toArrowType(
+                        resultSet.getInt("DATA_TYPE"),
+                        resultSet.getInt("COLUMN_SIZE"),
+                        resultSet.getInt("DECIMAL_DIGITS"));
+                String columnName = resultSet.getString("COLUMN_NAME");
 
-                    LOGGER.info("Column Name: " + columnName);
-                    if (columnType != null) {
-                        LOGGER.info("Column Type: " + columnType.getTypeID());
-                    }
-                    else {
-                        LOGGER.warn("Column Type is null for Column Name" + columnName);
-                    }
-
-                    /**
-                     * Convert decimal into BigInt
-                     */
-                    if (columnType != null && columnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
-                        String[] data = columnType.toString().split(",");
-                        if (data[0].contains("0") || data[1].contains("0")) {
-                            columnType = org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType();
-                        }
-                    }
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        if (columnType instanceof ArrowType.List) {
-                            schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
-                                    resultSet.getString("TYPE_NAME"),
-                                    resultSet.getInt("COLUMN_SIZE"),
-                                    resultSet.getInt("DECIMAL_DIGITS")));
-                        }
-                        else {
-                            LOGGER.info("getSchema:columnType is not instance of ArrowType column[" + columnName +
-                                    "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
-                            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        }
-                    }
-                    else {
-                        // Default to VARCHAR ArrowType
-                        LOGGER.info("getSchema: Unable to map type for column[" + columnName +
-                                "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
-                    }
-                    found = true;
+                LOGGER.info("Column Name: " + columnName);
+                if (columnType != null) {
+                    LOGGER.info("Column Type: " + columnType.getTypeID());
+                }
+                else {
+                    LOGGER.warn("Column Type is null for Column Name" + columnName);
                 }
 
-                if (!found) {
-                    throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+                /**
+                 * Convert decimal into BigInt
+                 */
+                if (columnType != null && columnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
+                    String[] data = columnType.toString().split(",");
+                    if (data[0].contains("0") || data[1].contains("0")) {
+                        columnType = org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType();
+                    }
                 }
-                // add partition columns
-                partitionSchema.getFields().forEach(schemaBuilder::addField);
-
-                return schemaBuilder.build();
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    if (columnType instanceof ArrowType.List) {
+                        schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
+                                resultSet.getString("TYPE_NAME"),
+                                resultSet.getInt("COLUMN_SIZE"),
+                                resultSet.getInt("DECIMAL_DIGITS")));
+                    }
+                    else {
+                        LOGGER.info("getSchema:columnType is a supported ArrowType. Column: {} ArrowType: {}", columnName, columnType);
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    }
+                }
+                else {
+                    // Default to VARCHAR ArrowType
+                    LOGGER.info("getSchema: Unable to map type for column[" + columnName +
+                            "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
+                }
+                found = true;
             }
+
+            if (!found) {
+                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+            }
+            // add partition columns
+            partitionSchema.getFields().forEach(schemaBuilder::addField);
+
+            return schemaBuilder.build();
+        }
     }
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
-        ArrowType arrowType = JdbcToArrowUtils.getArrowTypeForJdbcField(
+        ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
                 new JdbcFieldInfo(jdbcType, precision, scale),
                 null);
         if (arrowType instanceof ArrowType.Date) {

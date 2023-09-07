@@ -66,8 +66,9 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,12 +83,12 @@ import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -167,7 +168,7 @@ public class DocDBRecordHandlerTest
                 .addListField("list", Types.MinorType.VARCHAR.getType())
                 .build();
 
-        when(connectionFactory.getOrCreateConn(anyString())).thenReturn(mockClient);
+        when(connectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
         allocator = new BlockAllocatorImpl();
 
@@ -179,7 +180,7 @@ public class DocDBRecordHandlerTest
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
 
-        when(amazonS3.putObject(anyObject()))
+        when(amazonS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
@@ -191,7 +192,7 @@ public class DocDBRecordHandlerTest
                     return mock(PutObjectResult.class);
                 });
 
-        when(amazonS3.getObject(anyString(), anyString()))
+        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
@@ -206,9 +207,9 @@ public class DocDBRecordHandlerTest
                     return mockObject;
                 });
 
-        handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, mockAthena, connectionFactory);
+        handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, mockAthena, connectionFactory, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
-        mdHandler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix");
+        mdHandler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
     }
 
     @After
@@ -238,11 +239,11 @@ public class DocDBRecordHandlerTest
         doc3.put("col3", 21.0D);
         doc3.put("unsupported",new UnsupportedType());
 
-        when(mockCollection.find(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockCollection.find(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
             return mockIterable;
         });
-        when(mockIterable.projection(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockIterable.projection(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             logger.info("doReadRecordsNoSpill: projection[{}]", invocationOnMock.getArguments()[0]);
             return mockIterable;
         });
@@ -266,7 +267,7 @@ public class DocDBRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -292,11 +293,11 @@ public class DocDBRecordHandlerTest
             documents.add(DocumentGenerator.makeRandomRow(schemaForRead.getFields(), docNum));
         }
 
-        when(mockCollection.find(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockCollection.find(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
             return mockIterable;
         });
-        when(mockIterable.projection(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockIterable.projection(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             logger.info("doReadRecordsNoSpill: projection[{}]", invocationOnMock.getArguments()[0]);
             return mockIterable;
         });
@@ -320,7 +321,7 @@ public class DocDBRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 1_500_000L, //~1.5MB so we should see some spill
                 0L
         );
@@ -386,7 +387,7 @@ public class DocDBRecordHandlerTest
 
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
@@ -394,11 +395,11 @@ public class DocDBRecordHandlerTest
         GetTableResponse res = mdHandler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
-        when(mockCollection.find(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockCollection.find(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
             return mockIterable;
         });
-        when(mockIterable.projection(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockIterable.projection(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             logger.info("doReadRecordsNoSpill: projection[{}]", invocationOnMock.getArguments()[0]);
             return mockIterable;
         });
@@ -420,7 +421,7 @@ public class DocDBRecordHandlerTest
                 TABLE_NAME,
                 res.getSchema(),
                 Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

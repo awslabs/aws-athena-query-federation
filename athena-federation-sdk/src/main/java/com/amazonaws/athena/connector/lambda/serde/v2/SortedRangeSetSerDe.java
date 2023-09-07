@@ -42,7 +42,7 @@ public final class SortedRangeSetSerDe
     private static final String RANGES_FIELD = "ranges";
     private static final String NULL_ALLOWED_FIELD = "nullAllowed";
 
-    private SortedRangeSetSerDe(){}
+    private SortedRangeSetSerDe() {}
 
     public static final class Serializer extends TypedSerializer<ValueSet>
     {

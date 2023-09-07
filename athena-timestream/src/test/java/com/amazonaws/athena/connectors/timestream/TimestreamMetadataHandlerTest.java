@@ -66,7 +66,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,8 +79,8 @@ import java.util.List;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -118,7 +118,8 @@ public class TimestreamMetadataHandlerTest
                 mockSecretsManager,
                 mockAthena,
                 "spillBucket",
-                "spillPrefix");
+                "spillPrefix",
+                com.google.common.collect.ImmutableMap.of());
 
         allocator = new BlockAllocatorImpl();
     }
@@ -136,8 +137,8 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doListSchemaNames - enter");
 
-        when(mockTsMeta.listDatabases(any(ListDatabasesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            ListDatabasesRequest request = invocation.getArgumentAt(0, ListDatabasesRequest.class);
+        when(mockTsMeta.listDatabases(nullable(ListDatabasesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            ListDatabasesRequest request = invocation.getArgument(0, ListDatabasesRequest.class);
 
             String newNextToken = null;
             List<Database> databases = new ArrayList<>();
@@ -168,7 +169,7 @@ public class TimestreamMetadataHandlerTest
         logger.info("doListSchemaNames - {}", res.getSchemas());
 
         assertEquals(1000, res.getSchemas().size());
-        verify(mockTsMeta, times(3)).listDatabases(any(ListDatabasesRequest.class));
+        verify(mockTsMeta, times(3)).listDatabases(nullable(ListDatabasesRequest.class));
         Iterator<String> schemaItr = res.getSchemas().iterator();
         for (int i = 0; i < 1000; i++) {
             assertEquals("database_" + i, schemaItr.next());
@@ -183,10 +184,10 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doListTables - enter");
 
-        when(mockTsMeta.listTables(any(com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class)))
+        when(mockTsMeta.listTables(nullable(com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     com.amazonaws.services.timestreamwrite.model.ListTablesRequest request =
-                            invocation.getArgumentAt(0, com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class);
+                            invocation.getArgument(0, com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class);
 
                     String newNextToken = null;
                     List<Table> tables = new ArrayList<>();
@@ -219,7 +220,7 @@ public class TimestreamMetadataHandlerTest
 
         assertEquals(1000, res.getTables().size());
         verify(mockTsMeta, times(3))
-                .listTables(any(com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class));
+                .listTables(nullable(com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class));
 
         Iterator<TableName> schemaItr = res.getTables().iterator();
         for (int i = 0; i < 1000; i++) {
@@ -237,11 +238,11 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doGetTable - enter");
 
-        when(mockGlue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class)))
+        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class)))
                 .thenReturn(mock(GetTableResult.class));
 
-        when(mockTsQuery.query(any(QueryRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            QueryRequest request = invocation.getArgumentAt(0, QueryRequest.class);
+        when(mockTsQuery.query(nullable(QueryRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            QueryRequest request = invocation.getArgument(0, QueryRequest.class);
             assertEquals("DESCRIBE \"default\".\"table1\"", request.getQueryString());
             List<Row> rows = new ArrayList<>();
 
@@ -293,8 +294,8 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doGetTable - enter");
 
-        when(mockGlue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            com.amazonaws.services.glue.model.GetTableRequest request = invocation.getArgumentAt(0,
+        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            com.amazonaws.services.glue.model.GetTableRequest request = invocation.getArgument(0,
                     com.amazonaws.services.glue.model.GetTableRequest.class);
 
             List<Column> columns = new ArrayList<>();
@@ -339,8 +340,8 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doGetTimeSeriesTableGlue - enter");
 
-        when(mockGlue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            com.amazonaws.services.glue.model.GetTableRequest request = invocation.getArgumentAt(0,
+        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            com.amazonaws.services.glue.model.GetTableRequest request = invocation.getArgument(0,
                     com.amazonaws.services.glue.model.GetTableRequest.class);
 
             List<Column> columns = new ArrayList<>();

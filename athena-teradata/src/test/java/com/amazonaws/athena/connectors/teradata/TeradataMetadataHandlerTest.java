@@ -40,12 +40,14 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
-import uk.org.webcompere.systemstubs.rules.EnvironmentVariablesRule;
 
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class TeradataMetadataHandlerTest
         extends TestBase
@@ -53,7 +55,7 @@ public class TeradataMetadataHandlerTest
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", TeradataConstants.TERADATA_NAME,
             "teradata://jdbc:teradata://hostname/user=xxx&password=xxx");
-    private TeradataMetadataHandler teradataMetadataHandler ;
+    private TeradataMetadataHandler teradataMetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
     private FederatedIdentity federatedIdentity;
@@ -61,21 +63,17 @@ public class TeradataMetadataHandlerTest
     private AmazonAthena athena;
     private BlockAllocator blockAllocator;
 
-   @Rule
-   public EnvironmentVariablesRule environmentVariablesRule = new EnvironmentVariablesRule();
-
     @Before
     public void setup() throws Exception {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.teradataMetadataHandler = new TeradataMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        this.teradataMetadataHandler = new TeradataMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of("partitioncount", "1000"));
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
-        environmentVariablesRule.set("partitioncount", "1000");
     }
 
     @Test
@@ -179,9 +177,9 @@ public class TeradataMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        TeradataMetadataHandler teradataMetadataHandler = new TeradataMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
+        TeradataMetadataHandler teradataMetadataHandler = new TeradataMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 
         teradataMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
@@ -290,7 +288,7 @@ public class TeradataMetadataHandlerTest
     }
     @Test
     public void doGetTable()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
         Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
@@ -317,12 +315,12 @@ public class TeradataMetadataHandlerTest
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 
-    @Test (expected = RuntimeException.class)
+    @Test (expected = SQLException.class)
     public void doGetTableSQLException()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
-        Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.teradataMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }

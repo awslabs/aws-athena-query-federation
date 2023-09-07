@@ -81,19 +81,21 @@ public class TPCDSMetadataHandler
      */
     private static final String SOURCE_TYPE = "tpcds";
 
-    public TPCDSMetadataHandler()
+    public TPCDSMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
     }
 
     @VisibleForTesting
-    protected TPCDSMetadataHandler(EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected TPCDSMetadataHandler(
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
     }
 
     /**

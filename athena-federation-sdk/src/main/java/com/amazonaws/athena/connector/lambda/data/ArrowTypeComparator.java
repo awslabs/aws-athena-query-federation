@@ -24,7 +24,6 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.bouncycastle.util.Arrays;
-import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,15 +88,12 @@ public class ArrowTypeComparator
                 return ((java.time.LocalDateTime) lhs).compareTo((java.time.LocalDateTime) rhs);
             case DATEDAY:
                 return ((Integer) lhs).compareTo((Integer) rhs);
+            case TIMESTAMPMICROTZ:
             case TIMESTAMPMILLITZ:
+                ArrowType.Timestamp actualArrowType = (ArrowType.Timestamp) arrowType;
                 if (lhs instanceof Long) {
-                    ZonedDateTime lhsZdt = DateTimeFormatterUtil.constructZonedDateTime(((Long) lhs).longValue());
-                    ZonedDateTime rhsZdt = DateTimeFormatterUtil.constructZonedDateTime(((Long) rhs).longValue());
-                    return lhsZdt.compareTo(rhsZdt);
-                }
-                else if (lhs instanceof org.joda.time.LocalDateTime) {
-                    ZonedDateTime lhsZdt = getZonedDateTime((org.joda.time.LocalDateTime) lhs);
-                    ZonedDateTime rhsZdt = getZonedDateTime((org.joda.time.LocalDateTime) rhs);
+                    ZonedDateTime lhsZdt = DateTimeFormatterUtil.constructZonedDateTime(((Long) lhs).longValue(), actualArrowType);
+                    ZonedDateTime rhsZdt = DateTimeFormatterUtil.constructZonedDateTime(((Long) rhs).longValue(), actualArrowType);
                     return lhsZdt.compareTo(rhsZdt);
                 }
                 else {
@@ -121,20 +117,5 @@ public class ArrowTypeComparator
                 logger.warn("compare: Unknown type " + type + " object: " + lhs.getClass());
                 throw new IllegalArgumentException("Unknown type " + type + " object: " + lhs.getClass());
         }
-    }
-
-    /**
-     * convert LocalDateTime representing timestamp and timezone packed long
-     * by unpacking the two values and constructing a zoned date time from it.
-     * this is used only if the type is TIMESTAMPMILLITZ.
-     *
-     * @param ldt LocalDateTime representing timestamp and timezone packed long
-     * @return ZonedDateTime with the timestamp and timezone extracted from ldt
-     */
-    private static ZonedDateTime getZonedDateTime(org.joda.time.LocalDateTime ldt)
-    {
-        DateTimeZone dtz = ldt.getChronology().getZone();
-        long dateTimeWithTimeZone = ldt.toDateTime(dtz).getMillis();
-        return DateTimeFormatterUtil.constructZonedDateTime(dateTimeWithTimeZone);
     }
 }

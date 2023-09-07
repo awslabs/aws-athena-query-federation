@@ -34,13 +34,13 @@ import java.util.regex.Pattern;
  */
 public class DatabaseConnectionConfigBuilder
 {
-    private static final String CONNECTION_STRING_PROPERTY_SUFFIX = "_connection_string";
+    public static final String CONNECTION_STRING_PROPERTY_SUFFIX = "_connection_string";
     public static final String DEFAULT_CONNECTION_STRING_PROPERTY = "default";
     private static final int MUX_CATALOG_LIMIT = 100;
 
-    private static final String CONNECTION_STRING_REGEX = "([a-zA-Z]+)://(.*)";
+    private static final String CONNECTION_STRING_REGEX = "([a-zA-Z0-9]+)://(.*)";
     private static final Pattern CONNECTION_STRING_PATTERN = Pattern.compile(CONNECTION_STRING_REGEX);
-    private static final String SECRET_PATTERN_STRING = "\\$\\{([a-zA-Z0-9:/_+=.@-]+)}";
+    private static final String SECRET_PATTERN_STRING = "\\$\\{(([a-z-]+!)?[a-zA-Z0-9:/_+=.@-]+)}";
     public static final Pattern SECRET_PATTERN = Pattern.compile(SECRET_PATTERN_STRING);
 
     private Map<String, String> properties;
@@ -53,10 +53,10 @@ public class DatabaseConnectionConfigBuilder
      * @param databaseEngine canonical name of engine (e.g. "postgres", "redshift", "mysql")
      * @return List of database connection configurations. See {@link DatabaseConnectionConfig}.
      */
-    public static List<DatabaseConnectionConfig> buildFromSystemEnv(String databaseEngine)
+    public static List<DatabaseConnectionConfig> buildFromSystemEnv(String databaseEngine, java.util.Map<String, String> configOptions)
     {
         return new DatabaseConnectionConfigBuilder()
-                .properties(System.getenv())
+                .properties(configOptions)
                 .engine(databaseEngine)
                 .build();
     }
@@ -144,8 +144,9 @@ public class DatabaseConnectionConfigBuilder
     private Optional<String> extractSecretName(final String jdbcConnectionString)
     {
         Matcher secretMatcher = SECRET_PATTERN.matcher(jdbcConnectionString);
+        boolean isValidGroupCount = secretMatcher.groupCount() == 1 || secretMatcher.groupCount() == 2;
         String secretName = null;
-        if (secretMatcher.find() && secretMatcher.groupCount() == 1) {
+        if (secretMatcher.find() && isValidGroupCount) {
             secretName = secretMatcher.group(1);
         }
 

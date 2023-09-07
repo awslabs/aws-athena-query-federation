@@ -12,11 +12,11 @@ Metadata:
       - athena-federation
       - jdbc
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.24.1
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
-    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   DefaultConnectionString:
@@ -50,6 +50,12 @@ Parameters:
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -62,11 +68,12 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2MuxCompositeHandler"
-      CodeUri: "./target/athena-datalakegen2-2022.24.1.jar"
+      CodeUri: "./target/athena-datalakegen2-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with DataLake Gen2 using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:

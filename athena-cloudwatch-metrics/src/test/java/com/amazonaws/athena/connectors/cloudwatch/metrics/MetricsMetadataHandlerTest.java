@@ -57,7 +57,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +67,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
@@ -75,7 +76,7 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.ST
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -102,7 +103,7 @@ public class MetricsMetadataHandlerTest
     public void setUp()
             throws Exception
     {
-        handler = new MetricsMetadataHandler(mockMetrics, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix");
+        handler = new MetricsMetadataHandler(mockMetrics, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
     }
 
@@ -197,7 +198,7 @@ public class MetricsMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName(defaultSchema, "metrics"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -230,7 +231,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metrics"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
         int numContinuations = 0;
         do {
@@ -267,8 +268,8 @@ public class MetricsMetadataHandlerTest
         String statistic = "p90";
         int numMetrics = 10;
 
-        when(mockMetrics.listMetrics(any(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            ListMetricsRequest request = invocation.getArgumentAt(0, ListMetricsRequest.class);
+        when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            ListMetricsRequest request = invocation.getArgument(0, ListMetricsRequest.class);
 
             //assert that the namespace filter was indeed pushed down
             assertEquals(namespaceFilter, request.getNamespace());
@@ -304,7 +305,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
 
         int numContinuations = 0;
@@ -345,7 +346,7 @@ public class MetricsMetadataHandlerTest
         String invalidNamespaceFilter = "InvalidNameSpace";
         int numMetrics = 10;
 
-        when(mockMetrics.listMetrics(any(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+        when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             List<Metric> metrics = new ArrayList<>();
             for (int i = 0; i < numMetrics; i++) {
                 metrics.add(new Metric().withNamespace(namespace).withMetricName("metric-" + i));
@@ -371,7 +372,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);

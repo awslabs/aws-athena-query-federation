@@ -76,6 +76,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -116,7 +117,7 @@ public class BlockTest
 
         ValueSet col1Constraint = EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(), true, false)
                 .add(10).build();
-        Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint));
+        Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, constraints)) {
             block.constrain(constraintEvaluator);
             assertTrue(block.setValue("col1", 0, 10));
@@ -692,7 +693,7 @@ public class BlockTest
                             }
 
                             throw new RuntimeException("Unexpected field " + field.getName());
-                        }, new Object());
+                        }, com.google.common.collect.ImmutableMap.of());
                     }
                     List<Field> children = vector.getField().getChildren();
                     Field keyValueStructField;

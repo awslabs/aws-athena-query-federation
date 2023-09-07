@@ -1,6 +1,7 @@
 {
   "connector_name" :  "Snowflake", /* connector name */
   "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "athena_result_location": "<bucket_path (without s3://)>", /* The s3 bucket path used to store results of Athena queries */
   "secrets_manager_secret" : "<secret name>",  /* Secret name used to retrieve user credentials from SecretsManager. */
   "region": "<region>", /* aws region name */
   "snowflake_db_name": "<db name>", /*snowflake db name*/
@@ -13,8 +14,6 @@
     "disable_spill_encryption" : "false", /* If set to true encryption for spilled data is disabled (default: false) */
     "spill_put_request_headers": "",  /* JSON encoded map of request headers and values for the s3 putObject request used for spilling. This is a String not an object. Optional.*/
     "region": "<region>", /* aws region name */
-    "pagecount": "100000", /* page count */
-    "partitionlimit": "100", /* partition limit */
     "default": "snowflake://jdbc:snowflake://<hostname>/?warehouse=<warehouse name>&db=<db name>&schema=<schena name>&${<secret name>}" /* snowflake jdbc connection string */
   },
   "vpc_configuration" : {

@@ -45,6 +45,9 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class ImpalaMetadataHandlerTest
         extends TestBase {
 
@@ -63,15 +66,17 @@ public class ImpalaMetadataHandlerTest
         System.setProperty("aws.region", "us-west-2");
     }
     @Before
-    public void setup() {
+    public void setup()
+            throws Exception
+    {
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.impalaMetadataHandler = new ImpalaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        this.impalaMetadataHandler = new ImpalaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
 
     }
@@ -106,8 +111,8 @@ public class ImpalaMetadataHandlerTest
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {{value3},{value2}};
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY+tempTableName.getTableName().toUpperCase())).thenReturn(preparestatement1);
-        final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+        Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY + tempTableName.getQualifiedTableName().toUpperCase())).thenReturn(preparestatement1);
+        final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
@@ -118,7 +123,9 @@ public class ImpalaMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues.get(0), "[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']");
+        Assert.assertEquals(2, expectedValues.size());
+        Assert.assertEquals("[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']", expectedValues.get(0));
+        Assert.assertEquals("[partition :  case_date=01-01-2000 and case_number=0 and case_instance=89898989 and case_location is NULL]", expectedValues.get(1));
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
@@ -144,11 +151,11 @@ public class ImpalaMetadataHandlerTest
        String[] columns2 = {"Partition"};
        int[] types2 = {Types.VARCHAR};
        Object[][] values1 = {};
-       Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(connection);
-       String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+       Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+       String tableName =getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
        Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY+tableName)).thenReturn(preparestatement1);
-       final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+       final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
        Statement statement1 = Mockito.mock(Statement.class);
        Mockito.when(this.connection.createStatement()).thenReturn(statement1);
        ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
@@ -177,9 +184,9 @@ public class ImpalaMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        ImpalaMetadataHandler implalaMetadataHandler = new ImpalaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
+        ImpalaMetadataHandler implalaMetadataHandler = new ImpalaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         implalaMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
 
@@ -203,11 +210,11 @@ public class ImpalaMetadataHandlerTest
         String[] columns2 = {"Partition"};
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {{value2},{value3}};
-        Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(connection);
-        String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        String tableName =getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY+tableName)).thenReturn(preparestatement1);
-        final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+        final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
@@ -281,12 +288,13 @@ public class ImpalaMetadataHandlerTest
         TableName inputTableName = new TableName("testSchema", "testTable");
         this.impalaMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
-    @Test
+
+    @Test(expected = SQLException.class)
     public void doGetTableSQLException()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
-        Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.impalaMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }

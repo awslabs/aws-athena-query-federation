@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -43,7 +43,7 @@ import java.util.Map;
 public class ElasticsearchFieldResolver
         implements FieldResolver
 {
-    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchTypeUtils.class);
+    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchFieldResolver.class);
 
     protected ElasticsearchFieldResolver() {}
 
@@ -90,14 +90,26 @@ public class ElasticsearchFieldResolver
                 }
                 break;
             default:
-                if (!(fieldValue instanceof Map)) {
-                    return coerceField(field, fieldValue);
-                }
-                break;
+                return coerceField(field, fieldValue);
         }
 
         throw new RuntimeException("Invalid field value encountered in Document for field: " + field +
                 ",value: " + fieldValue);
+    }
+
+    // Return the field value of a map key
+    // For Elasticsearch, the key is always a string so we can return the originalValue
+    @Override
+    public Object getMapKey(Field field, Object originalValue)
+    {
+        return originalValue;
+    }
+
+    // Return the field value of a map value
+    @Override
+    public Object getMapValue(Field field, Object originalValue)
+    {
+        return coerceField(field, originalValue);
     }
 
     /**
@@ -111,6 +123,10 @@ public class ElasticsearchFieldResolver
     protected Object coerceListField(Field field, Object fieldValue)
             throws RuntimeException
     {
+        if (fieldValue == null) {
+            return null;
+        }
+
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
 
         switch (fieldType) {

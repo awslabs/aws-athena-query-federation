@@ -57,8 +57,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -108,8 +109,8 @@ public class ExampleRecordHandlerTest
         awsSecretsManager = mock(AWSSecretsManager.class);
         athena = mock(AmazonAthena.class);
 
-        when(amazonS3.doesObjectExist(anyString(), anyString())).thenReturn(true);
-        when(amazonS3.getObject(anyString(), anyString()))
+        when(amazonS3.doesObjectExist(nullable(String.class), nullable(String.class))).thenReturn(true);
+        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override
@@ -124,7 +125,7 @@ public class ExampleRecordHandlerTest
                     }
                 });
 
-        handler = new ExampleRecordHandler(amazonS3, awsSecretsManager, athena);
+        handler = new ExampleRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
     }
 
@@ -133,9 +134,8 @@ public class ExampleRecordHandlerTest
             throws Exception
     {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
+            //We do this because until you complete the tutorial these tests will fail.
+            //This is how we avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
             //on purpose since this is a somewhat odd pattern.
             logger.info("doReadRecordsNoSpill: Tests are disabled, to enable them set the 'publishing' environment variable " +
                     "using maven clean install -Dpublishing=true");
@@ -155,7 +155,7 @@ public class ExampleRecordHandlerTest
                             .add("month", "11")
                             .add("day", "1")
                             .build(),
-                    new Constraints(constraintsMap),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
             );

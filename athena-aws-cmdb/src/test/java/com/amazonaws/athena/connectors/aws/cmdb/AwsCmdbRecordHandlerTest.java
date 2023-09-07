@@ -39,13 +39,15 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Collections;
 import java.util.UUID;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -92,12 +94,12 @@ public class AwsCmdbRecordHandlerTest
         when(mockTableProviderFactory.getTableProviders())
                 .thenReturn(Collections.singletonMap(new TableName("schema", "table"), mockTableProvider));
 
-        handler = new AwsCmdbRecordHandler(mockS3, mockSecretsManager, mockAthena, mockTableProviderFactory);
+        handler = new AwsCmdbRecordHandler(mockS3, mockSecretsManager, mockAthena, mockTableProviderFactory, com.google.common.collect.ImmutableMap.of());
 
         verify(mockTableProviderFactory, times(1)).getTableProviders();
         verifyNoMoreInteractions(mockTableProviderFactory);
 
-        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+        Mockito.lenient().when(queryStatusChecker.isQueryRunning()).thenReturn(true);
     }
 
     @Test
@@ -113,12 +115,12 @@ public class AwsCmdbRecordHandlerTest
                         .withQueryId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP),
+                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000,
                 100_000);
 
         handler.readWithConstraint(mockBlockSpiller, request, queryStatusChecker);
 
-        verify(mockTableProvider, times(1)).readWithConstraint(any(BlockSpiller.class), eq(request), eq(queryStatusChecker));
+        verify(mockTableProvider, times(1)).readWithConstraint(nullable(BlockSpiller.class), eq(request), eq(queryStatusChecker));
     }
 }

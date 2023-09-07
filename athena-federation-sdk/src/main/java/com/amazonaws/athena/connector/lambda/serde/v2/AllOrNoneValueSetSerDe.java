@@ -39,7 +39,7 @@ public final class AllOrNoneValueSetSerDe
     private static final String ALL_FIELD = "all";
     private static final String NULL_ALLOWED_FIELD = "nullAllowed";
 
-    private AllOrNoneValueSetSerDe(){}
+    private AllOrNoneValueSetSerDe() {}
 
     public static final class Serializer extends TypedSerializer<ValueSet>
     {

@@ -46,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class HiveMuxMetadataHandlerTest
 {
@@ -73,11 +74,12 @@ public class HiveMuxMetadataHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
                 "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new HiveMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig);
+        this.jdbcMetadataHandler = new HiveMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
     public void doListSchemaNames()
+            throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
         Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("metaHive");
@@ -87,6 +89,7 @@ public class HiveMuxMetadataHandlerTest
 
     @Test
     public void doListTables()
+            throws Exception
     {
         ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
         Mockito.when(listTablesRequest.getCatalogName()).thenReturn("metaHive");
@@ -113,7 +116,7 @@ public class HiveMuxMetadataHandlerTest
                 "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
         try {
             new HiveMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory,
-                    metadataHandlersMap, databaseConnectionConfig);
+                    metadataHandlersMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
         } catch (Exception e) {
             e.getMessage();
             Assert.assertTrue(e.getMessage().contains("Max 100 catalogs supported in multiplexer."));
@@ -152,7 +155,7 @@ public class HiveMuxMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("metaHive");
         this.jdbcMetadataHandler.getPartitions(Mockito.mock(BlockWriter.class), getTableLayoutRequest, queryStatusChecker);
-        Mockito.verify(this.hiveMetadataHandler, Mockito.times(1)).getPartitions(Mockito.any(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
+        Mockito.verify(this.hiveMetadataHandler, Mockito.times(1)).getPartitions(nullable(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
     }
 
     @Test

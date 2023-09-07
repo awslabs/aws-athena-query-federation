@@ -10,11 +10,11 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.24.1
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
-    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SpillBucket:
@@ -45,6 +45,12 @@ Parameters:
   SecretNameOrPrefix:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. redis-*).'
     Type: String
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -56,11 +62,12 @@ Resources:
           spill_prefix: !Ref SpillPrefix
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.redis.RedisCompositeHandler"
-      CodeUri: "./target/athena-redis-2022.24.1.jar"
+      CodeUri: "./target/athena-redis-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with Redis, making your Redis data accessible via SQL"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:

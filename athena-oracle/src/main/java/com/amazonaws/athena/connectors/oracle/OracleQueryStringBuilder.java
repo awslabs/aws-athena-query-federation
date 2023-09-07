@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.oracle;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
@@ -35,9 +37,9 @@ import java.util.Set;
 public class OracleQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
-    public OracleQueryStringBuilder(final String quoteCharacters)
+    public OracleQueryStringBuilder(final String quoteCharacter, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacter, federationExpressionParser);
     }
 
     @Override
@@ -68,5 +70,12 @@ public class OracleQueryStringBuilder
     protected List<String> getPartitionWhereClauses(final Split split)
     {
         return Collections.emptyList();
+    }
+
+    //Returning empty string as Oracle does not support LIMIT clause
+    @Override
+    protected String appendLimitOffset(Split split, Constraints constraints)
+    {
+        return emptyString;
     }
 }

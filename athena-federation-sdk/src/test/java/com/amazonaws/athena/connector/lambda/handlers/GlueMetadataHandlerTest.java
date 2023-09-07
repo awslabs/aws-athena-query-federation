@@ -26,6 +26,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -63,8 +65,9 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +88,7 @@ import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -149,7 +152,8 @@ public class GlueMetadataHandlerTest
                 mock(AmazonAthena.class),
                 "glue-test",
                 "spill-bucket",
-                "spill-prefix")
+                "spill-prefix",
+                com.google.common.collect.ImmutableMap.of())
         {
             @Override
             public GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
@@ -169,11 +173,16 @@ public class GlueMetadataHandlerTest
             {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request) {
+                throw new UnsupportedOperationException();
+            }
         };
         allocator = new BlockAllocatorImpl();
 
         // doListTables pagination.
-        when(mockGlue.getTables(any(GetTablesRequest.class)))
+        when(mockGlue.getTables(nullable(GetTablesRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     GetTablesRequest request = (GetTablesRequest) invocationOnMock.getArguments()[0];
@@ -223,7 +232,7 @@ public class GlueMetadataHandlerTest
         databases.add(new Database().withName("db1"));
         databases.add(new Database().withName("db2"));
 
-        when(mockGlue.getDatabases(any(GetDatabasesRequest.class)))
+        when(mockGlue.getDatabases(nullable(GetDatabasesRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     GetDatabasesRequest request = (GetDatabasesRequest) invocationOnMock.getArguments()[0];
@@ -249,7 +258,7 @@ public class GlueMetadataHandlerTest
         assertEquals(databases.stream().map(next -> next.getName()).collect(Collectors.toList()),
                 new ArrayList<>(res.getSchemas()));
 
-        verify(mockGlue, times(2)).getDatabases(any(GetDatabasesRequest.class));
+        verify(mockGlue, times(2)).getDatabases(nullable(GetDatabasesRequest.class));
     }
 
     @Test
@@ -328,15 +337,18 @@ public class GlueMetadataHandlerTest
         columns.add(new Column().withName("col6").withType("timestamptz").withComment("comment"));
         columns.add(new Column().withName("col7").withType("timestamptz").withComment("comment"));
 
+        List<Column> partitionKeys = new ArrayList<>();
+        columns.add(new Column().withName("partition_col1").withType("int").withComment("comment"));
+
         Table mockTable = mock(Table.class);
         StorageDescriptor mockSd = mock(StorageDescriptor.class);
 
-        when(mockTable.getName()).thenReturn(table);
+        Mockito.lenient().when(mockTable.getName()).thenReturn(table);
         when(mockTable.getStorageDescriptor()).thenReturn(mockSd);
         when(mockTable.getParameters()).thenReturn(expectedParams);
         when(mockSd.getColumns()).thenReturn(columns);
 
-        when(mockGlue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class)))
+        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     com.amazonaws.services.glue.model.GetTableRequest request =
@@ -356,13 +368,14 @@ public class GlueMetadataHandlerTest
 
         logger.info("doGetTable - {}", res);
 
-        assertTrue(res.getSchema().getFields().size() == 7);
+        assertTrue(res.getSchema().getFields().size() == 8);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().containsKey(DATETIME_FORMAT_MAPPING_PROPERTY));
         assertEquals(res.getSchema().getCustomMetadata().get(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED), "Col2=someformat2,col1=someformat1");
         assertEquals(sourceTable, getSourceTableName(res.getSchema()));
 
         //Verify column name mapping works
+        assertNotNull(res.getSchema().findField("partition_col1"));
         assertNotNull(res.getSchema().findField("col1"));
         assertNotNull(res.getSchema().findField("Col2"));
         assertNotNull(res.getSchema().findField("Col3"));
@@ -372,6 +385,7 @@ public class GlueMetadataHandlerTest
         assertNotNull(res.getSchema().findField("col7"));
 
         //Verify types
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("partition_col1").getType()).equals(Types.MinorType.INT));
         assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("col1").getType()).equals(Types.MinorType.INT));
         assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("Col2").getType()).equals(Types.MinorType.BIGINT));
         assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("Col3").getType()).equals(Types.MinorType.VARCHAR));
@@ -412,12 +426,12 @@ public class GlueMetadataHandlerTest
         Table mockTable = mock(Table.class);
         StorageDescriptor mockSd = mock(StorageDescriptor.class);
 
-        when(mockTable.getName()).thenReturn(table);
+        Mockito.lenient().when(mockTable.getName()).thenReturn(table);
         when(mockTable.getStorageDescriptor()).thenReturn(mockSd);
         when(mockTable.getParameters()).thenReturn(expectedParams);
         when(mockSd.getColumns()).thenReturn(columns);
 
-        when(mockGlue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class)))
+        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     com.amazonaws.services.glue.model.GetTableRequest request =

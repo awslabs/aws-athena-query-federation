@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -170,5 +171,179 @@ public class ElasticsearchSchemaUtilsTest
                 ElasticsearchSchemaUtils.mappingsEqual(expectedSchema, builtSchema));
 
         logger.info("parseMappingTest - exit");
+    }
+
+    @Test
+    public void parseSchemaWithListOfStruct()
+            throws JsonProcessingException
+    {
+
+        Schema expected = SchemaBuilder.newBuilder()
+                .addField("director", Types.MinorType.VARCHAR.getType())
+                .addField("objlistouter", Types.MinorType.LIST.getType(),
+                        ImmutableList.of(
+                                new Field("objlistouter", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                                        ImmutableList.of(
+                                                new Field("objlistinner", FieldType.nullable(Types.MinorType.LIST.getType()),
+                                                        ImmutableList.of(new Field("objlistinner", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                                                                ImmutableList.of(
+                                                                        new Field("title", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null),
+                                                                        new Field("hi", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))))),
+                                                new Field("test2", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))
+                                )
+                        ))
+                .addField("title", Types.MinorType.VARCHAR.getType())
+                .addField("year", Types.MinorType.BIGINT.getType())
+                .build();
+
+        LinkedHashMap actual = new ObjectMapper().readValue(" {\n" +
+                "      \"_meta\" : {\n" +
+                "        \"objlistouter\" : \"list\",\n" +
+                "        \"objlistouter.objlistinner\" : \"list\"\n" +
+                "      },\n" +
+                "      \"properties\" : {\n" +
+                "        \"director\" : {\n" +
+                "          \"type\" : \"text\",\n" +
+                "          \"fields\" : {\n" +
+                "            \"keyword\" : {\n" +
+                "              \"type\" : \"keyword\",\n" +
+                "              \"ignore_above\" : 256\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"objlistouter\" : {\n" +
+                "          \"properties\" : {\n" +
+                "            \"objlistinner\" : {\n" +
+                "              \"properties\" : {\n" +
+                "                \"hi\" : {\n" +
+                "                  \"type\" : \"text\",\n" +
+                "                  \"fields\" : {\n" +
+                "                    \"keyword\" : {\n" +
+                "                      \"type\" : \"keyword\",\n" +
+                "                      \"ignore_above\" : 256\n" +
+                "                    }\n" +
+                "                  }\n" +
+                "                },\n" +
+                "                \"title\" : {\n" +
+                "                  \"type\" : \"text\",\n" +
+                "                  \"fields\" : {\n" +
+                "                    \"keyword\" : {\n" +
+                "                      \"type\" : \"keyword\",\n" +
+                "                      \"ignore_above\" : 256\n" +
+                "                    }\n" +
+                "                  }\n" +
+                "                }\n" +
+                "              }\n" +
+                "            },\n" +
+                "            \"test2\" : {\n" +
+                "              \"type\" : \"text\",\n" +
+                "              \"fields\" : {\n" +
+                "                \"keyword\" : {\n" +
+                "                  \"type\" : \"keyword\",\n" +
+                "                  \"ignore_above\" : 256\n" +
+                "                }\n" +
+                "              }\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"title\" : {\n" +
+                "          \"type\" : \"text\",\n" +
+                "          \"fields\" : {\n" +
+                "            \"keyword\" : {\n" +
+                "              \"type\" : \"keyword\",\n" +
+                "              \"ignore_above\" : 256\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"year\" : {\n" +
+                "          \"type\" : \"long\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "    }", LinkedHashMap.class);
+
+        logger.info("parseSchemaWithListOfStruct - enter");
+
+        Schema builtSchema = ElasticsearchSchemaUtils.parseMapping(actual);
+        // The built mapping and expected mapping should match.
+        assertTrue("Real and mocked mappings are different!",
+                ElasticsearchSchemaUtils.mappingsEqual(expected, builtSchema));
+
+        logger.info("parseSchemaWithListOfStruct - exit");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void parseMappingWithInvalidMeta()
+            throws JsonProcessingException
+    {
+        LinkedHashMap actual = new ObjectMapper().readValue(" {\n" +
+                "      \"_meta\" : {\n" +
+                "        \"objlistouter\" : \"hi\",\n" +
+                "        \"objlistouter.objlistinner\" : \"test\"\n" +
+                "      },\n" +
+                "      \"properties\" : {\n" +
+                "        \"director\" : {\n" +
+                "          \"type\" : \"text\",\n" +
+                "          \"fields\" : {\n" +
+                "            \"keyword\" : {\n" +
+                "              \"type\" : \"keyword\",\n" +
+                "              \"ignore_above\" : 256\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"objlistouter\" : {\n" +
+                "          \"properties\" : {\n" +
+                "            \"objlistinner\" : {\n" +
+                "              \"properties\" : {\n" +
+                "                \"hi\" : {\n" +
+                "                  \"type\" : \"text\",\n" +
+                "                  \"fields\" : {\n" +
+                "                    \"keyword\" : {\n" +
+                "                      \"type\" : \"keyword\",\n" +
+                "                      \"ignore_above\" : 256\n" +
+                "                    }\n" +
+                "                  }\n" +
+                "                },\n" +
+                "                \"title\" : {\n" +
+                "                  \"type\" : \"text\",\n" +
+                "                  \"fields\" : {\n" +
+                "                    \"keyword\" : {\n" +
+                "                      \"type\" : \"keyword\",\n" +
+                "                      \"ignore_above\" : 256\n" +
+                "                    }\n" +
+                "                  }\n" +
+                "                }\n" +
+                "              }\n" +
+                "            },\n" +
+                "            \"test2\" : {\n" +
+                "              \"type\" : \"text\",\n" +
+                "              \"fields\" : {\n" +
+                "                \"keyword\" : {\n" +
+                "                  \"type\" : \"keyword\",\n" +
+                "                  \"ignore_above\" : 256\n" +
+                "                }\n" +
+                "              }\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"title\" : {\n" +
+                "          \"type\" : \"text\",\n" +
+                "          \"fields\" : {\n" +
+                "            \"keyword\" : {\n" +
+                "              \"type\" : \"keyword\",\n" +
+                "              \"ignore_above\" : 256\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"year\" : {\n" +
+                "          \"type\" : \"long\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "    }", LinkedHashMap.class);
+
+        logger.info("parseMappingWithInvalidMeta - enter");
+
+        Schema builtSchema = ElasticsearchSchemaUtils.parseMapping(actual);
+
+        logger.info("parseMappingWithInvalidMeta - exit");
     }
 }

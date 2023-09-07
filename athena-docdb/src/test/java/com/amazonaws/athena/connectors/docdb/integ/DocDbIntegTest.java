@@ -51,7 +51,6 @@ import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.docdb.ClusterParameterGroup;
 import software.amazon.awscdk.services.docdb.DatabaseCluster;
 import software.amazon.awscdk.services.docdb.Endpoint;
-import software.amazon.awscdk.services.docdb.InstanceProps;
 import software.amazon.awscdk.services.docdb.Login;
 import software.amazon.awscdk.services.ec2.InstanceType;
 import software.amazon.awscdk.services.ec2.SecurityGroup;
@@ -108,7 +107,9 @@ public class DocDbIntegTest extends IntegrationTestBase {
      */
     @BeforeClass
     @Override
-    protected void setUp() {
+    protected void setUp()
+            throws Exception
+    {
         cloudFormationClient = new CloudFormationClient(theApp, getDocDbStack());
         try {
             // Create the CloudFormation stack for the DocumentDb cluster.
@@ -172,17 +173,15 @@ public class DocDbIntegTest extends IntegrationTestBase {
                         .build())
                 .instanceIdentifierBase(dbClusterName)
                 .instances(1)
-                .instanceProps(InstanceProps.builder()
-                        .instanceType(new InstanceType("t3.medium"))
-                        .vpc(Vpc.fromVpcAttributes(stack, "DocDbVpcConfig", VpcAttributes.builder()
-                                .vpcId(vpcAttributes.getVpcId())
-                                .privateSubnetIds(vpcAttributes.getPrivateSubnetIds())
-                                .availabilityZones(vpcAttributes.getAvailabilityZones())
-                                .build()))
-                        .securityGroup(SecurityGroup
-                                .fromSecurityGroupId(stack, "DocDbVpcSecurityGroup",
-                                        vpcAttributes.getSecurityGroupId()))
-                        .build())
+                .instanceType(new InstanceType("t3.medium"))
+                .vpc(Vpc.fromVpcAttributes(stack, "DocDbVpcConfig", VpcAttributes.builder()
+                        .vpcId(vpcAttributes.getVpcId())
+                        .privateSubnetIds(vpcAttributes.getPrivateSubnetIds())
+                        .availabilityZones(vpcAttributes.getAvailabilityZones())
+                        .build()))
+                .securityGroup(SecurityGroup
+                        .fromSecurityGroupId(stack, "DocDbVpcSecurityGroup",
+                                vpcAttributes.getSecurityGroupId()))
                 .build();
 
         return stack;

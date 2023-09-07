@@ -60,7 +60,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,12 +73,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_NUMBER_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_TOTAL_NUMBER_FIELD;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -123,10 +124,10 @@ public class TPCDSRecordHandlerTest
 
         mockS3Storage = new ArrayList<>();
         allocator = new BlockAllocatorImpl();
-        handler = new TPCDSRecordHandler(mockS3, mockSecretsManager, mockAthena);
+        handler = new TPCDSRecordHandler(mockS3, mockSecretsManager, mockAthena, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
-        when(mockS3.putObject(anyObject()))
+        when(mockS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     synchronized (mockS3Storage) {
@@ -138,7 +139,7 @@ public class TPCDSRecordHandlerTest
                     }
                 });
 
-        when(mockS3.getObject(anyString(), anyString()))
+        when(mockS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     synchronized (mockS3Storage) {
@@ -188,7 +189,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L,
                 100_000_000_000L //100GB don't expect this to spill
         );
@@ -232,7 +233,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "10000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 1_500_000L, //~1.5MB so we should see some spill
                 0
         );

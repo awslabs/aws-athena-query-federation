@@ -79,15 +79,15 @@ public class ExampleRecordHandler
 
     private AmazonS3 amazonS3;
 
-    public ExampleRecordHandler()
+    public ExampleRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient());
+        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), configOptions);
     }
 
     @VisibleForTesting
-    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
     }
 
@@ -131,7 +131,7 @@ public class ExampleRecordHandler
         /**
          * TODO: Get the data bucket from the env variable set by athena-example.yaml
          *
-         dataBucket = System.getenv("data_bucket");
+         dataBucket = configOptions.get("data_bucket");
          *
          */
 
@@ -146,8 +146,16 @@ public class ExampleRecordHandler
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
 
         /**
+         * Pushing down constraints is going to be very specific to your connector's means of communicating with
+         * your underlying data source. For example, you can see how JDBC source types handle this in the class
+         * JdbcSplitQueryBuilder in method buildSql.
+         * 
+         * In this example, we do not ask you to implement any pushdowns as it is going to be very connector specific.
+         */
+
+        /**
          * TODO: Add extractors for each field to our RowWRiterBuilder, the RowWriterBuilder will then 'generate'
-         * optomized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
+         * optimized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
          * branches, etc... Later in the code when we call RowWriter for each line in our S3 file
          *
          builder.withExtractor("year", (IntExtractor) (Object context, NullableIntHolder value) -> {

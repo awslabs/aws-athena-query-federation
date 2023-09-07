@@ -68,7 +68,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +85,7 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
@@ -109,7 +110,7 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 /**
@@ -144,7 +145,7 @@ public class DynamoDBMetadataHandlerTest
 
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         allocator = new BlockAllocatorImpl();
-        handler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient);
+        handler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient, com.google.common.collect.ImmutableMap.of());
     }
 
     @After
@@ -229,6 +230,11 @@ public class DynamoDBMetadataHandlerTest
         expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table2"));
         expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table3"));
         expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table4"));
+        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table5"));
+        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table6"));
+        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table7"));
+        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table8"));
+
 
         assertThat(new HashSet<>(res.getTables()), equalTo(new HashSet<>(expectedTables)));
     }
@@ -291,7 +297,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 new TableName(TEST_CATALOG_NAME, TEST_TABLE),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -337,7 +343,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
@@ -350,13 +356,139 @@ public class DynamoDBMetadataHandlerTest
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(HASH_KEY_NAME_METADATA), equalTo("col_4"));
         assertThat(res.getPartitions().getRowCount(), equalTo(2));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_NAME_METADATA), equalTo("col_5"));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0 AND #col_5 <= :v1)"));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 BETWEEN :v0 AND :v1)"));
 
         ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col_4", "col_4", "#col_5", "col_5");
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(startTime), ":v1", ItemUtils.toAttributeValue(endTime));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
+
+        // Tests to validate that we correctly generate predicates that avoid this error:
+        //    "KeyConditionExpressions must only contain one condition per key"
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
+                true /* inclusive lowerbound */, endTime, false /* exclusive upperbound */));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            // Verify that only the upper bound is present
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
+        }
+
+        // For the same filters that we applied above, validate that we still get two conditions for non sort keys
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
+                true /* inclusive lowerbound */, endTime, false /* exclusive upperbound */));
+            constraintsMap.put("col_6", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            // Verify that both bounds are present for col_6 which is not a sort key
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_6 < :v1 AND #col_6 >= :v2)"));
+        }
+
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
+              false /* exclusive lowerbound */, endTime, true /* inclusive upperbound*/));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            // Verify that only the upper bound is present
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
+        }
+
+        // For the same filters that we applied above, validate that we still get two conditions for non sort keys
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
+                false /* exclusive lowerbound */, endTime, true /* inclusive upperbound */));
+            constraintsMap.put("col_6", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            // Verify that both bounds are present for col_6 which is not a sort key
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_6 <= :v1 AND #col_6 > :v2)"));
+        }
+
+        // -------------------------------------------------------------------------
+        // Single bound constraint tests
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.greaterThan(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0)"));
+        }
+
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.greaterThanOrEqual(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0)"));
+        }
+
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.lessThan(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
+        }
+
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.lessThanOrEqual(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
+        }
     }
 
     @Test
@@ -411,7 +543,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
@@ -526,7 +658,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 tableName,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 getTableResponse.getSchema(),
                 Collections.EMPTY_SET);
 

@@ -20,10 +20,13 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,12 +43,29 @@ import java.util.Map;
 public class Constraints
         implements AutoCloseable
 {
+    public static final long DEFAULT_NO_LIMIT = -1;
+
     private Map<String, ValueSet> summary;
+    private List<FederationExpression> expression;
+    private final List<OrderByField> orderByClause;
+    private long limit;
+
+    @Deprecated
+    public Constraints(Map<String, ValueSet> summary) 
+    {
+        this(summary, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
+    }
 
     @JsonCreator
-    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary)
+    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
+                       @JsonProperty("expression") List<FederationExpression> expression,
+                       @JsonProperty("orderByClause") List<OrderByField> orderByClause,
+                       @JsonProperty("limit") long limit)
     {
         this.summary = summary;
+        this.expression = expression;
+        this.orderByClause = orderByClause;
+        this.limit = limit;
     }
 
     /**
@@ -56,6 +76,31 @@ public class Constraints
     public Map<String, ValueSet> getSummary()
     {
         return summary;
+    }
+
+    public List<FederationExpression> getExpression()
+    {
+        return expression;
+    }
+
+    public long getLimit()
+    {
+        return limit;
+    }
+
+    public boolean hasLimit()
+    {
+        return this.limit > DEFAULT_NO_LIMIT;
+    }
+
+    public List<OrderByField> getOrderByClause()
+    {
+        return this.orderByClause;
+    }
+
+    public boolean hasNonEmptyOrderByClause()
+    {
+        return this.orderByClause != null && this.orderByClause.size() > 0;
     }
 
     @Override
@@ -70,7 +115,10 @@ public class Constraints
 
         Constraints that = (Constraints) o;
 
-        return Objects.equal(this.summary, that.summary);
+        return Objects.equal(this.summary, that.summary) &&
+                Objects.equal(this.expression, that.expression) &&
+                Objects.equal(this.orderByClause, that.orderByClause) &&
+                Objects.equal(this.limit, that.limit);
     }
 
     @Override
@@ -78,18 +126,20 @@ public class Constraints
     {
         return "Constraints{" +
                 "summary=" + summary +
+                "expression=" + expression +
+                "orderByClause=" + orderByClause +
+                "limit=" + limit +
                 '}';
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(summary);
+        return Objects.hashCode(summary, expression, orderByClause, limit);
     }
 
     @Override
     public void close()
-            throws Exception
     {
         for (ValueSet next : summary.values()) {
             try {

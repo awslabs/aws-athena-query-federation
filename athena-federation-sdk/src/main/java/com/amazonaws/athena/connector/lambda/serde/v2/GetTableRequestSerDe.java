@@ -38,7 +38,7 @@ public final class GetTableRequestSerDe
 {
     private static final String TABLE_NAME_FIELD = "tableName";
 
-    private GetTableRequestSerDe(){}
+    private GetTableRequestSerDe() {}
 
     public static final class Serializer extends MetadataRequestSerializer
     {

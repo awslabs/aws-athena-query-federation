@@ -20,9 +20,9 @@
 package com.amazonaws.athena.connectors.timestream.integ;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
+import com.amazonaws.athena.connectors.timestream.TimestreamClientBuilder;
 import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite;
-import com.amazonaws.services.timestreamwrite.AmazonTimestreamWriteClientBuilder;
 import com.amazonaws.services.timestreamwrite.model.CreateTableRequest;
 import com.amazonaws.services.timestreamwrite.model.DeleteTableRequest;
 import com.amazonaws.services.timestreamwrite.model.MeasureValueType;
@@ -75,7 +75,7 @@ public class TimestreamIntegTest extends IntegrationTestBase
                 currentTimeMillis + 14_000L, currentTimeMillis + 16_000L, currentTimeMillis + 18_000L,
                 currentTimeMillis + 20_000L, currentTimeMillis + 22_000L, currentTimeMillis + 24_000L,
                 currentTimeMillis + 26_000L};
-        timestreamWriteClient = AmazonTimestreamWriteClientBuilder.defaultClient();
+        timestreamWriteClient = TimestreamClientBuilder.buildWriteClient("timestream");
     }
 
     /**
@@ -84,6 +84,7 @@ public class TimestreamIntegTest extends IntegrationTestBase
     @BeforeClass
     @Override
     protected void setUp()
+            throws Exception
     {
         try {
             // Invoke the framework's setUp() that also creates the Timestream database.
@@ -292,7 +293,7 @@ public class TimestreamIntegTest extends IntegrationTestBase
         logger.info("Executing selectColumnWithPredicateIntegTest");
         logger.info("--------------------------------------------------");
 
-        String query = String.format("select conversation from %s.%s.%s where subject = '%s' order by time desc limit 1;",
+        String query = String.format("select conversation from \"%s\".\"%s\".\"%s\" where subject = '%s' order by time desc limit 1;",
                 lambdaFunctionName, timestreamDbName, timestreamTableName, jokeProtagonist);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {

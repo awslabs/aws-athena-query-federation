@@ -41,7 +41,7 @@ public final class PingResponseSerDe
     private static final String SERDE_VERSION_FIELD = "serDeVersion";
     // new fields should only be appended to the end for forwards compatibility
 
-    private PingResponseSerDe(){}
+    private PingResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

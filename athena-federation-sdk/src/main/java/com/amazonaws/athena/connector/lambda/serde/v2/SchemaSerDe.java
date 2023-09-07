@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
+import com.amazonaws.athena.connector.lambda.data.AthenaFederationIpcOption;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -30,7 +31,6 @@ import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.ByteArrayInputStream;
@@ -46,7 +46,7 @@ import java.nio.channels.Channels;
 @Deprecated
 public final class SchemaSerDe
 {
-    private SchemaSerDe(){}
+    private SchemaSerDe() {}
 
     public static class Serializer extends BaseSerializer<Schema>
     {
@@ -67,9 +67,7 @@ public final class SchemaSerDe
         public void doSerialize(Schema schema, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
-            IpcOption option = new IpcOption();
-            option.metadataVersion = MetadataVersion.V4;
-            option.write_legacy_ipc_format = true;
+            IpcOption option = AthenaFederationIpcOption.DEFAULT;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema, option);
             jgen.writeBinary(out.toByteArray());

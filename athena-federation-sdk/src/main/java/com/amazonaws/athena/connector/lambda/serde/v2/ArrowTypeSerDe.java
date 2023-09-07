@@ -42,7 +42,7 @@ import java.io.IOException;
 
 public final class ArrowTypeSerDe
 {
-    private ArrowTypeSerDe(){}
+    private ArrowTypeSerDe() {}
 
     public static final class Serializer extends DelegatingSerializer<ArrowType>
     {

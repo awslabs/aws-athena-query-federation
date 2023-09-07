@@ -77,48 +77,45 @@ public class VerticaMetadataHandler
     private final VerticaSchemaUtils verticaSchemaUtils;
     private AmazonS3 amazonS3;
 
-
-    public VerticaMetadataHandler()
+    public VerticaMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         amazonS3 = AmazonS3ClientBuilder.defaultClient();
         connectionFactory = new VerticaConnectionFactory();
         verticaSchemaUtils = new VerticaSchemaUtils();
-
-
     }
 
     @VisibleForTesting
-    protected VerticaMetadataHandler(EncryptionKeyFactory keyFactory,
-                                     VerticaConnectionFactory connectionFactory,
-                                     AWSSecretsManager awsSecretsManager,
-                                     AmazonAthena athena,
-                                     String spillBucket,
-                                     String spillPrefix,
-                                     VerticaSchemaUtils verticaSchemaUtils,
-                                     AmazonS3 amazonS3
-                                     )
+    protected VerticaMetadataHandler(
+        EncryptionKeyFactory keyFactory,
+        VerticaConnectionFactory connectionFactory,
+        AWSSecretsManager awsSecretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        VerticaSchemaUtils verticaSchemaUtils,
+        AmazonS3 amazonS3,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.connectionFactory = connectionFactory;
         this.verticaSchemaUtils = verticaSchemaUtils;
         this.amazonS3 = amazonS3;
-
     }
-
 
     private Connection getConnection(MetadataRequest request) {
         String endpoint = resolveSecrets(getConnStr(request));
         return connectionFactory.getOrCreateConn(endpoint);
 
     }
+
     private String getConnStr(MetadataRequest request)
     {
-        String conStr = System.getenv(request.getCatalogName());
+        String conStr = configOptions.get(request.getCatalogName());
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
                     request.getCatalogName(), DEFAULT_VERTICA);
-            conStr = System.getenv(DEFAULT_VERTICA);
+            conStr = configOptions.get(DEFAULT_VERTICA);
         }
         logger.info("exit getConnStr in VerticaMetadataHandler with conStr as {}",conStr);
         return conStr;
@@ -134,12 +131,11 @@ public class VerticaMetadataHandler
      */
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
+            throws SQLException
     {
         logger.info("doListSchemaNames: " + request.getCatalogName());
         List<String> schemas = new ArrayList<>();
-        try
-        {
-            Connection client = getConnection(request);
+        try (Connection client = getConnection(request)) {
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet rs  = dbMetadata.getTables(null, null, null, TABLE_TYPES);
 
@@ -150,14 +146,6 @@ public class VerticaMetadataHandler
                     schemas.add(rs.getString(TABLE_SCHEMA));
                 }
             }
-        }
-        catch (SQLFeatureNotSupportedException e)
-        {
-            throw new RuntimeException("SQL Feature Not Supported Exception: " + e.getMessage(), e);
-        }
-        catch (SQLException e)
-        {
-            throw new RuntimeException("SQL Exception in doListSchemaNames: " + e.getMessage(), e);
         }
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
@@ -172,20 +160,16 @@ public class VerticaMetadataHandler
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
+            throws SQLException
     {
         logger.info("doListTables: " + request);
         List<TableName> tables = new ArrayList<>();
-        try {
-            Connection client = getConnection(request);
+        try (Connection client = getConnection(request)) {
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet table = dbMetadata.getTables(null, request.getSchemaName(),null, TABLE_TYPES);
             while (table.next()){
                 tables.add(new TableName(table.getString(TABLE_SCHEMA), table.getString(TABLE_NAME)));
             }
-        }
-        catch (SQLException e)
-        {
-            throw new RuntimeException("SQL Exception in doListTables: " + e.getMessage(), e);
         }
         return new ListTablesResponse(request.getCatalogName(), tables, null);
 
@@ -302,6 +286,7 @@ public class VerticaMetadataHandler
      */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+            throws SQLException
     {
         //ToDo: implement use of a continuation token to use in case of larger queries
 
@@ -372,24 +357,16 @@ public class VerticaMetadataHandler
      * and executes the queries
      */
     private void executeQueriesOnVertica(Connection connection, String sqlStatement, String awsRegionSql)
+            throws SQLException
     {
-        try
-        {
-            PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
-            PreparedStatement exportSQL = connection.prepareStatement(sqlStatement);
+        PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
+        PreparedStatement exportSQL = connection.prepareStatement(sqlStatement);
 
-            //execute the query to set region
-            setAwsRegion.execute();
+        //execute the query to set region
+        setAwsRegion.execute();
 
-            //execute the query to export the data to S3
-            exportSQL.execute();
-
-        }
-        catch(SQLException e)
-        {
-            throw new RuntimeException("Error in executing queries on Vertica: " + e.getMessage(), e);
-        }
-
+        //execute the query to export the data to S3
+        exportSQL.execute();
     }
 
     /*
@@ -432,7 +409,7 @@ public class VerticaMetadataHandler
 
     public String getS3ExportBucket()
     {
-       return System.getenv(EXPORT_BUCKET_KEY);
+       return configOptions.get(EXPORT_BUCKET_KEY);
     }
 
 }

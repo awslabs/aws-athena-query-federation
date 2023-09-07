@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -57,7 +57,7 @@ public class DynamoDBFieldResolver
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
         String fieldName = field.getName();
-        Object fieldValue;
+        Object fieldValue = originalValue;
 
         if (originalValue instanceof Map) {
             if (((Map) originalValue).containsKey(fieldName)) {
@@ -68,9 +68,9 @@ public class DynamoDBFieldResolver
                 return null;
             }
         }
-        else {
-            throw new IllegalArgumentException("Invalid argument type. Expecting a Map, but got: " +
-                    originalValue.getClass().getTypeName());
+
+        if (fieldValue == null) {
+            return null;
         }
 
         switch (fieldType) {
@@ -83,17 +83,26 @@ public class DynamoDBFieldResolver
                 }
                 break;
             default:
-                if (fieldValue instanceof Map) {
-                    // List of a Struct: array<struct<...>>
-                    return DDBTypeUtils.coerceValueToExpectedType(((Map<?, ?>) fieldValue).get(fieldName),
-                            field, fieldType, metadata);
-                }
-                else {
-                    return DDBTypeUtils.coerceValueToExpectedType(fieldValue, field, fieldType, metadata);
-                }
+                return DDBTypeUtils.coerceValueToExpectedType(fieldValue, field, fieldType, metadata);
         }
 
         throw new RuntimeException("Invalid field value encountered in DB record for field: " + field +
                 ",value: " + fieldValue);
+    }
+
+    // Return the field value of a map key
+    // For DynamoDB, the key is always a string so we can return the originalValue
+    @Override
+    public Object getMapKey(Field field, Object originalValue)
+    {
+        return originalValue;
+    }
+
+    // Return the field value of a map value
+    @Override
+    public Object getMapValue(Field field, Object originalValue)
+    {
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+        return DDBTypeUtils.coerceValueToExpectedType(originalValue, field, fieldType, metadata);
     }
 }

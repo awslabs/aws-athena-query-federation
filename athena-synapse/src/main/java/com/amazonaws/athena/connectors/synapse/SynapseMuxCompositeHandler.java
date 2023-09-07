@@ -19,17 +19,17 @@
  */
 package com.amazonaws.athena.connectors.synapse;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link SynapseMuxMetadataHandler} and {@link SynapseMuxRecordHandler}.
  */
 public class SynapseMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public SynapseMuxCompositeHandler()
+    public SynapseMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new SynapseMuxMetadataHandler(), new SynapseMuxRecordHandler());
+        super(SynapseMuxMetadataHandler.class, SynapseMuxRecordHandler.class, SynapseMetadataHandler.class, SynapseRecordHandler.class);
     }
 }

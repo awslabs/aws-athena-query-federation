@@ -53,17 +53,23 @@ public class MultiplexingJdbcRecordHandler
     private static final int MAX_CATALOGS_TO_MULTIPLEX = 100;
     private final Map<String, JdbcRecordHandler> recordHandlerMap;
 
-    public MultiplexingJdbcRecordHandler(JdbcRecordHandlerFactory jdbcRecordHandlerFactory)
+    public MultiplexingJdbcRecordHandler(JdbcRecordHandlerFactory jdbcRecordHandlerFactory, java.util.Map<String, String> configOptions)
     {
-        super(jdbcRecordHandlerFactory.getEngine());
-        this.recordHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcRecordHandlerMap(System.getenv(), jdbcRecordHandlerFactory), "Could not find any delegatee.");
+        super(jdbcRecordHandlerFactory.getEngine(), configOptions);
+        this.recordHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcRecordHandlerMap(configOptions, jdbcRecordHandlerFactory), "Could not find any delegatee.");
     }
 
     @VisibleForTesting
-    protected MultiplexingJdbcRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-            final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    protected MultiplexingJdbcRecordHandler(
+        AmazonS3 amazonS3,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        DatabaseConnectionConfig databaseConnectionConfig,
+        Map<String, JdbcRecordHandler> recordHandlerMap,
+        java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.recordHandlerMap = Validate.notEmpty(recordHandlerMap, "recordHandlerMap must not be empty");
 
         if (this.recordHandlerMap.size() > MAX_CATALOGS_TO_MULTIPLEX) {
@@ -82,6 +88,7 @@ public class MultiplexingJdbcRecordHandler
     public void readWithConstraint(
             final BlockSpiller blockSpiller,
             final ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
+            throws Exception
     {
         validateMultiplexer(readRecordsRequest.getCatalogName());
         this.recordHandlerMap.get(readRecordsRequest.getCatalogName()).readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);

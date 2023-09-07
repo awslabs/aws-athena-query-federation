@@ -43,23 +43,23 @@ class ImpalaMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new ImpalaRecordHandler(config);
+        return new ImpalaRecordHandler(config, configOptions);
     }
 }
 
 public class ImpalaMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public ImpalaMuxRecordHandler()
+    public ImpalaMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new ImpalaMuxRecordHandlerFactory());
+        super(new ImpalaMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    ImpalaMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                           final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    ImpalaMuxRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                           DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

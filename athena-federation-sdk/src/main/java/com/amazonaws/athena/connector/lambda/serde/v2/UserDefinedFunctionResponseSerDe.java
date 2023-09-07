@@ -39,7 +39,7 @@ public final class UserDefinedFunctionResponseSerDe
     private static final String RECORDS_FIELD = "records";
     private static final String METHOD_NAME_FIELD = "methodName";
 
-    private UserDefinedFunctionResponseSerDe(){}
+    private UserDefinedFunctionResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

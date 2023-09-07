@@ -35,6 +35,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlQueryStringBuilder;
+import com.amazonaws.athena.connectors.postgresql.PostgreSqlFederationExpressionParser;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -59,6 +60,7 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_NAME;
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class RedshiftRecordHandlerTest
         extends TestBase
@@ -75,18 +77,19 @@ public class RedshiftRecordHandlerTest
 
     @Before
     public void setup()
+            throws Exception
     {
         this.amazonS3 = Mockito.mock(AmazonS3.class);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", REDSHIFT_NAME,
                 "redshift://jdbc:redshift://hostname/user=A&password=B");
 
-        this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test

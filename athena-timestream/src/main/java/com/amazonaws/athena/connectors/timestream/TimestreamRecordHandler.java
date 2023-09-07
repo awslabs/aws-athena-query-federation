@@ -46,7 +46,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
-import com.amazonaws.services.timestreamquery.AmazonTimestreamQueryClientBuilder;
 import com.amazonaws.services.timestreamquery.model.Datum;
 import com.amazonaws.services.timestreamquery.model.QueryRequest;
 import com.amazonaws.services.timestreamquery.model.QueryResult;
@@ -63,7 +62,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -73,7 +76,12 @@ public class TimestreamRecordHandler
         extends RecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(TimestreamRecordHandler.class);
-    private static final SimpleDateFormat TIMESTAMP_FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
+    //Time stream `yyyy-MM-dd HH:mm:ss` doesn't contain zone information, treat everything as UTC
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd HH:mm:ss.")
+            .appendFraction(ChronoField.MILLI_OF_SECOND, 0, 9, false)
+            .toFormatter()
+            .withZone(ZoneId.of("UTC"));
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "timestream";
@@ -81,18 +89,20 @@ public class TimestreamRecordHandler
     private final QueryFactory queryFactory = new QueryFactory();
     private final AmazonTimestreamQuery tsQuery;
 
-    public TimestreamRecordHandler()
+    public TimestreamRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                AmazonTimestreamQueryClientBuilder.standard().build());
+        this(
+            AmazonS3ClientBuilder.defaultClient(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            TimestreamClientBuilder.buildQueryClient(SOURCE_TYPE),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected TimestreamRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, AmazonTimestreamQuery tsQuery)
+    protected TimestreamRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, AmazonTimestreamQuery tsQuery, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.tsQuery = tsQuery;
     }
 
@@ -144,14 +154,26 @@ public class TimestreamRecordHandler
             switch (Types.getMinorTypeForArrowType(nextField.getType())) {
                 case VARCHAR:
                     builder.withExtractor(nextField.getName(), (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
-                        value.isSet = 1;
-                        value.value = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        String stringValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        if (stringValue != null) {
+                            value.isSet = 1;
+                            value.value = stringValue;
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case FLOAT8:
                     builder.withExtractor(nextField.getName(), (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
-                        value.isSet = 1;
-                        value.value = Double.valueOf(((Row) context).getData().get(curFieldNum).getScalarValue());
+                        String doubleValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        if (doubleValue != null) {
+                            value.isSet = 1;
+                            value.value = Double.valueOf(doubleValue);
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case BIT:
@@ -162,14 +184,26 @@ public class TimestreamRecordHandler
                     break;
                 case BIGINT:
                     builder.withExtractor(nextField.getName(), (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
-                        value.isSet = 1;
-                        value.value = Long.valueOf(((Row) context).getData().get(curFieldNum).getScalarValue());
+                        String longValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        if (longValue != null) {
+                            value.isSet = 1;
+                            value.value = Long.valueOf(longValue);
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case DATEMILLI:
                     builder.withExtractor(nextField.getName(), (DateMilliExtractor) (Object context, NullableDateMilliHolder value) -> {
-                        value.isSet = 1;
-                        value.value = TIMESTAMP_FORMATTER.parse(((Row) context).getData().get(curFieldNum).getScalarValue()).getTime();
+                        String dateMilliValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        if (dateMilliValue != null) {
+                            value.isSet = 1;
+                            value.value = Instant.from(TIMESTAMP_FORMATTER.parse(dateMilliValue)).toEpochMilli();
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case LIST:
@@ -201,7 +235,7 @@ public class TimestreamRecordHandler
                                 for (TimeSeriesDataPoint nextDatum : datum.getTimeSeriesValue()) {
                                     Map<String, Object> eventMap = new HashMap<>();
 
-                                    eventMap.put(timeField.getName(), TIMESTAMP_FORMATTER.parse(nextDatum.getTime()).getTime());
+                                    eventMap.put(timeField.getName(), Instant.from(TIMESTAMP_FORMATTER.parse(nextDatum.getTime())).toEpochMilli());
 
                                     switch (Types.getMinorTypeForArrowType(valueField.getType())) {
                                         case FLOAT8:

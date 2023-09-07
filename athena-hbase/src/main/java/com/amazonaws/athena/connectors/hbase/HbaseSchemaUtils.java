@@ -26,7 +26,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
-import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
@@ -66,7 +66,14 @@ public class HbaseSchemaUtils
     {
         Scan scan = new Scan().setMaxResultSize(numToScan).setFilter(new PageFilter(numToScan));
         org.apache.hadoop.hbase.TableName hbaseTableName = org.apache.hadoop.hbase.TableName.valueOf(getQualifiedTableName(tableName));
-        return client.scanTable(hbaseTableName, scan, (ResultScanner scanner) -> scanAndInferSchema(scanner));
+        return client.scanTable(hbaseTableName, scan, (ResultScanner scanner) -> {
+            try {
+                return scanAndInferSchema(scanner);
+            }
+            catch (java.io.UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     /**
@@ -79,7 +86,7 @@ public class HbaseSchemaUtils
      * that field in the resulting schema to a VARCHAR. This approach is not perfect and can struggle
      * to produce a usable schema if the table has a significant mix of entities.
      */
-    private static Schema scanAndInferSchema(ResultScanner scanner)
+    private static Schema scanAndInferSchema(ResultScanner scanner) throws java.io.UnsupportedEncodingException
     {
         Map<String, Map<String, ArrowType>> schemaInference = new HashMap<>();
         int rowCount = 0;
@@ -87,10 +94,10 @@ public class HbaseSchemaUtils
 
         for (Result result : scanner) {
             rowCount++;
-            for (KeyValue keyValue : result.list()) {
+            for (Cell cell : result.listCells()) {
                 fieldCount++;
-                String family = new String(keyValue.getFamily());
-                String column = new String(keyValue.getQualifier());
+                String family = Bytes.toStringBinary(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
+                String column = Bytes.toStringBinary(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
 
                 Map<String, ArrowType> schemaForFamily = schemaInference.get(family);
                 if (schemaForFamily == null) {
@@ -102,7 +109,7 @@ public class HbaseSchemaUtils
                 ArrowType prevInferredType = schemaForFamily.get(column);
 
                 //Infer the type of the column from the value on the current row.
-                Types.MinorType inferredType = inferType(keyValue.getValue());
+                Types.MinorType inferredType = inferType(Bytes.toStringBinary(cell.getValueArray(), cell.getValueOffset(), cell.getValueLength()));
 
                 //Check if the previous and currently inferred types match
                 if (prevInferredType != null && Types.getMinorTypeForArrowType(prevInferredType) != inferredType) {
@@ -169,9 +176,8 @@ public class HbaseSchemaUtils
      * one of the other supported inferred types. It is expected that customers of this connector
      * may want to customize this logic or rely on explicit Schema in Glue.
      */
-    public static Types.MinorType inferType(byte[] value)
+    public static Types.MinorType inferType(String strVal)
     {
-        String strVal = Bytes.toString(value);
         try {
             Long.valueOf(strVal);
             return Types.MinorType.BIGINT;

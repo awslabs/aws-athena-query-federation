@@ -71,7 +71,7 @@ import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,10 +90,10 @@ import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.HBASE_C
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.REGION_ID_FIELD;
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.REGION_NAME_FIELD;
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.START_KEY_FIELD;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -135,13 +135,13 @@ public class HbaseRecordHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
-        when(mockConnFactory.getOrCreateConn(anyString())).thenReturn(mockClient);
+        when(mockConnFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
         allocator = new BlockAllocatorImpl();
 
         amazonS3 = mock(AmazonS3.class);
 
-        when(amazonS3.putObject(anyObject()))
+        when(amazonS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
@@ -153,7 +153,7 @@ public class HbaseRecordHandlerTest
                     return mock(PutObjectResult.class);
                 });
 
-        when(amazonS3.getObject(anyString(), anyString()))
+        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
@@ -170,7 +170,7 @@ public class HbaseRecordHandlerTest
 
         schemaForRead = TestUtils.makeSchema().addStringField(HbaseSchemaUtils.ROW_COLUMN_NAME).build();
 
-        handler = new HbaseRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockConnFactory);
+        handler = new HbaseRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockConnFactory, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
     }
 
@@ -189,7 +189,7 @@ public class HbaseRecordHandlerTest
         ResultScanner mockScanner = mock(ResultScanner.class);
         when(mockScanner.iterator()).thenReturn(results.iterator());
 
-        when(mockClient.scanTable(anyObject(), any(Scan.class), anyObject())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockClient.scanTable(any(), nullable(Scan.class), any())).thenAnswer((InvocationOnMock invocationOnMock) -> {
             ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
             return processor.scan(mockScanner);
         });
@@ -218,7 +218,7 @@ public class HbaseRecordHandlerTest
                 new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForRead,
                 splitBuilder.build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -242,7 +242,7 @@ public class HbaseRecordHandlerTest
         ResultScanner mockScanner = mock(ResultScanner.class);
         when(mockScanner.iterator()).thenReturn(results.iterator());
 
-        when(mockClient.scanTable(anyObject(), any(Scan.class), anyObject())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockClient.scanTable(any(), nullable(Scan.class), any())).thenAnswer((InvocationOnMock invocationOnMock) -> {
             ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
             return processor.scan(mockScanner);
         });
@@ -271,7 +271,7 @@ public class HbaseRecordHandlerTest
                 new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForRead,
                 splitBuilder.build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 1_500_000L, //~1.5MB so we should see some spill
                 0L
         );

@@ -27,12 +27,21 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -42,6 +51,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -56,9 +66,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -67,21 +79,49 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
 {
     static final Logger LOGGER = LoggerFactory.getLogger(ImpalaMetadataHandler.class);
     static final String GET_METADATA_QUERY = "describe FORMATTED ";
-    public ImpalaMetadataHandler()
+    public ImpalaMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(ImpalaConstants.IMPALA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(ImpalaConstants.IMPALA_NAME, configOptions), configOptions);
     }
-    public ImpalaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public ImpalaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, ImpalaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT)));
+        super(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, ImpalaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT)), configOptions);
     }
 
     @VisibleForTesting
-    protected ImpalaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfiguration, final AWSSecretsManager secretManager,
-                                    AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected ImpalaMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfiguration,
+        AWSSecretsManager secretManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfiguration, secretManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfiguration, secretManager, athena, jdbcConnectionFactory, configOptions);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+                FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+                LimitPushdownSubType.INTEGER_CONSTANT
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(TopNPushdownSubType.SUPPORTS_ORDER_BY));
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
     /**
      * Delegates creation of partition schema to database type implementation.
      *
@@ -102,21 +142,22 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
      * @param blockWriter Used to write rows (Impala partitions) into the Apache Arrow response.
      * @param getTableLayoutRequest Provides details of the catalog, database, and table being queried as well as any filter predicate.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws SQLException A SQLException should be thrown for database connection failures , query syntax errors and so on.
+     * @throws Exception An Exception should be thrown for database connection failures , query syntax errors and so on.
      **/
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest getTableLayoutRequest,
-                              QueryStatusChecker queryStatusChecker) throws SQLException
+                              QueryStatusChecker queryStatusChecker)
+            throws Exception
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              Statement stmt = connection.createStatement();
-             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getTableName().toUpperCase())) {
+             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
             Map<String, String> columnHashMap = getMetadataForGivenTable(psmt);
             String tableType = columnHashMap.get("TableType");
             if (tableType == null) {
-                ResultSet partitionRs = stmt.executeQuery("show files in " + getTableLayoutRequest.getTableName().getTableName().toUpperCase());
+                ResultSet partitionRs = stmt.executeQuery("show files in " + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase());
                 Set<String> partition = new HashSet<>();
                 while (partitionRs != null && partitionRs.next()) {
                     String partitionString = partitionRs.getString("Partition");
@@ -244,6 +285,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
      */
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
@@ -251,30 +293,27 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                     getSchema(connection, getTableRequest.getTableName(), partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
-        catch (SQLException sqlException) {
-            LOGGER.error(sqlException.getMessage());
-            throw new RuntimeException(sqlException.getErrorCode() + ": "
-                    + sqlException.getMessage());
-        }
     }
+
     /**
      * Used to convert Impala data types to Apache arrow data types
      * @param jdbcConnection  A JDBC Impala database connection
      * @param tableName   Holds table name and schema name. see {@link TableName}
      * @param partitionSchema A partition schema for a given table .See {@link Schema}
      * @return Schema  Holds Table schema along with partition schema. See {@link Schema}
-     * @throws SQLException A SQLException should be thrown for database connection failures , query syntax errors and so on.
+     * @throws Exception An Exception should be thrown for database connection failures , query syntax errors and so on.
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws SQLException
+    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + tableName.getTableName().toUpperCase())) {
+            try (PreparedStatement psmt = connection.prepareStatement(
+                GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
                 Map<String, String> hashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"));
+                            resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"), configOptions);
                     String columnName = resultSet.getString(ImpalaConstants.COLUMN_NAME);
                     String dataType = hashMap.get(columnName);
                     LOGGER.debug("columnName:" + columnName);

@@ -71,11 +71,11 @@ public class ImpalaMuxRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ImpalaConstants.IMPALA_NAME,
         		"impala://jdbc:impala://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new ImpalaMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap);
+        this.jdbcRecordHandler = new ImpalaMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
-    public void readWithConstraint() throws SQLException
+    public void readWithConstraint() throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -95,7 +95,7 @@ public class ImpalaMuxRecordHandlerTest
                 "impala://jdbc:impala://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
         try {
             new ImpalaMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena,
-                    this.jdbcConnectionFactory, databaseConnectionConfig, recorddataHandlersMap);
+                    this.jdbcConnectionFactory, databaseConnectionConfig, recorddataHandlersMap, com.google.common.collect.ImmutableMap.of());
         } catch (Exception e) {
             e.getMessage();
             Assert.assertTrue(e.getMessage().contains("Max 100 catalogs supported in multiplexer."));
@@ -103,7 +103,7 @@ public class ImpalaMuxRecordHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void readWithConstraintWithUnsupportedCatalog() throws SQLException
+    public void readWithConstraintWithUnsupportedCatalog() throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);

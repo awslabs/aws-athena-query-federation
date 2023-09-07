@@ -43,18 +43,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import uk.org.webcompere.systemstubs.rules.EnvironmentVariablesRule;
 
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class SnowflakeMetadataHandlerTest
         extends TestBase {
-
-    @Rule
-    public EnvironmentVariablesRule environmentVariables = new EnvironmentVariablesRule();
 
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
             "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
@@ -68,18 +68,17 @@ public class SnowflakeMetadataHandlerTest
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
 
     @Before
-    public void setup() {
-
-        environmentVariables.set("pagecount", "300000");
-        environmentVariables.set("partitionlimit", "300000");
+    public void setup()
+            throws Exception
+    {
 
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class , Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        this.snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
     }
@@ -95,8 +94,6 @@ public class SnowflakeMetadataHandlerTest
     @Test
     public void doGetTableLayout()
             throws Exception {
-        environmentVariables.set("pagecount", "100000");
-        environmentVariables.set("partitionlimit", "15");
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
@@ -104,42 +101,45 @@ public class SnowflakeMetadataHandlerTest
         Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
-
         Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.COUNT_RECORDS_QUERY)).thenReturn(preparedStatement);
-
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
-        Object[][] values = {{"partition-limit-300000-offset-0"}, {"partition-limit-300000-offset-300000"}};
+        Object[][] values = {{"partition : partition-limit-500000-offset-0"},{"partition : partition-limit-500000-offset-500000"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
-
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
-        Mockito.when(resultSet.getInt(1)).thenReturn(200000);
+        double totalActualRecordCount = 10001;
+        Mockito.when(resultSet.getLong(1)).thenReturn((long) totalActualRecordCount);
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
-
-        Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
-
         List<String> expectedValues = new ArrayList<>();
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Arrays.asList("[partition : partition-limit-100000-offset-0]",
-                "[partition : partition-limit-100000-offset-100000]"));
-
+        List<String> actualValues = new ArrayList<>();
+        long pageCount = (long) (Math.ceil(totalActualRecordCount / MAX_PARTITION_COUNT));
+        long partitionActualRecordCount = (totalActualRecordCount <= 10000) ? (long) totalActualRecordCount : pageCount;
+        double limit = (int) Math.ceil(totalActualRecordCount / partitionActualRecordCount);
+        long offset = 0;
+        for (int i = 1; i <= limit; i++) {
+            if (i > 1) {
+                offset = offset + partitionActualRecordCount;
+            }
+            actualValues.add("[partition : partition-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
+        }
+        Assert.assertEquals((int)limit, getTableLayoutResponse.getPartitions().getRowCount());
+        Assert.assertEquals(expectedValues, actualValues);
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
-
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
-        Mockito.verify(resultSet, Mockito.times(2)).getInt(1);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
+        Mockito.verify(resultSet, Mockito.times(2)).getLong(1);
     }
+
     @Test
     public void doGetTableLayoutSinglePartition()
             throws Exception {
-        environmentVariables.set("pagecount", "100000");
-        environmentVariables.set("partitionlimit", "5");
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
@@ -152,12 +152,12 @@ public class SnowflakeMetadataHandlerTest
 
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
-        Object[][] values = {{"partition-limit-1000000.0-offset-0"}};
+        Object[][] values = {{"partition : partition-limit-500000-offset-0"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
-        Mockito.when(resultSet.getInt(1)).thenReturn(1000000);
+        Mockito.when(resultSet.getLong(1)).thenReturn(1001L);
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
@@ -166,7 +166,7 @@ public class SnowflakeMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Arrays.asList("[partition : partition-limit-1000000.0-offset-0]"));
+        Assert.assertEquals(expectedValues, Arrays.asList("[partition : partition-limit-1001-offset-0]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
@@ -174,8 +174,56 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
-        Mockito.verify(resultSet, Mockito.times(1)).getInt(1);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
+        Mockito.verify(resultSet, Mockito.times(1)).getLong(1);
+    }
+
+    @Test
+    public void doGetTableLayoutMaxPartition()
+            throws Exception {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        Constraints constraints = Mockito.mock(Constraints.class);
+        TableName tableName = new TableName("testSchema", "testTable");
+        Schema partitionSchema = this.snowflakeMetadataHandler.getPartitionSchema("testCatalogName");
+        Set<String> partitionCols = new HashSet<>(Arrays.asList("partition"));
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.COUNT_RECORDS_QUERY)).thenReturn(preparedStatement);
+        //By changing the value of variable totalActualRecordCount,we can check the maximum number of partitions supported by the table dynamically
+        double totalActualRecordCount = 7256888;
+        long pageCount = (long) (Math.ceil(totalActualRecordCount / MAX_PARTITION_COUNT));
+        long partitionActualRecordCount = (totalActualRecordCount <= 10000) ? (long) totalActualRecordCount : pageCount;
+        double limit = (int) Math.ceil(totalActualRecordCount / partitionActualRecordCount);
+        long offset = 0;
+        String[] columns = {"partition"};
+        int[] types = {Types.VARCHAR};
+        Object[][] values = {{"partition : partition-limit-500000-offset-0"}};
+        ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
+        Mockito.when(resultSet.getLong(1)).thenReturn((long)totalActualRecordCount);
+        GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+        List<String> actualValues = new ArrayList<>();
+        List<String> expectedValues = new ArrayList<>();
+        for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
+            expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
+        }
+        for (int i = 1; i <= limit; i++) {
+            if (i > 1) {
+                offset = offset + partitionActualRecordCount;
+            }
+            actualValues.add("[partition : partition-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
+        }
+        Assert.assertEquals(expectedValues,actualValues);
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        Schema expectedSchema = expectedSchemaBuilder.build();
+        Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
+        Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
+        Mockito.verify(resultSet, Mockito.times(1)).getLong(1);
     }
 
     @Test(expected = RuntimeException.class)
@@ -189,9 +237,9 @@ public class SnowflakeMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        SnowflakeMetadataHandler snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
+        SnowflakeMetadataHandler snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 
         snowflakeMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
@@ -234,7 +282,6 @@ public class SnowflakeMetadataHandlerTest
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertNotEquals(expectedSplits, actualSplits);
     }
-
 
     @Test
     public void doGetSplitsContinuation()
@@ -280,12 +327,12 @@ public class SnowflakeMetadataHandlerTest
         this.snowflakeMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doGetTableSQLException()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
-        Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.snowflakeMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
@@ -355,5 +402,20 @@ public class SnowflakeMetadataHandlerTest
         TableName tableName3 = snowflakeMetadataHandler.findTableNameFromQueryHint(inputTableName3);
         Assert.assertEquals(new TableName("testschema", "TESTTABLE"), tableName3);
 
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doListSchemaNames() throws Exception {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, "queryId", "testCatalog");
+
+        Statement statement = Mockito.mock(Statement.class);
+        Mockito.when(this.connection.createStatement()).thenReturn(statement);
+        String[][] SchemaandCatalogNames = {{"TESTSCHEMA"},{"TESTCATALOG"}};
+        ResultSet schemaResultSet = mockResultSet(new String[]{"TABLE_SCHEM","TABLE_CATALOG"}, new int[]{Types.VARCHAR,Types.VARCHAR}, SchemaandCatalogNames, new AtomicInteger(-1));
+        Mockito.when(this.connection.getMetaData().getSchemas()).thenReturn(schemaResultSet);
+        ListSchemasResponse listSchemasResponse = this.snowflakeMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
+        String[] expectedResult = {"TESTSCHEMA","TESTCATALOG"};
+        Assert.assertEquals(Arrays.toString(expectedResult), listSchemasResponse.getSchemas().toString());
     }
 }

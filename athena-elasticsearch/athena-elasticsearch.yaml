@@ -10,14 +10,14 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2022.24.1
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
 # to your template when you create a stack
 Parameters:
   AthenaCatalogName:
-    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SecretNamePrefix:
@@ -59,6 +59,10 @@ Parameters:
     Description: "timeout period (in seconds) for Search queries used in the retrieval of documents from an index (default is 12 minutes)."
     Default: 720
     Type: Number
+  QueryScrollTimeout:
+    Description: "timeout period (in seconds) for scroll timeout used in the retrieval of documents (default is 60 seconds)."
+    Default: 60
+    Type: Number
   IsVPCAccess:
     AllowedValues:
        - true
@@ -74,9 +78,14 @@ Parameters:
     Description: '**If IsVPCAccess is True**. Provide one or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: CommaDelimitedList
     Default: ""
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
 
 Conditions:
   IsVPCAccessSelected: !Equals [!Ref IsVPCAccess, true]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 
 Resources:
   ConnectorConfig:
@@ -91,13 +100,15 @@ Resources:
           domain_mapping: !Ref DomainMapping
           query_timeout_cluster: !Ref QueryTimeoutCluster
           query_timeout_search: !Ref QueryTimeoutSearch
+          query_scroll_timeout: !Ref QueryScrollTimeout
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.elasticsearch.ElasticsearchCompositeHandler"
-      CodeUri: "./target/athena-elasticsearch-2022.24.1.jar"
+      CodeUri: "./target/athena-elasticsearch-2022.47.1.jar"
       Description: "The Elasticsearch Lambda Connector provides Athena users the ability to query data stored on Elasticsearch clusters."
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:

@@ -41,6 +41,7 @@ import com.amazonaws.services.rds.model.DescribeDBInstancesResult;
 import com.amazonaws.services.rds.model.DomainMembership;
 import com.amazonaws.services.rds.model.Endpoint;
 import com.amazonaws.services.rds.model.Subnet;
+import com.amazonaws.services.rds.model.Tag;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -262,6 +263,19 @@ public class RdsTableProvider
                     },
                     instance.getStatusInfos());
 
+            matched &= block.offerComplexValue("tags", row,
+                    (Field field, Object val) -> {
+                        if (field.getName().equals("key")) {
+                            return ((Tag) val).getKey();
+                        }
+                        else if (field.getName().equals("value")) {
+                            return ((Tag) val).getValue();
+                        }
+
+                        throw new RuntimeException("Unexpected field " + field.getName());
+                    },
+                    instance.getTagList());
+
             return matched ? 1 : 0;
         });
     }
@@ -340,7 +354,12 @@ public class RdsTableProvider
                                                 .addStringField("type")
                                                 .build())
                                 .build())
-
+                .addField(FieldBuilder.newBuilder("tags", new ArrowType.List())
+                        .addField(FieldBuilder.newBuilder("tag", Types.MinorType.STRUCT.getType())
+                                .addStringField("key")
+                                .addStringField("value")
+                                .build())
+                        .build())
                 .addIntField("iops")
                 .addBitField("is_multi_az")
                 .addMetadata("instance_id", "Database Instance Id")
@@ -373,6 +392,7 @@ public class RdsTableProvider
                 .addMetadata("status_infos", "The status info details associated with the DB Instance")
                 .addMetadata("iops", "The total provisioned IOPs for the DB Instance.")
                 .addMetadata("is_multi_az", "True if the DB Instance is avialable in multiple AZs.")
+                .addMetadata("tags", "Tags associated with the DB instance.")
                 .build();
     }
 }

@@ -22,6 +22,8 @@ package com.amazonaws.athena.connectors.jdbc;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -61,10 +63,15 @@ public class MultiplexingJdbcMetadataHandler
     /**
      * @param metadataHandlerMap catalog -> JdbcMetadataHandler
      */
-    protected MultiplexingJdbcMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-            final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected MultiplexingJdbcMetadataHandler(
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        Map<String, JdbcMetadataHandler> metadataHandlerMap,
+        DatabaseConnectionConfig databaseConnectionConfig,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
         this.metadataHandlerMap = Validate.notEmpty(metadataHandlerMap, "metadataHandlerMap must not be empty");
 
         if (this.metadataHandlerMap.size() > MAX_CATALOGS_TO_MULTIPLEX) {
@@ -75,10 +82,10 @@ public class MultiplexingJdbcMetadataHandler
     /**
      * Initializes mux routing map. Creates a reverse index of Athena catalogs supported by a database instance. Max 100 catalogs supported currently.
      */
-    protected MultiplexingJdbcMetadataHandler(JdbcMetadataHandlerFactory jdbcMetadataHandlerFactory)
+    protected MultiplexingJdbcMetadataHandler(JdbcMetadataHandlerFactory jdbcMetadataHandlerFactory, java.util.Map<String, String> configOptions)
     {
-        super(jdbcMetadataHandlerFactory.getEngine());
-        this.metadataHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcMetadataHandlerMap(System.getenv(), jdbcMetadataHandlerFactory), "Could not find any delegatee.");
+        super(jdbcMetadataHandlerFactory.getEngine(), configOptions);
+        this.metadataHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcMetadataHandlerMap(configOptions, jdbcMetadataHandlerFactory), "Could not find any delegatee.");
     }
 
     private void validateMultiplexer(final String catalogName)
@@ -97,6 +104,7 @@ public class MultiplexingJdbcMetadataHandler
 
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+            throws Exception
     {
         validateMultiplexer(listSchemasRequest.getCatalogName());
         return this.metadataHandlerMap.get(listSchemasRequest.getCatalogName()).doListSchemaNames(blockAllocator, listSchemasRequest);
@@ -104,6 +112,7 @@ public class MultiplexingJdbcMetadataHandler
 
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+            throws Exception
     {
         validateMultiplexer(listTablesRequest.getCatalogName());
         return this.metadataHandlerMap.get(listTablesRequest.getCatalogName()).doListTables(blockAllocator, listTablesRequest);
@@ -111,6 +120,7 @@ public class MultiplexingJdbcMetadataHandler
 
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
+            throws Exception
     {
         validateMultiplexer(getTableRequest.getCatalogName());
         return this.metadataHandlerMap.get(getTableRequest.getCatalogName()).doGetTable(blockAllocator, getTableRequest);
@@ -138,5 +148,12 @@ public class MultiplexingJdbcMetadataHandler
     {
         validateMultiplexer(getSplitsRequest.getCatalogName());
         return this.metadataHandlerMap.get(getSplitsRequest.getCatalogName()).doGetSplits(blockAllocator, getSplitsRequest);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        validateMultiplexer(request.getCatalogName());
+        return this.metadataHandlerMap.get(request.getCatalogName()).doGetDataSourceCapabilities(allocator, request);
     }
 }

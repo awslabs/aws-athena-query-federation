@@ -112,7 +112,7 @@ public class SpillLocationVerifier
             case UNCHECKED:
                 throw new RuntimeException("Bucket state should have been checked already.");
             case INVALID:
-                throw new RuntimeException("You do NOT own the spill bucket with the name: " + bucket);
+                throw new RuntimeException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket));
             default:
                 return;
         }

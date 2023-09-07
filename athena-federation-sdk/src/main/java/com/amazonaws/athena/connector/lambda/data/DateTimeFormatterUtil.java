@@ -20,14 +20,16 @@
 package com.amazonaws.athena.connector.lambda.data;
 
 import com.amazonaws.util.StringUtils;
+import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.text.ParseException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -60,6 +62,27 @@ public class DateTimeFormatterUtil
     // This encoding is from Presto's DateTimeEncoding.
     private static final int TIME_ZONE_MASK = 0xFFF;
     private static final int MILLIS_SHIFT = 12;
+
+    // By default this is enabled because this is the historical behavior
+    private static boolean packTimezone = true;
+
+    public static void disableTimezonePacking()
+    {
+        logger.info("Timezone packing disabled");
+        packTimezone = false;
+    }
+
+    // Enabling is only available in tests.
+    // In production, once an application calls disable we don't allow it to be
+    // re-enable it during the lifetime of the application since there is no
+    // use case for toggling this and this makes reasoning about what happpens
+    // when we investigate issues easier.
+    @VisibleForTesting
+    static void enableTimezonePacking()
+    {
+        logger.info("Timezone packing enabled");
+        packTimezone = true;
+    }
 
     private DateTimeFormatterUtil()
     {}
@@ -239,7 +262,7 @@ public class DateTimeFormatterUtil
      * @param zdt ZonedDateTime to extract timezone and time millis in UTC from
      * @return long value representing ZonedDateTime
      */
-    public static long packDateTimeWithZone(ZonedDateTime zdt)
+    private static long packDateTimeWithZone(ZonedDateTime zdt)
     {
         String zoneId = zdt.getZone().getId();
         LocalDateTime zdtInUtc = zdt.withZoneSameInstant(UTC_ZONE_ID).toLocalDateTime();
@@ -257,7 +280,7 @@ public class DateTimeFormatterUtil
      * @param zoneId string value of the timezone (ex: UTC)
      * @return long value representing ZonedDateTime
      */
-    public static long packDateTimeWithZone(long millisUtc, String zoneId)
+    private static long packDateTimeWithZone(long millisUtc, String zoneId)
     {
         TimeZoneKey timeZoneKey = TimeZoneKey.getTimeZoneKey(zoneId);
         requireNonNull(timeZoneKey, "timeZoneKey is null");
@@ -296,19 +319,95 @@ public class DateTimeFormatterUtil
     }
 
     /**
-     * Reconstruct ZonedDateTime type from datetime and timezone packed long
-     * @param dateTimeWithTimeZone datetime and timezone packed long
-     * @return ZonedDateTime representing values from dateTimeWithTimeZone
+     * Reconstruct a ZonedDateTime given an epoch timestamp and its arrow type
+     * @param epochTimestamp this is the timestamp in epoch time. Possibly in packed form, where it contains the timezone.
+     * @param arrowType this is the arrowType that the value being passed in came from. The arrow type contains information about the units and timezone.
+     * @return ZonedDateTime the converted ZonedDateTime from the epochUtc timestamp and timezone either from the packed value or arrowType.
      */
-    public static ZonedDateTime constructZonedDateTime(long dateTimeWithTimeZone)
+    public static ZonedDateTime constructZonedDateTime(long epochTimestamp, ArrowType.Timestamp arrowType)
     {
-        TimeZoneKey timeZoneKey = unpackZoneKey(dateTimeWithTimeZone);
-        long millisUtc = unpackMillisUtc(dateTimeWithTimeZone);
-        LocalDateTime zdtInUtc = new Timestamp(millisUtc).toLocalDateTime();
-        ZoneId timeZone = ZoneId.of(timeZoneKey.getId());
-        LocalDateTime localDateTime = zdtInUtc.atZone(UTC_ZONE_ID)
-                .withZoneSameInstant(timeZone)
-                .toLocalDateTime();
-        return ZonedDateTime.of(localDateTime, timeZone);
+        org.apache.arrow.vector.types.TimeUnit timeunit = arrowType.getUnit();
+        ZoneId timeZone = ZoneId.of(arrowType.getTimezone());
+        if (packTimezone) {
+            if (!org.apache.arrow.vector.types.TimeUnit.MILLISECOND.equals(timeunit)) {
+                throw new UnsupportedOperationException("Unpacking is only supported for milliseconds");
+            }
+            // arrowType's timezone is ignored in this case since the timezone is packed into the long
+            TimeZoneKey timeZoneKey = unpackZoneKey(epochTimestamp);
+            epochTimestamp = unpackMillisUtc(epochTimestamp);
+            timeZone = ZoneId.of(timeZoneKey.getId());
+        }
+        return Instant.EPOCH
+            .plus(epochTimestamp, DateTimeFormatterUtil.arrowTimeUnitToChronoUnit(timeunit))
+            .atZone(timeZone);
+    }
+
+    public static java.time.temporal.ChronoUnit arrowTimeUnitToChronoUnit(org.apache.arrow.vector.types.TimeUnit timeunit)
+    {
+        switch (timeunit) {
+            case MICROSECOND:
+                return java.time.temporal.ChronoUnit.MICROS;
+            case MILLISECOND:
+                return java.time.temporal.ChronoUnit.MILLIS;
+            case NANOSECOND:
+                return java.time.temporal.ChronoUnit.NANOS;
+            case SECOND:
+                return java.time.temporal.ChronoUnit.SECONDS;
+        }
+
+        throw new UnsupportedOperationException(String.format("Unsupported timeunit: %s", timeunit));
+    }
+
+    public static ZonedDateTime zonedDateTimeFromObject(Object value)
+    {
+        if (value instanceof ZonedDateTime) {
+            return (ZonedDateTime) value;
+        }
+        else if (value instanceof LocalDateTime) {
+            return ((LocalDateTime) value).atZone(ZoneId.of("UTC"));
+        }
+        else if (value instanceof Date) {
+            return ((Date) value).toInstant().atZone(ZoneId.of("UTC"));
+        }
+
+        throw new UnsupportedOperationException(String.format("Type: %s not supported", value.getClass()));
+    }
+
+    public static org.apache.arrow.vector.holders.TimeStampMilliTZHolder timestampMilliTzHolderFromObject(Object value)
+    {
+        ZonedDateTime zdt = zonedDateTimeFromObject(value);
+        org.apache.arrow.vector.holders.TimeStampMilliTZHolder holder = new org.apache.arrow.vector.holders.TimeStampMilliTZHolder();
+        holder.timezone = zdt.getZone().getId();
+        holder.value = zdt.toInstant().toEpochMilli();
+
+        // Pack the timezone if packing is enabled.
+        // Note that it doesn't matter if we already also have the timezone
+        // set in the holder, since engines that expect packing will not be
+        // looking at that field.
+        if (packTimezone) {
+            holder.value = packDateTimeWithZone(holder.value, holder.timezone);
+        }
+
+        return holder;
+    }
+
+    public static org.apache.arrow.vector.holders.TimeStampMicroTZHolder timestampMicroTzHolderFromObject(Object value)
+    {
+        if (packTimezone) {
+            throw new UnsupportedOperationException("Packing for TimeStampMicroTZ is not currently supported");
+        }
+
+        ZonedDateTime zdt = zonedDateTimeFromObject(value);
+        String zone = zdt.getZone().getId();
+        Instant instant = zdt.toInstant();
+
+        // From: https://stackoverflow.com/a/47869726
+        long epochMicros = java.util.concurrent.TimeUnit.SECONDS.toMicros(instant.getEpochSecond()) +
+            instant.getLong(java.time.temporal.ChronoField.MICRO_OF_SECOND);
+
+        org.apache.arrow.vector.holders.TimeStampMicroTZHolder holder = new org.apache.arrow.vector.holders.TimeStampMicroTZHolder();
+        holder.timezone = zone;
+        holder.value = epochMicros;
+        return holder;
     }
 }

@@ -115,27 +115,31 @@ public class CloudwatchMetadataHandler
     }
 
     private final AWSLogs awsLogs;
-    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker;
     private final CloudwatchTableResolver tableResolver;
 
-    public CloudwatchMetadataHandler()
+    public CloudwatchMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.awsLogs = AWSLogsClientBuilder.standard().build();
-        tableResolver = new CloudwatchTableResolver(invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+        this.tableResolver = new CloudwatchTableResolver(this.invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
     }
 
     @VisibleForTesting
-    protected CloudwatchMetadataHandler(AWSLogs awsLogs,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected CloudwatchMetadataHandler(
+        AWSLogs awsLogs,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsLogs = awsLogs;
-        tableResolver = new CloudwatchTableResolver(invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+        this.tableResolver = new CloudwatchTableResolver(this.invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
     }
 
     /**
@@ -155,7 +159,7 @@ public class CloudwatchMetadataHandler
                 throw new RuntimeException("Too many log groups, exceeded max metadata results for schema count.");
             }
             result = invoker.invoke(() -> awsLogs.describeLogGroups(request));
-            result.getLogGroups().forEach(next -> schemas.add(next.getLogGroupName().toLowerCase()));
+            result.getLogGroups().forEach(next -> schemas.add(next.getLogGroupName()));
             request.setNextToken(result.getNextToken());
             logger.info("doListSchemaNames: Listing log groups {} {}", result.getNextToken(), schemas.size());
         }
@@ -199,9 +203,13 @@ public class CloudwatchMetadataHandler
             logger.info("doListTables: Listing log streams with token {} and size {}", result.getNextToken(), tables.size());
         }
 
-        //We add a special table that represents all log streams. This is helpful depending on how
-        //you have your logs organized.
-        tables.add(new TableName(listTablesRequest.getSchemaName(), ALL_LOG_STREAMS_TABLE));
+        // Don't add the ALL_LOG_STREAMS_TABLE unless we're at the end of listing out all the tables.
+        // Otherwise we will end up with multiple ALL_LOG_STREAMS_TABLE showing up in the console.
+        if (nextToken == null) {
+            //We add a special table that represents all log streams. This is helpful depending on how
+            //you have your logs organized.
+            tables.add(new TableName(listTablesRequest.getSchemaName(), ALL_LOG_STREAMS_TABLE));
+        }
 
         return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
     }
@@ -216,9 +224,9 @@ public class CloudwatchMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         TableName tableName = getTableRequest.getTableName();
-        tableResolver.validateTable(tableName);
+        CloudwatchTableName cwTableName = tableResolver.validateTable(tableName);
         return new GetTableResponse(getTableRequest.getCatalogName(),
-                getTableRequest.getTableName(),
+                cwTableName.toTableName(),
                 CLOUDWATCH_SCHEMA,
                 Collections.singleton(LOG_STREAM_FIELD));
     }
@@ -352,6 +360,6 @@ public class CloudwatchMetadataHandler
      */
     private TableName toTableName(ListTablesRequest request, LogStream logStream)
     {
-        return new TableName(request.getSchemaName(), logStream.getLogStreamName().toLowerCase());
+        return new TableName(request.getSchemaName(), logStream.getLogStreamName());
     }
 }

@@ -66,4 +66,32 @@ public interface FieldResolver
      * @return The value to use for the given field.
      */
     Object getFieldValue(Field field, Object value);
+
+    /**
+     * Allow for additional logic to be apply for the retrieval of map keys
+     * If not overwritten, the default behavior is to assume a standard map with
+     * no special logic where the key is NOT a complex value
+     *
+     * @param field The field that we would like to extract from the provided value.
+     * @param value The complex value we'd like to extract the provided field from.
+     * @return The value to use for the given field.
+     */
+    default Object getMapKey(Field field, Object value)
+    {
+        return value;
+    }
+
+    /**
+     * Allow for additional logic to be apply for the retrieval of map values
+     * If not overwritten, the default behavior is to assume a standard map with
+     * no special logic and return the value directly
+     *
+     * @param field The field that we would like to extract from the provided value.
+     * @param value The complex value we'd like to extract the provided field from.
+     * @return The value to use for the given field.
+     */
+    default Object getMapValue(Field field, Object value)
+    {
+        return value;
+    }
 }
