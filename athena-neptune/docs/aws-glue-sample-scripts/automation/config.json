@@ -1,4 +1,21 @@
 {
+  "views": [
+    {
+      "label":"sourcetodestinationairport",
+      "query": "g.V().hasLabel('airport').as('source').out('route').as('destination').select('source','destination').by('code').limit(10)",
+      "properties":[ {
+        "property" : "source",
+        "dataType" : "String",
+        "isMultiValue" : false,
+        "isNullable" : false
+      }, {
+        "property" : "destination",
+        "dataType" : "String",
+        "isMultiValue" : false,
+        "isNullable" : false
+      }]
+    }
+  ],
   "edges" : [ {
     "label" : "knows",
     "properties" : [ {

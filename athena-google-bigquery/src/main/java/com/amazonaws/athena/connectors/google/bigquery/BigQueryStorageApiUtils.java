@@ -1,3 +1,4 @@
+
 /*-
  * #%L
  * athena-google-bigquery
@@ -19,16 +20,14 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.google.cloud.bigquery.QueryParameterValue;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -40,75 +39,23 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+
+import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Utf8;
 
 /**
  * Utilities that help with Sql operations.
  */
-public class BigQuerySqlUtils
+public class BigQueryStorageApiUtils
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BigQuerySqlUtils.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageApiUtils.class);
 
-    private static final String BIGQUERY_QUOTE_CHAR = "`";
+    private static final String BIGQUERY_QUOTE_CHAR = "\"";
 
-    private BigQuerySqlUtils()
+    private BigQueryStorageApiUtils()
     {
-    }
-
-    /**
-     * Builds an SQL statement from the schema, table name, split and contraints that can be executable by
-     * BigQuery.
-     *
-     * @param tableName The table name of the table we are querying.
-     * @param schema The schema of the table that we are querying.
-     * @param constraints The constraints that we want to apply to the query.
-     * @param parameterValues Query parameter values for parameterized query.
-     * @return SQL Statement that represents the table, columns, split, and constraints.
-     */
-    public static String buildSql(TableName tableName, Schema schema, Constraints constraints, List<QueryParameterValue> parameterValues)
-    {
-        LOGGER.info("Inside buildSql(): ");
-        StringBuilder sqlBuilder = new StringBuilder("SELECT ");
-
-        StringJoiner sj = new StringJoiner(",");
-        if (schema.getFields().isEmpty()) {
-            sj.add("null");
-        }
-        else {
-            for (Field field : schema.getFields()) {
-                sj.add(quote(field.getName()));
-            }
-        }
-        sqlBuilder.append(sj.toString())
-                .append(" from ")
-                .append(quote(tableName.getSchemaName()))
-                .append(".")
-                .append(quote(tableName.getTableName()));
-
-        LOGGER.info("constraints: " + constraints);
-        List<String> clauses = toConjuncts(schema.getFields(), constraints, parameterValues);
-
-        if (!clauses.isEmpty()) {
-            sqlBuilder.append(" WHERE ")
-                    .append(Joiner.on(" AND ").join(clauses));
-        }
-
-        String orderByClause = extractOrderByClause(constraints);
-        if (!Strings.isNullOrEmpty(orderByClause)) {
-            sqlBuilder.append(" ").append(orderByClause);
-        }
-
-        if (constraints.getLimit() > 0) {
-            sqlBuilder.append(" limit " + constraints.getLimit());
-        }
-
-        LOGGER.info("Generated SQL : {}", sqlBuilder.toString());
-        return sqlBuilder.toString();
     }
 
     private static String quote(final String identifier)
@@ -116,7 +63,7 @@ public class BigQuerySqlUtils
         return BIGQUERY_QUOTE_CHAR + identifier + BIGQUERY_QUOTE_CHAR;
     }
 
-    private static List<String> toConjuncts(List<Field> columns, Constraints constraints, List<QueryParameterValue> parameterValues)
+    private static List<String> toConjuncts(List<Field> columns, Constraints constraints)
     {
         LOGGER.debug("Inside toConjuncts(): ");
         ImmutableList.Builder<String> builder = ImmutableList.builder();
@@ -126,7 +73,7 @@ public class BigQuerySqlUtils
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
                 if (valueSet != null) {
                     LOGGER.info("valueSet: ", valueSet);
-                    builder.add(toPredicate(column.getName(), valueSet, type, parameterValues));
+                    builder.add(toPredicate(column.getName(), valueSet, type));
                 }
             }
         }
@@ -134,23 +81,23 @@ public class BigQuerySqlUtils
         return builder.build();
     }
 
-    private static String toPredicate(String columnName, ValueSet valueSet, ArrowType type, List<QueryParameterValue> parameterValues)
+    private static String toPredicate(String columnName, ValueSet valueSet, ArrowType type)
     {
         List<String> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return String.format("(%s IS NULL)", columnName);
+                return String.format("%s IS NULL", columnName);
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(String.format("(%s IS NULL)", columnName));
+                disjuncts.add(String.format("%s IS NULL", columnName));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return String.format("(%s IS NOT NULL)", columnName);
+                return String.format("%s IS NOT NULL", columnName);
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -162,10 +109,10 @@ public class BigQuerySqlUtils
                     if (!range.getLow().isLowerUnbounded()) {
                         switch (range.getLow().getBound()) {
                             case ABOVE:
-                                rangeConjuncts.add(toPredicate(columnName, ">", range.getLow().getValue(), type, parameterValues));
+                                rangeConjuncts.add(toPredicate(columnName, ">", range.getLow().getValue(), type));
                                 break;
                             case EXACTLY:
-                                rangeConjuncts.add(toPredicate(columnName, ">=", range.getLow().getValue(), type, parameterValues));
+                                rangeConjuncts.add(toPredicate(columnName, ">=", range.getLow().getValue(), type));
                                 break;
                             case BELOW:
                                 throw new IllegalArgumentException("Low marker should never use BELOW bound");
@@ -178,10 +125,10 @@ public class BigQuerySqlUtils
                             case ABOVE:
                                 throw new IllegalArgumentException("High marker should never use ABOVE bound");
                             case EXACTLY:
-                                rangeConjuncts.add(toPredicate(columnName, "<=", range.getHigh().getValue(), type, parameterValues));
+                                rangeConjuncts.add(toPredicate(columnName, "<=", range.getHigh().getValue(), type));
                                 break;
                             case BELOW:
-                                rangeConjuncts.add(toPredicate(columnName, "<", range.getHigh().getValue(), type, parameterValues));
+                                rangeConjuncts.add(toPredicate(columnName, "<", range.getHigh().getValue(), type));
                                 break;
                             default:
                                 throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
@@ -189,31 +136,30 @@ public class BigQuerySqlUtils
                     }
                     // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
                     Preconditions.checkState(!rangeConjuncts.isEmpty());
-                    disjuncts.add("(" + Joiner.on(" AND ").join(rangeConjuncts) + ")");
+                    disjuncts.add(Joiner.on(" AND ").join(rangeConjuncts));
                 }
             }
 
             // Add back all of the possible single values either as an equality or an IN predicate
             if (singleValues.size() == 1) {
-                disjuncts.add(toPredicate(columnName, "=", Iterables.getOnlyElement(singleValues), type, parameterValues));
+                disjuncts.add(toPredicate(columnName, "=", Iterables.getOnlyElement(singleValues), type));
             }
             else if (singleValues.size() > 1) {
+                List<String> val = new ArrayList<>();
                 for (Object value : singleValues) {
-                    parameterValues.add(getValueForWhereClause(columnName, value, type));
+                    val.add(((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? quote(getValueForWhereClause(columnName, value, type).getValue()) : getValueForWhereClause(columnName, value, type).getValue()));
                 }
-                String values = Joiner.on(",").join(Collections.nCopies(singleValues.size(), "?"));
-                disjuncts.add(quote(columnName) + " IN (" + values + ")");
+                String values = Joiner.on(",").join(val);
+                disjuncts.add(columnName + " IN (" + values + ")");
             }
         }
 
-        return "(" + Joiner.on(" OR ").join(disjuncts) + ")";
+        return Joiner.on(" OR ").join(disjuncts);
     }
 
-    private static String toPredicate(String columnName, String operator, Object value, ArrowType type,
-                                      List<QueryParameterValue> parameterValues)
+    private static String toPredicate(String columnName, String operator, Object value, ArrowType type)
     {
-        parameterValues.add(getValueForWhereClause(columnName, value, type));
-        return quote(columnName) + " " + operator + " ?";
+        return columnName + " " + operator + " " + ((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? quote(getValueForWhereClause(columnName, value, type).getValue()) : getValueForWhereClause(columnName, value, type).getValue());
     }
 
     //Gets the representation of a value that can be used in a where clause, ie String values need to be quoted, numeric doesn't.
@@ -273,23 +219,15 @@ public class BigQuerySqlUtils
         }
     }
 
-    /**
-     * Based on com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder.extractOrderByClause() method
-     * @param constraints
-     * @return a string representing ORDER BY clause or an empty string if there is no ORDER BY clause
-     */
-    private static String extractOrderByClause(Constraints constraints)
+    public static ReadSession.TableReadOptions.Builder setConstraints(ReadSession.TableReadOptions.Builder optionsBuilder, Schema schema, Constraints constraints)
     {
-        List<OrderByField> orderByClause = constraints.getOrderByClause();
-        if (orderByClause == null || orderByClause.size() == 0) {
-            return "";
+        List<String> clauses = toConjuncts(schema.getFields(), constraints);
+
+        if (!clauses.isEmpty()) {
+            String clause = Joiner.on(" AND ").join(clauses);
+            LOGGER.debug("clause {}", clause);
+            optionsBuilder = optionsBuilder.setRowRestriction(clause);
         }
-        return "ORDER BY " + orderByClause.stream()
-                .map(orderByField -> {
-                    String ordering = orderByField.getDirection().isAscending() ? "ASC" : "DESC";
-                    String nullsHandling = orderByField.getDirection().isNullsFirst() ? "NULLS FIRST" : "NULLS LAST";
-                    return quote(orderByField.getColumnName()) + " " + ordering + " " + nullsHandling;
-                })
-                .collect(Collectors.joining(", "));
+        return optionsBuilder;
     }
 }

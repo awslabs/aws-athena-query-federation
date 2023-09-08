@@ -75,7 +75,7 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-storage</artifactId>
-            <version>2.24.0</version>
+            <version>2.26.1</version>
         </dependency>
         <!-- Test Dependencies -->
         <dependency>
@@ -100,7 +100,7 @@
         <dependency>
             <groupId>org.junit.support</groupId>
             <artifactId>testng-engine</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>

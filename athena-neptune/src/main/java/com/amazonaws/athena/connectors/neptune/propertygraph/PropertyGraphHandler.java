@@ -26,18 +26,20 @@ import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
 import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.TableSchemaMetaType;
+import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.CustomSchemaRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.EdgeRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.VertexRowWriter;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.driver.Client;
+import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
-import org.apache.tinkerpop.gremlin.process.traversal.translator.GroovyTranslator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -125,6 +127,8 @@ public class PropertyGraphHandler
                         VertexRowWriter.writeRowTemplate(builder, nextField, configOptions);
                     }
 
+                    parseNodeOrEdge(queryStatusChecker, spiller, numRows, graphTraversal, builder);
+
                     break;
 
                 case EDGE:
@@ -135,23 +139,44 @@ public class PropertyGraphHandler
                         EdgeRowWriter.writeRowTemplate(builder, nextField, configOptions);
                     }
 
+                    parseNodeOrEdge(queryStatusChecker, spiller, numRows, graphTraversal, builder);
+
+                    break;
+                    
+                case VIEW: 
+                    String query = recordsRequest.getSchema().getCustomMetadata().get("query");
+                    Iterator<Result> resultIterator = client.submit(query).iterator();
+
+                    for (final Field nextField : recordsRequest.getSchema().getFields()) {
+                        CustomSchemaRowWriter.writeRowTemplate(builder, nextField);
+                    }
+
+                    final GeneratedRowWriter rowWriter = builder.build();
+
+                    while (resultIterator.hasNext() && queryStatusChecker.isQueryRunning()) {
+                        spiller.writeRows((final Block block, final int rowNum) -> {
+                            final Result obj = (Result) resultIterator.next();
+                            return (rowWriter.writeRow(block, rowNum, (Object) obj.getObject()) ? 1 : 0);
+                        });
+                    }
+
                     break;
             }
         }
+    }
 
-        // log string equivalent of gremlin query
-        logger.debug("readWithConstraint: enter - "
-                + GroovyTranslator.of("g").translate(graphTraversal.asAdmin().getBytecode()));
-
+    private void parseNodeOrEdge(final QueryStatusChecker queryStatusChecker, final BlockSpiller spiller, long numRows,
+            GraphTraversal graphTraversal, GeneratedRowWriter.RowWriterBuilder builder) 
+    {
         final GraphTraversal graphTraversalFinal1 = graphTraversal;
-        final GeneratedRowWriter rowWriter1 = builder.build();
+        final GeneratedRowWriter rowWriter = builder.build();
 
         while (graphTraversalFinal1.hasNext() && queryStatusChecker.isQueryRunning()) {
             numRows++;
 
             spiller.writeRows((final Block block, final int rowNum) -> {
                 final Map obj = (Map) graphTraversalFinal1.next();
-                return (rowWriter1.writeRow(block, rowNum, (Object) obj) ? 1 : 0);
+                return (rowWriter.writeRow(block, rowNum, (Object) obj) ? 1 : 0);
             });
         }
 
