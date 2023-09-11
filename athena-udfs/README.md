@@ -52,6 +52,19 @@ To use this connector in your queries, navigate to AWS Serverless Application Re
 3. From the athena-udfs dir, run  `sam deploy --template-file athena-udfs.yaml -g` and follow the guided prompt to synthesize your CloudFormation template and create your IAM policies and Lambda function. 
 4. Try using your UDF(s) in a query.
 
+## Migrating To V2
+This UDF includes a sample encryption/decryption method to showcase the benefits of integrating UDFs into your queries. If you were using the prior version of this UDF with AES-based encryption and wish to transition to the new version, please follow these steps:
+
+1. Deploy the new connector with new name (say v2)  as shown in previous example. 
+2. Use the previously deployed connector to decrypt, and the new one to encrypt:
+
+```
+USING    EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA 'athena_udf_v1',
+         EXTERNAL FUNCTION encrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA 'athena_udf_v2'
+SELECT   encrypt(t.plaintext, 'SOME_SECRET')
+         FROM (SELECT decrypt('PREVIOUSLY_ENCRYPTED_MESSAGE', 'SOME_SECRET') as plaintext) as t
+```
+
 ## License
 
 This project is licensed under the Apache-2.0 License.
