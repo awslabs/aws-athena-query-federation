@@ -44,8 +44,7 @@ public class AthenaUDFHandlerTest
 
     private AthenaUDFHandler athenaUDFHandler;
 
-    private static final String PLAINTEXT_DATA_KEY = "AQIDBAUGBwgJAAECAwQFBg==";
-
+    private static final String PLAINTEXT_DATA_KEY = "i5YnyBO4gJKWuIQ+gjuJjcJ/5kUph9pmYFUbW7zf3PE=";
     private Base64.Decoder decoder = Base64.getDecoder();
     private Base64.Encoder encoder = Base64.getEncoder();
 
@@ -109,7 +108,6 @@ public class AthenaUDFHandlerTest
     public void testKmsDecryption() throws Exception
     {
         Cipher cipher = AthenaUDFHandler.getCipher(Cipher.ENCRYPT_MODE, decoder.decode(PLAINTEXT_DATA_KEY.getBytes()), AthenaUDFHandler.getGCMSpecEncryption());
-
         String expected = "abcdef";
         byte[] encryptedString = cipher.doFinal(expected.getBytes(StandardCharsets.UTF_8));
         ByteBuffer byteBuffer = ByteBuffer.allocate(AthenaUDFHandler.GCM_IV_LENGTH + encryptedString.length);

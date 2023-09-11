@@ -20,7 +20,7 @@ This would return result 'StringToBeCompressed'.
 
 3. "encrypt": encrypt the data with a data key stored in AWS Secrets Manager*
 
-Before testing this query, you would need to create a secret in AWS Secrets Manager. Make sure to use "DefaultEncryptionKey". If you choose to use your KMS key, you would need to update ./athena-udfs.yaml to allow access to your KMS key. Remove all the json brackets and store a base64 encoded string as data key. Sample data is like `AQIDBAUGBwgJAAECAwQFBg==`. 
+Before testing this query, you would need to create a secret in AWS Secrets Manager. Make sure to use "DefaultEncryptionKey". If you choose to use your KMS key, you would need to update ./athena-udfs.yaml to allow access to your KMS key. Remove all the json brackets and store a base64 encoded string as data key. Sample data is like `i5YnyBO4gJKWuIQ+gjuJjcJ/5kUph9pmYFUbW7zf3PE=`. 
 
 Example query:
 
@@ -30,7 +30,7 @@ Example query:
 
 Example query:
 
-`USING EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decrypt('qF1Z8k0qaKamK0fqQa5EVm+T82kG6HIYaljcyDb1Vi/8m4DMKw==', 'my_secret_name');`
+`USING EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decrypt('G/VP2sbMb7d4zE2HVl2XkiB5xUHpszlEjccEBsTVji209IaCjg==', 'my_secret_name');`
 
 *To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 

@@ -235,9 +235,8 @@ public class AthenaUDFHandler
     static Cipher getCipher(int cipherMode, byte[] plainTextDataKey, GCMParameterSpec gcmParameterSpec)
     {
         try {
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            Cipher cipher = Cipher.getInstance("AES_256/GCM/NoPadding");
             SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKey, "AES");
-
             cipher.init(cipherMode, skeySpec, gcmParameterSpec);
             return cipher;
         }

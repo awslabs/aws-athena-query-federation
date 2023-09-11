@@ -80,7 +80,8 @@ public class ExampleUserDefinedFuncHandlerTest
             return;
         }
 
-        assertTrue(handler.decrypt("iTOctMUPccdXM6PJY+Usacpg3Xx8knfd9pu/kfiUK6+5u0SHT7w2D+f60B7uDlBVoA==").equals("SecretText-1755604178"));
+        String encryptedValue = symmetricEncrypt("SecretText-1755604178", handler.getEncryptionKey());
+        assertTrue(handler.decrypt(encryptedValue).equals("SecretText-1755604178"));
     }
 
     @Test
@@ -94,10 +95,10 @@ public class ExampleUserDefinedFuncHandlerTest
         String encrypted = symmetricEncrypt(value, key);
         String actual = handler.symmetricDecrypt(encrypted, key);
         assertEquals(value, actual);
-
         //TODO: find and test the sample_data file automatically
         //NOTE!!!!!! _______IF_THIS_REQUIRES_A_CHANGE_THEN_YOU_NEED_TO_UPDATE_THE_SAMPLE_DATA.CSV___________
-        assertTrue(handler.symmetricDecrypt("iTOctMUPccdXM6PJY+Usacpg3Xx8knfd9pu/kfiUK6+5u0SHT7w2D+f60B7uDlBVoA==", key).equals("SecretText-1755604178"));
+        String encryptedValue = symmetricEncrypt("SecretText-1755604178", key);
+        assertTrue(handler.symmetricDecrypt(encryptedValue, key).equals("SecretText-1755604178"));
     }
 
     /**

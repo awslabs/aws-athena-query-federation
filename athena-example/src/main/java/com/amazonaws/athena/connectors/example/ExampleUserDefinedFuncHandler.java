@@ -164,7 +164,7 @@ public class ExampleUserDefinedFuncHandler
     static Cipher getCipher(int cipherMode, byte[] plainTextDataKey, GCMParameterSpec gcmParameterSpec)
     {
         try {
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            Cipher cipher = Cipher.getInstance("AES_256/GCM/NoPadding");
             SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKey, "AES");
 
             cipher.init(cipherMode, skeySpec, gcmParameterSpec);
@@ -186,7 +186,8 @@ public class ExampleUserDefinedFuncHandler
     @VisibleForTesting
     protected String getEncryptionKey()
     {
-        //must be exactly 24 chars or the KeySpec will fail. In general this is a poor, but simple, way to store the key.
-        return "AMzDLG4D039Km2IxIzQwfg==";
+        // The algorithm used requires 32 Byte Key! 
+        // Can be generated for testing using `openssl rand -base64 32`
+        return "i5YnyBO4gJKWuIQ+gjuJjcJ/5kUph9pmYFUbW7zf3PE=";
     }
 }
