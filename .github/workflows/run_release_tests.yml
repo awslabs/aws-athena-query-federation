@@ -24,7 +24,7 @@ jobs:
           distribution: 'corretto'
           java-version: '11'
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Build jars
