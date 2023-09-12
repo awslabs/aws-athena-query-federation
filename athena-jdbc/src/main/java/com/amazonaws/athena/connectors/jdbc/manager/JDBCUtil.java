@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -141,8 +143,7 @@ public final class JDBCUtil
                                                      final String tableName) throws Exception
     {
         String resolvedName = null;
-        String sql = getTableNameQuery(tableName, databaseName);
-        PreparedStatement statement = connection.prepareStatement(sql);
+        PreparedStatement statement = getTableNameQuery(connection, tableName, databaseName);
         try (ResultSet resultSet = statement.executeQuery()) {
             if (resultSet.next()) {
                 resolvedName = resultSet.getString("table_name");
@@ -158,9 +159,43 @@ public final class JDBCUtil
         return new TableName(databaseName, resolvedName);
     }
 
-    private static String getTableNameQuery(String tableName, String databaseName)
+    public static PreparedStatement getTableNameQuery(Connection connection, String tableName, String databaseName) throws SQLException
     {
-        return String.format("SELECT table_name, lower(table_name) FROM information_schema.tables " +
-        "WHERE (table_name = '%s' or lower(table_name) = '%s') AND table_schema = '%s'", tableName, tableName, databaseName);
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, tableName);
+        preparedStatement.setString(2, tableName);
+        preparedStatement.setString(3, databaseName);
+        return preparedStatement;
+    }
+
+    public static List<TableName> getTables(Connection connection, String databaseName) throws SQLException
+    {
+       String tablesAndViews = "Tables and Views";
+       String sql = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?";
+       PreparedStatement preparedStatement = connection.prepareStatement(sql);
+       preparedStatement.setString(1, databaseName);
+       return getTableMetadata(preparedStatement, tablesAndViews);
+    }
+
+    public static List<TableName> getTableMetadata(PreparedStatement preparedStatement, String tableType)
+    {
+        ImmutableList.Builder<TableName> list = ImmutableList.builder();
+        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            while (resultSet.next()) {
+                list.add(getSchemaTableName(resultSet));
+            }
+        }
+        catch (SQLException ex) {
+            LOGGER.info("Unable to return list of {} from data source!", tableType);
+        }
+        return list.build();
+    }
+
+    public static TableName getSchemaTableName(final ResultSet resultSet) throws SQLException
+    {
+        return new TableName(
+                resultSet.getString("TABLE_SCHEM"),
+                resultSet.getString("TABLE_NAME"));
     }
 }

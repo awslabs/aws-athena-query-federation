@@ -287,7 +287,7 @@ public class MySqlMetadataHandlerTest
         String[] columnNames = new String[] {"table_name"};
         String[][] tableNameValues = new String[][]{new String[] {"testTable"}, new String[] {"TestTable"}};
         ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-        String sql = "SELECT table_name, lower(table_name) FROM information_schema.tables WHERE (table_name = 'testtable' or lower(table_name) = 'testtable') AND table_schema = 'testSchema'";
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = 'testtable' or lower(table_name) = 'testtable') AND table_schema = 'testSchema'";
         Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
 
         GetTableResponse getTableResponse = this.mySqlMetadataHandler.doGetTable(this.blockAllocator,
@@ -301,7 +301,7 @@ public class MySqlMetadataHandlerTest
         TableName inputTableName = new TableName("testSchema", "testtable");
         ResultSet resultSetName = Mockito.mock(ResultSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(resultSetName.next()).thenReturn(false);
-        String sql = "SELECT table_name, lower(table_name) FROM information_schema.tables WHERE (table_name = 'testtable' or lower(table_name) = 'testtable') AND table_schema = 'testSchema'";
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = 'testtable' or lower(table_name) = 'testtable') AND table_schema = 'testSchema'";
         Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
 
         GetTableResponse getTableResponse = this.mySqlMetadataHandler.doGetTable(this.blockAllocator,
