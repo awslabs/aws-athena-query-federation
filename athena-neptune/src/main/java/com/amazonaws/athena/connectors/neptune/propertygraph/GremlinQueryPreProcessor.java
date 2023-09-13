@@ -21,10 +21,12 @@
 package com.amazonaws.athena.connectors.neptune.propertygraph;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
+import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.SpecialKeys;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Element;
 
 /**
@@ -107,23 +109,73 @@ public final class GremlinQueryPreProcessor
      * @return A Gremlin Query Part equivalent for all Types
      */
     private static GraphTraversal<Element, Element> updateTraversal(GraphTraversal<Element, Element> traversal, Bound bound, Operator operator, String key, Object value) 
-    {
+    { 
         if (operator.equals(Operator.GREATERTHAN)) {
-            traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(value))
+            if (key.equals(SpecialKeys.IN.toString().toLowerCase())) {
+                traversal = bound.equals(Bound.EXACTLY) ? traversal.where(__.inV().id().is(P.gte(value)))
+                    : traversal.where(__.inV().id().is(P.gt(value)));
+            }
+            else if (key.equals(SpecialKeys.OUT.toString().toLowerCase())) {
+                traversal = bound.equals(Bound.EXACTLY) ? traversal.where(__.outV().id().is(P.gte(value)))
+                    : traversal.where(__.outV().id().is(P.gt(value)));
+            }
+            else if (key.equals(SpecialKeys.ID.toString().toLowerCase())) {
+                traversal = bound.equals(Bound.EXACTLY) ? traversal.where(__.id().is(P.gte(value)))
+                    : traversal.where(__.id().is(P.gt(value)));
+            }
+            else {
+                traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(value))
                     : traversal.has(key, P.gt(value));
+            }
         }
 
         if (operator.equals(Operator.LESSTHAN)) {
-            traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(value))
+            if (key.equals(SpecialKeys.IN.toString().toLowerCase())) {
+                traversal = bound.equals(Bound.EXACTLY) ? traversal.where(__.inV().id().is(P.lte(value)))
+                    : traversal.where(__.inV().id().is(P.lt(value)));
+            }
+            else if (key.equals(SpecialKeys.OUT.toString().toLowerCase())) {
+                traversal = bound.equals(Bound.EXACTLY) ? traversal.where(__.outV().id().is(P.lte(value)))
+                    : traversal.where(__.outV().id().is(P.lt(value)));
+            }
+            else if (key.equals(SpecialKeys.ID.toString().toLowerCase())) {
+                traversal = bound.equals(Bound.EXACTLY) ? traversal.where(__.id().is(P.lte(value)))
+                    : traversal.where(__.id().is(P.lt(value)));
+            }
+            else {
+                traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(value))
                     : traversal.has(key, P.lt(value));
+            }
         }
 
         if (operator.equals(Operator.EQUALTO)) {
-            traversal = traversal.has(key, P.eq(value));
+            if (key.equals(SpecialKeys.IN.toString().toLowerCase())) {
+                traversal = traversal.where(__.inV().id().is(P.eq(value)));
+            }
+            else if (key.equals(SpecialKeys.OUT.toString().toLowerCase())) {
+                traversal = traversal.where(__.outV().id().is(P.eq(value)));
+            }
+            else if (key.equals(SpecialKeys.ID.toString().toLowerCase())) {
+                traversal = traversal.where(__.id().is(P.eq(value)));
+            }
+            else {
+                traversal = traversal.has(key, P.eq(value));
+            }
         }
 
         if (operator.equals(Operator.NOTEQUALTO)) {
-            traversal = traversal.has(key, P.neq(value));
+            if (key.equals(SpecialKeys.IN.toString().toLowerCase())) {
+                traversal = traversal.where(__.inV().id().is(P.neq(value)));
+            }
+            else if (key.equals(SpecialKeys.OUT.toString().toLowerCase())) {
+                traversal = traversal.where(__.outV().id().is(P.neq(value)));
+            }
+            else if (key.equals(SpecialKeys.ID.toString().toLowerCase())) {
+                traversal = traversal.where(__.id().is(P.neq(value)));
+            }
+            else {
+                traversal = traversal.has(key, P.neq(value));
+            }
         }
 
         return traversal;

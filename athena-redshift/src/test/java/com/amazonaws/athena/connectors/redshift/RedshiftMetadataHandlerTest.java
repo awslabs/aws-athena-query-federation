@@ -71,7 +71,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+
 
 public class RedshiftMetadataHandlerTest
         extends TestBase
@@ -328,8 +330,18 @@ public class RedshiftMetadataHandlerTest
                 .forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
-        TableName inputTableName = new TableName("testSchema", "testTable");
-        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
+        TableName inputTableName = new TableName("testSchema", "testtable");
+        String[] columnNames = new String[] {"table_name"};
+        String[][] tableNameValues = new String[][]{new String[] {"testTable"}};
+        ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        PreparedStatement preparedStatement = this.connection.prepareStatement(sql);
+        preparedStatement.setString(1, "testtable");
+        preparedStatement.setString(2, "testtable");
+        preparedStatement.setString(3, "testSchema");
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
+        String resolvedTableName = "testTable";
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), resolvedTableName, null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
 
         GetTableResponse getTableResponse = this.redshiftMetadataHandler.doGetTable(new BlockAllocatorImpl(),
@@ -337,8 +349,9 @@ public class RedshiftMetadataHandlerTest
 
         logger.info("Schema: {}", getTableResponse.getSchema());
 
+        TableName expectedTableName = new TableName("testSchema", "testTable");
         Assert.assertEquals(expected, getTableResponse.getSchema());
-        Assert.assertEquals(inputTableName, getTableResponse.getTableName());
+        Assert.assertEquals(expectedTableName, getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
 
         logger.info("doGetTableWithArrayColumns - exit");

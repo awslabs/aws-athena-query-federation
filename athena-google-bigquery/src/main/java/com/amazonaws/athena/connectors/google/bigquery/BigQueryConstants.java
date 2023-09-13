@@ -47,6 +47,8 @@ public class BigQueryConstants
      */
     public static final String ENV_BIG_QUERY_CREDS_SM_ID = "secret_manager_gcp_creds_name";
 
+    public static final String TMP_SERVICE_ACCOUNT_JSON = "/tmp/service-account.json";
+
     private BigQueryConstants()
     {
     }

@@ -19,11 +19,19 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +39,7 @@ public final class JDBCUtil
 {
     private static final String DEFAULT_CATALOG_PREFIX = "lambda:";
     private static final String LAMBDA_FUNCTION_NAME_PROPERTY = "AWS_LAMBDA_FUNCTION_NAME";
+    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCUtil.class);
 
     private JDBCUtil() {}
 
@@ -128,5 +137,65 @@ public final class JDBCUtil
         }
 
         return recordHandlerMap.build();
+    }
+
+    public static TableName informationSchemaCaseInsensitiveTableMatch(Connection connection, final String databaseName,
+                                                     final String tableName) throws Exception
+    {
+        String resolvedName = null;
+        PreparedStatement statement = getTableNameQuery(connection, tableName, databaseName);
+        try (ResultSet resultSet = statement.executeQuery()) {
+            if (resultSet.next()) {
+                resolvedName = resultSet.getString("table_name");
+                if (resultSet.next()) {
+                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
+                }
+                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
+            }
+            else {
+                throw new RuntimeException(String.format("During Case Insensitive look up could not find Table '%s' in Database '%s'", tableName, databaseName));
+            }
+        }
+        return new TableName(databaseName, resolvedName);
+    }
+
+    public static PreparedStatement getTableNameQuery(Connection connection, String tableName, String databaseName) throws SQLException
+    {
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, tableName);
+        preparedStatement.setString(2, tableName);
+        preparedStatement.setString(3, databaseName);
+        return preparedStatement;
+    }
+
+    public static List<TableName> getTables(Connection connection, String databaseName) throws SQLException
+    {
+       String tablesAndViews = "Tables and Views";
+       String sql = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?";
+       PreparedStatement preparedStatement = connection.prepareStatement(sql);
+       preparedStatement.setString(1, databaseName);
+       return getTableMetadata(preparedStatement, tablesAndViews);
+    }
+
+    public static List<TableName> getTableMetadata(PreparedStatement preparedStatement, String tableType)
+    {
+        ImmutableList.Builder<TableName> list = ImmutableList.builder();
+        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            while (resultSet.next()) {
+                list.add(getSchemaTableName(resultSet));
+            }
+        }
+        catch (SQLException ex) {
+            LOGGER.info("Unable to return list of {} from data source!", tableType);
+        }
+        return list.build();
+    }
+
+    public static TableName getSchemaTableName(final ResultSet resultSet) throws SQLException
+    {
+        return new TableName(
+                resultSet.getString("TABLE_SCHEM"),
+                resultSet.getString("TABLE_NAME"));
     }
 }

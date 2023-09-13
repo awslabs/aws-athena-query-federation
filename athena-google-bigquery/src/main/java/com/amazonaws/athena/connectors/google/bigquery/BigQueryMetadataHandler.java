@@ -107,76 +107,62 @@ public class BigQueryMetadataHandler
     }
 
     @Override
-    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest) throws IOException
     {
-        try {
-            logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
+        logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
 
-            final List<String> schemas = new ArrayList<>();
-            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
-            Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
-            if (response == null) {
-                logger.info("Dataset does not contain any models: {}");
-            }
-            else {
-                do {
-                    for (Dataset dataset : response.iterateAll()) {
-                        if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
-                            throw new BigQueryExceptions.TooManyTablesException();
-                        }
-                        schemas.add(dataset.getDatasetId().getDataset().toLowerCase());
-                        logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
+        final List<String> schemas = new ArrayList<>();
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
+        if (response == null) {
+            logger.info("Dataset does not contain any models");
+        }
+        else {
+            do {
+                for (Dataset dataset : response.iterateAll()) {
+                    if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
+                        throw new BigQueryExceptions.TooManyTablesException();
                     }
-                } while (response.hasNextPage());
-            }
-
-            logger.info("Found {} schemas!", schemas.size());
-
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
+                    schemas.add(dataset.getDatasetId().getDataset().toLowerCase());
+                    logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
+                }
+            } while (response.hasNextPage());
         }
-        catch
-        (Exception e) {
-            logger.error("Error: ", e);
-        }
-        return null;
+
+        logger.info("Found {} schemas!", schemas.size());
+
+        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
     }
 
     @Override
-    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest) throws IOException
     {
-        try {
-            logger.info("doListTables called with request {}:{}", listTablesRequest.getCatalogName(),
-                    listTablesRequest.getSchemaName());
-            //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
-            String nextToken = null;
-            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
-            final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
-            final DatasetId datasetId = DatasetId.of(projectName, datasetName);
-            List<TableName> tables = new ArrayList<>();
-            if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
-                Page<Table> response = bigQuery.listTables(datasetId);
-                for (Table table : response.iterateAll()) {
-                    if (tables.size() > BigQueryConstants.MAX_RESULTS) {
-                        throw new BigQueryExceptions.TooManyTablesException();
-                    }
-                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
+        logger.info("doListTables called with request {}:{}", listTablesRequest.getCatalogName(),
+                listTablesRequest.getSchemaName());
+        //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
+        String nextToken = null;
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
+        final DatasetId datasetId = DatasetId.of(projectName, datasetName);
+        List<TableName> tables = new ArrayList<>();
+        if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
+            Page<Table> response = bigQuery.listTables(datasetId);
+            for (Table table : response.iterateAll()) {
+                if (tables.size() > BigQueryConstants.MAX_RESULTS) {
+                    throw new BigQueryExceptions.TooManyTablesException();
                 }
+                tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
             }
-            else {
-                Page<Table> response = bigQuery.listTables(datasetId,
-                        BigQuery.TableListOption.pageToken(listTablesRequest.getNextToken()), BigQuery.TableListOption.pageSize(listTablesRequest.getPageSize()));
-                for (Table table : response.getValues()) {
-                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
-                }
-                nextToken = response.getNextPageToken();
+        }
+        else {
+            Page<Table> response = bigQuery.listTables(datasetId,
+                    BigQuery.TableListOption.pageToken(listTablesRequest.getNextToken()), BigQuery.TableListOption.pageSize(listTablesRequest.getPageSize()));
+            for (Table table : response.getValues()) {
+                tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
             }
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
+            nextToken = response.getNextPageToken();
         }
-        catch
-        (Exception e) {
-            logger.error("Error:", e);
-        }
-        return null;
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
     }
 
     @Override
@@ -189,13 +175,11 @@ public class BigQueryMetadataHandler
     }
 
     /**
-     *
      * Currently not supporting Partitions since Bigquery having quota limits with triggering concurrent queries and having bit complexity to extract and use the partitions
      * in the query instead we are using limit and offset for non constraints query with basic concurrency limit
      */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
-            throws Exception
     {
         //NoOp since we don't support partitioning at this time.
     }
@@ -203,15 +187,14 @@ public class BigQueryMetadataHandler
     /**
      * Making minimum(10) splits based on constraints. Since without constraints query may give lambda timeout if table has large data,
      * concurrencyLimit is configurable and it can be changed based on Google BigQuery Quota Limits.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request Provides details of the catalog, database, table, and partition(s) being queried as well as
-     * any filter predicate.
-     * @return
-     * @throws IOException
-     * @throws InterruptedException
+     * @param request   Provides details of the catalog, database, table, and partition(s) being queried as well as
+     *                  any filter predicate.
+     * @return GetSplitsResponse
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException, InterruptedException
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
         //Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
@@ -222,15 +205,17 @@ public class BigQueryMetadataHandler
 
     /**
      * Getting Bigquery table schema details
+     *
      * @param datasetName
      * @param tableName
-     * @return
+     * @return Schema
      */
     private Schema getSchema(String datasetName, String tableName) throws java.io.IOException
     {
         BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
         datasetName = fixCaseForDatasetName(projectName, datasetName, bigQuery);
         tableName = fixCaseForTableName(projectName, datasetName, tableName, bigQuery);
+
         TableId tableId = TableId.of(projectName, datasetName, tableName);
         Table response = bigQuery.getTable(tableId);
         TableDefinition tableDefinition = response.getDefinition();

@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -63,7 +64,7 @@ public abstract class JdbcSplitQueryBuilder
     private static final int MILLIS_SHIFT = 12;
 
     private final String quoteCharacters;
-    private final String emptyString = "";
+    protected final String emptyString = "";
 
     private final FederationExpressionParser jdbcFederationExpressionParser;
 
@@ -176,8 +177,17 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBoolean(i + 1, (boolean) typeAndValue.getValue());
                     break;
                 case DATEDAY:
-                    statement.setDate(i + 1,
-                            new Date(TimeUnit.DAYS.toMillis(((Number) typeAndValue.getValue()).longValue())));
+                    //we received value in "UTC" time with DAYS only, appended it to timeMilli in UTC
+                    long utcMillis = TimeUnit.DAYS.toMillis(((Number) typeAndValue.getValue()).longValue());
+                    //Get the default timezone offset and offset it.
+                    //This is because sql.Date will parse millis into localtime zone
+                    //ex system timezone in GMT-5, sql.Date will think the utcMillis is in GMT-5, we need to add offset(eg. -18000000) .
+                    //ex system timezone in GMT+9, sql.Date will think the utcMillis is in GMT+9, we need to remove offset(eg. 32400000).
+                    TimeZone aDefault = TimeZone.getDefault();
+                    int offset = aDefault.getOffset(utcMillis);
+                    utcMillis -= offset;
+
+                    statement.setDate(i + 1, new Date(utcMillis));
                     break;
                 case DATEMILLI:
                     LocalDateTime timestamp = ((LocalDateTime) typeAndValue.getValue());
@@ -254,8 +264,8 @@ public abstract class JdbcSplitQueryBuilder
                 disjuncts.add(String.format("(%s IS NULL)", quote(columnName)));
             }
 
-            Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
-            if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
+            List<Range> rangeList = ((SortedRangeSet) valueSet).getOrderedRanges();
+            if (rangeList.size() == 1 && !valueSet.isNullAllowed() && rangeList.get(0).getLow().isLowerUnbounded() && rangeList.get(0).getHigh().isUpperUnbounded()) {
                 return String.format("(%s IS NOT NULL)", quote(columnName));
             }
 

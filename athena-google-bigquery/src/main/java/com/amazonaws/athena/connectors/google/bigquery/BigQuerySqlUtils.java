@@ -1,4 +1,3 @@
-
 /*-
  * #%L
  * athena-google-bigquery
@@ -20,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
@@ -45,7 +43,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -55,7 +52,7 @@ import java.util.stream.Collectors;
  */
 public class BigQuerySqlUtils
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BigQuerySqlUtils.class);
 
     private static final String BIGQUERY_QUOTE_CHAR = "`";
 
@@ -70,13 +67,12 @@ public class BigQuerySqlUtils
      * @param tableName The table name of the table we are querying.
      * @param schema The schema of the table that we are querying.
      * @param constraints The constraints that we want to apply to the query.
-     * @param split The split information to add as a constraint.
      * @param parameterValues Query parameter values for parameterized query.
      * @return SQL Statement that represents the table, columns, split, and constraints.
      */
-    public static String buildSqlFromSplit(TableName tableName, Schema schema, Constraints constraints, Split split, List<QueryParameterValue> parameterValues)
+    public static String buildSql(TableName tableName, Schema schema, Constraints constraints, List<QueryParameterValue> parameterValues)
     {
-        LOGGER.info("Inside buildSqlFromSplit(): ");
+        LOGGER.info("Inside buildSql(): ");
         StringBuilder sqlBuilder = new StringBuilder("SELECT ");
 
         StringJoiner sj = new StringJoiner(",");
@@ -89,13 +85,13 @@ public class BigQuerySqlUtils
             }
         }
         sqlBuilder.append(sj.toString())
-            .append(" from ")
-            .append(quote(tableName.getSchemaName()))
-            .append(".")
-            .append(quote(tableName.getTableName()));
+                .append(" from ")
+                .append(quote(tableName.getSchemaName()))
+                .append(".")
+                .append(quote(tableName.getTableName()));
 
         LOGGER.info("constraints: " + constraints);
-        List<String> clauses = toConjuncts(schema.getFields(), constraints, split.getProperties(), parameterValues);
+        List<String> clauses = toConjuncts(schema.getFields(), constraints, parameterValues);
 
         if (!clauses.isEmpty()) {
             sqlBuilder.append(" WHERE ")
@@ -120,14 +116,11 @@ public class BigQuerySqlUtils
         return BIGQUERY_QUOTE_CHAR + identifier + BIGQUERY_QUOTE_CHAR;
     }
 
-    private static List<String> toConjuncts(List<Field> columns, Constraints constraints, Map<String, String> partitionSplit, List<QueryParameterValue> parameterValues)
+    private static List<String> toConjuncts(List<Field> columns, Constraints constraints, List<QueryParameterValue> parameterValues)
     {
         LOGGER.debug("Inside toConjuncts(): ");
         ImmutableList.Builder<String> builder = ImmutableList.builder();
         for (Field column : columns) {
-            if (partitionSplit.containsKey(column.getName())) {
-                continue; // Ignore constraints on partition name as RDBMS does not contain these as columns. Presto will filter these values.
-            }
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
@@ -217,7 +210,7 @@ public class BigQuerySqlUtils
     }
 
     private static String toPredicate(String columnName, String operator, Object value, ArrowType type,
-            List<QueryParameterValue> parameterValues)
+                                      List<QueryParameterValue> parameterValues)
     {
         parameterValues.add(getValueForWhereClause(columnName, value, type));
         return quote(columnName) + " " + operator + " ?";
@@ -276,7 +269,7 @@ public class BigQuerySqlUtils
                 throw new UnsupportedOperationException("The Arrow type: " + arrowType.getTypeID().name() + " is currently not supported");
             default:
                 throw new IllegalArgumentException("Unknown type has been encountered during range processing: " + columnName +
-                    " Field Type: " + arrowType.getTypeID().name());
+                        " Field Type: " + arrowType.getTypeID().name());
         }
     }
 

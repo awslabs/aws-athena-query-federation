@@ -161,19 +161,20 @@ public abstract class JdbcMetadataHandler
             throws Exception
     {
         try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List table names for Catalog {}, Table {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
+            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
+                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
             return new ListTablesResponse(listTablesRequest.getCatalogName(),
                     listTables(connection, listTablesRequest.getSchemaName()), null);
         }
     }
 
-    private List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
+    protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
             throws SQLException
     {
         try (ResultSet resultSet = getTables(jdbcConnection, databaseName)) {
             ImmutableList.Builder<TableName> list = ImmutableList.builder();
             while (resultSet.next()) {
-                list.add(getSchemaTableName(resultSet));
+                list.add(JDBCUtil.getSchemaTableName(resultSet));
             }
             return list.build();
         }
@@ -189,14 +190,6 @@ public abstract class JdbcMetadataHandler
                 escapeNamePattern(schemaName, escape),
                 null,
                 new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"});
-    }
-
-    private TableName getSchemaTableName(final ResultSet resultSet)
-            throws SQLException
-    {
-        return new TableName(
-                resultSet.getString("TABLE_SCHEM"),
-                resultSet.getString("TABLE_NAME"));
     }
 
     protected String escapeNamePattern(final String name, final String escape)
@@ -218,13 +211,30 @@ public abstract class JdbcMetadataHandler
     {
         try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), getSchema(connection, getTableRequest.getTableName(), partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            TableName caseInsensitiveTableMatch = caseInsensitiveTableSearch(connection, getTableRequest.getTableName().getSchemaName(),
+                    getTableRequest.getTableName().getTableName());
+            Schema caseInsensitiveSchemaMatch = getSchema(connection, caseInsensitiveTableMatch, partitionSchema);
+            return new GetTableResponse(getTableRequest.getCatalogName(), caseInsensitiveTableMatch, caseInsensitiveSchemaMatch,
+                        partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
 
+    /**
+     * While being a no-op by default, this function will be overriden by subclasses that support this search.
+     *
+     * @param connection
+     * @param databaseName
+     * @param tableName
+     * @return TableName containing the resolved case sensitive table name.
+     */
+    protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
+                                                     final String tableName) throws Exception
+    {
+        return new TableName(databaseName, tableName);
+    }
+
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+            throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
@@ -258,7 +268,7 @@ public abstract class JdbcMetadataHandler
             }
 
             if (!found) {
-                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+                throw new RuntimeException(String.format("Could not find table %s in %s", tableName.getTableName(), tableName.getSchemaName()));
             }
 
             // add partition columns
