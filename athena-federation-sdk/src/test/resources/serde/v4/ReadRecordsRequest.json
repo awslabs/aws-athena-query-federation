@@ -135,7 +135,10 @@
       "columnName" : "col2",
       "direction" : "DESC_NULLS_FIRST"
     } ],
-    "limit" : -1
+    "limit" : -1,
+    "queryPassthroughArguments" : {
+      "query" : "SELECT * FROM DUMMY_TABLE;"
+    }
   },
   "maxBlockSize" : "100000000000",
   "maxInlineBlockSize" : "100000000000"

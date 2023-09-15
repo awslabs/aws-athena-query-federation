@@ -92,6 +92,9 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
         constraintsMap.put("col4", EquatableValueSet.newBuilder(allocator, Types.MinorType.FLOAT8.getType(), false, true).add(1.1D).build());
         constraintsMap.put("col5", new AllOrNoneValueSet(Types.MinorType.FLOAT8.getType(), false, true));
 
+        HashMap<String, String> queryPassthroughArguments = new HashMap<>(1);
+        queryPassthroughArguments.put("query", "SELECT * FROM DUMMY_TABLE;");
+
         Block partitions = allocator.createBlock(schema);
 
         FederationExpression federationExpression = new FunctionCallExpression(
@@ -112,6 +115,7 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
         );
 
         Constraints constraints = new Constraints(constraintsMap, ImmutableList.of(federationExpression), orderByClause, DEFAULT_NO_LIMIT);
+        constraints.setQueryPassthroughArguments(queryPassthroughArguments);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {

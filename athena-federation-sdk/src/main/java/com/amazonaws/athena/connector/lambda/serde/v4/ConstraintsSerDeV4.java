@@ -36,6 +36,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
@@ -46,6 +47,7 @@ public final class ConstraintsSerDeV4
     private static final String EXPRESSION_FIELD = "expression";
     private static final String ORDER_BY_CLAUSE = "orderByClause";
     private static final String LIMIT_FIELD = "limit";
+    private static final String QUERY_PASSTHROUGH_ARGUMENTS = "queryPassthroughArguments";
 
     private ConstraintsSerDeV4() {}
 
@@ -88,6 +90,9 @@ public final class ConstraintsSerDeV4
             jgen.writeEndArray();
 
             jgen.writeNumberField(LIMIT_FIELD, constraints.getLimit());
+            if (constraints.isQueryPassThrough()) {
+                writeStringMap(jgen, QUERY_PASSTHROUGH_ARGUMENTS, constraints.getQueryPassthroughArguments());
+            }
         }
     }
 
@@ -136,11 +141,22 @@ public final class ConstraintsSerDeV4
                 orderByClauseBuilder.add(orderByFieldDeserializer.doDeserialize(jparser, ctxt));
                 validateObjectEnd(jparser);
             }
-            
 
             long limit = getNextLongField(jparser, LIMIT_FIELD);
 
-            return new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit);
+            // This will insure backward compatibility given that QPT arguments are optional
+            Map<String, String> queryPassthroughArguments = new HashMap<>();
+            if (jparser.nextToken() == JsonToken.FIELD_NAME
+                    && jparser.getCurrentName().equals(QUERY_PASSTHROUGH_ARGUMENTS)) {
+                validateObjectStart(jparser.nextToken());
+                while (jparser.nextToken() != JsonToken.END_OBJECT) {
+                    queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
+                }
+            }
+
+            Constraints constraints = new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit);
+            constraints.setQueryPassthroughArguments(queryPassthroughArguments);
+            return constraints;
         }
     }
 }

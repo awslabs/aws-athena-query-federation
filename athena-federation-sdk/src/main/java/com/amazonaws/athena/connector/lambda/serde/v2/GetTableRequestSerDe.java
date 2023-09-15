@@ -27,16 +27,20 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
 public final class GetTableRequestSerDe
 {
     private static final String TABLE_NAME_FIELD = "tableName";
+    private static final String QUERY_PASSTHROUGH_ARGUMENTS = "queryPassthroughArguments";
 
     private GetTableRequestSerDe() {}
 
@@ -60,6 +64,9 @@ public final class GetTableRequestSerDe
 
             jgen.writeFieldName(TABLE_NAME_FIELD);
             tableNameSerializer.serialize(getTableRequest.getTableName(), jgen, provider);
+            if (!getTableRequest.getQueryPassthroughArguments().isEmpty()) {
+                writeStringMap(jgen, QUERY_PASSTHROUGH_ARGUMENTS, getTableRequest.getQueryPassthroughArguments());
+            }
         }
     }
 
@@ -82,7 +89,19 @@ public final class GetTableRequestSerDe
             assertFieldName(jparser, TABLE_NAME_FIELD);
             TableName tableName = tableNameDeserializer.deserialize(jparser, ctxt);
 
-            return new GetTableRequest(identity, queryId, catalogName, tableName);
+            // This will insure backward compatibility given that QPT arguments are optional
+            Map<String, String> queryPassthroughArguments = new HashMap<>();
+            if (jparser.nextToken() == JsonToken.FIELD_NAME
+                    && jparser.getCurrentName().equals(QUERY_PASSTHROUGH_ARGUMENTS)) {
+                validateObjectStart(jparser.nextToken());
+                while (jparser.nextToken() != JsonToken.END_OBJECT) {
+                    queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
+                }
+            }
+
+            GetTableRequest getTableRequest = new GetTableRequest(identity, queryId, catalogName, tableName);
+            getTableRequest.setQueryPassthroughArguments(queryPassthroughArguments);
+            return getTableRequest;
         }
     }
 }
