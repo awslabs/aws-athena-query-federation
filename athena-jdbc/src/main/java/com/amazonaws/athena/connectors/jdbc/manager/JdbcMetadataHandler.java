@@ -58,10 +58,13 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -216,6 +219,62 @@ public abstract class JdbcMetadataHandler
             Schema caseInsensitiveSchemaMatch = getSchema(connection, caseInsensitiveTableMatch, partitionSchema);
             return new GetTableResponse(getTableRequest.getCatalogName(), caseInsensitiveTableMatch, caseInsensitiveSchemaMatch,
                         partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+        }
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
+    {
+        //todo; each connector needs to make sure that they validate the QPT arguments they passed
+        //      to define what arguments they are expecting
+        if (!getTableRequest.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through");
+        }
+
+        String query = getTableRequest.getQueryPassthroughArguments().get("query");
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(query).build();
+            ResultSetMetaData metadata = preparedStatement.getMetaData();
+            if (metadata == null) {
+                throw new UnsupportedOperationException("Query not supported: ResultSetMetaData not available for query: " + query);
+            }
+            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+            for (int columnIndex = 1; columnIndex <= metadata.getColumnCount(); columnIndex++) {
+                String columnName = metadata.getColumnName(columnIndex);
+
+                int precision = metadata.getPrecision(columnIndex);
+                int scale = metadata.getScale(columnIndex);
+                int decimalDigits = precision - scale;
+
+                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                        metadata.getColumnType(columnIndex),
+                        metadata.getColumnDisplaySize(columnIndex),
+                        decimalDigits,
+                        configOptions);
+
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    if (columnType instanceof ArrowType.List) {
+                        schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
+                                metadata.getTableName(columnIndex),
+                                metadata.getColumnDisplaySize(columnIndex),
+                                decimalDigits));
+                    }
+                    else {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    }
+                }
+                else {
+                    // Default to VARCHAR ArrowType
+                    LOGGER.warn("getSchema: Unable to map type for column[" + columnName +
+                            "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
+                }
+            }
+
+            Schema schema = schemaBuilder.build();
+            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), schema, Collections.emptySet());
         }
     }
 

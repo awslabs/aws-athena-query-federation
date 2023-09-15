@@ -92,6 +92,11 @@ public class GetTableRequest
     {
         this.queryPassthroughArguments = requireNonNull(queryPassthroughArguments, "queryPassthroughArguments is null");
     }
+
+    public boolean isQueryPassthrough()
+    {
+        return !this.queryPassthroughArguments.isEmpty();
+    }
     @Override
     public String toString()
     {

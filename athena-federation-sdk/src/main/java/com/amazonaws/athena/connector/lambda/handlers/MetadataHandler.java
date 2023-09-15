@@ -270,7 +270,7 @@ public abstract class MetadataHandler
                 }
                 return;
             case GET_TABLE:
-                try (GetTableResponse response = doGetTable(allocator, (GetTableRequest) req)) {
+                try (GetTableResponse response = resolveDoGetTable(allocator, (GetTableRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
                     assertTypes(response);
@@ -325,6 +325,32 @@ public abstract class MetadataHandler
      */
     public abstract ListTablesResponse doListTables(final BlockAllocator allocator, final ListTablesRequest request)
             throws Exception;
+
+    public GetTableResponse resolveDoGetTable(final BlockAllocator allocator, final GetTableRequest request)
+            throws Exception
+    {
+        if (request.isQueryPassthrough()) {
+            return doGetQueryPassthroughTable(allocator, request);
+        }
+        return doGetTable(allocator, request);
+    }
+
+    /**
+     * Used to get definition (field names, types, descriptions, etc...) of a Query PassThrough.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog, database, and table they are querying.
+     * @return A GetTableResponse which primarily contains:
+     * 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
+     * 2. A Set<String> of partition column names (or empty if the table isn't partitioned).
+     */
+    public GetTableResponse doGetQueryPassthroughTable(final BlockAllocator allocator, final GetTableRequest request)
+            throws Exception
+    {
+        //todo; maybe we need a better name for this method,
+        //      for example: doGetQueryPassthroughSchema? given that's what we are trying to do
+        throw new UnsupportedOperationException("Not implemented");
+    }
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
