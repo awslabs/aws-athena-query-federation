@@ -72,6 +72,16 @@ public enum DataSourceOptimizations
             }
             return new SimpleImmutableEntry<String, List<OptimizationSubType>>(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
+    },
+    QUERY_PASSTHROUGH("query_pass_through")
+    {
+        public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
+        {
+            if (subTypesList.length == 0) {
+                throw new IllegalArgumentException("Connectors that support function expressions must provide a list of supported functions. See Documentation for more details");
+            }
+            return new SimpleImmutableEntry<>(this.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
+        }
     };
 
     private final String optimization;

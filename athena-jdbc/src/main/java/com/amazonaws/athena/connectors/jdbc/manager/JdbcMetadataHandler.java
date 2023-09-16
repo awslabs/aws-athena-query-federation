@@ -223,7 +223,7 @@ public abstract class JdbcMetadataHandler
     }
 
     @Override
-    public GetTableResponse doGetQueryPassthroughTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+    public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
             throws Exception
     {
         //todo; each connector needs to make sure that they validate the QPT arguments they passed
