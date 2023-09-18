@@ -37,7 +37,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOp
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.PushdownSubTypes;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.qpt.QueryPassthrough;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -134,18 +134,10 @@ public class MySqlMetadataHandler
                             .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
                             .toArray(String[]::new))
         ));
-        
-        capabilities.put(DataSourceOptimizations.QUERY_PASSTHROUGH.withSupportedSubTypes(new PushdownSubTypes() {
-            @Override
-            public String getSubType() {
-                return "arguments";
-            }
 
-            @Override
-            public List<String> getProperties() {
-                return Arrays.asList("query");
-            }
-        }));
+        capabilities.put(QueryPassthrough.QUERY_PASSTHROUGH_NAME.withName("query"));
+        capabilities.put(QueryPassthrough.QUERY_PASSTHROUGH_NAMESPACE.withNamespace("system"));
+        capabilities.put(QueryPassthrough.QUERY_PASSTHROUGH_ARGUMENTS.withArguments("query"));
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
