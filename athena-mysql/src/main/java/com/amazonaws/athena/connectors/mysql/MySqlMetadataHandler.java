@@ -135,8 +135,8 @@ public class MySqlMetadataHandler
                             .toArray(String[]::new))
         ));
 
+        capabilities.put(QueryPassthrough.QUERY_PASSTHROUGH_SCHEMA_NAME.withSchemaName("system"));
         capabilities.put(QueryPassthrough.QUERY_PASSTHROUGH_NAME.withName("query"));
-        capabilities.put(QueryPassthrough.QUERY_PASSTHROUGH_NAMESPACE.withNamespace("system"));
         capabilities.put(QueryPassthrough.QUERY_PASSTHROUGH_ARGUMENTS.withArguments("query"));
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());

@@ -228,13 +228,13 @@ public abstract class JdbcMetadataHandler
     {
         //todo; each connector needs to make sure that they validate the QPT arguments they passed
         //      to define what arguments they are expecting
-        if (!getTableRequest.isQueryPassthrough()) {
-            throw new IllegalArgumentException("No Query passed through");
+        if (!getTableRequest.isQueryPassthrough() || !getTableRequest.getQueryPassthroughArguments().containsKey("QUERY")) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + getTableRequest);
         }
 
-        String query = getTableRequest.getQueryPassthroughArguments().get("query");
+        String query = getTableRequest.getQueryPassthroughArguments().get("QUERY");
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(query).build();
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
             ResultSetMetaData metadata = preparedStatement.getMetaData();
             if (metadata == null) {
                 throw new UnsupportedOperationException("Query not supported: ResultSetMetaData not available for query: " + query);

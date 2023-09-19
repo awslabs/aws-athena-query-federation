@@ -270,15 +270,7 @@ public abstract class MetadataHandler
                 }
                 return;
             case GET_TABLE:
-                try (GetTableResponse response = doGetTable(allocator, (GetTableRequest) req)) {
-                    logger.info("doHandleRequest: response[{}]", response);
-                    assertNotNull(response);
-                    assertTypes(response);
-                    objectMapper.writeValue(outputStream, response);
-                }
-                return;
-            case GET_QUERY_PASSTHROUGH_SCHEMA:
-                try (GetTableResponse response = doGetQueryPassthroughSchema(allocator, (GetTableRequest) req)) {
+                try (GetTableResponse response = resolveDoGetTableImplementation(allocator, (GetTableRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
                     assertTypes(response);
@@ -333,6 +325,17 @@ public abstract class MetadataHandler
      */
     public abstract ListTablesResponse doListTables(final BlockAllocator allocator, final ListTablesRequest request)
             throws Exception;
+
+    private GetTableResponse resolveDoGetTableImplementation(final BlockAllocator allocator, final GetTableRequest request)
+        throws Exception
+    {
+        logger.info("resolveDoGetTableImplementation: resolving implementation - isQueryPassthrough[{}]", request.isQueryPassthrough());
+        System.err.println("resolveDoGetTableImplementation: resolving implementation - isQueryPassthrough[{}]" + request.isQueryPassthrough());
+        if (request.isQueryPassthrough()) {
+            return doGetQueryPassthroughSchema(allocator, request);
+        }
+        return doGetTable(allocator, request);
+    }
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Query PassThrough.

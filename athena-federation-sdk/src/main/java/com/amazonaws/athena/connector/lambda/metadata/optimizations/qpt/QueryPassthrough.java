@@ -27,15 +27,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 /**
- * This class described Query Passthrough Signature;
+ * This class describes Query Passthrough Signature;
+ * Schema Name; is where the function will reside in the catalog attaching this namespace
  * Name; is the table function name of the QPT;
- * Namespace; is where the function will reside in the catalog attaching this namespace
  * Arguments; list of all arguments that this QPT is expecting to have
  *
  */
 public enum QueryPassthrough {
     QUERY_PASSTHROUGH_NAME("query_passthrough_name"),
-    QUERY_PASSTHROUGH_NAMESPACE("query_passthrough_namespace"),
+    QUERY_PASSTHROUGH_SCHEMA_NAME("query_passthrough_schema_name"),
     QUERY_PASSTHROUGH_ARGUMENTS("query_passthrough_arguments");
     private final String signature;
 
@@ -49,14 +49,14 @@ public enum QueryPassthrough {
         return signature;
     }
 
+    public final Map.Entry<String, List<OptimizationSubType>> withSchemaName(String namespace)
+    {
+        return new AbstractMap.SimpleImmutableEntry<>(this.getSignature(), Arrays.asList(new OptimizationSubType(namespace, Collections.emptyList())));
+    }
+
     public final Map.Entry<String, List<OptimizationSubType>> withName(String name)
     {
         return new AbstractMap.SimpleImmutableEntry<>(this.getSignature(), Arrays.asList(new OptimizationSubType(name, Collections.emptyList())));
-    }
-    
-    public final Map.Entry<String, List<OptimizationSubType>> withNamespace(String namespace)
-    {
-        return new AbstractMap.SimpleImmutableEntry<>(this.getSignature(), Arrays.asList(new OptimizationSubType(namespace, Collections.emptyList())));
     }
 
     public final Map.Entry<String, List<OptimizationSubType>> withArguments(String... arguments)
