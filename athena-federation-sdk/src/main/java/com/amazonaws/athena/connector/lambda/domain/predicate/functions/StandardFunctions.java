@@ -25,12 +25,14 @@ public enum StandardFunctions
 /**
      * $and is a vararg function accepting boolean arguments
      */
-    AND_FUNCTION_NAME(new FunctionName("$and"), OperatorType.BINARY),
+    // TODO: temporary disable $and/$or predicate pushdown
+//    AND_FUNCTION_NAME(new FunctionName("$and"), OperatorType.BINARY),
 
     /**
      * $or is a vararg function accepting boolean arguments
      */
-    OR_FUNCTION_NAME(new FunctionName("$or"), OperatorType.BINARY),
+    // TODO: temporary disable $and/$or predicate pushdown
+//    OR_FUNCTION_NAME(new FunctionName("$or"), OperatorType.BINARY),
 
     /**
      * $not is a function accepting boolean argument
