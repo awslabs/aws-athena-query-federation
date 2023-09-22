@@ -3,11 +3,11 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.47.1</version>
+        <version>2023.38.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-cloudera-impala</artifactId>
-    <version>2022.47.1</version>
+    <version>2023.38.1</version>
     <properties>
         <clouderaVersion>2.6.32.1041</clouderaVersion>
     </properties>
@@ -15,13 +15,13 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2022.47.1</version>
+            <version>2023.38.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.47.1</version>
+            <version>2023.38.1</version>
         </dependency>
         <dependency>
             <groupId>Impala</groupId>
@@ -31,11 +31,10 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.47.1</version>
+            <version>2023.38.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
