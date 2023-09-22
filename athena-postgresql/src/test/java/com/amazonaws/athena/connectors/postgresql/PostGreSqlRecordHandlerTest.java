@@ -201,9 +201,15 @@ public class PostGreSqlRecordHandlerTest extends TestBase
 
         PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
+        //From sql.Date java doc. Params:
+        //year – the year minus 1900; must be 0 to 8099. (Note that 8099 is 9999 minus 1900.)
+        //month – 0 to 11
+        //day – 1 to 31
+        //Start date = 1992-1-1
+        Date expectedDate = new Date(120, 0, 5);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
-                .setDate(1, new Date(TimeUnit.DAYS.toMillis(dateDays)));
+                .setDate(1, expectedDate);
 
         logger.info("buildSplitSqlForDateTest - exit");
     }

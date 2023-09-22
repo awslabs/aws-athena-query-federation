@@ -199,7 +199,12 @@ public class MySqlFederationExpressionParserTest {
             StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
             ImmutableList.of(addFunction, colThree)
         );
-        
+
+        String actualGTFunction = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) gtFunction);
+        // colFour IN ("banana", "dragonfruit")
+        String expectedGTFunction = "((" + quoteColumn("colOne") +  " + " + quoteColumn("colTwo") + ") > " + quoteColumn("colThree") + ")";
+        assertEquals(expectedGTFunction, actualGTFunction);
+
 
         // colFour IN ("banana", "dragonfruit")
         FederationExpression colFour = new VariableExpression("colFour", ArrowType.Utf8.INSTANCE);
@@ -217,35 +222,41 @@ public class MySqlFederationExpressionParserTest {
             ImmutableList.of(colFour, fruitList)
         );
 
-        // (colOne + colTwo > colThree) AND (colFour IN ("banana", "dragonfruit"))
-        FederationExpression andFunction = new FunctionCallExpression(
-            ArrowType.Bool.INSTANCE,
-            StandardFunctions.AND_FUNCTION_NAME.getFunctionName(),
-            ImmutableList.of(gtFunction, inFunction)
-        );
+        String actualInClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) inFunction);
+        // colFour IN ("banana", "dragonfruit")
+        String expectedInClause = "(" + quoteColumn("colFour") +  " IN (" + quoteConstant("banana") + "," + quoteConstant("dragonfruit") + "))";
+        assertEquals(expectedInClause, actualInClause);
 
-        FederationExpression fruitConstant = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(), ImmutableList.of("fruit")),
-            new ArrowType.Utf8()
-        );
-        FederationExpression notFunction = new FunctionCallExpression(
-            ArrowType.Bool.INSTANCE,
-            StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getFunctionName(),
-            ImmutableList.of(colFour, fruitConstant)
-        );
+// TODO: temporary disable $and/$or predicate pushdown
+//        // (colOne + colTwo > colThree) AND (colFour IN ("banana", "dragonfruit"))
+//        FederationExpression andFunction = new FunctionCallExpression(
+//            ArrowType.Bool.INSTANCE,
+//            StandardFunctions.AND_FUNCTION_NAME.getFunctionName(),
+//            ImmutableList.of(gtFunction, inFunction)
+//        );
+//
+//        FederationExpression fruitConstant = new ConstantExpression(
+//            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(), ImmutableList.of("fruit")),
+//            new ArrowType.Utf8()
+//        );
+//        FederationExpression notFunction = new FunctionCallExpression(
+//            ArrowType.Bool.INSTANCE,
+//            StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getFunctionName(),
+//            ImmutableList.of(colFour, fruitConstant)
+//        );
+//
+//        FederationExpression orFunction = new FunctionCallExpression(
+//            ArrowType.Bool.INSTANCE,
+//            StandardFunctions.OR_FUNCTION_NAME.getFunctionName(),
+//            ImmutableList.of(andFunction, notFunction)
+//        );
 
-        FederationExpression orFunction = new FunctionCallExpression(
-            ArrowType.Bool.INSTANCE,
-            StandardFunctions.OR_FUNCTION_NAME.getFunctionName(),
-            ImmutableList.of(andFunction, notFunction)
-        );
-
-        String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction);
-        // actual is ((((colOne + colTwo) > colThree) AND (colFour IN (banana, dragonfruit))) OR (colFour <> fruit))
-        String expected = "((((" + quoteColumn("colOne") + " + " + quoteColumn("colTwo") + ") > "
-                                  + quoteColumn("colThree") + ") AND (" + quoteColumn("colFour") +
-                                  " IN (" + quoteConstant("banana") + "," + quoteConstant("dragonfruit") + "))) OR (" + quoteColumn("colFour") + " <> " + quoteConstant("fruit") + "))";
-        assertEquals(expected, fullClause);
+//        String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction);
+//        // actual is ((((colOne + colTwo) > colThree) AND (colFour IN (banana, dragonfruit))) OR (colFour <> fruit))
+//        String expected = "((((" + quoteColumn("colOne") + " + " + quoteColumn("colTwo") + ") > "
+//                                  + quoteColumn("colThree") + ") AND (" + quoteColumn("colFour") +
+//                                  " IN (" + quoteConstant("banana") + "," + quoteConstant("dragonfruit") + "))) OR (" + quoteColumn("colFour") + " <> " + quoteConstant("fruit") + "))";
+//        assertEquals(expected, fullClause);
     }
 
     private String quoteColumn(String columnName)

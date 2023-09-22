@@ -250,7 +250,8 @@ public class BlockUtils
                         ((TimeStampMilliTZVector) vector).setSafe(pos, (long) value);
                     }
                     else {
-                        ((TimeStampMilliTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value));
+                        String targetTimeZone = ((ArrowType.Timestamp) vector.getField().getType()).getTimezone();
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value, targetTimeZone));
                     }
                     break;
                 case TIMESTAMPMICROTZ:
@@ -258,7 +259,8 @@ public class BlockUtils
                         ((TimeStampMicroTZVector) vector).setSafe(pos, (long) value);
                     }
                     else {
-                        ((TimeStampMicroTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value));
+                        String targetTimeZone = ((ArrowType.Timestamp) vector.getField().getType()).getTimezone();
+                        ((TimeStampMicroTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value, targetTimeZone));
                     }
                     break;
                 case DATEMILLI:
@@ -783,7 +785,7 @@ public class BlockUtils
                         timeStampMilliTZWriter.writeNull();
                         break;
                     }
-                    timeStampMilliTZWriter.write(DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value));
+                    timeStampMilliTZWriter.write(DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value, timezone));
                     break;
                 }
                 case TIMESTAMPMICROTZ: {
@@ -794,7 +796,7 @@ public class BlockUtils
                         timeStampMicroTZWriter.writeNull();
                         break;
                     }
-                    timeStampMicroTZWriter.write(DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value));
+                    timeStampMicroTZWriter.write(DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value, timezone));
                     break;
                 }
                 case DATEMILLI:

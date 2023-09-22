@@ -9,7 +9,7 @@
     <artifactId>athena-cloudera-impala</artifactId>
     <version>2022.47.1</version>
     <properties>
-        <clouderaVersion>2.6.30.1036</clouderaVersion>
+        <clouderaVersion>2.6.32.1041</clouderaVersion>
     </properties>
     <dependencies>
         <dependency>
