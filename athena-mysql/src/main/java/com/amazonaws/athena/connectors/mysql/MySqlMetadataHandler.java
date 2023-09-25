@@ -194,6 +194,10 @@ public class MySqlMetadataHandler
     public GetSplitsResponse doGetSplits(
             final BlockAllocator blockAllocator, final GetSplitsRequest getSplitsRequest)
     {
+        if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
+            return setupQueryPassthroughSplit(getSplitsRequest);
+        }
+
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         Set<Split> splits = new HashSet<>();

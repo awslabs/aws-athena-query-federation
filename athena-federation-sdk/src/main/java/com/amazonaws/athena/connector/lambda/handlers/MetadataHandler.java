@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SimpleBlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
+import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
@@ -77,6 +78,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
@@ -330,7 +332,6 @@ public abstract class MetadataHandler
         throws Exception
     {
         logger.info("resolveDoGetTableImplementation: resolving implementation - isQueryPassthrough[{}]", request.isQueryPassthrough());
-        System.err.println("resolveDoGetTableImplementation: resolving implementation - isQueryPassthrough[{}]" + request.isQueryPassthrough());
         if (request.isQueryPassthrough()) {
             return doGetQueryPassthroughSchema(allocator, request);
         }
@@ -548,5 +549,22 @@ public abstract class MetadataHandler
         for (Field next : response.getSchema().getFields()) {
             SupportedTypes.assertSupported(next);
         }
+    }
+
+    /**
+     * Helper function that provides a single partition for QPT
+     *
+     */
+    protected GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
+    {
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
+
+        //Since this is QPT query we return a fixed split.
+        Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+        return new GetSplitsResponse(request.getCatalogName(),
+                Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .applyProperties(qptArguments)
+                        .build());
     }
 }
