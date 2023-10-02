@@ -11,10 +11,10 @@ import {FederationStackProps} from './stack-props'
 export class DynamoDBStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: FederationStackProps) {
     super(scope, id, props);
-    this.init_resources(props!.test_size_gigabytes, props!.s3_path, props!.tpcds_tables, props!.connector_yaml_path);
+    this.init_resources(props!.test_size_gigabytes, props!.s3_path, props!.spill_bucket, props!.tpcds_tables, props!.connector_yaml_path);
   }
 
-  init_resources(test_size_gigabytes: number, s3_path: string, tpcds_tables: string[], connector_yaml_path: string) {
+  init_resources(test_size_gigabytes: number, s3_path: string, spill_bucket: string, tpcds_tables: string[], connector_yaml_path: string) {
     var glue_job_role = new iam.Role(this, 'glue-job-managed-role', {
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName("AdministratorAccess")
@@ -53,7 +53,7 @@ export class DynamoDBStack extends cdk.Stack {
       templateFile: cfn_template_file,
       parameters: {
         AthenaCatalogName: 'dynamodb-cdk-deployed',
-        SpillBucket: 'amazon-athena-federation-perf-spill-bucket'
+        SpillBucket: spill_bucket
       }
     });
   }

@@ -16,10 +16,10 @@ export interface RdsGenericStackProps extends FederationStackProps {
 export class RdsGenericStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: RdsGenericStackProps) {
     super(scope, id, props);
-    this.init_resources(props!.test_size_gigabytes, props!.s3_path, props!.password, props!.tpcds_tables, props!.db_port, props!.db_type, props!.connector_yaml_path);
+    this.init_resources(props!.test_size_gigabytes, props!.s3_path, props!.spill_bucket, props!.password, props!.tpcds_tables, props!.db_port, props!.db_type, props!.connector_yaml_path);
   }
 
-  init_resources(test_size_gigabytes: number, s3_path: string, password: string, tpcds_tables: string[], db_port: number, db_type: string, connector_yaml_path: string) {
+  init_resources(test_size_gigabytes: number, s3_path: string, spill_bucket: string, password: string, tpcds_tables: string[], db_port: number, db_type: string, connector_yaml_path: string) {
     const vpc = new ec2.Vpc(this, `${db_type}_vpc`, {
       ipAddresses: ec2.IpAddresses.cidr('10.0.0.0/24'),
       subnetConfiguration: [
@@ -131,7 +131,7 @@ export class RdsGenericStack extends cdk.Stack {
         'DefaultConnectionString': `${connectionStringPrefix}://${connectionString}`,
         'SecurityGroupIds': [securityGroup.securityGroupId],
         'SubnetIds': [subnet.subnetId],
-        'SpillBucket': 'amazon-athena-federation-perf-spill-bucket',
+        'SpillBucket': spill_bucket,
       }
     });
   }

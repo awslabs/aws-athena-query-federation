@@ -14,6 +14,7 @@ const app = new cdk.App()
 const database_password: string = process.env!.DATABASE_PASSWORD as string; 
 const s3_path: string = process.env!.S3_DATA_PATH as string;
 const repo_root: string = process.env!.REPOSITORY_ROOT as string;
+const spill_bucket: string = process.env!.SPILL_BUCKET as string;
 
 // these names match the names of our connectors (athena-*) with the exception of opensearch, which is in development
 const MYSQL_NAME: string = 'mysql'
@@ -31,6 +32,7 @@ new RdsGenericStack(app, `${MYSQL_NAME}CdkStack`, {
   db_type: MYSQL_NAME,
   db_port: 3306,
   s3_path: s3_path,
+  spill_bucket: spill_bucket,
   tpcds_tables: tables,
   password: database_password,
   connector_yaml_path: `${repo_root}/athena-${MYSQL_NAME}/athena-${MYSQL_NAME}.yaml`
@@ -41,6 +43,7 @@ new RdsGenericStack(app, `${POSTGRES_NAME}CdkStack`, {
   db_type: POSTGRES_NAME,
   db_port: 5432,
   s3_path: s3_path,
+  spill_bucket: spill_bucket,
   tpcds_tables: tables,
   password: database_password,
   connector_yaml_path: `${repo_root}/athena-${POSTGRES_NAME}/athena-${POSTGRES_NAME}.yaml`
@@ -49,6 +52,7 @@ new RdsGenericStack(app, `${POSTGRES_NAME}CdkStack`, {
 new DynamoDBStack(app, `${DYNAMO_DB_NAME}CdkStack`, {
   test_size_gigabytes: 1,
   s3_path: s3_path,
+  spill_bucket: spill_bucket,
   tpcds_tables: tables,
   password: database_password,
   connector_yaml_path: `${repo_root}/athena-${DYNAMO_DB_NAME}/athena-${DYNAMO_DB_NAME}.yaml`
@@ -57,6 +61,7 @@ new DynamoDBStack(app, `${DYNAMO_DB_NAME}CdkStack`, {
 new RedshiftStack(app, `${REDSHIFT_NAME}CdkStack`, {
   test_size_gigabytes: 1,
   s3_path: s3_path,
+  spill_bucket: spill_bucket,
   tpcds_tables: tables,
   password: database_password,
   connector_yaml_path: `${repo_root}/athena-${REDSHIFT_NAME}/athena-${REDSHIFT_NAME}.yaml`
@@ -64,6 +69,7 @@ new RedshiftStack(app, `${REDSHIFT_NAME}CdkStack`, {
 new OpenSearchStack(app, `${OPENSEARCH_NAME}CdkStack`, {
   test_size_gigabytes: 1,
   s3_path: s3_path,
+  spill_bucket: spill_bucket,
   tpcds_tables: tables,
   password: database_password,
   connector_yaml_path: `${repo_root}/athena-elasticsearch/athena-elasticsearch.yaml`
