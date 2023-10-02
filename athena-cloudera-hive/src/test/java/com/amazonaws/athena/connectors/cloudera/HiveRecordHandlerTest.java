@@ -120,7 +120,7 @@ public class HiveRecordHandlerTest
         Mockito.when(range1b.getLow().getValue()).thenReturn(2);
         ValueSet valueSet1 = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet1.getRanges().getOrderedRanges()).thenReturn(ImmutableList.of(range1a, range1b));
-        final long dateDays = TimeUnit.DAYS.toDays(Date.valueOf("2020-01-05").getTime());
+        final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2020-01-05").getTime());
         ValueSet valueSet2 = getSingleValueSet(dateDays);
         Constraints constraints = Mockito.mock(Constraints.class);
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
@@ -130,5 +130,9 @@ public class HiveRecordHandlerTest
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        Date expectedDate = new Date(120, 0, 5);
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        Mockito.verify(preparedStatement, Mockito.times(1))
+                .setDate(1, expectedDate);
     }
 }

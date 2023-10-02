@@ -81,6 +81,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -447,7 +448,8 @@ public class BlockUtils
     {
         switch (reader.getMinorType()) {
             case DATEDAY:
-                return String.valueOf(reader.readInteger());
+                LocalDate localDate = LocalDate.ofEpochDay(reader.readInteger());
+                return localDate.format(DateTimeFormatter.ISO_DATE);
             case TIMESTAMPMICROTZ:
             case TIMESTAMPMILLITZ:
                 ArrowType.Timestamp actualType = (ArrowType.Timestamp) reader.getField().getType();
