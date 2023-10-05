@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.neptune.Constants;
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
@@ -62,7 +63,6 @@ public class RDFHandler
     public RDFHandler(NeptuneConnection neptuneConnection) throws Exception
     {
         this.neptuneConnection = (NeptuneSparqlConnection) neptuneConnection;
-        this.neptuneConnection.connect();
     }
 
     /**
@@ -84,9 +84,6 @@ public class RDFHandler
      *       resulting increase in Block size may cause failures and reduced
      *       performance.
      */
-
-    public static final String PREFIX_KEY = "prefix_";
-    public static final int PREFIX_LEN = PREFIX_KEY.length();
     
 
     /**
@@ -102,34 +99,34 @@ public class RDFHandler
     {
         // 1. Get the specified prefixes
         Map<String, String> prefixMap = new HashMap<>();
-        String prefixBlock = "";
+        StringBuilder prefixBlock = new StringBuilder("");
         for (String k : recordsRequest.getSchema().getCustomMetadata().keySet()) {
-            if (k.startsWith(PREFIX_KEY)) {
-                String pfx = k.substring(PREFIX_LEN);
+            if (k.startsWith(Constants.PREFIX_KEY)) {
+                String pfx = k.substring(Constants.PREFIX_LEN);
                 String val = recordsRequest.getSchema().getCustomMetadata().get(k);
                 prefixMap.put(pfx, val);
-                prefixBlock += "PREFIX " + pfx + ": <" + val + ">\n";
+                prefixBlock.append("PREFIX " + pfx + ": <" + val + ">\n");
             }
         }
-
+        
         // 2. Build the SPARQL query
-        String queryMode = recordsRequest.getSchema().getCustomMetadata().get("querymode");
+        String queryMode = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_QUERY_MODE);
         if (queryMode == null) {
             throw new RuntimeException("Mandatory: querymode");
         }
         queryMode = queryMode.toLowerCase();
-        String sparql = prefixBlock + "\n";
-        if (queryMode.equals("sparql")) {
-            String sparqlParam = recordsRequest.getSchema().getCustomMetadata().get("sparql");
+        StringBuilder sparql = new StringBuilder(prefixBlock + "\n");
+        if (queryMode.equals(Constants.QUERY_MODE_SPARQL)) {
+            String sparqlParam = recordsRequest.getSchema().getCustomMetadata().get(Constants.QUERY_MODE_SPARQL);
             if (sparqlParam == null) {
                 throw new RuntimeException("Mandatory: sparql when querympde=sparql");
             }
-            sparql += "\n" + sparqlParam;
+            sparql.append("\n" + sparqlParam);
         } 
-        else if (queryMode.equals("class")) {
-            String classURI = recordsRequest.getSchema().getCustomMetadata().get("classuri");
-            String predsPrefix = recordsRequest.getSchema().getCustomMetadata().get("preds_prefix");
-            String subject = recordsRequest.getSchema().getCustomMetadata().get("subject");
+        else if (queryMode.equals(Constants.QUERY_MODE_CLASS)) {
+            String classURI = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_CLASS_URI);
+            String predsPrefix = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_PREDS_PREFIX);
+            String subject = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_SUBJECT);
             if (classURI == null) {
                 throw new RuntimeException("Mandatory: classuri when querymode=class");
             }
@@ -139,24 +136,24 @@ public class RDFHandler
             if (subject == null) {
                 throw new RuntimeException("Mandatory:subject when querymode=class");
             }
-            sparql += "\nselect ";
+            sparql.append("\nselect ");
             for (Field prop : recordsRequest.getSchema().getFields()) {
-                sparql += "?" + prop.getName() + " ";
+                sparql.append("?" + prop.getName() + " ");
             }
-            sparql += " WHERE {";
-            sparql += "\n?" + subject + " a " + classURI + " . ";
+            sparql.append(" WHERE {");
+            sparql.append("\n?" + subject + " a " + classURI + " . ");
             for (Field prop : recordsRequest.getSchema().getFields()) {
                 if (!prop.getName().equals(subject)) {
-                    sparql += "\n?" + subject + " " + predsPrefix + ":" + prop.getName() + " ?" + prop.getName()
-                            + " .";
+                    sparql.append("\n?" + subject + " " + predsPrefix + ":" + prop.getName() + " ?" + prop.getName()
+                            + " .");
                 }
             }
-            sparql += " }";
+            sparql.append(" }");
         } 
         else {
             throw new RuntimeException("Illegal RDF params");
         }
-
+        
         // 3. Create the builder and add row writer exttractors for each field
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter
                 .newBuilder(recordsRequest.getConstraints());
@@ -167,9 +164,9 @@ public class RDFHandler
         final GeneratedRowWriter rowWriter = builder.build();
 
         // get results
-        String strim = recordsRequest.getSchema().getCustomMetadata().get("strip_uri");
+        String strim = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_STRIP_URI);
         boolean trimURI = strim == null ? false : Boolean.parseBoolean(strim);
-        neptuneConnection.runQuery(sparql);
+        neptuneConnection.runQuery(sparql.toString());
         while (neptuneConnection.hasNext() && queryStatusChecker.isQueryRunning()) {
             Map<String, Object> result = neptuneConnection.next(trimURI);
             spiller.writeRows((final Block block, final int rowNum) -> {

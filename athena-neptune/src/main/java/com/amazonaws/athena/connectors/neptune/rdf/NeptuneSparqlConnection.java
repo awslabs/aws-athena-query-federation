@@ -57,9 +57,16 @@ public class NeptuneSparqlConnection extends NeptuneConnection
     {
         super(neptuneEndpoint, neptunePort, enabledIAM, region);
         this.connectionString = "https://" + neptuneEndpoint + ":" + neptunePort;
+        try {
+            connect();
+        }
+        catch (NeptuneSigV4SignerException e) {
+            logger.error("SIGV4 exception", e);
+            throw new RuntimeException(e);
+        }
     }
 
-    public void connect() throws NeptuneSigV4SignerException
+    private void connect() throws NeptuneSigV4SignerException
     {
         safeCloseConn();
         if (isEnabledIAM()) {
