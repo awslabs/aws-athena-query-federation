@@ -3,16 +3,16 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.47.1</version>
+        <version>2023.40.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-gcs</artifactId>
-    <version>2022.47.1</version>
+    <version>2023.40.1</version>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2022.47.1</version>
+            <version>2023.40.1</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
@@ -81,7 +81,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2022.47.1</version>
+            <version>2023.40.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -90,7 +90,6 @@
             </exclusions>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
@@ -115,7 +114,6 @@
             <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>software.amazon.awscdk</groupId>
             <artifactId>logs</artifactId>
