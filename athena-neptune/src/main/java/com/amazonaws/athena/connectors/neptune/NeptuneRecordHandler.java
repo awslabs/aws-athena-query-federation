@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connectors.neptune.Constants;
 import com.amazonaws.athena.connectors.neptune.Enums.GraphType;
 import com.amazonaws.athena.connectors.neptune.propertygraph.NeptuneGremlinConnection;
 import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
@@ -89,18 +88,18 @@ public class NeptuneRecordHandler extends RecordHandler
     public NeptuneRecordHandler(java.util.Map<String, String> configOptions) 
     {
         this(
-                AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                createConnection(configOptions),
-                configOptions);
+            AmazonS3ClientBuilder.defaultClient(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            createConnection(configOptions),
+            configOptions);
     }
 
     @VisibleForTesting
     protected NeptuneRecordHandler(
         AmazonS3 amazonS3,
         AWSSecretsManager secretsManager,
-        AmazonAthena amazonAthenaa,
+        AmazonAthena amazonAthena,
         NeptuneConnection neptuneConnection,
         java.util.Map<String, String> configOptions)
     {
