@@ -359,9 +359,10 @@ public class PostGreSqlMetadataHandler
     private List<TableName> getMaterializedViews(Connection connection, String databaseName) throws SQLException 
     {
         String materializedViews = "Materialized Views";
-        String sql = "select matviewname as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" from pg_catalog.pg_matviews mv where has_table_privilege(format('%I.%I', mv.schemaname, mv.matviewname), 'select') and schema_name = ?";
+        String sql = "select matviewname as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" from pg_catalog.pg_matviews mv where has_table_privilege(format('%I.%I', mv.schemaname, mv.matviewname), 'select') and schemaname = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
         preparedStatement.setString(1, databaseName);
+        LOGGER.debug("Prepared Statement for getting Materialized View in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, materializedViews);
     }
 
@@ -372,7 +373,7 @@ public class PostGreSqlMetadataHandler
         preparedStatement.setString(1, matviewname);
         preparedStatement.setString(2, matviewname);
         preparedStatement.setString(3, databaseName);
-
+        LOGGER.debug("Prepared statement for getting name of Materialized View with Case Insensitive Look Up: {}", preparedStatement);
         return preparedStatement;
     }
 }

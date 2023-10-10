@@ -166,6 +166,7 @@ public final class JDBCUtil
         preparedStatement.setString(1, tableName);
         preparedStatement.setString(2, tableName);
         preparedStatement.setString(3, databaseName);
+        LOGGER.debug("Prepared Statement for getting table name with Case Insensitive Look Up in schema {} : {}", databaseName, preparedStatement);
         return preparedStatement;
     }
 
@@ -175,6 +176,7 @@ public final class JDBCUtil
        String sql = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?";
        PreparedStatement preparedStatement = connection.prepareStatement(sql);
        preparedStatement.setString(1, databaseName);
+       LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
        return getTableMetadata(preparedStatement, tablesAndViews);
     }
 
