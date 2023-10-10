@@ -19,24 +19,107 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
+import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.OperatorType;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.NotImplementedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
 
 /**
  * Based on com.amazonaws.athena.connectors.jdbc.manager.JdbcFederationExpressionParser class
  */
 public class BigQueryFederationExpressionParser extends FederationExpressionParser
 {
+    private static final String quoteCharacter = "'";
+    private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryFederationExpressionParser.class);
+
     public String writeArrayConstructorClause(ArrowType type, List<String> arguments)
     {
         return Joiner.on(", ").join(arguments);
+    }
+
+    public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints)
+    {
+        if (constraints.getExpression() == null || constraints.getExpression().isEmpty()) {
+            return ImmutableList.of();
+        }
+
+        List<FederationExpression> federationExpressions = constraints.getExpression();
+        return federationExpressions.stream()
+                .map(federationExpression -> parseFunctionCallExpression((FunctionCallExpression) federationExpression))
+                .collect(Collectors.toList());
+    }
+    /**
+     * This is a recursive function, as function calls can have arguments which, themselves, are function calls.
+     * @param functionCallExpression
+     * @return
+     */
+    public String parseFunctionCallExpression(FunctionCallExpression functionCallExpression)
+    {
+        FunctionName functionName = functionCallExpression.getFunctionName();
+        List<FederationExpression> functionArguments = functionCallExpression.getArguments();
+
+        List<String> arguments = functionArguments.stream()
+                .map(argument -> {
+                    // base cases
+                    if (argument instanceof ConstantExpression) {
+                        return parseConstantExpression((ConstantExpression) argument);
+                    }
+                    else if (argument instanceof VariableExpression) {
+                        return parseVariableExpression((VariableExpression) argument);
+                    }
+                    // recursive case
+                    else if (argument instanceof FunctionCallExpression) {
+                        return parseFunctionCallExpression((FunctionCallExpression) argument);
+                    }
+                    throw new RuntimeException("Should not reach this case - a new subclass was introduced and is not handled.");
+                }).collect(Collectors.toList());
+
+        return mapFunctionToDataSourceSyntax(functionName, functionCallExpression.getType(), arguments);
+    }
+
+    public String parseConstantExpression(ConstantExpression constantExpression)
+    {
+        Block values = constantExpression.getValues();
+        FieldReader fieldReader = values.getFieldReader(DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME);
+
+        List<String> constants = new ArrayList<>();
+
+        for (int i = 0; i < values.getRowCount(); i++) {
+            fieldReader.setPosition(i);
+            String strVal = BlockUtils.fieldToString(fieldReader);
+            constants.add(strVal);
+        }
+        if (constantExpression.getType().equals(ArrowType.Utf8.INSTANCE)
+                || constantExpression.getType().equals(ArrowType.LargeUtf8.INSTANCE)
+                || fieldReader.getMinorType().equals(Types.MinorType.DATEDAY)) {
+            constants = constants.stream()
+                    .map(val -> quoteCharacter + val + quoteCharacter)
+                    .collect(Collectors.toList());
+        }
+
+        return Joiner.on(",").join(constants);
     }
 
     @Override
@@ -70,10 +153,9 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
             case ADD_FUNCTION_NAME:
                 clause = Joiner.on(" + ").join(arguments);
                 break;
-            // TODO: temporary disable $and/$or predicate pushdown
-//            case AND_FUNCTION_NAME:
-//                clause = Joiner.on(" AND ").join(arguments);
-//                break;
+            case AND_FUNCTION_NAME:
+                clause = Joiner.on(" AND ").join(arguments);
+                break;
             case ARRAY_CONSTRUCTOR_FUNCTION_NAME: // up to subclass
                 clause = writeArrayConstructorClause(type, arguments);
                 break;
@@ -127,10 +209,9 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
             case NULLIF_FUNCTION_NAME:
                 clause = "NULLIF(" + arguments.get(0) + ", " + arguments.get(1) + ")";
                 break;
-            // TODO: temporary disable $and/$or predicate pushdown
-//            case OR_FUNCTION_NAME:
-//                clause = Joiner.on(" OR ").join(arguments);
-//                break;
+            case OR_FUNCTION_NAME:
+                clause = Joiner.on(" OR ").join(arguments);
+                break;
             case SUBTRACT_FUNCTION_NAME:
                 clause = Joiner.on(" - ").join(arguments);
                 break;

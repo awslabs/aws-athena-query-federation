@@ -83,10 +83,9 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
             case ADD_FUNCTION_NAME:
                 clause = Joiner.on(" + ").join(arguments);
                 break;
-            // TODO: temporary disable $and/$or predicate pushdown
-//            case AND_FUNCTION_NAME:
-//                clause = Joiner.on(" AND ").join(arguments);
-//                break;
+            case AND_FUNCTION_NAME:
+                clause = Joiner.on(" AND ").join(arguments);
+                break;
             case ARRAY_CONSTRUCTOR_FUNCTION_NAME: // up to subclass
                 clause = writeArrayConstructorClause(type, arguments);
                 break;
@@ -143,10 +142,9 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
             case NULLIF_FUNCTION_NAME:
                 clause = "NULLIF(" + arguments.get(0) + ", " + arguments.get(1) + ")";
                 break;
-            // TODO: temporary disable $and/$or predicate pushdown
-//            case OR_FUNCTION_NAME:
-//                clause = Joiner.on(" OR ").join(arguments);
-//                break;
+            case OR_FUNCTION_NAME:
+                clause = Joiner.on(" OR ").join(arguments);
+                break;
             case SUBTRACT_FUNCTION_NAME:
                 clause = Joiner.on(" - ").join(arguments);
                 break;

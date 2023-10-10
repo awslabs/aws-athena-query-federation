@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -36,7 +37,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -251,37 +251,6 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
         }
     }
 
-    private static class TypeAndValue
-    {
-        private final ArrowType type;
-        private final Object value;
-
-        TypeAndValue(ArrowType type, Object value)
-        {
-            this.type = Validate.notNull(type, "type is null");
-            this.value = Validate.notNull(value, "value is null");
-        }
-
-        ArrowType getType()
-        {
-            return type;
-        }
-
-        Object getValue()
-        {
-            return value;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "TypeAndValue{" +
-                    "type=" + type +
-                    ", value=" + value +
-                    '}';
-        }
-    }
-
     private List<String> toConjuncts(List<Field> columns, Constraints constraints,
                                      List<TypeAndValue> accumulator,
                                      Map<String, String> partitionSplit)
@@ -299,7 +268,7 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
                 }
             }
         }
-        conjuncts.addAll(federationExpressionParser.parseComplexExpressions(columns, constraints));
+        conjuncts.addAll(federationExpressionParser.parseComplexExpressions(columns, constraints, accumulator));
         return conjuncts;
     }
 
