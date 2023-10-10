@@ -34,7 +34,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -244,7 +243,7 @@ public abstract class JdbcSplitQueryBuilder
                 }
             }
         }
-        conjuncts.addAll(jdbcFederationExpressionParser.parseComplexExpressions(columns, constraints)); // not part of loop bc not per-column
+        conjuncts.addAll(jdbcFederationExpressionParser.parseComplexExpressions(columns, constraints, accumulator)); // not part of loop bc not per-column
         return conjuncts;
     }
 
@@ -336,37 +335,6 @@ public abstract class JdbcSplitQueryBuilder
     {
         name = name.replace(quoteCharacters, quoteCharacters + quoteCharacters);
         return quoteCharacters + name + quoteCharacters;
-    }
-
-    private static class TypeAndValue
-    {
-        private final ArrowType type;
-        private final Object value;
-
-        TypeAndValue(ArrowType type, Object value)
-        {
-            this.type = Validate.notNull(type, "type is null");
-            this.value = Validate.notNull(value, "value is null");
-        }
-
-        ArrowType getType()
-        {
-            return type;
-        }
-
-        Object getValue()
-        {
-            return value;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "TypeAndValue{" +
-                    "type=" + type +
-                    ", value=" + value +
-                    '}';
-        }
     }
 
     protected String appendLimitOffset(Split split)
