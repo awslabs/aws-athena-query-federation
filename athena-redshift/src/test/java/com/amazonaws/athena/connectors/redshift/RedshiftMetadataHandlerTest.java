@@ -330,11 +330,23 @@ public class RedshiftMetadataHandlerTest
                 .forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
+        ResultSet caseInsensitiveSchemaResult = Mockito.mock(ResultSet.class);
+        String sql = "SELECT nspname FROM pg_namespace WHERE (nspname = ? or lower(nspname) = ?)";
+        PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
+        preparedSchemaStatement.setString(1, "testschema");
+        preparedSchemaStatement.setString(2, "testschema");
+
+        String[] columnNames = new String[] {"nspname"};
+        String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+        caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+
+        Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult);
+
         TableName inputTableName = new TableName("testSchema", "testtable");
-        String[] columnNames = new String[] {"table_name"};
-        String[][] tableNameValues = new String[][]{new String[] {"testTable"}};
+        columnNames = new String[] {"table_name"};
+        tableNameValues = new String[][]{new String[] {"testTable"}};
         ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
         PreparedStatement preparedStatement = this.connection.prepareStatement(sql);
         preparedStatement.setString(1, "testtable");
         preparedStatement.setString(2, "testtable");

@@ -328,11 +328,23 @@ public class PostGreSqlMetadataHandlerTest
                 .forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
+        ResultSet caseInsensitiveSchemaResult = Mockito.mock(ResultSet.class);
+        String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
+        PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
+        preparedSchemaStatement.setString(1, "testschema");
+        preparedSchemaStatement.setString(2, "testschema");
+
+        String[] columnNames = new String[] {"schema_name"};
+        String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+        caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+
+        Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult);
+
         TableName inputTableName = new TableName("testSchema", "testtable");
-        String[] columnNames = new String[] {"table_name"};
-        String[][] tableNameValues = new String[][]{new String[] {"testTable"}};
+        columnNames = new String[] {"table_name"};
+        tableNameValues = new String[][]{new String[] {"testTable"}};
         ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
         preparedStatement.setString(1, "testtable");
         preparedStatement.setString(2, "testtable");
@@ -382,16 +394,29 @@ public class PostGreSqlMetadataHandlerTest
                .forEach(expectedSchemaBuilder::addField);
        Schema expected = expectedSchemaBuilder.build();
 
+       // Simulates table look up in information_schema.schemata and returns empty result set
+       ResultSet caseInsensitiveSchemaResult = Mockito.mock(ResultSet.class);
+       String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
+       PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
+       preparedSchemaStatement.setString(1, "testschema");
+       preparedSchemaStatement.setString(2, "testschema");
+
+       String[] columnNames = new String[] {"schema_name"};
+       String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+       caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+
+       Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult);
+
        // Simulates table look up in information_schema.tables and returns empty result set, because materialized views are stored separately
-       ResultSet resultSetName = Mockito.mock(ResultSet.class);
-       String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+       ResultSet caseInsensitiveTableResult = Mockito.mock(ResultSet.class);
+       sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
        PreparedStatement preparedStatement = connection.prepareStatement(sql);
        preparedStatement.setString(1, "testmatview");
        preparedStatement.setString(2, "testmatview");
        preparedStatement.setString(3, "testSchema");
 
-       Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
-       Mockito.when(resultSetName.next()).thenReturn(false);
+       Mockito.when(preparedStatement.executeQuery()).thenReturn(caseInsensitiveTableResult);
+       Mockito.when(caseInsensitiveTableResult.next()).thenReturn(false);
 
        // Simulates Materialized View look up in pg_catalog.pgmatviews system table
        sql = "select matviewname as \"TABLE_NAME\" from pg_catalog.pg_matviews mv where (matviewname = ? or lower(matviewname) = ?) and schemaname = ?";
@@ -401,11 +426,11 @@ public class PostGreSqlMetadataHandlerTest
        preparedStatement.setString(3, "testSchema");
 
        TableName inputTableName = new TableName("testSchema", "testmatview");
-       String[] columnNames = new String[] {"table_name"};
-       String[][] tableNameValues = new String[][]{new String[] {"testMatView"}};
-       resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-       
-       Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
+       columnNames = new String[] {"table_name"};
+       tableNameValues = new String[][]{new String[] {"testMatView"}};
+       caseInsensitiveTableResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+
+       Mockito.when(preparedStatement.executeQuery()).thenReturn(caseInsensitiveTableResult);
 
        String resolvedTableName = "testMatView";
 

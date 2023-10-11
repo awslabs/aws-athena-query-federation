@@ -39,7 +39,13 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -54,6 +60,8 @@ import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIF
 public class RedshiftMetadataHandler
         extends PostGreSqlMetadataHandler
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedshiftMetadataHandler.class);
+
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
@@ -73,6 +81,24 @@ public class RedshiftMetadataHandler
     RedshiftMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+    }
+
+    @Override
+    public String caseInsensitiveSchemaResolver(Connection connection, String databaseName) throws SQLException
+    {
+        String sql = "SELECT nspname FROM pg_namespace WHERE (nspname = ? or lower(nspname) = ?)";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setString(2, databaseName);
+
+        String resolvedSchemaName = null;
+        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            if (resultSet.next()) {
+                resolvedSchemaName = resultSet.getString("nspname");
+                LOGGER.info("Resolved Schema from Case Insensitive look up : {}", resolvedSchemaName);
+            }
+        }
+        return resolvedSchemaName;
     }
 
     @Override

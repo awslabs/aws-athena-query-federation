@@ -119,6 +119,24 @@ export class RdsGenericStack extends cdk.Stack {
         }
       });
     }
+
+    const glueJob = new glue.Job(this, `${db_type}_glue_job_create_case_insensitive_data`, {
+      executable: glue.JobExecutable.pythonShell({
+        glueVersion: glue.GlueVersion.V1_0,
+        pythonVersion: (db_type == 'mysql') ? glue.PythonVersion.THREE_NINE : glue.PythonVersion.THREE,
+        script: glue.Code.fromAsset(path.join(__dirname, `../../../glue_scripts/${db_type}_create_case_insensitive_data.py`))
+      }),
+      role: glue_role,
+      connections: [
+          glueConnection
+      ],
+      defaultArguments: {
+        '--db_url': cluster.clusterEndpoint.hostname,
+        '--username': 'athena',
+        '--password': password
+      }
+    });
+
     const cfn_template_file = connector_yaml_path;
     var connectionStringPrefix = '';
     if (db_type == 'mysql') connectionStringPrefix = 'mysql';
