@@ -40,10 +40,10 @@ export class OpenSearchStack extends cdk.Stack {
     const volumeSizePerNode = getVolumeSize(props!.test_size_gigabytes);
     const dataInstanceType = getInstanceType(props!.test_size_gigabytes);
     super(scope, id, props);
-    this.init_resources(volumeSizePerNode, dataInstanceType, props!.test_size_gigabytes, props!.s3_path, props!.tpcds_tables, props!.password, props!.connector_yaml_path);
+    this.init_resources(volumeSizePerNode, dataInstanceType, props!.test_size_gigabytes, props!.s3_path, props!.spill_bucket, props!.tpcds_tables, props!.password, props!.connector_yaml_path);
   }
 
-  init_resources(volumeSizePerNode: number, dataNodeInstanceType: string, test_size_gigabytes: number, s3_path: string, tpcds_tables: string[], password: string, connector_yaml_path: string){
+  init_resources(volumeSizePerNode: number, dataNodeInstanceType: string, test_size_gigabytes: number, s3_path: string, spill_bucket: string, tpcds_tables: string[], password: string, connector_yaml_path: string){
     const vpc = new ec2.Vpc(this, 'opensearch_vpc', {
       ipAddresses: ec2.IpAddresses.cidr('15.0.0.0/24'),
       subnetConfiguration: [
@@ -173,7 +173,7 @@ export class OpenSearchStack extends cdk.Stack {
         'DomainMapping': `default=${connectionString}`,
         'SecurityGroupIds': [securityGroup.securityGroupId],
         'SubnetIds': [subnet.subnetId],
-        'SpillBucket': 'amazon-athena-federation-perf-spill-bucket',
+        'SpillBucket': spill_bucket,
       }
     });
   }
