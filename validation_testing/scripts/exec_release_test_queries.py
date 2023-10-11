@@ -3,8 +3,8 @@ import sys
 import time
 
 athena_client = boto3.client('athena')
-connectors_supporting_complex_predicates = ['mysql']
-connectors_supporting_limit_pushdown = ['dynamodb', 'mysql']
+connectors_supporting_complex_predicates = ['mysql', 'postgresql', 'redshift']
+connectors_supporting_limit_pushdown = ['dynamodb', 'mysql', 'postgresql', 'redshift']
 
 def run_query(query_string, results_location, workgroup_name, catalog, database):
     """
@@ -68,11 +68,10 @@ def test_ddl(connector_name, results_location, workgroup_name, catalog, database
     '''
     select_from_view_query = f'SELECT * FROM cx_view_{connector_name} LIMIT 100;'
     drop_view_query = f'DROP VIEW cx_view_{connector_name};'
-
     # view queries
     run_query(create_view_query, results_location, workgroup_name, catalog, database)
-    run_query(select_from_view_query, results_location, workgroup_name, 'awsdatacatalog', glue_db)
-    run_query(drop_view_query, results_location, workgroup_name, 'awsdatacatalog', glue_db)
+    run_query(select_from_view_query, results_location, workgroup_name, 'AwsDataCatalog', glue_db)
+    run_query(drop_view_query, results_location, workgroup_name, 'AwsDataCatalog', glue_db)
     print('[INFO] - Successfully ran view queries.')
 
     # other ddl queries
@@ -99,12 +98,8 @@ def test_dml(connector_name, results_location, workgroup_name, catalog, database
     assert_condition(predicate_pushdown_data_scanned < select_star_data_scanned, f'FAILURE CONDITION - predicate pushdown scans at least as much data as select *. Query ids: {select_star_qid}, {predicate_pushdown_qid}')
 
     if connector_name in connectors_supporting_complex_predicates:
-        # ensure complex predicate pushdown occurs and has less data scanned than select * and simple predicate pushdown
-        complex_predicate_pushdown_qid = run_query('select * from customer where c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) limit 100000', results_location, workgroup_name, catalog, database)
-        complex_predicate_pushdown_data_scanned = get_data_scanned(complex_predicate_pushdown_qid)
-        print(f'[INFO] - complex predicate pushdown query ran successfully, scanned {complex_predicate_pushdown_data_scanned} bytes')
-        assert_condition(complex_predicate_pushdown_data_scanned < select_star_data_scanned, f'FAILURE CONDITION - complex predicate pushdown scans at least as much data as select *. Query ids: {select_star_qid}, {complex_predicate_pushdown_qid}')
-        assert_condition(complex_predicate_pushdown_data_scanned < predicate_pushdown_data_scanned, f'FAILURE CONDITION - expected complex expression to reduce data scanned compared to simple predicate but it did not. Query ids: {predicate_pushdown_qid}, {complex_predicate_pushdown_qid}')
+        # ensure complex predicate pushdown occurs and has less data scanned than select * and/or simple predicate pushdown
+        complex_predicate_pushdown_tests(select_star_qid, predicate_pushdown_qid, results_location, workgroup_name, catalog, database)
     else:
         print(f'[INFO] - skipping complex predicate tests for {connector_name}, not supported.')
 
@@ -116,6 +111,43 @@ def test_dml(connector_name, results_location, workgroup_name, catalog, database
         assert_condition(limit_pushdown_data_scanned < select_star_data_scanned, f'FAILURE CONDITION - limit pushdown scans at least as much data as select *. Query ids: {select_star_qid}, {limit_pushdown_qid}')
     else:
         print(f'[INFO] - skipping limit pushdown tests for {connector_name}, not supported.')
+
+def complex_predicate_pushdown_tests(select_star_qid, predicate_pushdown_qid, results_location, workgroup_name, catalog, database):
+    query_one = 'select * from customer where c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) limit 100000'
+    query_two = '''
+        SELECT * FROM customer WHERE 
+            c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) AND 
+            ((c_first_sales_date_sk >= 2452000 AND c_birth_country in ('CHILE','TOGO','PHILIPPINES'))
+		    OR (c_first_sales_date_sk >= 2452000 AND c_first_sales_date_sk <= 2453000)
+		    OR (c_first_shipto_date_sk >= 2449000 AND c_first_shipto_date_sk <= 2451000));
+    '''
+
+    # c_birth_country in ('CHILE','TOGO','PHILIPPINES') -> (c_birth_country = 'CHILE' OR c_birth_country = 'TOGO' OR c_birth_country = 'PHILIPPINES')
+    query_three = '''
+        SELECT * FROM customer WHERE 
+            c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) AND 
+            ((c_first_sales_date_sk >= 2452000 AND (c_birth_country = 'CHILE' OR c_birth_country = 'TOGO' OR c_birth_country = 'PHILIPPINES'))
+		    OR (c_first_sales_date_sk >= 2452000 AND c_first_sales_date_sk <= 2453000)
+		    OR (c_first_shipto_date_sk >= 2449000 AND c_first_shipto_date_sk <= 2451000));
+    '''
+
+    queries = [query_one, query_two, query_three]
+
+    select_star_data_scanned = get_data_scanned(select_star_qid)
+    predicate_pushdown_data_scanned = get_data_scanned(predicate_pushdown_qid)
+
+    for i, q in enumerate(queries):
+        test_complex_predicate_pushdown(q, i+1, select_star_qid, select_star_data_scanned, predicate_pushdown_qid, predicate_pushdown_data_scanned, results_location, workgroup_name, catalog, database)
+
+
+def test_complex_predicate_pushdown(query, testnumber, select_star_qid, select_star_data_scanned, predicate_pushdown_qid, predicate_pushdown_data_scanned, results_location, workgroup_name, catalog, database):
+    # ensure complex predicate pushdown occurs and has less data scanned than select * and simple predicate pushdown
+    complex_predicate_pushdown_qid = run_query(query, results_location, workgroup_name, catalog, database)
+    complex_predicate_pushdown_data_scanned = get_data_scanned(complex_predicate_pushdown_qid)
+    print(f'[INFO] - complex predicate pushdown {testnumber} query ran successfully, scanned {complex_predicate_pushdown_data_scanned} bytes')
+    assert_condition(complex_predicate_pushdown_data_scanned < select_star_data_scanned, f'FAILURE CONDITION - complex predicate pushdown {testnumber} scans at least as much data as select *. Query ids: {select_star_qid}, {complex_predicate_pushdown_qid}')
+    assert_condition(complex_predicate_pushdown_data_scanned < predicate_pushdown_data_scanned, f'FAILURE CONDITION - expected complex expression {testnumber} to reduce data scanned compared to simple predicate but it did not. Query ids: {predicate_pushdown_qid}, {complex_predicate_pushdown_qid}')
+
 
 def assert_condition(success_condition, failure_message):
     if not success_condition:
@@ -141,7 +173,9 @@ def run_queries(catalog, connector_name, results_location, lambda_arn):
 
     # db names differ for the datasource, maintain mapping
     db_mapping = {'dynamodb': 'default',
-                  'mysql': 'test'
+                  'mysql': 'test',
+                  'postgresql': 'public',
+                  'redshift': 'public'
                  }
     workgroup_name = 'primary'
     database = db_mapping[connector_name]
@@ -162,4 +196,5 @@ if __name__ == '__main__':
         run_queries(catalog, connector_name, results_location, lambda_arn)
     finally:
         delete_data_source(catalog)
+
 

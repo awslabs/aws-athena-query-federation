@@ -204,9 +204,10 @@ public class RedshiftRecordHandlerTest
 
         PreparedStatement preparedStatement = this.redshiftRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
+        Date expectedDate = new Date(120, 0, 5);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
-                .setDate(1, new Date(TimeUnit.DAYS.toMillis(dateDays)));
+                .setDate(1, expectedDate);
 
         logger.info("buildSplitSqlForDateTest - exit");
     }

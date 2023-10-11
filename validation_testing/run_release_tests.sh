@@ -25,6 +25,8 @@ npm run build;
 npm run cdk synth;
 npm run cdk deploy ${CONNECTOR_NAME}CdkStack > /dev/null;
 
+sed -i "s#CodeUri: \"$S3_JARS_BUCKET/athena-$CONNECTOR_NAME-2022.47.1.jar\"#CodeUri: \"./target/athena-$CONNECTOR_NAME-2022.47.1.jar\"#" $REPOSITORY_ROOT/athena-$CONNECTOR_NAME/athena-$CONNECTOR_NAME.yaml
+
 echo "FINISHED DEPLOYING INFRA FOR ${CONNECTOR_NAME}."
 
 # cd back to validation root

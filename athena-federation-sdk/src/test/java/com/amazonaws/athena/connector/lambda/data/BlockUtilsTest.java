@@ -150,12 +150,12 @@ public class BlockUtilsTest
     public void fieldToString() throws java.text.ParseException
     {
         for (TimeUnit timeUnit : ImmutableList.of(TimeUnit.MILLISECOND, TimeUnit.MICROSECOND)) {
-            String expectedString = "Block{rows=2, col1=[10, 11], col2=[2020-03-18T12:54:29Z[UTC], 2020-03-18T12:54:29-05:00], col3=[18339, 18259]}";
+            String expectedString = "Block{rows=2, col1=[10, 11], col2=[2020-03-18T12:54:29Z[UTC], 2020-03-18T12:54:29-05:00], col3=[2020-03-18, 2019-12-29]}";
             if (timeUnit.equals(TimeUnit.MICROSECOND)) {
                 DateTimeFormatterUtil.disableTimezonePacking();
                 // The difference here is because TimeUnit.MILLISECOND with packing is using the packed
                 // timezone value rather than using the timezone from the ArrowType
-                expectedString = "Block{rows=2, col1=[10, 11], col2=[2020-03-18T12:54:29Z[UTC], 2020-03-18T17:54:29Z[UTC]], col3=[18339, 18259]}";
+                expectedString = "Block{rows=2, col1=[10, 11], col2=[2020-03-18T12:54:29Z[UTC], 2020-03-18T17:54:29Z[UTC]], col3=[2020-03-18, 2019-12-29]}";
             }
 
             Schema schema = SchemaBuilder.newBuilder()

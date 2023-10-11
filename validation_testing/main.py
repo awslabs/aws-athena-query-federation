@@ -2,8 +2,7 @@ import subprocess
 import os
 import sys
 
-TESTABLE_CONNECTORS = ['dynamodb', 'mysql']
-
+TESTABLE_CONNECTORS = ['dynamodb', 'mysql', 'postgresql', 'redshift']
 
 def run_single_connector_release_tests(connector_name):
     shell_command = f'sh run_release_tests.sh {connector_name}'
@@ -20,7 +19,8 @@ def assert_required_env_vars_set():
         'REPOSITORY_ROOT',
         'DATABASE_PASSWORD',
         'S3_DATA_PATH',
-        'S3_JARS_BUCKET'
+        'S3_JARS_BUCKET',
+        'SPILL_BUCKET'
     ]
     if not all([os.environ.get(env_var) for env_var in required_env_vars]):
         raise RuntimeError("not all expected environment variables were set!")
