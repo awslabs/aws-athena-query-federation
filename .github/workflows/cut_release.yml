@@ -87,6 +87,7 @@ jobs:
       - name: Sync up with origin again now that the new branch has been pushed
         run: |
           git fetch origin
+          git status
           git pull --rebase origin release_${NEW_RELEASE_VERSION}
 
       - name: Create the release on github
