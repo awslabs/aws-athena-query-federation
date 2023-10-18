@@ -33,3 +33,7 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
           AWS_REGION: us-east-1
         run: mvn -B clean package -T 1C --file pom.xml -Dmaven.compiler.release=8
+      # Identify if any files were modified as a result of running maven build.
+      - name: Identify any Maven Build changes
+        run: >
+          ! (git status | grep "modified: " )
