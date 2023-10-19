@@ -62,6 +62,7 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -70,11 +71,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -114,6 +117,15 @@ import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExcept
 public class DynamoDBMetadataHandler
         extends GlueMetadataHandler
 {
+    // This simple wrapper allows for mocking environment variables
+    static class Environment
+    {
+        String getVariable(String name)
+        {
+            return System.getenv(name);
+        }
+    }
+
     @VisibleForTesting
     static final int MAX_SPLITS_PER_REQUEST = 1000;
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBMetadataHandler.class);
@@ -127,11 +139,15 @@ public class DynamoDBMetadataHandler
             || (table.getStorageDescriptor().getParameters() != null && DYNAMODB.equals(table.getStorageDescriptor().getParameters().get("classification")));
     // used to filter out Glue databases which lack the DYNAMO_DB_FLAG in the URI.
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DYNAMO_DB_FLAG));
+    @VisibleForTesting
+    static final String INCLUDED_DDB_TABLES_ENV = "included_dynamodb_tables";
 
     private final ThrottlingInvoker invoker;
     private final AmazonDynamoDB ddbClient;
     private final AWSGlue glueClient;
     private final DynamoDBTableResolver tableResolver;
+    @VisibleForTesting
+    Environment environment = new Environment();
 
     public DynamoDBMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -218,9 +234,22 @@ public class DynamoDBMetadataHandler
 
         // add tables that may not be in Glue (if listing the default schema)
         if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
-            combinedTables.addAll(tableResolver.listTables());
+            combinedTables.addAll(filterDyanmoDbTables(tableResolver.listTables()));
         }
         return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), null);
+    }
+
+    @VisibleForTesting
+    List<TableName> filterDyanmoDbTables(List<TableName> allDynamoDBTables)
+    {
+        if (!Strings.isNullOrEmpty(environment.getVariable(INCLUDED_DDB_TABLES_ENV))) {
+            Set<String> includedDynamoDbTables = Arrays.stream(environment.getVariable(INCLUDED_DDB_TABLES_ENV).split(","))
+                    .map(tableName -> tableName.toLowerCase(Locale.ENGLISH).trim()).collect(Collectors.toSet());
+            return allDynamoDBTables.stream().filter(name -> includedDynamoDbTables.contains(name.getTableName())).collect(Collectors.toList());
+        }
+        else {
+            return allDynamoDBTables;
+        }
     }
 
     /**

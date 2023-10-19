@@ -44,6 +44,10 @@ Parameters:
     Description: "(Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys."
     Type: String
     Default: ""
+  IncludedDynamoDBTables:
+    Description: "(Optional) By default all tables are exposed to Athena, to limit the tables provide a comma separated list of tables to expose"
+    Default: ""
+    Type: String
   PermissionsBoundaryARN:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
@@ -64,6 +68,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
+          included_dynamodb_tables: !Ref IncludedDynamoDBTables
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.dynamodb.DynamoDBCompositeHandler"
       CodeUri: "./target/athena-dynamodb-2022.47.1.jar"
