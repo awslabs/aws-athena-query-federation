@@ -5,6 +5,16 @@ import time
 athena_client = boto3.client('athena')
 connectors_supporting_complex_predicates = ['mysql', 'postgresql', 'redshift']
 connectors_supporting_limit_pushdown = ['dynamodb', 'mysql', 'postgresql', 'redshift']
+connectors_supporting_case_insensitive = ['mysql', 'postgresql', 'redshift']
+connectors_supporting_materialized_views = ['postgresql', 'redshift']
+
+def create_data_source(catalog_name, lambda_arn):
+    athena_client.create_data_catalog(Name=catalog_name, Type='LAMBDA', Parameters={'function': lambda_arn})
+    print(f'[INFO] - created athena data catalog {catalog_name}')
+
+def delete_data_source(catalog_name):
+    athena_client.delete_data_catalog(Name=catalog_name)
+    print(f'[INFO] - deleted athena data catalog {catalog_name}')
 
 def run_query(query_string, results_location, workgroup_name, catalog, database):
     """
@@ -16,7 +26,6 @@ def run_query(query_string, results_location, workgroup_name, catalog, database)
     if not succeeded: # fast fail on query failures or timeouts.
         raise RuntimeError(f'Query {query_id} terminated in non-successful state. Failing release tests.')
     return query_id
-
 
 def start_query_execution(query_string, results_location, workgroup_name, catalog, database):
     start_query_resp = athena_client.start_query_execution(
@@ -52,6 +61,76 @@ def wait_until_query_finished(query_id):
         print(query_execution['Status']['AthenaError'])
     return query_execution_state
 
+def get_data_scanned(query_id):
+    gqe_response = athena_client.get_query_execution(QueryExecutionId=query_id)
+    return gqe_response['QueryExecution']['Statistics']['DataScannedInBytes']
+
+def assert_condition(success_condition, failure_message):
+    if not success_condition:
+        raise RuntimeError(failure_message)
+
+def test_complex_predicate_pushdown(query, testnumber, select_star_qid, select_star_data_scanned, predicate_pushdown_qid, predicate_pushdown_data_scanned, results_location, workgroup_name, catalog, database):
+    # ensure complex predicate pushdown occurs and has less data scanned than select * and simple predicate pushdown
+    complex_predicate_pushdown_qid = run_query(query, results_location, workgroup_name, catalog, database)
+    complex_predicate_pushdown_data_scanned = get_data_scanned(complex_predicate_pushdown_qid)
+    print(f'[INFO] - complex predicate pushdown {testnumber} query ran successfully, scanned {complex_predicate_pushdown_data_scanned} bytes')
+    assert_condition(complex_predicate_pushdown_data_scanned < select_star_data_scanned, f'FAILURE CONDITION - complex predicate pushdown {testnumber} scans at least as much data as select *. Query ids: {select_star_qid}, {complex_predicate_pushdown_qid}')
+    assert_condition(complex_predicate_pushdown_data_scanned < predicate_pushdown_data_scanned, f'FAILURE CONDITION - expected complex expression {testnumber} to reduce data scanned compared to simple predicate but it did not. Query ids: {predicate_pushdown_qid}, {complex_predicate_pushdown_qid}')
+
+def complex_predicate_pushdown_tests(select_star_qid, predicate_pushdown_qid, results_location, workgroup_name, catalog, database):
+    query_one = 'select * from customer where c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) limit 100000'
+    query_two = '''
+        SELECT * FROM customer WHERE 
+            c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) AND 
+            ((c_first_sales_date_sk >= 2452000 AND c_birth_country in ('CHILE','TOGO','PHILIPPINES'))
+		    OR (c_first_sales_date_sk >= 2452000 AND c_first_sales_date_sk <= 2453000)
+		    OR (c_first_shipto_date_sk >= 2449000 AND c_first_shipto_date_sk <= 2451000));
+    '''
+
+    # c_birth_country in ('CHILE','TOGO','PHILIPPINES') -> (c_birth_country = 'CHILE' OR c_birth_country = 'TOGO' OR c_birth_country = 'PHILIPPINES')
+    query_three = '''
+        SELECT * FROM customer WHERE 
+            c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) AND 
+            ((c_first_sales_date_sk >= 2452000 AND (c_birth_country = 'CHILE' OR c_birth_country = 'TOGO' OR c_birth_country = 'PHILIPPINES'))
+		    OR (c_first_sales_date_sk >= 2452000 AND c_first_sales_date_sk <= 2453000)
+		    OR (c_first_shipto_date_sk >= 2449000 AND c_first_shipto_date_sk <= 2451000));
+    '''
+
+    queries = [query_one, query_two, query_three]
+
+    select_star_data_scanned = get_data_scanned(select_star_qid)
+    predicate_pushdown_data_scanned = get_data_scanned(predicate_pushdown_qid)
+
+    for i, q in enumerate(queries):
+        test_complex_predicate_pushdown(q, i+1, select_star_qid, select_star_data_scanned, predicate_pushdown_qid, predicate_pushdown_data_scanned, results_location, workgroup_name, catalog, database)
+
+def case_insensitive_tests(connector_name, results_location, workgroup_name, catalog):
+    select_camelcase_camelcase_query = 'SELECT * FROM camelCaseTest.camelCase'
+    select_camelcase_uppercase_query = 'SELECT * FROM camelCaseTest.UPPERCASE'
+
+    select_uppercase_camelcase_query = 'SELECT * FROM UPPERCASETEST.camelCase'
+    select_uppercase_uppercase_query = 'SELECT * FROM UPPERCASETEST.UPPERCASE'
+
+    select_uppercase_camelcase_view_query = 'SELECT * FROM UPPERCASETEST.camelCaseView'
+
+    run_query(select_camelcase_camelcase_query, results_location, workgroup_name, catalog, 'camelCaseTest')
+    run_query(select_camelcase_uppercase_query, results_location, workgroup_name, catalog, 'camelCaseTest')
+    run_query(select_uppercase_camelcase_query, results_location, workgroup_name, catalog, 'UPPERCASETEST')
+    run_query(select_uppercase_uppercase_query, results_location, workgroup_name, catalog, 'UPPERCASETEST')
+
+    run_query(select_camelcase_camelcase_query, results_location, workgroup_name, catalog, 'camelcasetest')
+    run_query(select_camelcase_uppercase_query, results_location, workgroup_name, catalog, 'camelcasetest')
+    run_query(select_uppercase_camelcase_query, results_location, workgroup_name, catalog, 'uppercasetest')
+    run_query(select_uppercase_uppercase_query, results_location, workgroup_name, catalog, 'uppercasetest')
+
+    if connector_name in connectors_supporting_materialized_views:
+        run_query(select_uppercase_camelcase_view_query, results_location, workgroup_name, catalog, 'UPPERCASETEST')
+        print('[INFO] - successfully ran case insensitive materialized view queries')
+    else:
+        print('[INFO] - skipping materialized view queries')
+
+    print('[INFO] - successfully ran case insensitive queries')
+
 
 '''
 Views are created and stored in the awsdatacatalog. So, although we are passing in the catalog/db associated
@@ -72,12 +151,12 @@ def test_ddl(connector_name, results_location, workgroup_name, catalog, database
     run_query(create_view_query, results_location, workgroup_name, catalog, database)
     run_query(select_from_view_query, results_location, workgroup_name, 'AwsDataCatalog', glue_db)
     run_query(drop_view_query, results_location, workgroup_name, 'AwsDataCatalog', glue_db)
-    print('[INFO] - Successfully ran view queries.')
+    print('[INFO] - successfully ran view queries.')
 
     # other ddl queries
     run_query('show tables;', results_location, workgroup_name, catalog, database)
     run_query('describe customer;', results_location, workgroup_name, catalog, database)
-    print('[INFO] - Successfully ran misc DDL queries.')
+    print('[INFO] - successfully ran misc DDL queries.')
 
 def test_dml(connector_name, results_location, workgroup_name, catalog, database):
    # 100k rows is around 15mb in mysql, will ensure we test s3 spill as well
@@ -112,58 +191,13 @@ def test_dml(connector_name, results_location, workgroup_name, catalog, database
     else:
         print(f'[INFO] - skipping limit pushdown tests for {connector_name}, not supported.')
 
-def complex_predicate_pushdown_tests(select_star_qid, predicate_pushdown_qid, results_location, workgroup_name, catalog, database):
-    query_one = 'select * from customer where c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) limit 100000'
-    query_two = '''
-        SELECT * FROM customer WHERE 
-            c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) AND 
-            ((c_first_sales_date_sk >= 2452000 AND c_birth_country in ('CHILE','TOGO','PHILIPPINES'))
-		    OR (c_first_sales_date_sk >= 2452000 AND c_first_sales_date_sk <= 2453000)
-		    OR (c_first_shipto_date_sk >= 2449000 AND c_first_shipto_date_sk <= 2451000));
-    '''
-
-    # c_birth_country in ('CHILE','TOGO','PHILIPPINES') -> (c_birth_country = 'CHILE' OR c_birth_country = 'TOGO' OR c_birth_country = 'PHILIPPINES')
-    query_three = '''
-        SELECT * FROM customer WHERE 
-            c_customer_sk < 100 AND ((c_current_hdemo_sk + c_current_cdemo_sk) % 2 = 0) AND 
-            ((c_first_sales_date_sk >= 2452000 AND (c_birth_country = 'CHILE' OR c_birth_country = 'TOGO' OR c_birth_country = 'PHILIPPINES'))
-		    OR (c_first_sales_date_sk >= 2452000 AND c_first_sales_date_sk <= 2453000)
-		    OR (c_first_shipto_date_sk >= 2449000 AND c_first_shipto_date_sk <= 2451000));
-    '''
-
-    queries = [query_one, query_two, query_three]
-
-    select_star_data_scanned = get_data_scanned(select_star_qid)
-    predicate_pushdown_data_scanned = get_data_scanned(predicate_pushdown_qid)
-
-    for i, q in enumerate(queries):
-        test_complex_predicate_pushdown(q, i+1, select_star_qid, select_star_data_scanned, predicate_pushdown_qid, predicate_pushdown_data_scanned, results_location, workgroup_name, catalog, database)
+    if connector_name in connectors_supporting_case_insensitive:
+        case_insensitive_tests(connector_name, results_location, workgroup_name, catalog)
+    else:
+        print(f'[INFO] - skipping case insensitive tests for {connector_name}, not supported.')
 
 
-def test_complex_predicate_pushdown(query, testnumber, select_star_qid, select_star_data_scanned, predicate_pushdown_qid, predicate_pushdown_data_scanned, results_location, workgroup_name, catalog, database):
-    # ensure complex predicate pushdown occurs and has less data scanned than select * and simple predicate pushdown
-    complex_predicate_pushdown_qid = run_query(query, results_location, workgroup_name, catalog, database)
-    complex_predicate_pushdown_data_scanned = get_data_scanned(complex_predicate_pushdown_qid)
-    print(f'[INFO] - complex predicate pushdown {testnumber} query ran successfully, scanned {complex_predicate_pushdown_data_scanned} bytes')
-    assert_condition(complex_predicate_pushdown_data_scanned < select_star_data_scanned, f'FAILURE CONDITION - complex predicate pushdown {testnumber} scans at least as much data as select *. Query ids: {select_star_qid}, {complex_predicate_pushdown_qid}')
-    assert_condition(complex_predicate_pushdown_data_scanned < predicate_pushdown_data_scanned, f'FAILURE CONDITION - expected complex expression {testnumber} to reduce data scanned compared to simple predicate but it did not. Query ids: {predicate_pushdown_qid}, {complex_predicate_pushdown_qid}')
 
-
-def assert_condition(success_condition, failure_message):
-    if not success_condition:
-        raise RuntimeError(failure_message)
-
-def get_data_scanned(query_id):
-    gqe_response = athena_client.get_query_execution(QueryExecutionId=query_id)
-    return gqe_response['QueryExecution']['Statistics']['DataScannedInBytes']
-
-def create_data_source(catalog_name, lambda_arn):
-    athena_client.create_data_catalog(Name=catalog_name, Type='LAMBDA', Parameters={'function': lambda_arn})
-    print(f'[INFO] - created athena data catalog {catalog_name}')
-
-def delete_data_source(catalog_name):
-    athena_client.delete_data_catalog(Name=catalog_name)
-    print(f'[INFO] - deleted athena data catalog {catalog_name}')
 
 def run_queries(catalog, connector_name, results_location, lambda_arn):
     '''

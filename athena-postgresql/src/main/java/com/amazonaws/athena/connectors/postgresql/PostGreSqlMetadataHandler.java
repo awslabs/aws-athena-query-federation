@@ -264,7 +264,7 @@ public class PostGreSqlMetadataHandler
         return list.build();
     }
 
-    private String caseInsensitiveNameResolver(PreparedStatement preparedStatement, String tableName, String databaseName) throws SQLException
+    protected String caseInsensitiveNameResolver(PreparedStatement preparedStatement, String tableName, String databaseName) throws SQLException
     {
         String resolvedName = null;
         try (ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -289,21 +289,45 @@ public class PostGreSqlMetadataHandler
         return caseInsensitiveTableMaterialViewMatch(connection, databaseName, tableName);
     }
 
+    protected String caseInsensitiveSchemaResolver(Connection connection, String databaseName) throws SQLException
+    {
+        String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setString(2, databaseName);
+
+        String resolvedSchemaName = null;
+        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            if (resultSet.next()) {
+                resolvedSchemaName = resultSet.getString("schema_name");
+                LOGGER.info("Resolved Schema from Case Insensitive look up : {}", resolvedSchemaName);
+            }
+        }
+        return resolvedSchemaName;
+    }
+
     public TableName caseInsensitiveTableMaterialViewMatch(Connection connection, final String databaseName,
                                                      final String tableName) throws Exception
     {
-        String resolvedName;
-        PreparedStatement preparedStatement = JDBCUtil.getTableNameQuery(connection, tableName, databaseName);
-        resolvedName = caseInsensitiveNameResolver(preparedStatement, tableName, databaseName);
+        String resolvedSchemaName = caseInsensitiveSchemaResolver(connection, databaseName);
+        if (resolvedSchemaName == null) {
+            throw new RuntimeException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName));
+        }
 
-        if (resolvedName == null) {
-            preparedStatement = getMaterializedViewCaseInsensitive(connection, tableName, databaseName);
-            resolvedName = caseInsensitiveNameResolver(preparedStatement, tableName, databaseName);
-            if (resolvedName == null) {
-                throw new RuntimeException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, databaseName));
+        String resolvedTableName;
+        PreparedStatement preparedStatement = JDBCUtil.getTableNameQuery(connection, tableName, resolvedSchemaName);
+        resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
+
+        if (resolvedTableName == null) {
+            LOGGER.info(String.format("'%s' not found in case insensitive table look up. Looking for '%s' as case insensitive materialized view", tableName, tableName));
+
+            preparedStatement = getMaterializedViewCaseInsensitive(connection, tableName, resolvedSchemaName);
+            resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
+            if (resolvedTableName == null) {
+                throw new RuntimeException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName));
             }
         }
-        return new TableName(databaseName, resolvedName);
+        return new TableName(resolvedSchemaName, resolvedTableName);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)
@@ -366,7 +390,7 @@ public class PostGreSqlMetadataHandler
         return JDBCUtil.getTableMetadata(preparedStatement, materializedViews);
     }
 
-    private PreparedStatement getMaterializedViewCaseInsensitive(Connection connection, String matviewname, String databaseName) throws SQLException 
+    protected PreparedStatement getMaterializedViewCaseInsensitive(Connection connection, String matviewname, String databaseName) throws SQLException
     {
         String sql = "select matviewname as \"TABLE_NAME\" from pg_catalog.pg_matviews mv where (matviewname = ? or lower(matviewname) = ?) and schemaname = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
