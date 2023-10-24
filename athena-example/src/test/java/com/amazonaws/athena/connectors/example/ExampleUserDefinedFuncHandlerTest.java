@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.example;
 
-import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
-import org.apache.commons.codec.binary.Base64;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,25 +27,21 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
+
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
-import java.security.spec.KeySpec;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 
+import static com.amazonaws.athena.connectors.example.ExampleUserDefinedFuncHandler.GCM_IV_LENGTH;
 import static org.junit.Assert.*;
 
 public class ExampleUserDefinedFuncHandlerTest
@@ -86,7 +80,8 @@ public class ExampleUserDefinedFuncHandlerTest
             return;
         }
 
-        assertTrue(handler.decrypt("0UTIXoWnKqtQe8y+BSHNmdEXmWfQalRQH60pobsgwws=").equals("SecretText-1755604178"));
+        String encryptedValue = symmetricEncrypt("SecretText-1755604178", handler.getEncryptionKey());
+        assertTrue(handler.decrypt(encryptedValue).equals("SecretText-1755604178"));
     }
 
     @Test
@@ -100,33 +95,32 @@ public class ExampleUserDefinedFuncHandlerTest
         String encrypted = symmetricEncrypt(value, key);
         String actual = handler.symmetricDecrypt(encrypted, key);
         assertEquals(value, actual);
-
         //TODO: find and test the sample_data file automatically
         //NOTE!!!!!! _______IF_THIS_REQUIRES_A_CHANGE_THEN_YOU_NEED_TO_UPDATE_THE_SAMPLE_DATA.CSV___________
-        assertTrue(handler.symmetricDecrypt("0UTIXoWnKqtQe8y+BSHNmdEXmWfQalRQH60pobsgwws=", key).equals("SecretText-1755604178"));
+        String encryptedValue = symmetricEncrypt("SecretText-1755604178", key);
+        assertTrue(handler.symmetricDecrypt(encryptedValue, key).equals("SecretText-1755604178"));
     }
 
     /**
      * Used to test the decrypt function in the handler.
+     * This example is taken from the UDF handle example
      */
-    private static String symmetricEncrypt(String text, String secretKey)
+    private static String symmetricEncrypt(String plaintext, String secretKey)
     {
-        byte[] raw;
-        String encryptedString;
-        SecretKeySpec skeySpec;
-        byte[] encryptText = text.getBytes();
-        Cipher cipher;
         try {
-            raw = Base64.decodeBase64(secretKey);
-            skeySpec = new SecretKeySpec(raw, "AES");
-            cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
-            encryptedString = Base64.encodeBase64String(cipher.doFinal(encryptText));
+            byte[] plaintextKey = Base64.getDecoder().decode(secretKey);
+            Cipher cipher = ExampleUserDefinedFuncHandler.getCipher(Cipher.ENCRYPT_MODE, plaintextKey, ExampleUserDefinedFuncHandler.getGCMSpecEncryption());
+            byte[] encryptedContent = cipher.doFinal(plaintext.getBytes());
+            // prepend ciphertext with IV
+            ByteBuffer byteBuffer = ByteBuffer.allocate(GCM_IV_LENGTH + encryptedContent.length);
+            byteBuffer.put(cipher.getIV());
+            byteBuffer.put(encryptedContent);
+
+            byte[] encodedContent = Base64.getEncoder().encode(byteBuffer.array());
+            return new String(encodedContent);
         }
-        catch (Exception e) {
-            e.printStackTrace();
-            return "Error";
+        catch (IllegalBlockSizeException | BadPaddingException e) {
+            throw new RuntimeException(e);
         }
-        return encryptedString;
     }
 }

@@ -9,7 +9,7 @@
     <artifactId>athena-cloudera-hive</artifactId>
     <version>2022.47.1</version>
     <properties>
-        <clouderaVersion>2.6.15.1018</clouderaVersion>
+        <clouderaVersion>2.6.23.1027</clouderaVersion>
     </properties>
     <dependencies>
         <dependency>

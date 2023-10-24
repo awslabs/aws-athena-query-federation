@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.mysql;
 
+import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +38,9 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.functions.Standard
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -75,34 +76,53 @@ public class MySqlFederationExpressionParserTest {
     @Test
     public void testParseConstantExpression()
     {
+        List<TypeAndValue> accumulator = new ArrayList<>();
         ConstantExpression ten = buildIntConstantExpression();
-        assertEquals(federationExpressionParser.parseConstantExpression(ten), "10");
+        assertEquals(federationExpressionParser.parseConstantExpression(ten, accumulator), "?");
+        assertEquals(1, accumulator.size());
+        assertEquals(accumulator.get(0).getType(), Types.MinorType.INT.getType());
+        assertEquals(accumulator.get(0).getValue(), 10);
     }
 
 
     @Test
     public void testParseConstantListOfInts()
     {
+        List<TypeAndValue> accumulator = new ArrayList<>();
         ConstantExpression listOfNums = new ConstantExpression(
             BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Int(32, true),
-            ImmutableList.of(25, 10, 5, 1)), new ArrowType.Int(32, true)
+                    ImmutableList.of(25, 10, 5, 1)
+            )
+                , new ArrowType.Int(32, true)
         );
-        assertEquals(federationExpressionParser.parseConstantExpression(listOfNums), "25,10,5,1");
+
+        List<Integer> expectedValue = ImmutableList.of(25, 10, 5, 1);
+        assertEquals(federationExpressionParser.parseConstantExpression(listOfNums, accumulator), "?,?,?,?");
+        assertEquals(expectedValue.size(), accumulator.size());
+        for(int i = 0; i < expectedValue.size(); i++) {
+            assertEquals(accumulator.get(i).getType(), Types.MinorType.INT.getType());
+            assertEquals(accumulator.get(i).getValue(), expectedValue.get(i));
+        }
     }
 
     @Test
     public void testParseConstantListOfStrings()
     {
-        Collection<Object> rawStrings = ImmutableList.of("fed", "er", "ation");
+        List<TypeAndValue> accumulator = new ArrayList<>();
+        List<Object> rawStrings = ImmutableList.of("fed", "er", "ation");
         ConstantExpression listOfStrings = new ConstantExpression(
             BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(),
             rawStrings), new ArrowType.Utf8()
         );
 
-        List<String> quotedStrings = rawStrings.stream().map(str -> CONSTANT_QUOTE_CHAR + str + CONSTANT_QUOTE_CHAR).collect(Collectors.toList());
-        String expected = Joiner.on(",").join(quotedStrings);
-        String actual = federationExpressionParser.parseConstantExpression(listOfStrings);
+        String expected = Joiner.on(",").join(Collections.nCopies(3, "?"));
+        String actual = federationExpressionParser.parseConstantExpression(listOfStrings, accumulator);
         assertEquals(expected, actual);
+        assertEquals(rawStrings.size(), accumulator.size());
+        for(int i = 0; i < rawStrings.size(); i++) {
+            assertEquals(accumulator.get(i).getType(), ArrowType.Utf8.INSTANCE);
+            assertEquals(String.valueOf(accumulator.get(i).getValue()), rawStrings.get(i));
+        }
     }
 
 
@@ -153,7 +173,7 @@ public class MySqlFederationExpressionParserTest {
         String inClause = federationExpressionParser.mapFunctionToDataSourceSyntax(inFunction, intType, ImmutableList.of("`coinValueColumn`", arrayClause));
         assertEquals(inClause, "(`coinValueColumn` IN (25, 10, 5, 1))");
     }
-    
+
     @Test
     public void testComplexExpressions_Simple()
     {
@@ -165,7 +185,7 @@ public class MySqlFederationExpressionParserTest {
             Types.MinorType.FLOAT8.getType(),
             StandardFunctions.ADD_FUNCTION_NAME.getFunctionName(),
             addArguments);
-        
+
         ConstantExpression ten = buildIntConstantExpression();
         List<FederationExpression> ltArguments = ImmutableList.of(addFunctionCall, ten);
 
@@ -173,8 +193,10 @@ public class MySqlFederationExpressionParserTest {
             ArrowType.Bool.INSTANCE,
             StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
             ltArguments);
-
-        assertEquals("((" + quoteColumn("colOne") + " + "  + quoteColumn("colThree") + ") < 10)", federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) fullExpression));
+        List<TypeAndValue> actualAccumulators = new ArrayList<>();
+        assertEquals("((" + quoteColumn("colOne") + " + "  + quoteColumn("colThree") + ") < ?)", federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) fullExpression, actualAccumulators));
+        assertEquals(actualAccumulators.size(), 1);
+        assertEquals((int) actualAccumulators.get(0).getValue(), 10);
     }
 
     // (colOne + colTwo > colThree) AND (colFour IN ("banana", "dragonfruit"))
@@ -199,7 +221,7 @@ public class MySqlFederationExpressionParserTest {
             StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
             ImmutableList.of(addFunction, colThree)
         );
-        
+
 
         // colFour IN ("banana", "dragonfruit")
         FederationExpression colFour = new VariableExpression("colFour", ArrowType.Utf8.INSTANCE);
@@ -240,12 +262,25 @@ public class MySqlFederationExpressionParserTest {
             ImmutableList.of(andFunction, notFunction)
         );
 
-        String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction);
-        // actual is ((((colOne + colTwo) > colThree) AND (colFour IN (banana, dragonfruit))) OR (colFour <> fruit))
+        List<TypeAndValue> actualAccumulators = new ArrayList<>();
+        String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction, actualAccumulators);
+        // SQL is ((((colOne + colTwo) > colThree) AND (colFour IN (banana, dragonfruit))) OR (colFour <> fruit))
+        List<TypeAndValue> expectedAccumulators = ImmutableList.of(
+                new TypeAndValue(Types.MinorType.VARCHAR.getType(), "banana"),
+                new TypeAndValue(Types.MinorType.VARCHAR.getType(), "dragonfruit"),
+                new TypeAndValue(Types.MinorType.VARCHAR.getType(), "fruit")
+        );
+
+        // actual prepare statement is ((((colOne + colTwo) > colThree) AND (colFour IN (?, ?))) OR (colFour <> ?))
         String expected = "((((" + quoteColumn("colOne") + " + " + quoteColumn("colTwo") + ") > "
                                   + quoteColumn("colThree") + ") AND (" + quoteColumn("colFour") +
-                                  " IN (" + quoteConstant("banana") + "," + quoteConstant("dragonfruit") + "))) OR (" + quoteColumn("colFour") + " <> " + quoteConstant("fruit") + "))";
+                                  " IN (?,?))) OR (" + quoteColumn("colFour") + " <> ?))";
         assertEquals(expected, fullClause);
+
+        for (int i = 0; i < expectedAccumulators.size(); i ++){
+            assertEquals(actualAccumulators.get(i).getType(), expectedAccumulators.get(i).getType());
+            assertEquals(String.valueOf(actualAccumulators.get(i).getValue()), expectedAccumulators.get(i).getValue());
+        }
     }
 
     private String quoteColumn(String columnName)

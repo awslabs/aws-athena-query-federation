@@ -223,19 +223,6 @@ public class JdbcMetadataHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void doGetTableCaseInsensitiveNoTablesFound()
-            throws Exception
-    {
-        TableName inputTableName = new TableName("testSchema", "testtable");
-        Object[][] values1 = {{"testSchema", "a"}, {"testSchema", "b"}};
-
-        setupMocksDoGetTableCaseInsensitive(inputTableName, values1, null);
-
-        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
-                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
-    }
-
-    @Test(expected = RuntimeException.class)
     public void doGetTableNoColumns()
             throws Exception
     {

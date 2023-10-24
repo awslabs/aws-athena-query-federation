@@ -20,8 +20,8 @@
 package com.amazonaws.athena.connectors.postgresql;
 
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcFederationExpressionParser;
+import com.google.common.base.Joiner;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.List;
 
@@ -35,8 +35,6 @@ public class PostgreSqlFederationExpressionParser extends JdbcFederationExpressi
     @Override
     public String writeArrayConstructorClause(ArrowType type, List<String> arguments)
     {
-        // TODO Implement.
-        throw new NotImplementedException();
+        return Joiner.on(", ").join(arguments);
     }
-    
 }

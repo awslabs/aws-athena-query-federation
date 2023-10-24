@@ -21,7 +21,7 @@ jobs:
           java-version: '11'
 
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -87,6 +87,7 @@ jobs:
       - name: Sync up with origin again now that the new branch has been pushed
         run: |
           git fetch origin
+          git status
           git pull --rebase origin release_${NEW_RELEASE_VERSION}
 
       - name: Create the release on github

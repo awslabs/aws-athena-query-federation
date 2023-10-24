@@ -25,7 +25,7 @@ def process_single_table(table_name):
     connection_type='redshift',
     connection_options={
         'url': args['db_url'],
-        'dbtable': table_name,
+        'dbtable': "public."+table_name,
         'user': args['username'],
         'password': args['password'],
         'redshiftTmpDir': args['redshiftTmpDir']

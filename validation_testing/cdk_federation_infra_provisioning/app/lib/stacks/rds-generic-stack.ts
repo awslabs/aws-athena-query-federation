@@ -16,10 +16,10 @@ export interface RdsGenericStackProps extends FederationStackProps {
 export class RdsGenericStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: RdsGenericStackProps) {
     super(scope, id, props);
-    this.init_resources(props!.test_size_gigabytes, props!.s3_path, props!.password, props!.tpcds_tables, props!.db_port, props!.db_type, props!.connector_yaml_path);
+    this.init_resources(props!.test_size_gigabytes, props!.s3_path, props!.spill_bucket, props!.password, props!.tpcds_tables, props!.db_port, props!.db_type, props!.connector_yaml_path);
   }
 
-  init_resources(test_size_gigabytes: number, s3_path: string, password: string, tpcds_tables: string[], db_port: number, db_type: string, connector_yaml_path: string) {
+  init_resources(test_size_gigabytes: number, s3_path: string, spill_bucket: string, password: string, tpcds_tables: string[], db_port: number, db_type: string, connector_yaml_path: string) {
     const vpc = new ec2.Vpc(this, `${db_type}_vpc`, {
       ipAddresses: ec2.IpAddresses.cidr('10.0.0.0/24'),
       subnetConfiguration: [
@@ -119,6 +119,24 @@ export class RdsGenericStack extends cdk.Stack {
         }
       });
     }
+
+    const glueJob = new glue.Job(this, `${db_type}_glue_job_create_case_insensitive_data`, {
+      executable: glue.JobExecutable.pythonShell({
+        glueVersion: glue.GlueVersion.V1_0,
+        pythonVersion: (db_type == 'mysql') ? glue.PythonVersion.THREE_NINE : glue.PythonVersion.THREE,
+        script: glue.Code.fromAsset(path.join(__dirname, `../../../glue_scripts/${db_type}_create_case_insensitive_data.py`))
+      }),
+      role: glue_role,
+      connections: [
+          glueConnection
+      ],
+      defaultArguments: {
+        '--db_url': cluster.clusterEndpoint.hostname,
+        '--username': 'athena',
+        '--password': password
+      }
+    });
+
     const cfn_template_file = connector_yaml_path;
     var connectionStringPrefix = '';
     if (db_type == 'mysql') connectionStringPrefix = 'mysql';
@@ -131,7 +149,7 @@ export class RdsGenericStack extends cdk.Stack {
         'DefaultConnectionString': `${connectionStringPrefix}://${connectionString}`,
         'SecurityGroupIds': [securityGroup.securityGroupId],
         'SubnetIds': [subnet.subnetId],
-        'SpillBucket': 'amazon-athena-federation-perf-spill-bucket',
+        'SpillBucket': spill_bucket,
       }
     });
   }

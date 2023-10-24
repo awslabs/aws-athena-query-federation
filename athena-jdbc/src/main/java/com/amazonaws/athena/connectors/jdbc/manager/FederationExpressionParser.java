@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
@@ -36,7 +35,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -54,7 +53,7 @@ public abstract class FederationExpressionParser
      */
     public abstract String mapFunctionToDataSourceSyntax(FunctionName functionName, ArrowType type, List<String> arguments);
 
-    public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints)
+    public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints, List<TypeAndValue> accumulator)
     {
         if (constraints.getExpression() == null || constraints.getExpression().isEmpty()) {
             return ImmutableList.of();
@@ -62,7 +61,7 @@ public abstract class FederationExpressionParser
 
         List<FederationExpression> federationExpressions = constraints.getExpression();
         return federationExpressions.stream()
-                    .map(federationExpression -> parseFunctionCallExpression((FunctionCallExpression) federationExpression))
+                    .map(federationExpression -> parseFunctionCallExpression((FunctionCallExpression) federationExpression, accumulator))
                     .collect(Collectors.toList());
     }
 
@@ -71,7 +70,7 @@ public abstract class FederationExpressionParser
      * @param functionCallExpression
      * @return
      */
-    public String parseFunctionCallExpression(FunctionCallExpression functionCallExpression)
+    public String parseFunctionCallExpression(FunctionCallExpression functionCallExpression, List<TypeAndValue> accumulator)
     {
         FunctionName functionName = functionCallExpression.getFunctionName();
         List<FederationExpression> functionArguments = functionCallExpression.getArguments();
@@ -80,14 +79,14 @@ public abstract class FederationExpressionParser
             .map(argument -> {
                 // base cases
                 if (argument instanceof ConstantExpression) {
-                    return parseConstantExpression((ConstantExpression) argument);
+                    return parseConstantExpression((ConstantExpression) argument, accumulator);
                 }
                 else if (argument instanceof VariableExpression) {
                     return parseVariableExpression((VariableExpression) argument);
                 }
                 // recursive case
                 else if (argument instanceof FunctionCallExpression) {
-                    return parseFunctionCallExpression((FunctionCallExpression) argument);
+                    return parseFunctionCallExpression((FunctionCallExpression) argument, accumulator);
                 }
                 throw new RuntimeException("Should not reach this case - a new subclass was introduced and is not handled.");
             }).collect(Collectors.toList());
@@ -97,26 +96,17 @@ public abstract class FederationExpressionParser
     
     // basing this off of the toString() impl in Block.java
     @VisibleForTesting
-    public String parseConstantExpression(ConstantExpression constantExpression)
+    public String parseConstantExpression(ConstantExpression constantExpression, List<TypeAndValue> accumulator)
     {
         Block values = constantExpression.getValues();
         FieldReader fieldReader = values.getFieldReader(DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME);
         
-        List<String> constants = new ArrayList<>();
-        
         for (int i = 0; i < values.getRowCount(); i++) {
             fieldReader.setPosition(i);
-            String strVal = BlockUtils.fieldToString(fieldReader);
-            constants.add(strVal);
+            accumulator.add(new TypeAndValue(constantExpression.getType(), fieldReader.readObject()));
         }
 
-        if (constantExpression.getType().equals(ArrowType.Utf8.INSTANCE) || constantExpression.getType().equals(ArrowType.LargeUtf8.INSTANCE)) {
-            constants = constants.stream()
-                                 .map(val -> quoteCharacter + val + quoteCharacter)
-                                 .collect(Collectors.toList());
-        }
-
-        return Joiner.on(",").join(constants);
+        return Joiner.on(",").join(Collections.nCopies(values.getRowCount(), "?"));
     }
 
     /**

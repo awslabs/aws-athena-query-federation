@@ -168,13 +168,13 @@ public abstract class JdbcMetadataHandler
         }
     }
 
-    private List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
+    protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
             throws SQLException
     {
         try (ResultSet resultSet = getTables(jdbcConnection, databaseName)) {
             ImmutableList.Builder<TableName> list = ImmutableList.builder();
             while (resultSet.next()) {
-                list.add(getSchemaTableName(resultSet));
+                list.add(JDBCUtil.getSchemaTableName(resultSet));
             }
             return list.build();
         }
@@ -190,14 +190,6 @@ public abstract class JdbcMetadataHandler
                 escapeNamePattern(schemaName, escape),
                 null,
                 new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"});
-    }
-
-    private TableName getSchemaTableName(final ResultSet resultSet)
-            throws SQLException
-    {
-        return new TableName(
-                resultSet.getString("TABLE_SCHEM"),
-                resultSet.getString("TABLE_NAME"));
     }
 
     protected String escapeNamePattern(final String name, final String escape)

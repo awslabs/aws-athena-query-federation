@@ -34,7 +34,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -176,8 +176,17 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBoolean(i + 1, (boolean) typeAndValue.getValue());
                     break;
                 case DATEDAY:
-                    statement.setDate(i + 1,
-                            new Date(TimeUnit.DAYS.toMillis(((Number) typeAndValue.getValue()).longValue())));
+                    //we received value in "UTC" time with DAYS only, appended it to timeMilli in UTC
+                    long utcMillis = TimeUnit.DAYS.toMillis(((Number) typeAndValue.getValue()).longValue());
+                    //Get the default timezone offset and offset it.
+                    //This is because sql.Date will parse millis into localtime zone
+                    //ex system timezone in GMT-5, sql.Date will think the utcMillis is in GMT-5, we need to add offset(eg. -18000000) .
+                    //ex system timezone in GMT+9, sql.Date will think the utcMillis is in GMT+9, we need to remove offset(eg. 32400000).
+                    TimeZone aDefault = TimeZone.getDefault();
+                    int offset = aDefault.getOffset(utcMillis);
+                    utcMillis -= offset;
+
+                    statement.setDate(i + 1, new Date(utcMillis));
                     break;
                 case DATEMILLI:
                     LocalDateTime timestamp = ((LocalDateTime) typeAndValue.getValue());
@@ -234,7 +243,7 @@ public abstract class JdbcSplitQueryBuilder
                 }
             }
         }
-        conjuncts.addAll(jdbcFederationExpressionParser.parseComplexExpressions(columns, constraints)); // not part of loop bc not per-column
+        conjuncts.addAll(jdbcFederationExpressionParser.parseComplexExpressions(columns, constraints, accumulator)); // not part of loop bc not per-column
         return conjuncts;
     }
 
@@ -326,37 +335,6 @@ public abstract class JdbcSplitQueryBuilder
     {
         name = name.replace(quoteCharacters, quoteCharacters + quoteCharacters);
         return quoteCharacters + name + quoteCharacters;
-    }
-
-    private static class TypeAndValue
-    {
-        private final ArrowType type;
-        private final Object value;
-
-        TypeAndValue(ArrowType type, Object value)
-        {
-            this.type = Validate.notNull(type, "type is null");
-            this.value = Validate.notNull(value, "value is null");
-        }
-
-        ArrowType getType()
-        {
-            return type;
-        }
-
-        Object getValue()
-        {
-            return value;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "TypeAndValue{" +
-                    "type=" + type +
-                    ", value=" + value +
-                    '}';
-        }
     }
 
     protected String appendLimitOffset(Split split)

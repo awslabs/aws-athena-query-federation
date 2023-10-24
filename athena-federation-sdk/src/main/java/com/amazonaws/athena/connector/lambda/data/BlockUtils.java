@@ -81,6 +81,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -250,7 +251,8 @@ public class BlockUtils
                         ((TimeStampMilliTZVector) vector).setSafe(pos, (long) value);
                     }
                     else {
-                        ((TimeStampMilliTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value));
+                        String targetTimeZone = ((ArrowType.Timestamp) vector.getField().getType()).getTimezone();
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value, targetTimeZone));
                     }
                     break;
                 case TIMESTAMPMICROTZ:
@@ -258,7 +260,8 @@ public class BlockUtils
                         ((TimeStampMicroTZVector) vector).setSafe(pos, (long) value);
                     }
                     else {
-                        ((TimeStampMicroTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value));
+                        String targetTimeZone = ((ArrowType.Timestamp) vector.getField().getType()).getTimezone();
+                        ((TimeStampMicroTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value, targetTimeZone));
                     }
                     break;
                 case DATEMILLI:
@@ -445,7 +448,8 @@ public class BlockUtils
     {
         switch (reader.getMinorType()) {
             case DATEDAY:
-                return String.valueOf(reader.readInteger());
+                LocalDate localDate = LocalDate.ofEpochDay(reader.readInteger());
+                return localDate.format(DateTimeFormatter.ISO_DATE);
             case TIMESTAMPMICROTZ:
             case TIMESTAMPMILLITZ:
                 ArrowType.Timestamp actualType = (ArrowType.Timestamp) reader.getField().getType();
@@ -783,7 +787,7 @@ public class BlockUtils
                         timeStampMilliTZWriter.writeNull();
                         break;
                     }
-                    timeStampMilliTZWriter.write(DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value));
+                    timeStampMilliTZWriter.write(DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value, timezone));
                     break;
                 }
                 case TIMESTAMPMICROTZ: {
@@ -794,7 +798,7 @@ public class BlockUtils
                         timeStampMicroTZWriter.writeNull();
                         break;
                     }
-                    timeStampMicroTZWriter.write(DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value));
+                    timeStampMicroTZWriter.write(DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value, timezone));
                     break;
                 }
                 case DATEMILLI:
