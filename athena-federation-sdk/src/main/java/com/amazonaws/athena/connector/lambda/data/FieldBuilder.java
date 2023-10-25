@@ -42,6 +42,7 @@ public class FieldBuilder
     private final boolean nullable;
     //Using LinkedHashMap because Apache Arrow makes field order important so honoring that contract here
     private final Map<String, Field> children = new LinkedHashMap<>();
+    private final Map<String, FieldBuilder> nestedChildren = new LinkedHashMap<>();
 
     /**
      * Creates a FieldBuilder for a Field with the given name and type.
@@ -93,6 +94,12 @@ public class FieldBuilder
     public FieldBuilder addField(String fieldName, ArrowType type, List<Field> children)
     {
         this.children.put(fieldName, new Field(fieldName, FieldType.nullable(type), children));
+        return this;
+    }
+
+    public FieldBuilder addFieldBuilder(String fieldName, FieldBuilder child)
+    {
+        this.nestedChildren.put(fieldName, child);
         return this;
     }
 
@@ -263,9 +270,19 @@ public class FieldBuilder
         return this;
     }
 
+    public String getName()
+    {
+        return this.name;
+    }
+
     public Field getChild(String fieldName)
     {
         return children.get(fieldName);
+    }
+
+    public FieldBuilder getNestedChild(String fieldName)
+    {
+        return nestedChildren.get(fieldName);
     }
 
     /**
@@ -275,6 +292,9 @@ public class FieldBuilder
      */
     public Field build()
     {
+        for (Map.Entry<String, FieldBuilder> next : nestedChildren.entrySet()) {
+            children.put(next.getKey(), next.getValue().build());
+        }
         return new Field(name, new FieldType(nullable, type, null), new ArrayList<>(children.values()));
     }
 }

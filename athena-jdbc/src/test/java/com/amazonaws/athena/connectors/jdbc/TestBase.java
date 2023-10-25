@@ -24,6 +24,7 @@ import org.mockito.stubbing.Answer;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Struct;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -75,6 +76,26 @@ public class TestBase
             else {
                 throw new RuntimeException("Unexpected argument type " + argument.getClass());
             }
+        });
+
+
+        Mockito.when(resultSet.getObject(any())).thenAnswer((Answer<Struct>) invocation -> {
+            Struct structObj = Mockito.mock(Struct.class);
+            Object argument = invocation.getArguments()[0];
+            Mockito.when(structObj.getAttributes()).thenAnswer((Answer<Object[]>) invocation2 -> {
+                if (argument instanceof Integer) {
+                    int colIndex = (Integer) argument - 1;
+                    return (Object[]) rows[rowNumber.get()][colIndex];
+                }
+                else if (argument instanceof String) {
+                    int colIndex = Arrays.asList(columnNames).indexOf(argument);
+                    return (Object[]) rows[rowNumber.get()][colIndex];
+                }
+                else {
+                    throw new RuntimeException("Unexpected argument type " + argument.getClass());
+                }
+            });
+            return structObj;
         });
 
 
