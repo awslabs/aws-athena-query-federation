@@ -63,6 +63,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
@@ -169,11 +170,13 @@ public class MetricsMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
         List<TableName> tables = new ArrayList<>();
         TABLES.keySet().stream().forEach(next -> tables.add(new TableName(SCHEMA_NAME, next)));
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
+        int startToken = request.getNextToken() == null ? 0 : Integer.parseInt(request.getNextToken());
+        int nextToken = startToken + request.getPageSize();
+        return new ListTablesResponse(request.getCatalogName(), tables.stream().skip(startToken).limit(request.getPageSize()).collect(Collectors.toList()), Integer.toString(nextToken));
     }
 
     /**
