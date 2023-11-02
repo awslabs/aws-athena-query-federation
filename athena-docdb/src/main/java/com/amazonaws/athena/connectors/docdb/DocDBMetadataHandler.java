@@ -44,7 +44,6 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCursor;
 import org.apache.arrow.util.VisibleForTesting;
@@ -56,6 +55,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * Handles metadata requests for the Athena DocumentDB Connector.
@@ -168,22 +170,20 @@ public class DocDBMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
         MongoClient client = getOrCreateConn(request);
+        List<TableName> tableNames = doListTablesWithCommand(client, request);
 
-        try (MongoCursor<String> itr = client.getDatabase(request.getSchemaName()).listCollectionNames().iterator()) {
-            List<TableName> tables = new ArrayList<>();
-            while (itr.hasNext()) {
-                tables.add(new TableName(request.getSchemaName(), itr.next()));
-            }
+        int startToken = request.getNextToken() != null ? Integer.parseInt(request.getNextToken()) : 0;
+        int pageSize = request.getPageSize();
+        String nextToken = null;
 
-            return new ListTablesResponse(request.getCatalogName(), tables, null);
+        if (pageSize != UNLIMITED_PAGE_SIZE_VALUE) {
+            logger.info("Starting at token {} w/ page size {}", startToken, pageSize);
+            tableNames = tableNames.stream().skip(startToken).limit(request.getPageSize()).collect(Collectors.toList());
+            nextToken = Integer.toString(startToken + pageSize);
+            logger.info("Pagination returned {} tables. Next token is {}", tableNames.size(), nextToken);
         }
-        catch (MongoCommandException mongoCommandException) {
-            //do this in failed case instead of replace method in case API changes on doc db.
-            logger.warn("Exception on listCollectionNames on Mongo JAVA client, trying with mongo command line.", mongoCommandException);
-            List<TableName> tableNames = doListTablesWithCommand(client, request);
 
-            return new ListTablesResponse(request.getCatalogName(), tableNames.isEmpty() ? ImmutableList.of() : tableNames, null);
-        }
+        return new ListTablesResponse(request.getCatalogName(), tableNames.isEmpty() ? ImmutableList.of() : tableNames, nextToken);
     }
 
     /**
@@ -212,7 +212,8 @@ public class DocDBMetadataHandler
     {
         logger.debug("doListTablesWithCommand Start");
         List<TableName> tables = new ArrayList<>();
-        Document document = client.getDatabase(request.getSchemaName()).runCommand(new Document("listCollections", 1).append("nameOnly", true).append("authorizedCollections", true));
+        Document queryDocument = new Document("listCollections", 1).append("nameOnly", true).append("authorizedCollections", true);
+        Document document = client.getDatabase(request.getSchemaName()).runCommand(queryDocument);
 
         List<Document> list = ((Document) document.get("cursor")).getList("firstBatch", Document.class);
         for (Document doc : list) {

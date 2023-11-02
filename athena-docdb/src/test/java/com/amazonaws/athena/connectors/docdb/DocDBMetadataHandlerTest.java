@@ -46,6 +46,7 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import net.jqwik.api.Table;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -62,10 +63,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -149,13 +148,21 @@ public class DocDBMetadataHandlerTest
         tableNames.add("table2");
         tableNames.add("table3");
 
+        Document tableNamesDocument = new Document("cursor",
+                new Document("firstBatch",
+                        Arrays.asList(new Document("name", "table1"),
+                                new Document("name", "table2"),
+                                new Document("name", "table3"))));
+
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
-        when(mockDatabase.listCollectionNames()).thenReturn(StubbingCursor.iterate(tableNames));
+        when(mockDatabase.runCommand(any())).thenReturn(tableNamesDocument);
 
         ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, DEFAULT_SCHEMA,
                 null, UNLIMITED_PAGE_SIZE_VALUE);
+
         ListTablesResponse res = handler.doListTables(allocator, req);
+
         logger.info("doListTables - {}", res.getTables());
 
         for (TableName next : res.getTables()) {
