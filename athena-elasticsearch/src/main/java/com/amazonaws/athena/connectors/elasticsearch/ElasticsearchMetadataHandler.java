@@ -60,6 +60,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+
 /**
  * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
  * in your Elasticsearch instance. Additionally, this class tells Athena how to split up reads against this source.
@@ -189,7 +191,16 @@ public class ElasticsearchMetadataHandler
         List<TableName> tableNames = Stream.concat(indicesStream, getDataStreamNames(client))
                 .map(tableName -> new TableName(request.getSchemaName(), tableName))
                 .collect(Collectors.toList());
-        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
+
+        int startToken = request.getNextToken() == null ? 0 : Integer.parseInt(request.getNextToken());
+        String nextToken = request.getPageSize() != UNLIMITED_PAGE_SIZE_VALUE ? Integer.toString(startToken + request.getPageSize()) : null;
+
+        if (request.getPageSize() != UNLIMITED_PAGE_SIZE_VALUE) {
+            tableNames = tableNames.stream().skip(startToken).limit(request.getPageSize()).collect(Collectors.toList());
+            logger.info("{} tables returned from start token, {}, to end token, {}", tableNames.size(), startToken, nextToken);
+        }
+
+        return new ListTablesResponse(request.getCatalogName(), tableNames, nextToken);
     }
 
     /**
