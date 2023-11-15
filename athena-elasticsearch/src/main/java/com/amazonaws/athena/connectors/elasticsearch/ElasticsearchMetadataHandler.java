@@ -188,8 +188,7 @@ public class ElasticsearchMetadataHandler
                 .filter(index -> !index.startsWith("."));
 
         //combine two different data sources and create tables
-        Stream<TableName> tableNamesStream = Stream.concat(indicesStream, getDataStreamNames(client)).sorted()
-                .map(tableName -> new TableName(request.getSchemaName(), tableName));
+        Stream<String> tableNamesStream = Stream.concat(indicesStream, getDataStreamNames(client)).sorted();
 
         int startToken = request.getNextToken() == null ? 0 : Integer.parseInt(request.getNextToken());
         int pageSize = request.getPageSize();
@@ -205,7 +204,7 @@ public class ElasticsearchMetadataHandler
             logger.info("NO pagination is enabled");
         }
 
-        List<TableName> tableNames = tableNamesStream.collect(Collectors.toList());
+        List<TableName> tableNames = tableNamesStream.map(tableName -> new TableName(request.getSchemaName(), tableName)).collect(Collectors.toList());
 
         return new ListTablesResponse(request.getCatalogName(), tableNames, nextToken);
     }
