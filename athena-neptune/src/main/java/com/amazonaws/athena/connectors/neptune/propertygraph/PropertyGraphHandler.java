@@ -27,7 +27,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.neptune.Constants;
 import com.amazonaws.athena.connectors.neptune.Enums.TableSchemaMetaType;
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
-import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.TableSchemaMetaType;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.CustomSchemaRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.EdgeRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.VertexRowWriter;
