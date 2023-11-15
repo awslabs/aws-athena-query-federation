@@ -67,6 +67,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+
 /**
  * Abstracts JDBC metadata handler and provides common reusable metadata handling.
  */
@@ -76,6 +78,7 @@ public abstract class JdbcMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
     private static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
     private static final int DEFAULT_NUM_SPLITS = 20;
+    public static final String TABLES_AND_VIEWS = "Tables and Views";
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final SplitterFactory splitterFactory = new SplitterFactory();
@@ -163,9 +166,27 @@ public abstract class JdbcMetadataHandler
         try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
                     listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-            return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                    listTables(connection, listTablesRequest.getSchemaName()), null);
+
+            String token = listTablesRequest.getNextToken();
+            int pageSize = listTablesRequest.getPageSize();
+
+            if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) { // perform no pagination
+                LOGGER.info("doListTables - NO pagination");
+                return new ListTablesResponse(listTablesRequest.getCatalogName(), listTables(connection, listTablesRequest.getSchemaName()), null);
+            }
+
+            LOGGER.info("doListTables - pagination");
+            return listPaginatedTables(connection, listTablesRequest);
         }
+    }
+
+    protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    {
+        // no-op is call listTables
+        // override this function to implement pagination
+        LOGGER.debug("Request is asking for pagination, but pagination has not been implemented");
+        return new ListTablesResponse(listTablesRequest.getCatalogName(),
+                listTables(connection, listTablesRequest.getSchemaName()), null);
     }
 
     protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
