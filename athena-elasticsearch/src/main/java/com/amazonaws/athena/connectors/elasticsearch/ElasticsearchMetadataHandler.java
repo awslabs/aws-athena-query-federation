@@ -200,9 +200,6 @@ public class ElasticsearchMetadataHandler
             nextToken = Integer.toString(startToken + pageSize);
             logger.info("Next token is {}", nextToken);
         }
-        else {
-            logger.info("NO pagination is enabled");
-        }
 
         List<TableName> tableNames = tableNamesStream.map(tableName -> new TableName(request.getSchemaName(), tableName)).collect(Collectors.toList());
 
