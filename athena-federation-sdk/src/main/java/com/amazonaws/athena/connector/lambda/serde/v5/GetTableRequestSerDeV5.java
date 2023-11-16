@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v5;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -25,6 +25,9 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.MetadataRequestDeserializer;
+import com.amazonaws.athena.connector.lambda.serde.v2.MetadataRequestSerializer;
+import com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -37,12 +40,12 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public final class GetTableRequestSerDe
+public final class GetTableRequestSerDeV5
 {
     private static final String TABLE_NAME_FIELD = "tableName";
     private static final String QUERY_PASSTHROUGH_ARGUMENTS = "queryPassthroughArguments";
 
-    private GetTableRequestSerDe() {}
+    private GetTableRequestSerDeV5() {}
 
     public static final class Serializer extends MetadataRequestSerializer
     {
@@ -64,9 +67,7 @@ public final class GetTableRequestSerDe
 
             jgen.writeFieldName(TABLE_NAME_FIELD);
             tableNameSerializer.serialize(getTableRequest.getTableName(), jgen, provider);
-            if (!getTableRequest.getQueryPassthroughArguments().isEmpty()) {
-                writeStringMap(jgen, QUERY_PASSTHROUGH_ARGUMENTS, getTableRequest.getQueryPassthroughArguments());
-            }
+            writeStringMap(jgen, QUERY_PASSTHROUGH_ARGUMENTS, getTableRequest.getQueryPassthroughArguments());
         }
     }
 
@@ -89,14 +90,11 @@ public final class GetTableRequestSerDe
             assertFieldName(jparser, TABLE_NAME_FIELD);
             TableName tableName = tableNameDeserializer.deserialize(jparser, ctxt);
 
-            // This will insure backward compatibility given that QPT arguments are optional
             Map<String, String> queryPassthroughArguments = new HashMap<>();
-            if (jparser.nextToken() == JsonToken.FIELD_NAME
-                    && jparser.getCurrentName().equals(QUERY_PASSTHROUGH_ARGUMENTS)) {
-                validateObjectStart(jparser.nextToken());
-                while (jparser.nextToken() != JsonToken.END_OBJECT) {
-                    queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
-                }
+            assertFieldName(jparser, QUERY_PASSTHROUGH_ARGUMENTS);
+            validateObjectStart(jparser.nextToken());
+            while (jparser.nextToken() != JsonToken.END_OBJECT) {
+                queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
             }
 
             GetTableRequest getTableRequest = new GetTableRequest(identity, queryId, catalogName, tableName);

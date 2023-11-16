@@ -39,6 +39,10 @@ public enum MetadataRequestType
      * For fetching a table's metadata including schema and partition columns.
      */
     GET_TABLE,
+    /**
+     * For fetching a Query Passthrough metadata including schema.
+     */
+    GET_QUERY_PASSTHROUGH_SCHEMA,
 
     /**
      * For fetching a table's partitioning layout.
