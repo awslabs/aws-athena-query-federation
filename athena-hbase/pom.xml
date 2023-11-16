@@ -10,7 +10,7 @@
     <version>2022.47.1</version>
     <properties>
         <jetty.version>11.0.16</jetty.version>
-        <hbase.version>2.5.5-hadoop3</hbase.version>
+        <hbase.version>2.5.6-hadoop3</hbase.version>
     </properties>
     <dependencies>
         <dependency>
@@ -54,7 +54,7 @@
         <dependency>
             <groupId>org.apache.directory.server</groupId>
             <artifactId>apacheds-kerberos-codec</artifactId>
-            <version>2.0.0.AM26</version>
+            <version>2.0.0.AM27</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.directory.api</groupId>

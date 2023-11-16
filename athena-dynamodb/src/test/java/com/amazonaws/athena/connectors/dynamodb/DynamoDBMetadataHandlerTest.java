@@ -108,8 +108,7 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -237,6 +236,17 @@ public class DynamoDBMetadataHandlerTest
 
 
         assertThat(new HashSet<>(res.getTables()), equalTo(new HashSet<>(expectedTables)));
+    }
+
+    @Test
+    public void doListPaginatedTables()
+            throws Exception
+    {
+        ListTablesRequest req = new ListTablesRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, DEFAULT_SCHEMA,
+                null, 2);
+        ListTablesResponse res = handler.doListTables(allocator, req);
+        assertThat(res.getNextToken(), not(equalTo(null)));
+        assertThat(res.getTables().size(), equalTo(2));
     }
 
     @Test

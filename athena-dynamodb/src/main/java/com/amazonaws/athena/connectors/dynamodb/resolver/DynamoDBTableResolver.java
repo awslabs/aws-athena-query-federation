@@ -2,14 +2,14 @@
  * #%L
  * athena-dynamodb
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb.resolver;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -39,9 +39,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * This class helps with resolving the differences in casing between DynamoDB and Presto. Presto expects all
@@ -71,29 +70,30 @@ public class DynamoDBTableResolver
      *
      * @return the list of tables in DynamoDB
      */
-    public List<TableName> listTables()
+    public DynamoDBPaginatedTables listTables(String token, int pageSize)
             throws TimeoutException
     {
-        return listTablesInternal().stream()
-                .map(table -> table.toLowerCase(Locale.ENGLISH)) // lowercase for compatibility
-                .map(table -> new TableName(DEFAULT_SCHEMA, table))
-                .collect(Collectors.toList());
+        return listPaginatedTables(token, pageSize);
     }
 
-    private List<String> listTablesInternal()
-            throws TimeoutException
+    private DynamoDBPaginatedTables listPaginatedTables(String token, int pageSize) throws TimeoutException
     {
         List<String> tables = new ArrayList<>();
-        String nextToken = null;
+        String nextToken = token;
+        int limit = pageSize;
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            limit = 100;
+        }
         do {
             ListTablesRequest ddbRequest = new ListTablesRequest()
-                    .withExclusiveStartTableName(nextToken);
+                    .withExclusiveStartTableName(nextToken).withLimit(limit);
             ListTablesResult result = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
             tables.addAll(result.getTableNames());
             nextToken = result.getLastEvaluatedTableName();
         }
-        while (nextToken != null);
-        return tables;
+        while (nextToken != null && pageSize == UNLIMITED_PAGE_SIZE_VALUE);
+        logger.info("{} tables returned with pagination", tables.size());
+        return new DynamoDBPaginatedTables(tables, nextToken);
     }
 
     /**
@@ -155,7 +155,8 @@ public class DynamoDBTableResolver
     {
         logger.info("Table {} not found.  Falling back to case insensitive search.", tableName);
         Multimap<String, String> lowerCaseNameMapping = ArrayListMultimap.create();
-        for (String nextTableName : listTablesInternal()) {
+        List<String> tableNames = listPaginatedTables(null, UNLIMITED_PAGE_SIZE_VALUE).getTables();
+        for (String nextTableName : tableNames) {
             lowerCaseNameMapping.put(nextTableName.toLowerCase(Locale.ENGLISH), nextTableName);
         }
         Collection<String> mappedNames = lowerCaseNameMapping.get(tableName);
