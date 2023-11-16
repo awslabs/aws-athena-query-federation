@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.handlers.SerDeVersion;
 import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
 import com.amazonaws.athena.connector.lambda.serde.v3.ObjectMapperFactoryV3;
 import com.amazonaws.athena.connector.lambda.serde.v4.ObjectMapperFactoryV4;
+import com.amazonaws.athena.connector.lambda.serde.v5.ObjectMapperFactoryV5;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -62,6 +63,8 @@ public class VersionedObjectMapperFactory
                 return ObjectMapperFactoryV3.create(allocator);
             case 4:
                 return ObjectMapperFactoryV4.create(allocator);
+            case 5:
+                return ObjectMapperFactoryV5.create(allocator);
             default:
                 throw new IllegalArgumentException("No serde version " + version);
         }

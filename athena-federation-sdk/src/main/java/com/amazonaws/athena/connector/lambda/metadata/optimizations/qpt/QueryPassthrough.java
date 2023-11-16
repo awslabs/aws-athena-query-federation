@@ -59,8 +59,8 @@ public enum QueryPassthrough {
         return new AbstractMap.SimpleImmutableEntry<>(this.getSignature(), Arrays.asList(new OptimizationSubType(name, Collections.emptyList())));
     }
 
-    public final Map.Entry<String, List<OptimizationSubType>> withArguments(String... arguments)
+    public final Map.Entry<String, List<OptimizationSubType>> withArguments(List<String> arguments)
     {
-        return new AbstractMap.SimpleImmutableEntry<>(this.getSignature(), Arrays.asList(new OptimizationSubType(this.getSignature(), Arrays.asList(arguments))));
+        return new AbstractMap.SimpleImmutableEntry<>(this.getSignature(), Arrays.asList(new OptimizationSubType(this.getSignature(), arguments)));
     }
 }

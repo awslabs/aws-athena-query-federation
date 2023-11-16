@@ -552,7 +552,7 @@ public abstract class MetadataHandler
     }
 
     /**
-     * Helper function that provides a single partition for QPT
+     * Helper function that provides a single partition for Query Pass-Through
      *
      */
     protected GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)

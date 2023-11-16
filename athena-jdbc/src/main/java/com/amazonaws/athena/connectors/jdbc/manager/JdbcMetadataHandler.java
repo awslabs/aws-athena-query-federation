@@ -36,10 +36,12 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.qpt.QueryPassthroughSignature;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.RdsSecretsCredentialProvider;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
 import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -226,18 +228,21 @@ public abstract class JdbcMetadataHandler
     public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
             throws Exception
     {
-        //todo; each connector needs to make sure that they validate the QPT arguments they passed
-        //      to define what arguments they are expecting
-        if (!getTableRequest.isQueryPassthrough() || !getTableRequest.getQueryPassthroughArguments().containsKey("QUERY")) {
+        if (!getTableRequest.isQueryPassthrough()) {
             throw new IllegalArgumentException("No Query passed through [{}]" + getTableRequest);
         }
 
-        String query = getTableRequest.getQueryPassthroughArguments().get("QUERY");
+        JdbcQueryPassthrough qpt = JdbcQueryPassthrough.getInstance();
+        QueryPassthroughSignature.verifyQueryPassthroughArguments(
+                getTableRequest.getQueryPassthroughArguments(), qpt.arguments());
+        //For JDBC; generally speaking we only have one argument; namely "QUERY" -- Other connectors might need more
+        String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(qpt.getQueryArgument());
+
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
             ResultSetMetaData metadata = preparedStatement.getMetaData();
             if (metadata == null) {
-                throw new UnsupportedOperationException("Query not supported: ResultSetMetaData not available for query: " + query);
+                throw new UnsupportedOperationException("Query not supported: ResultSetMetaData not available for query: " + customerPassedQuery);
             }
             SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
