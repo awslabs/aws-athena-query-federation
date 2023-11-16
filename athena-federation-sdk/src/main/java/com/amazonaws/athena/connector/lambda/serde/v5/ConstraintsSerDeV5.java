@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v4;
+package com.amazonaws.athena.connector.lambda.serde.v5;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
@@ -41,7 +41,7 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public final class ConstraintsSerDeV4
+public final class ConstraintsSerDeV5
 {
     private static final String SUMMARY_FIELD = "summary";
     private static final String EXPRESSION_FIELD = "expression";
@@ -49,7 +49,7 @@ public final class ConstraintsSerDeV4
     private static final String LIMIT_FIELD = "limit";
     private static final String QUERY_PASSTHROUGH_ARGUMENTS = "queryPassthroughArguments";
 
-    private ConstraintsSerDeV4() {}
+    private ConstraintsSerDeV5() {}
 
     public static final class Serializer extends BaseSerializer<Constraints> implements VersionedSerDe.Serializer<Constraints>
     {
@@ -90,9 +90,8 @@ public final class ConstraintsSerDeV4
             jgen.writeEndArray();
 
             jgen.writeNumberField(LIMIT_FIELD, constraints.getLimit());
-            if (constraints.isQueryPassThrough()) {
-                writeStringMap(jgen, QUERY_PASSTHROUGH_ARGUMENTS, constraints.getQueryPassthroughArguments());
-            }
+
+            writeStringMap(jgen, QUERY_PASSTHROUGH_ARGUMENTS, constraints.getQueryPassthroughArguments());
         }
     }
 
@@ -144,14 +143,11 @@ public final class ConstraintsSerDeV4
 
             long limit = getNextLongField(jparser, LIMIT_FIELD);
 
-            // This will insure backward compatibility given that QPT arguments are optional
             Map<String, String> queryPassthroughArguments = new HashMap<>();
-            if (jparser.nextToken() == JsonToken.FIELD_NAME
-                    && jparser.getCurrentName().equals(QUERY_PASSTHROUGH_ARGUMENTS)) {
-                validateObjectStart(jparser.nextToken());
-                while (jparser.nextToken() != JsonToken.END_OBJECT) {
-                    queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
-                }
+            assertFieldName(jparser, QUERY_PASSTHROUGH_ARGUMENTS);
+            validateObjectStart(jparser.nextToken());
+            while (jparser.nextToken() != JsonToken.END_OBJECT) {
+                queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
             }
 
             Constraints constraints = new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit);

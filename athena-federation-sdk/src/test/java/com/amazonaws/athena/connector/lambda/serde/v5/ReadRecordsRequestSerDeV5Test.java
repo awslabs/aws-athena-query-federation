@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v4;
+package com.amazonaws.athena.connector.lambda.serde.v5;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -62,11 +62,10 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequest>
+public class ReadRecordsRequestSerDeV5Test extends TypedSerDeTest<FederationRequest>
 {
-    private static final Logger logger = LoggerFactory.getLogger(ReadRecordsRequestSerDeV4Test.class);
+    private static final Logger logger = LoggerFactory.getLogger(ReadRecordsRequestSerDeV5Test.class);
 
     @Before
     public void beforeTest()
@@ -150,7 +149,7 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
                 100_000_000_000L);
 
 
-        String expectedSerDeFile = utils.getResourceOrFail("serde/v4", "ReadRecordsRequest.json");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v5", "ReadRecordsRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
     }
 
@@ -161,7 +160,7 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
         logger.info("serialize: enter");
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        mapperV4.writeValue(outputStream, expected);
+        mapperV5.writeValue(outputStream, expected);
 
         String actual = new String(outputStream.toByteArray(), JsonEncoding.UTF8.getJavaName());
         logger.info("serialize: serialized text[{}]", actual);
@@ -179,7 +178,7 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
         logger.info("deserialize: enter");
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
 
-        ReadRecordsRequest actual = (ReadRecordsRequest) mapperV4.readValue(input, FederationRequest.class);
+        ReadRecordsRequest actual = (ReadRecordsRequest) mapperV5.readValue(input, FederationRequest.class);
 
         logger.info("deserialize: deserialized[{}]", actual);
 

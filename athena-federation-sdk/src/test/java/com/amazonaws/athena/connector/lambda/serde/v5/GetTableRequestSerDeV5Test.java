@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v5;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -37,9 +37,9 @@ import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 
-public class GetTableRequestSerDeTest extends TypedSerDeTest<FederationRequest>
+public class GetTableRequestSerDeV5Test extends TypedSerDeTest<FederationRequest>
 {
-    private static final Logger logger = LoggerFactory.getLogger(GetTableRequestSerDeTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(GetTableRequestSerDeV5Test.class);
 
     @Before
     public void beforeTest()
@@ -50,7 +50,7 @@ public class GetTableRequestSerDeTest extends TypedSerDeTest<FederationRequest>
         queryPassthroughArguments.put("query", "SELECT * FROM DUMMY_TABLE;");
         ((GetTableRequest)expected).setQueryPassthroughArguments(queryPassthroughArguments);
 
-        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "GetTableRequest.json");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v5", "GetTableRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
     }
 
@@ -61,7 +61,7 @@ public class GetTableRequestSerDeTest extends TypedSerDeTest<FederationRequest>
         logger.info("serialize: enter");
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        mapper.writeValue(outputStream, expected);
+        mapperV5.writeValue(outputStream, expected);
 
         String actual = new String(outputStream.toByteArray(), JsonEncoding.UTF8.getJavaName());
         logger.info("serialize: serialized text[{}]", actual);
@@ -78,7 +78,7 @@ public class GetTableRequestSerDeTest extends TypedSerDeTest<FederationRequest>
         logger.info("deserialize: enter");
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
 
-        GetTableRequest actual = (GetTableRequest) mapper.readValue(input, FederationRequest.class);
+        GetTableRequest actual = (GetTableRequest) mapperV5.readValue(input, FederationRequest.class);
 
         logger.info("deserialize: deserialized[{}]", actual);
 
