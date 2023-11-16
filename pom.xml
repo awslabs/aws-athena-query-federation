@@ -4,7 +4,7 @@
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
-    <version>2022.47.1-arfaraj-qpt-1</version>
+    <version>2022.47.1</version>
     <name>AWS Athena Query Federation</name>
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
@@ -87,40 +87,40 @@
         <module>athena-federation-sdk</module>
         <module>athena-federation-sdk-tools</module>
         <module>athena-federation-integ-test</module>
-        <!--        <module>athena-cloudwatch</module>-->
-        <!--        <module>athena-cloudwatch-metrics</module>-->
-                <module>athena-dynamodb</module>
-        <!--        <module>athena-aws-cmdb</module>-->
-        <!--        <module>athena-docdb</module>-->
-        <!--        <module>athena-redis</module>-->
-        <!--        <module>athena-hbase</module>-->
-        <!--        <module>athena-example</module>-->
-        <!--        <module>athena-elasticsearch</module>-->
-        <!--        <module>athena-tpcds</module>-->
+        <module>athena-cloudwatch</module>
+        <module>athena-cloudwatch-metrics</module>
+        <module>athena-dynamodb</module>
+        <module>athena-aws-cmdb</module>
+        <module>athena-docdb</module>
+        <module>athena-redis</module>
+        <module>athena-hbase</module>
+        <module>athena-example</module>
+        <module>athena-elasticsearch</module>
+        <module>athena-tpcds</module>
         <module>athena-jdbc</module>
         <module>athena-mysql</module>
-        <!--        <module>athena-postgresql</module>-->
-        <!--        <module>athena-redshift</module>-->
-        <!--        <module>athena-udfs</module>-->
-        <!--        <module>athena-vertica</module>-->
-        <!--        <module>athena-timestream</module>-->
-        <!--        <module>athena-neptune</module>-->
-        <!--        <module>athena-google-bigquery</module>-->
-        <!--        <module>athena-oracle</module>-->
-        <!--        <module>athena-sqlserver</module>-->
-        <!--        <module>athena-synapse</module>-->
-        <!--        <module>athena-datalakegen2</module>-->
-        <!--        <module>athena-snowflake</module>-->
-        <!--        <module>athena-teradata</module>-->
-        <!--        <module>athena-saphana</module>-->
-        <!--        <module>athena-cloudera-hive</module>-->
-        <!--        <module>athena-cloudera-impala</module>-->
-        <!--        <module>athena-hortonworks-hive</module>-->
-        <!--        <module>athena-db2</module>-->
-        <!--        <module>athena-db2-as400</module>-->
-        <!--        <module>athena-msk</module>-->
-        <!--        <module>athena-kafka</module>-->
-        <!--        <module>athena-gcs</module>-->
+        <module>athena-postgresql</module>
+        <module>athena-redshift</module>
+        <module>athena-udfs</module>
+        <module>athena-vertica</module>
+        <module>athena-timestream</module>
+        <module>athena-neptune</module>
+        <module>athena-google-bigquery</module>
+        <module>athena-oracle</module>
+        <module>athena-sqlserver</module>
+        <module>athena-synapse</module>
+        <module>athena-datalakegen2</module>
+        <module>athena-snowflake</module>
+        <module>athena-teradata</module>
+        <module>athena-saphana</module>
+        <module>athena-cloudera-hive</module>
+        <module>athena-cloudera-impala</module>
+        <module>athena-hortonworks-hive</module>
+        <module>athena-db2</module>
+        <module>athena-db2-as400</module>
+        <module>athena-msk</module>
+        <module>athena-kafka</module>
+        <module>athena-gcs</module>
     </modules>
     <dependencies>
         <dependency>
@@ -392,16 +392,11 @@
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
-                                <phase>package</phase>
                                 <goals>
                                     <goal>jar-no-fork</goal>
                                 </goals>
                             </execution>
                         </executions>
-                        <configuration>
-                            <attach>true</attach>
-                            <skipSource>false</skipSource>
-                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>

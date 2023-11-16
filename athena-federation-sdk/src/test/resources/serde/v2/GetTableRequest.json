@@ -13,8 +13,5 @@
   "tableName" : {
     "schemaName" : "test-schema",
     "tableName" : "test-table"
-  },
-  "queryPassthroughArguments" : {
-    "query" : "SELECT * FROM DUMMY_TABLE;"
   }
 }
