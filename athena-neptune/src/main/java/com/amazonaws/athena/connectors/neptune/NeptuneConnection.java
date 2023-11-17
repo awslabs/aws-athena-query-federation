@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.neptune;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.SigV4WebSocketChannelizer;
+import org.apache.tinkerpop.gremlin.driver.Tokens;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -29,18 +30,19 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 public class NeptuneConnection
 {
     private static Cluster cluster = null;
-
+    private static Long queryExecutionTimeout = null;
     NeptuneConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM)
     {
         Cluster.Builder builder = Cluster.build();
         builder.addContactPoint(neptuneEndpoint)
                .port(Integer.parseInt(neptunePort))
                .enableSsl(true);
-               
+
         if (enabledIAM) {
             builder = builder.channelizer(SigV4WebSocketChannelizer.class);
         }
-        
+        queryExecutionTimeout = (System.getenv("query_execution_timeout") == null) ? null
+                : Long.parseLong(System.getenv("query_execution_timeout"));
         cluster = builder.create();
     }
 
@@ -52,7 +54,13 @@ public class NeptuneConnection
     public GraphTraversalSource getTraversalSource(Client client)
     {
         DriverRemoteConnection connection = DriverRemoteConnection.using(client);
-        return AnonymousTraversalSource.traversal().withRemote(connection);
+        GraphTraversalSource source = AnonymousTraversalSource.traversal().withRemote(connection);
+        if (queryExecutionTimeout != null) {
+          return source.with(Tokens.ARGS_EVAL_TIMEOUT, queryExecutionTimeout);
+        }
+        else {
+          return source;
+        }
     }
 
     void closeCluster()
