@@ -62,8 +62,7 @@ import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIF
 public class RedshiftMetadataHandler
         extends PostGreSqlMetadataHandler
 {
-    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ? ORDER BY \"TABLE_NAME\" LIMIT ? OFFSET ?";
-
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT a.\"TABLE_NAME\", a.\"TABLE_SCHEM\" FROM (( SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?) UNION (SELECT tablename as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" FROM svv_external_tables where schemaname = ?)) AS a ORDER BY a.\"TABLE_NAME\" LIMIT ? OFFSET ?";
     private static final Logger LOGGER = LoggerFactory.getLogger(RedshiftMetadataHandler.class);
 
     /**
@@ -134,9 +133,21 @@ public class RedshiftMetadataHandler
     {
         PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
         preparedStatement.setString(1, databaseName);
-        preparedStatement.setInt(2, limit);
-        preparedStatement.setInt(3, token);
+        preparedStatement.setString(2, databaseName);
+        preparedStatement.setInt(3, limit);
+        preparedStatement.setInt(4, token);
         LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
+    }
+
+    @Override
+    protected PreparedStatement getMaterializedViewOrExternalTable(Connection connection, String tableName, String databaseName) throws SQLException
+    {
+        String sql = "SELECT tablename as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" FROM svv_external_tables where schemaname = ? and lower(tablename) = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setString(2, tableName);
+        LOGGER.debug("Prepared statement for getting name of External Table with Case Insensitive Look Up: {}", preparedStatement);
+        return preparedStatement;
     }
 }
