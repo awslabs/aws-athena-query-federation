@@ -421,7 +421,7 @@ public class PostGreSqlMetadataHandler
     }
 
     /**
-     * Returns Materialized View for Postgresql Or External Tables for Redshift
+     * Returns Materialized View for Postgresql Or External Tables for Redshift - Case Insensitive
      * Note: Redshift maintain Materialized View in the normal schema metadata as regular tables;
      *       however maintains External Tables in a separate metadata tables
      * @param connection
