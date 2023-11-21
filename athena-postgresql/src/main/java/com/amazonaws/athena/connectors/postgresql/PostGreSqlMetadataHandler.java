@@ -341,7 +341,7 @@ public class PostGreSqlMetadataHandler
         if (resolvedTableName == null) {
             LOGGER.info(String.format("'%s' not found in case insensitive table look up. Looking for '%s' as case insensitive materialized view", tableName, tableName));
 
-            preparedStatement = getMaterializedViewCaseInsensitive(connection, tableName, resolvedSchemaName);
+            preparedStatement = getMaterializedViewOrExternalTable(connection, tableName, resolvedSchemaName);
             resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
             if (resolvedTableName == null) {
                 throw new RuntimeException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName));
@@ -375,7 +375,7 @@ public class PostGreSqlMetadataHandler
     @Override
     protected ArrowType getArrayArrowTypeFromTypeName(String typeName, int precision, int scale)
     {
-        switch(typeName) {
+        switch (typeName) {
             case "_bool":
                 return Types.MinorType.BIT.getType();
             case "_int2":
@@ -420,7 +420,17 @@ public class PostGreSqlMetadataHandler
         return JDBCUtil.getTableMetadata(preparedStatement, MATERIALIZED_VIEWS);
     }
 
-    protected PreparedStatement getMaterializedViewCaseInsensitive(Connection connection, String matviewname, String databaseName) throws SQLException
+    /**
+     * Returns Materialized View for Postgresql Or External Tables for Redshift - Case Insensitive
+     * Note: Redshift maintain Materialized View in the normal schema metadata as regular tables;
+     *       however maintains External Tables in a separate metadata tables
+     * @param connection
+     * @param matviewname
+     * @param databaseName
+     * @return Prepared Statement
+     * @throws SQLException
+     */
+    protected PreparedStatement getMaterializedViewOrExternalTable(Connection connection, String matviewname, String databaseName) throws SQLException
     {
         String sql = "select matviewname as \"TABLE_NAME\" from pg_catalog.pg_matviews mv where (matviewname = ? or lower(matviewname) = ?) and schemaname = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
