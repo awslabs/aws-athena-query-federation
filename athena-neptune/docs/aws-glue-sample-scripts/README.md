@@ -23,7 +23,7 @@
 
 
 <br/>
-Each table within the AWS Glue Catalog based database maps to one node/vertex or edge/relatoinship type within your Amazon Neptune Property Graph model. Each Column for a Table maps to one property of the graph node or edge with the corresponding datatypes.
+Each table within the AWS Glue Catalog based database maps to one node/vertex or edge/relationship type within your Amazon Neptune Property Graph model. Each Column for a Table maps to one property of the graph node or edge with the corresponding datatypes.
 
 
 > **New feature support - Custom Schema/Gremlin Query**
@@ -63,7 +63,6 @@ For more on creating tables for RDF data, see [RDF.md](RDF.md).
 
 
 
-<<<<<<< HEAD
 =======
 If you're planning to use your own data set instead of the Air Routes sample dataset, then you need to modify the script according to your data structure. 
 
