@@ -161,5 +161,3 @@ g.V().hasLabel("airport").as("s").out("route").as("d").project("source","destina
 Using custom query feature you can project output of a gremlin query directly. This helps to avoid the effort to write a lengthly sql query on the graph model. It also allows more control on how the table schema should be designed for analysis purpose. You can limit the number of records to retrieve in the gremlin query itself.
 
 
-
->>>>>>> parent/master
