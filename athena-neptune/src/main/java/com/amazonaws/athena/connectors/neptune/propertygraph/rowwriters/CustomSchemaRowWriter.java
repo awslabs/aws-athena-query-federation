@@ -28,7 +28,8 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extra
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
-import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.SpecialKeys;
+import com.amazonaws.athena.connectors.neptune.Constants;
+import com.amazonaws.athena.connectors.neptune.Enums.SpecialKeys;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
@@ -56,11 +57,11 @@ public final class CustomSchemaRowWriter
         // Empty private constructor
     }
 
-    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field) 
+    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field, java.util.Map<String, String> configOptions) 
     {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
-        Boolean enableCaseinsensitivematch = (System.getenv("enable_caseinsensitivematch") == null) ? true : Boolean.parseBoolean(System.getenv("enable_caseinsensitivematch"));
+        Boolean enableCaseinsensitivematch = (configOptions.get(Constants.SCHEMA_CASE_INSEN) == null) ? true : Boolean.parseBoolean(configOptions.get(Constants.SCHEMA_CASE_INSEN));
 
         switch (minorType) {
             case BIT:
