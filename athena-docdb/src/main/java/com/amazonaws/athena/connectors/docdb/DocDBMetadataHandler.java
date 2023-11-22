@@ -170,7 +170,7 @@ public class DocDBMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
         MongoClient client = getOrCreateConn(request);
-        Stream<String> tableNames = doListTablesWithCommand(client, request).stream().sorted();
+        Stream<String> tableNames = doListTablesWithCommand(client, request);
 
         int startToken = request.getNextToken() != null ? Integer.parseInt(request.getNextToken()) : 0;
         int pageSize = request.getPageSize();
@@ -209,7 +209,7 @@ public class DocDBMetadataHandler
      * @param request
      * @return
      */
-    private List<String> doListTablesWithCommand(MongoClient client, ListTablesRequest request)
+    private Stream<String> doListTablesWithCommand(MongoClient client, ListTablesRequest request)
     {
         logger.debug("doListTablesWithCommand Start");
         List<String> tables = new ArrayList<>();
@@ -217,11 +217,7 @@ public class DocDBMetadataHandler
         Document document = client.getDatabase(request.getSchemaName()).runCommand(queryDocument);
 
         List<Document> list = ((Document) document.get("cursor")).getList("firstBatch", Document.class);
-        for (Document doc : list) {
-            tables.add(doc.getString("name"));
-        }
-
-        return tables;
+        return list.stream().map(doc -> doc.getString("name")).sorted();
     }
 
     /**
