@@ -269,6 +269,9 @@ public abstract class JdbcMetadataHandler
 
             for (int columnIndex = 1; columnIndex <= metadata.getColumnCount(); columnIndex++) {
                 String columnName = metadata.getColumnName(columnIndex);
+                String columnLabel = metadata.getColumnLabel(columnIndex);
+                //todo; is there a mechanism to pass both back to the engine?
+                columnName = columnName.equals(columnLabel) ? columnName : columnLabel;
 
                 int precision = metadata.getPrecision(columnIndex);
                 int scale = metadata.getScale(columnIndex);
