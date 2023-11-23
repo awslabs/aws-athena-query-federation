@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.neptune.propertygraph;
+package com.amazonaws.athena.connectors.neptune;
 
 public class Enums 
 {

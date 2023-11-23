@@ -25,9 +25,10 @@ Parameters:
     Description: 'To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.'
     Type: String
   NeptuneGraphType:
-    Description: 'Type of graph created in Neptune, defaults to PROPERTYGRAPH. RDF support is yet to be implemented'
+    Description: 'Type of graph created in Neptune, defaults to PROPERTYGRAPH. Allowed values: PROPERTYGRAPH, RDF'
     Type: String
     Default: 'PROPERTYGRAPH'
+    AllowedValues: ["PROPERTYGRAPH", "RDF"]
   GlueDatabaseName:
     Description: 'Name of the Neptune cluster specific Glue Database that contains schemas of graph vertices'
     Type: String

@@ -23,9 +23,12 @@ Run through first three steps of Notebook Version, Configuration and Neptune clu
 
 You can skip the step that says "Using a different endpoint". It's applicable only if you want to use a different Neptune endpoint.
 
-Now let’s load some sample data into our Neptune cluster by using the “%seed” step, select “Data model” as “Property_Graph” and “Data set” as “airports” and click “Submit”. 
+Now let’s load some sample data into our Neptune cluster by using the “%seed” step. We will load airport data in both property graph and RDF. First select “Data model” as “Property_Graph” and “Data set” as “airports” and click “Submit”. 
 
 ![](./assets/Notebook-4.png)
 
 You can monitor the load status from the notebook itself. Once the data load is complete, you should see the “Done” status.
 ![](./assets/Notebook-5.png)
+
+Repeat the “%seed” step to load airport data in RDF form. Select “Data model” as “RDF” and “Data set” as “airports” and click “Submit”.  Wait for completion and check the status is "Done".
+
