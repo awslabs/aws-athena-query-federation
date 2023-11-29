@@ -25,7 +25,7 @@
         <assertj.version>3.24.2</assertj.version>
         <testng.version>7.8.0</testng.version>
         <fasterxml.jackson.version>2.15.3</fasterxml.jackson.version>
-        <surefire.failsafe.version>3.1.2</surefire.failsafe.version>
+        <surefire.failsafe.version>3.2.2</surefire.failsafe.version>
         <log4j2Version>2.21.1</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
         <netty.version>4.1.100.Final</netty.version>
