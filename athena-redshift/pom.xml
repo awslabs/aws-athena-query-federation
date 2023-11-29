@@ -37,7 +37,6 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-redshift</artifactId>
             <version>${aws-sdk.version}</version>
-            <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/redshift -->
         <dependency>
