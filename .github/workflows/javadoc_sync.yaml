@@ -5,8 +5,7 @@ on:
       - master
 jobs:
   build-and-deploy:
-    runs-on:
-      group: aws-athena-query-federation
+    runs-on: aws-athena-query-federation_ubuntu-latest_16-core
     steps:
       - name: Checkout
         uses: actions/checkout@v4

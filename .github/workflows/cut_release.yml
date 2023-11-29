@@ -6,8 +6,7 @@ on:
 jobs:
   cut_release:
     name: Cut a release
-    runs-on:
-      group: aws-athena-query-federation
+    runs-on: aws-athena-query-federation_ubuntu-latest_16-core
     steps:
       - name: Setup dependencies
         run: |
