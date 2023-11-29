@@ -121,6 +121,11 @@
             <version>${neptune.sigv4.signer.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-repository-sparql</artifactId>
+            <version>3.6.3</version>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j-log4j.version}</version>

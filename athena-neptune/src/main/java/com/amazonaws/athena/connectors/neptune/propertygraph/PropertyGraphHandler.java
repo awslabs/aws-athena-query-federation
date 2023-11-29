@@ -24,8 +24,9 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.neptune.Constants;
+import com.amazonaws.athena.connectors.neptune.Enums.TableSchemaMetaType;
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
-import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.TableSchemaMetaType;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.CustomSchemaRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.EdgeRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.VertexRowWriter;
@@ -106,8 +107,8 @@ public class PropertyGraphHandler
         GraphTraversal graphTraversal = null;
         String labelName = recordsRequest.getTableName().getTableName();
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
-        String type = recordsRequest.getSchema().getCustomMetadata().get("componenttype");
-        String glabel = recordsRequest.getSchema().getCustomMetadata().get("glabel");
+        String type = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_COMPONENT_TYPE);
+        String glabel = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_GLABEL);
         TableSchemaMetaType tableSchemaMetaType = TableSchemaMetaType.valueOf(type.toUpperCase());
 
         logger.debug("readWithConstraint: schema type is " + tableSchemaMetaType.toString());
@@ -144,11 +145,11 @@ public class PropertyGraphHandler
                     break;
                     
                 case VIEW: 
-                    String query = recordsRequest.getSchema().getCustomMetadata().get("query");
+                    String query = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_QUERY);
                     Iterator<Result> resultIterator = client.submit(query).iterator();
 
                     for (final Field nextField : recordsRequest.getSchema().getFields()) {
-                        CustomSchemaRowWriter.writeRowTemplate(builder, nextField);
+                        CustomSchemaRowWriter.writeRowTemplate(builder, nextField, configOptions);
                     }
 
                     final GeneratedRowWriter rowWriter = builder.build();

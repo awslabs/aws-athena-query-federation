@@ -101,11 +101,11 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         String spillPrefix,
         java.util.Map<String, String> configOptions)
     {
-        super(glue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
+        super(glue, keyFactory, awsSecretsManager, athena, Constants.SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.glue = glue;
         this.glueDBName = configOptions.get("glue_database_name");
     }
-
+    
     /**
      * Since the entire Neptune cluster is considered as a single graph database,
      * just return the glue database name provided as a single database (schema)
