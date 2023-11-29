@@ -24,8 +24,7 @@ jobs:
   CodeQL-Build:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
-    runs-on:
-      group: aws-athena-query-federation
+    runs-on: aws-athena-query-federation_ubuntu-latest_8-core
     permissions:
       security-events: write
     steps:
