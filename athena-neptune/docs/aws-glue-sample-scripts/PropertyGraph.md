@@ -1,69 +1,45 @@
+# Property Graph Glue Data Catalog Setup
 
-# Setup AWS Glue Catalog
+Column types for tables representing Property Graph nodes or edges map from node or edge property tables. As an example, if we have a node labelled “country” with properties “type”, “code” and “desc”.  In the Glue database, we will create a table named “country” with columns “type”, “code” and “desc”. Setup data types of the columns based on their data types in the property graph. 
 
-> **NOTE**
->
-> Create the Glue database and the corresponding tables within the same AWS Region as your Neptune cluster and where you intend to run this connector Lambda funciton.
+Refer to the diagram below:
 
-<br/>
+![](./assets/connector-propertygraph.png)
 
-> **Case sensitive graph labels**
->
-> When creating a Glue Table for Neptune, users should specify the following Glue Table parameter if their table name has casing (since Glue only supports lowercased table names):
-    "glabel" = &lt;GraphLabelName&gt;
-<br/>
+## Create AWS Glue Catalog Database and Tables
 
+AWS Glue Catalog Database and Tables can be created either by using [Amazon Neptune Export Configuration](#create-aws-glue-database-and-tables-using-amazon-neptune-export-configuration) or [Manually](#create-aws-glue-database-and-tables-manually). 
 
-> **New feature support - Custom Schema/Gremlin Query**
->
-> You can now create a custom schema and specify a gremlin query to fetch the data for the schema from the graph databases. This enhancement allows users to specify a gremlin query instead of doing table join operations to retrieve data. You can also put a limit on number of records you want to retrieve.  Go to custom query example section for details
+### Create AWS Glue Database and Tables using Amazon Neptune Export Configuration
 
+You can use the sample node.js script [here](./automation/script.js) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route corresponding to the Air Routes Property Graph sample dataset. The node.js script uses the Amazon Neptune export configuration file. There is a sample export configuration for the Air Routes sample dataset in the [folder](./automation).
 
-<br/>
+From inside the [folder](./automation), run these commands
 
+Install dependencies
 
-<br/>
-Each table within the AWS Glue Catalog based database maps to one node/vertex or edge/relationship type within your Amazon Neptune Property Graph model. Each Column for a Table maps to one property of the graph node or edge with the corresponding datatypes.
+```
+npm install
+```
 
+Make sure you have access to your AWS environment via CLI and Execute the script
 
-> **New feature support - Custom Schema/Gremlin Query**
->
-> You can now create a custom schema and specify a gremlin query to fetch the data for the schema from the graph databases. This enhancement allows users to specify a gremlin query instead of doing table join operations to retrieve data. You can also put a limit on number of records you want to retrieve.  Go to custom query example section for details
+```
+node script.js
 
-> **New feature support - RDF support**
->
-> You can now query RDF data using the connector
+```
+If you are using a different dataset make sure to replace the config.json with export output from your database. Refer [this](https://github.com/awslabs/amazon-neptune-tools/tree/master/neptune-export) for how to export configuration from Amazon Neptune database.  You have to download the source code and build it. Once you have built the neptune-export jar file, run the below command from machine where your Amazon Neptune cluster is accessible, to generated export configuration
 
+```
+bin/neptune-export.sh create-pg-config -e <neptuneclusterendpoint> -d <outputfolderpath>
 
+```
 
-<br/>
-Each table within the AWS Glue Catalog based database maps to:
-
-- One node/vertex or edge/relationship type within your Amazon Neptune Property Graph model
-- One resource or one SPARQL query result within your Amazon Neptune RDF model
-
-We support the following datatypes for table columns:
-        
-|Glue DataType|Apache Arrow Type|
-|-------------|-----------------|
-|int|INT|
-|bigint|BIGINT|
-|double|FLOAT8|
-|float|FLOAT4|
-|boolean|BIT|
-|binary|VARBINARY|
-|string|VARCHAR|
-|timestamp|DATEMILLI|
-
-<br/>
-
-For more on creating tables for property graph data, see [PropertyGraph.md](PropertyGraph.md).
-
-For more on creating tables for RDF data, see [RDF.md](RDF.md).
+### Create AWS Glue Database and Tables manually
 
 
+If you want to create database and tables manually, you can use the sample shell script [here](./manual/sample-cli-script.sh) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route  corresponding to the Air Routes Property Graph sample dataset. 
 
-=======
 If you're planning to use your own data set instead of the Air Routes sample dataset, then you need to modify the script according to your data structure. 
 
 Ensure to have the right executable permissions on the script once you download it.
@@ -159,5 +135,7 @@ g.V().hasLabel("airport").as("s").out("route").as("d").project("source","destina
 ###  Benefits
 
 Using custom query feature you can project output of a gremlin query directly. This helps to avoid the effort to write a lengthly sql query on the graph model. It also allows more control on how the table schema should be designed for analysis purpose. You can limit the number of records to retrieve in the gremlin query itself.
+
+
 
 

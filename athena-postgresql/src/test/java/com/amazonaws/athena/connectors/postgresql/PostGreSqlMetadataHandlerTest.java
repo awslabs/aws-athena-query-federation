@@ -33,6 +33,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -98,6 +100,40 @@ public class PostGreSqlMetadataHandlerTest
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
         this.postGreSqlMetadataHandler = new PostGreSqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+    }
+
+    @Test
+    public void doListPaginatedTables()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(PostGreSqlMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}};
+        TableName[] expected = {new TableName("testSchema", "testTable")};
+        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        ListTablesResponse listTablesResponse = this.postGreSqlMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", null, 1));
+        Assert.assertEquals("1", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(PostGreSqlMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        Object[][] nextValues = {{"testSchema", "testTable2"}};
+        TableName[] nextExpected = {new TableName("testSchema", "testTable2")};
+        ResultSet nextResultSet = mockResultSet(schema, nextValues, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(nextResultSet);
+
+        listTablesResponse = this.postGreSqlMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "1", 1));
+        Assert.assertEquals("2", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(nextExpected, listTablesResponse.getTables().toArray());
     }
 
     @Test
@@ -328,11 +364,23 @@ public class PostGreSqlMetadataHandlerTest
                 .forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
+        ResultSet caseInsensitiveSchemaResult = Mockito.mock(ResultSet.class);
+        String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
+        PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
+        preparedSchemaStatement.setString(1, "testschema");
+        preparedSchemaStatement.setString(2, "testschema");
+
+        String[] columnNames = new String[] {"schema_name"};
+        String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+        caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+
+        Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult);
+
         TableName inputTableName = new TableName("testSchema", "testtable");
-        String[] columnNames = new String[] {"table_name"};
-        String[][] tableNameValues = new String[][]{new String[] {"testTable"}};
+        columnNames = new String[] {"table_name"};
+        tableNameValues = new String[][]{new String[] {"testTable"}};
         ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
         preparedStatement.setString(1, "testtable");
         preparedStatement.setString(2, "testtable");
@@ -382,16 +430,29 @@ public class PostGreSqlMetadataHandlerTest
                .forEach(expectedSchemaBuilder::addField);
        Schema expected = expectedSchemaBuilder.build();
 
+       // Simulates table look up in information_schema.schemata and returns empty result set
+       ResultSet caseInsensitiveSchemaResult = Mockito.mock(ResultSet.class);
+       String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
+       PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
+       preparedSchemaStatement.setString(1, "testschema");
+       preparedSchemaStatement.setString(2, "testschema");
+
+       String[] columnNames = new String[] {"schema_name"};
+       String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+       caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+
+       Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult);
+
        // Simulates table look up in information_schema.tables and returns empty result set, because materialized views are stored separately
-       ResultSet resultSetName = Mockito.mock(ResultSet.class);
-       String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+       ResultSet caseInsensitiveTableResult = Mockito.mock(ResultSet.class);
+       sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
        PreparedStatement preparedStatement = connection.prepareStatement(sql);
        preparedStatement.setString(1, "testmatview");
        preparedStatement.setString(2, "testmatview");
        preparedStatement.setString(3, "testSchema");
 
-       Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
-       Mockito.when(resultSetName.next()).thenReturn(false);
+       Mockito.when(preparedStatement.executeQuery()).thenReturn(caseInsensitiveTableResult);
+       Mockito.when(caseInsensitiveTableResult.next()).thenReturn(false);
 
        // Simulates Materialized View look up in pg_catalog.pgmatviews system table
        sql = "select matviewname as \"TABLE_NAME\" from pg_catalog.pg_matviews mv where (matviewname = ? or lower(matviewname) = ?) and schemaname = ?";
@@ -401,11 +462,11 @@ public class PostGreSqlMetadataHandlerTest
        preparedStatement.setString(3, "testSchema");
 
        TableName inputTableName = new TableName("testSchema", "testmatview");
-       String[] columnNames = new String[] {"table_name"};
-       String[][] tableNameValues = new String[][]{new String[] {"testMatView"}};
-       resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-       
-       Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
+       columnNames = new String[] {"table_name"};
+       tableNameValues = new String[][]{new String[] {"testMatView"}};
+       caseInsensitiveTableResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+
+       Mockito.when(preparedStatement.executeQuery()).thenReturn(caseInsensitiveTableResult);
 
        String resolvedTableName = "testMatView";
 

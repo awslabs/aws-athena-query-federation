@@ -53,6 +53,7 @@ Conditions:
   HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
   NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  CreateKMSPolicy: !And [!Condition HasKMSKeyId, !Condition NotHasLambdaRole]
 
 Resources:
   ConnectorConfig:
@@ -140,7 +141,7 @@ Resources:
         - !Ref FunctionRole
 
   FunctionKMSPolicy:
-    Condition: HasKMSKeyId
+    Condition: CreateKMSPolicy
     Type: "AWS::IAM::Policy"
     Properties:
       PolicyName: FunctionKMSPolicy

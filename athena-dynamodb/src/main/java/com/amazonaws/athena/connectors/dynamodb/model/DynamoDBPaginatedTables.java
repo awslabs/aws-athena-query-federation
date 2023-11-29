@@ -1,15 +1,15 @@
 /*-
  * #%L
- * athena-neptune
+ * athena-dynamodb
  * %%
- * Copyright (C) 2019 - 2021 Amazon Web Services
+ * Copyright (C) 2019 - 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,19 +17,28 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.neptune.propertygraph;
+package com.amazonaws.athena.connectors.dynamodb.model;
 
-public class Enums 
+import java.util.List;
+
+public class DynamoDBPaginatedTables
 {
-    public enum SpecialKeys {
-        IN, OUT, ID
+    private List<String> tableNames;
+    private String token;
+
+    public DynamoDBPaginatedTables(List<String> tableNames, String token)
+    {
+        this.tableNames = tableNames;
+        this.token = token;
     }
 
-    public enum TableSchemaMetaType {
-        VERTEX, EDGE, VIEW
+    public List<String> getTables()
+    {
+        return this.tableNames;
     }
 
-    public enum GraphType{
-        PROPERTYGRAPH, RDF
+    public String getToken()
+    {
+        return this.token;
     }
 }

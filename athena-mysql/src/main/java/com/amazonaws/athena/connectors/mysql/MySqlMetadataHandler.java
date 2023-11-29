@@ -33,6 +33,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -64,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler.TABLES_AND_VIEWS;
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_DRIVER_CLASS;
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
@@ -83,6 +86,8 @@ public class MySqlMetadataHandler
     static final String PARTITION_COLUMN_NAME = "partition_name";
     private static final Logger LOGGER = LoggerFactory.getLogger(MySqlMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
+
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ? ORDER BY TABLE_NAME LIMIT ?, ?";
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -215,11 +220,38 @@ public class MySqlMetadataHandler
         return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
     }
 
+    @VisibleForTesting
+    protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int token, int limit) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setInt(2, token);
+        preparedStatement.setInt(3, limit);
+        LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
+    }
+
+    @Override
+    protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    {
+        String token = listTablesRequest.getNextToken();
+        int pageSize = listTablesRequest.getPageSize();
+
+        int t = token != null ? Integer.parseInt(token) : 0;
+
+        LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
+
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
+    }
+
     @Override
     protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
             throws SQLException
     {
         // Gets list of Tables and Views using Information Schema.tables
+
         return JDBCUtil.getTables(jdbcConnection, databaseName);
     }
 

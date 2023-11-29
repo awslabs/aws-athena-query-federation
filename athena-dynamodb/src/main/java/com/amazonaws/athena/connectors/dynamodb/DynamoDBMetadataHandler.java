@@ -2,7 +2,7 @@
  * #%L
  * athena-dynamodb
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
+import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBTableResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
@@ -75,6 +76,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -137,8 +139,8 @@ public class DynamoDBMetadataHandler
     {
         super(SOURCE_TYPE, configOptions);
         this.ddbClient = AmazonDynamoDBClientBuilder.standard()
-            .withCredentials(CrossAccountCredentialsProvider.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
-            .build();
+                .withCredentials(CrossAccountCredentialsProvider.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
+                .build();
         this.glueClient = getAwsGlue();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
@@ -146,14 +148,14 @@ public class DynamoDBMetadataHandler
 
     @VisibleForTesting
     DynamoDBMetadataHandler(
-        EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
-        String spillBucket,
-        String spillPrefix,
-        AmazonDynamoDB ddbClient,
-        AWSGlue glueClient,
-        java.util.Map<String, String> configOptions)
+            EncryptionKeyFactory keyFactory,
+            AWSSecretsManager secretsManager,
+            AmazonAthena athena,
+            String spillBucket,
+            String spillPrefix,
+            AmazonDynamoDB ddbClient,
+            AWSGlue glueClient,
+            java.util.Map<String, String> configOptions)
     {
         super(glueClient, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.glueClient = glueClient;
@@ -194,7 +196,7 @@ public class DynamoDBMetadataHandler
      * 3. Or the storage descriptor has a parameter called "classification" with value {@value #DYNAMODB}.
      * <p>
      * If the specified schema is "default", this also returns an intersection with actual tables in DynamoDB.
-     *
+     * Pagination only implemented for DynamoDBTableResolver.listTables()
      * @see GlueMetadataHandler
      */
     @Override
@@ -203,24 +205,30 @@ public class DynamoDBMetadataHandler
     {
         // LinkedHashSet for consistent ordering
         Set<TableName> combinedTables = new LinkedHashSet<>();
-        if (glueClient != null) {
+        String token = request.getNextToken();
+        if (token == null && glueClient != null) { // first invocation will get ALL glue tables in one shot
             try {
                 // does not validate that the tables are actually DDB tables
-                combinedTables.addAll(super.doListTables(allocator,
-                        new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
-                                request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
-                        TABLE_FILTER).getTables());
+                combinedTables.addAll(super.doListTables(allocator, new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
+                                request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE), TABLE_FILTER).getTables());
             }
             catch (RuntimeException e) {
                 logger.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
             }
         }
 
+        // future invocations will paginate on default ddb schema
         // add tables that may not be in Glue (if listing the default schema)
         if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
-            combinedTables.addAll(tableResolver.listTables());
+            DynamoDBPaginatedTables ddbPaginatedResponse = tableResolver.listTables(request.getNextToken(), request.getPageSize());
+            List<TableName> tableNames = ddbPaginatedResponse.getTables().stream()
+                    .map(table -> table.toLowerCase(Locale.ENGLISH)) // lowercase for compatibility
+                    .map(table -> new TableName(DEFAULT_SCHEMA, table))
+                    .collect(Collectors.toList());
+            token = ddbPaginatedResponse.getToken();
+            combinedTables.addAll(tableNames);
         }
-        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), null);
+        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), token);
     }
 
     /**
@@ -372,7 +380,7 @@ public class DynamoDBMetadataHandler
     Injects additional metadata into the partition schema like a non-key filter expression for additional DDB-side filtering
      */
     private void precomputeAdditionalMetadata(Set<String> columnsToIgnore, Map<String, ValueSet> predicates, List<AttributeValue> accumulator,
-            IncrementingValueNameProducer valueNameProducer, SchemaBuilder partitionsSchemaBuilder, DDBRecordMetadata recordMetadata)
+                                              IncrementingValueNameProducer valueNameProducer, SchemaBuilder partitionsSchemaBuilder, DDBRecordMetadata recordMetadata)
     {
         // precompute non-key filter
         String filterExpression = DDBPredicateUtils.generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer, recordMetadata);

@@ -69,6 +69,7 @@ export class RedshiftStack extends cdk.Stack {
         removalPolicy: cdk.RemovalPolicy.DESTROY,
         publiclyAccessible: false // this is the default but just to be explicit
     });
+    cluster.addToParameterGroup('enable_case_sensitive_identifier', 'true');
 
     const s3Spill = new s3.Bucket(this, 'redshift_spill_location', {});
 
@@ -88,7 +89,7 @@ export class RedshiftStack extends cdk.Stack {
       }
     });
 
-    const glueRole = new iam.Role(this, 'glue-job-managed-role', {
+    const glue_role = new iam.Role(this, 'glue-job-managed-role', {
         managedPolicies: [
           iam.ManagedPolicy.fromAwsManagedPolicyName("AdministratorAccess")
         ],
@@ -103,7 +104,7 @@ export class RedshiftStack extends cdk.Stack {
           script: glue.Code.fromAsset(path.join(__dirname, '../../../glue_scripts/redshift.py'))
         }),
         connections: [ glueConnection ],
-        role: glueRole, 
+        role: glue_role,
         defaultArguments: {
           '--s3_full_prefix': s3_path, 
           '--db_url': `jdbc:redshift://${cluster.clusterEndpoint.socketAddress}/test`,
@@ -114,6 +115,23 @@ export class RedshiftStack extends cdk.Stack {
         }
       });
     }
+
+    const glueJob = new glue.Job(this, 'redshift_glue_job_create_case_insensitive_data', {
+      executable: glue.JobExecutable.pythonShell({
+        glueVersion: glue.GlueVersion.V1_0,
+        pythonVersion: glue.PythonVersion.THREE_NINE,
+        script: glue.Code.fromAsset(path.join(__dirname, `../../../glue_scripts/redshift_create_case_insensitive_data.py`))
+      }),
+      role: glue_role,
+      connections: [
+        glueConnection
+      ],
+      defaultArguments: {
+        '--db_url': cluster.clusterEndpoint.hostname,
+        '--username': 'athena',
+        '--password': password
+      }
+    });
 
     var connectionStringPrefix = 'redshift';
     const cfn_template_file = connector_yaml_path;
