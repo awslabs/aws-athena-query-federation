@@ -97,8 +97,7 @@ public final class GetTableRequestSerDeV5
                 queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
             }
 
-            GetTableRequest getTableRequest = new GetTableRequest(identity, queryId, catalogName, tableName);
-            getTableRequest.setQueryPassthroughArguments(queryPassthroughArguments);
+            GetTableRequest getTableRequest = new GetTableRequest(identity, queryId, catalogName, tableName, queryPassthroughArguments);
             return getTableRequest;
         }
     }

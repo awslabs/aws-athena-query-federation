@@ -45,10 +45,9 @@ public class GetTableRequestSerDeV5Test extends TypedSerDeTest<FederationRequest
     public void beforeTest()
             throws IOException
     {
-        expected = new GetTableRequest(federatedIdentity, "test-query-id", "test-catalog", new TableName("test-schema", "test-table"));
         HashMap<String, String> queryPassthroughArguments = new HashMap<>(1);
         queryPassthroughArguments.put("query", "SELECT * FROM DUMMY_TABLE;");
-        ((GetTableRequest)expected).setQueryPassthroughArguments(queryPassthroughArguments);
+        expected = new GetTableRequest(federatedIdentity, "test-query-id", "test-catalog", new TableName("test-schema", "test-table"), queryPassthroughArguments);
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v5", "GetTableRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();

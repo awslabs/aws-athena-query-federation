@@ -150,8 +150,7 @@ public final class ConstraintsSerDeV5
                 queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
             }
 
-            Constraints constraints = new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit);
-            constraints.setQueryPassthroughArguments(queryPassthroughArguments);
+            Constraints constraints = new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit, queryPassthroughArguments);
             return constraints;
         }
     }

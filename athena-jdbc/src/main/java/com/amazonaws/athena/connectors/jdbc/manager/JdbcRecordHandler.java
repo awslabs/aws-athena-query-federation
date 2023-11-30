@@ -48,11 +48,13 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.qpt.QueryPassthroughSignature;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.RdsSecretsCredentialProvider;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -316,4 +318,15 @@ public abstract class JdbcRecordHandler
      */
     public abstract PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
             throws SQLException;
+
+    public PreparedStatement buildQueryPassthroughSql(Connection jdbcConnection, Constraints constraints) throws SQLException
+    {
+        PreparedStatement preparedStatement;
+        JdbcQueryPassthrough qpt = JdbcQueryPassthrough.getInstance();
+        QueryPassthroughSignature.verifyQueryPassthroughArguments(
+                    constraints.getQueryPassthroughArguments(), qpt.arguments());
+        String clientPassQuery = constraints.getQueryPassthroughArguments().get(qpt.getQueryArgument());
+        preparedStatement = jdbcConnection.prepareStatement(clientPassQuery);
+        return preparedStatement;
+    }
 }

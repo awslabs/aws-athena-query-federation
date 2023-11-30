@@ -113,8 +113,7 @@ public class ReadRecordsRequestSerDeV5Test extends TypedSerDeTest<FederationRequ
             new OrderByField("col2", OrderByField.Direction.DESC_NULLS_FIRST)
         );
 
-        Constraints constraints = new Constraints(constraintsMap, ImmutableList.of(federationExpression), orderByClause, DEFAULT_NO_LIMIT);
-        constraints.setQueryPassthroughArguments(queryPassthroughArguments);
+        Constraints constraints = new Constraints(constraintsMap, ImmutableList.of(federationExpression), orderByClause, DEFAULT_NO_LIMIT, queryPassthroughArguments);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {

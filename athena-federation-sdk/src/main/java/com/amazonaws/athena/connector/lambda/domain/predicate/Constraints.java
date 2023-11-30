@@ -22,17 +22,12 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonGetter;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSetter;
 import com.google.common.base.Objects;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Container which holds and maps column names to the corresponding constraint (e.g. ValueSet).
@@ -45,7 +40,6 @@ import static java.util.Objects.requireNonNull;
  * supplying connectors with a more complete view of the query and its predicate. We expect a future release to  provide
  * full predicates to connectors and lets the connector decide which parts of the predicate it is capable of applying
  */
-@JsonIgnoreProperties(value = {"queryPassthroughArguments"}, allowGetters = true, allowSetters = true)
 public class Constraints
         implements AutoCloseable
 {
@@ -63,7 +57,7 @@ public class Constraints
         this(summary, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
     }
 
-    @JsonCreator
+    @Deprecated
     public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
                        @JsonProperty("expression") List<FederationExpression> expression,
                        @JsonProperty("orderByClause") List<OrderByField> orderByClause,
@@ -73,7 +67,28 @@ public class Constraints
         this.expression = expression;
         this.orderByClause = orderByClause;
         this.limit = limit;
-        this.queryPassthroughArguments = Collections.emptyMap();
+    }
+
+    /**
+     *
+     * @param summary
+     * @param expression
+     * @param orderByClause
+     * @param limit
+     * @param queryPassthroughArguments
+     */
+    @JsonCreator
+    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
+                       @JsonProperty("expression") List<FederationExpression> expression,
+                       @JsonProperty("orderByClause") List<OrderByField> orderByClause,
+                       @JsonProperty("limit") long limit,
+                       @JsonProperty("queryPassthroughArguments") Map<String, String> queryPassthroughArguments)
+    {
+        this.summary = summary;
+        this.expression = expression;
+        this.orderByClause = orderByClause;
+        this.limit = limit;
+        this.queryPassthroughArguments = queryPassthroughArguments;
     }
 
     /**
@@ -111,21 +126,14 @@ public class Constraints
         return this.orderByClause != null && this.orderByClause.size() > 0;
     }
 
-    @JsonGetter("queryPassthroughArguments")
     public Map<String, String> getQueryPassthroughArguments()
     {
         return this.queryPassthroughArguments;
     }
 
-    @JsonSetter("queryPassthroughArguments")
-    public void setQueryPassthroughArguments(Map<String, String> queryPassthroughArguments)
-    {
-        this.queryPassthroughArguments = requireNonNull(queryPassthroughArguments, "queryPassthroughArguments is null");
-    }
-
     public boolean isQueryPassThrough()
     {
-        return !this.queryPassthroughArguments.isEmpty();
+        return this.queryPassthroughArguments != null && !this.queryPassthroughArguments.isEmpty();
     }
 
     @Override
