@@ -25,7 +25,9 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
+import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -68,6 +70,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -439,5 +442,22 @@ public abstract class JdbcMetadataHandler
     {
         // Default ARRAY type is VARCHAR.
         return new ArrowType.Utf8();
+    }
+
+    /**
+     * Helper function that provides a single partition for Query Pass-Through
+     *
+     */
+    protected GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
+    {
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
+
+        //Since this is QPT query we return a fixed split.
+        Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+        return new GetSplitsResponse(request.getCatalogName(),
+                Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .applyProperties(qptArguments)
+                        .build());
     }
 }

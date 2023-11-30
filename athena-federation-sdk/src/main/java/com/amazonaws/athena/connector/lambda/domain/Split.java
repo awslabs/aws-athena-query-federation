@@ -241,12 +241,12 @@ public class Split
 
         /**
          * Apply a map of properties to the split
-         * @param properties
-         * @return
+         * @param inputProperties
+         * @return Builder
          */
-        public Builder applyProperties(Map<String, String> properties)
+        public Builder applyProperties(Map<String, String> inputProperties)
         {
-            properties.entrySet().forEach(entry -> add(entry.getKey(), entry.getValue()));
+            properties.putAll(inputProperties);
             return this;
         }
 
