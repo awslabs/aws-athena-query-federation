@@ -20,9 +20,13 @@
 package com.amazonaws.athena.connectors.docdb;
 
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.mongodb.DBRef;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.bson.Document;
+
+import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Used to resolve DocDB complex structures to Apache Arrow Types.
@@ -36,6 +40,12 @@ public class DocDBFieldResolver
 
     private DocDBFieldResolver() {}
 
+    static final Map<String, Function<DBRef, String>> dbRefExtractor = Map.of(
+            "_id", dbRef -> dbRef.getId().toString(),
+            "_db", DBRef::getDatabaseName,
+            "_ref", DBRef::getCollectionName
+    );
+
     @Override
     public Object getFieldValue(Field field, Object value)
     {
@@ -46,6 +56,9 @@ public class DocDBFieldResolver
         else if (value instanceof Document) {
             Object rawVal = ((Document) value).get(field.getName());
             return TypeUtils.coerce(field, rawVal);
+        }
+        else if (value instanceof DBRef) {
+            return TypeUtils.coerce(field, dbRefExtractor.get(field.getName()).apply((DBRef) value));
         }
         throw new RuntimeException("Expected LIST or Document type but found " + minorType);
     }
