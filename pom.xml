@@ -44,6 +44,7 @@
         <mvn.source.plugin.version>3.3.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.6.0</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.3.0</mvn.jar.plugin.version>
+        <doclint>none</doclint>
     </properties>
     <dependencyManagement>
         <dependencies>
