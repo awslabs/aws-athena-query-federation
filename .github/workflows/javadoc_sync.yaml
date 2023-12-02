@@ -20,7 +20,9 @@ jobs:
         run: mvn -B javadoc:aggregate --file pom.xml
 
       - name: Switch to gh-pages branch
-        run: git checkout gh-pages
+        run: |
+          git fetch
+          git checkout gh-pages
 
       - name: Remove old files
         run: rm -rf com
