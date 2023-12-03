@@ -105,7 +105,7 @@ public class GetTableRequest
 
     public boolean isQueryPassthrough()
     {
-        return !this.queryPassthroughArguments.isEmpty();
+        return this.queryPassthroughArguments != null && !this.queryPassthroughArguments.isEmpty();
     }
     @Override
     public String toString()

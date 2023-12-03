@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -50,12 +49,6 @@ public class Constraints
     private final List<OrderByField> orderByClause;
     private long limit;
     private Map<String, String> queryPassthroughArguments;
-
-    @Deprecated
-    public Constraints(Map<String, ValueSet> summary)
-    {
-        this(summary, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
-    }
 
     @Deprecated
     public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
