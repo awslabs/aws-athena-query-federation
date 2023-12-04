@@ -402,7 +402,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that both bounds are present for col_6 which is not a sort key
@@ -435,7 +435,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that both bounds are present for col_6 which is not a sort key
@@ -509,7 +509,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
@@ -519,7 +519,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_TABLE_NAME,
                 layoutResponse.getPartitions(),
                 ImmutableList.of(),
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 null);
         logger.info("doGetSplits: req[{}]", req);
 
@@ -563,7 +563,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_TABLE_NAME,
                 layoutResponse.getPartitions(),
                 ImmutableList.of("col_0"),
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 null);
         logger.info("doGetSplits: req[{}]", req);
 
@@ -619,7 +619,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 tableName,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 getTableResponse.getSchema(),
                 Collections.EMPTY_SET);
 

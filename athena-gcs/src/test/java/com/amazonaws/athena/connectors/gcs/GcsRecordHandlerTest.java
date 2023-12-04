@@ -57,6 +57,7 @@ import java.io.File;
 import java.util.Collections;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -165,7 +166,7 @@ public class GcsRecordHandlerTest extends GenericGcsTest
                 new TableName("dataset1", "table1"), // dummy table
                 GcsTestUtils.getDatatypeTestSchema(),
                 split,
-                new Constraints(Collections.EMPTY_MAP),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 0, //This is ignored when directly calling readWithConstraints.
                 0)) {  //This is ignored when directly calling readWithConstraints.
 
