@@ -265,6 +265,7 @@ public class DynamoDBRecordHandler
                 })
                 .collect(Collectors.joining(","));
 
+        logger.info("SPLIT SEGMENT ID PROPERTY: " + split.getProperty(SEGMENT_ID_PROPERTY));
         boolean isQuery = split.getProperty(SEGMENT_ID_PROPERTY) == null;
 
         if (isQuery) {

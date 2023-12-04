@@ -288,8 +288,15 @@ public class DynamoDBMetadataHandler
         DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
         logger.info("using index: {}", index.getName());
         String hashKeyName = index.getHashKey();
+        logger.info("hashKeyName: " + hashKeyName);
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
-        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+        logger.info("hashKeyValueSet is null: " + (hashKeyValueSet == null));
+        ValueSet rangeKeyValueSet = summary.get(index.getRangeKey().get());
+        logger.info("rangeKeyName: " + index.getRangeKey());
+        logger.info("rangeKeyValueSet: " + rangeKeyValueSet);
+        List<Object> hashKeyValues = ((hashKeyValueSet != null) && (rangeKeyValueSet == null)) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+        logger.info("hash == range: " + ((hashKeyValueSet != null) && (rangeKeyValueSet == null)));
+        logger.info("hashKeyValues: " + hashKeyValues);
 
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(request.getSchema());
 
@@ -355,7 +362,8 @@ public class DynamoDBMetadataHandler
         logger.info("using index: {}", index.getName());
         String hashKeyName = index.getHashKey();
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
-        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+        ValueSet rangeKeyValueSet = summary.get(index.getRangeKey().get());
+        List<Object> hashKeyValues = ((hashKeyValueSet != null) && (rangeKeyValueSet == null)) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
 
         if (!hashKeyValues.isEmpty()) {
             for (Object hashKeyValue : hashKeyValues) {
@@ -423,6 +431,7 @@ public class DynamoDBMetadataHandler
             throw new IllegalStateException(String.format("No metadata %s defined in Schema %s", PARTITION_TYPE_METADATA, partitions.getSchema()));
         }
         if (QUERY_PARTITION_TYPE.equals(partitionType)) {
+            logger.info("DYNAMODB doGetSplits - QUERY PARTITION TYPE");
             String hashKeyName = partitionMetadata.get(HASH_KEY_NAME_METADATA);
             FieldReader hashKeyValueReader = partitions.getFieldReader(hashKeyName);
             // one split per hash key value (since one DDB query can only take one hash key value)
@@ -452,6 +461,7 @@ public class DynamoDBMetadataHandler
             return new GetSplitsResponse(request.getCatalogName(), splits, null);
         }
         else if (SCAN_PARTITION_TYPE.equals(partitionType)) {
+            logger.info("DYNAMODB doGetSplits - SCAN PARTITION TYPE");
             FieldReader segmentCountReader = partitions.getFieldReader(SEGMENT_COUNT_METADATA);
             int segmentCount = segmentCountReader.readInteger();
             for (int curPartition = partitionContd; curPartition < segmentCount; curPartition++) {
