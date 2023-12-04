@@ -21,7 +21,7 @@
         <slf4j-log4j.version>2.0.9</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.8.1</jqwik.version>
+        <jqwik.version>1.8.2</jqwik.version>
         <assertj.version>3.24.2</assertj.version>
         <testng.version>7.8.0</testng.version>
         <fasterxml.jackson.version>2.16.0</fasterxml.jackson.version>
