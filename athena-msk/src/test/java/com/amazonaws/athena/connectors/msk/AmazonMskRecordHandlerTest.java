@@ -58,6 +58,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.*;
 
@@ -243,7 +244,7 @@ public class AmazonMskRecordHandlerTest {
                                 .withIsDirectory(true)
                                 .build(),
                         keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 0,
                 0);
     }

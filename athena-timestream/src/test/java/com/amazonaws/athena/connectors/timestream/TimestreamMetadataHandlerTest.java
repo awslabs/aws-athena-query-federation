@@ -76,6 +76,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
@@ -409,7 +410,7 @@ public class TimestreamMetadataHandlerTest
                 "query-id",
                 defaultSchema,
                 new TableName("database1", "table1"),
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 schema,
                 Collections.EMPTY_SET);
 
@@ -442,7 +443,7 @@ public class TimestreamMetadataHandlerTest
                 new TableName("database1", "table1"),
                 partitions,
                 partitionCols,
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
