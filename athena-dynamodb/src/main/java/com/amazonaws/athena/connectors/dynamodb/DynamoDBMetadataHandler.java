@@ -62,6 +62,7 @@ import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
@@ -71,6 +72,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -405,6 +407,29 @@ public class DynamoDBMetadataHandler
         }
     }
 
+    private List<String> getRangeValues(String rangeKeyFilter) 
+    {
+        List<String> rangeValues = new ArrayList<>();  
+        if (rangeKeyFilter != null) {
+            String[] splitFilter = rangeKeyFilter.split(" ");
+            if (splitFilter.length >= 3 && splitFilter[1].equals("IN")) {
+                String[] splitValues = splitFilter[2].replaceFirst("\\(", "").replaceAll("\\)$", "").split(",");
+                for (String value : splitValues) {
+                    rangeValues.add(value);
+                }
+            }
+        }
+        return rangeValues;
+    }
+
+    private String getExpressionValues(String expressionName, String expressionValues) throws Exception 
+    {
+        Map<String, AttributeValue> expressionValuesMap = Jackson.getObjectMapper().readValue(expressionValues, new TypeReference<HashMap<String, AttributeValue>>() {});
+        Map<String, AttributeValue> newExpressionValues = new HashMap<>();
+        newExpressionValues.put(expressionName, expressionValuesMap.get(expressionName));
+        return Jackson.toJsonString(newExpressionValues);
+    }
+
     /**
      * Copies data from partitions and creates splits, serializing as necessary for later calls to RecordHandler#readWithContraint.
      * This API supports pagination.
@@ -412,9 +437,11 @@ public class DynamoDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws Exception
     {
-        int partitionContd = decodeContinuationToken(request);
+        List<Integer> tokens = decodeContinuationToken(request);
+        int partitionContd = tokens.get(0);
+        int rangeValueContd = tokens.get(1);
         Set<Split> splits = new HashSet<>();
         Block partitions = request.getPartitions();
         Map<String, String> partitionMetadata = partitions.getSchema().getCustomMetadata();
@@ -432,21 +459,55 @@ public class DynamoDBMetadataHandler
                 //Every split must have a unique location if we wish to spill to avoid failures
                 SpillLocation spillLocation = makeSpillLocation(request);
 
-                // copy all partition metadata to the split
-                Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
+                String expressionValues = partitionMetadata.get(EXPRESSION_VALUES_METADATA);
+                String rangeKeyName = partitionMetadata.get(RANGE_KEY_NAME_METADATA);
+                String rangeKeyFilter = partitionMetadata.get(RANGE_KEY_FILTER_METADATA);
+                logger.info("RANGE KEY FILTER: " + rangeKeyFilter);
+                List<String> rangeValues = getRangeValues(rangeKeyFilter);
+                logger.info("RANGE VALUES ARE: " + rangeValues);                
+                int rangeValuesLength = rangeValues.size();
+  
+                if (rangeValuesLength > 0) {
+                    for (int curRangeValue = rangeValueContd; curRangeValue < rangeValuesLength; curRangeValue++) {
+                        // copy all partition metadata to the split
+                        String rangeValue = rangeValues.get(curRangeValue);
+                        Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
+                        Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
+                        String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
+                        splitMetadata.put(hashKeyName, hashKeyValueJSON); 
+                        splitMetadata.put(RANGE_KEY_FILTER_METADATA, rangeKeyName + "=" + rangeValue);
+                        splitMetadata.put(EXPRESSION_VALUES_METADATA, getExpressionValues(rangeValue, expressionValues));
+  
+                        logger.info("EXPRESSION NAMES METADATA: " + splitMetadata.get(EXPRESSION_NAMES_METADATA));
+                        logger.info("EXPRESSION VALUES METADATA: " + splitMetadata.get(EXPRESSION_VALUES_METADATA));              
+       
+                        splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
 
-                Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
-                String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
-                splitMetadata.put(hashKeyName, hashKeyValueJSON);
+                        if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != partitions.getRowCount() - 1) {
+                            // We've reached max page size and this is not the last partition
+                            // so send the page back
+                            return new GetSplitsResponse(request.getCatalogName(),
+                                splits,
+                                encodeContinuationToken(curPartition, curRangeValue));
+                        }
+                    }
+                }
+                else {
+                    // copy all partition metadata to the split
+                    Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
+                    Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
+                    String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
+                    splitMetadata.put(hashKeyName, hashKeyValueJSON); 
+                        
+                    splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
 
-                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
-
-                if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != partitions.getRowCount() - 1) {
-                    // We've reached max page size and this is not the last partition
-                    // so send the page back
-                    return new GetSplitsResponse(request.getCatalogName(),
+                    if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != partitions.getRowCount() - 1) {
+                        // We've reached max page size and this is not the last partition
+                        // so send the page back
+                        return new GetSplitsResponse(request.getCatalogName(),
                             splits,
-                            encodeContinuationToken(curPartition));
+                            encodeContinuationToken(curPartition, 0));
+                    }
                 }
             }
             return new GetSplitsResponse(request.getCatalogName(), splits, null);
@@ -471,7 +532,7 @@ public class DynamoDBMetadataHandler
                     // so send the page back
                     return new GetSplitsResponse(request.getCatalogName(),
                             splits,
-                            encodeContinuationToken(curPartition));
+                            encodeContinuationToken(curPartition, 0));
                 }
             }
             return new GetSplitsResponse(request.getCatalogName(), splits, null);
@@ -493,21 +554,23 @@ public class DynamoDBMetadataHandler
     /*
     Used to handle paginated requests. Returns the partition number to resume with.
      */
-    private int decodeContinuationToken(GetSplitsRequest request)
+    private List<Integer> decodeContinuationToken(GetSplitsRequest request)
     {
         if (request.hasContinuationToken()) {
-            return Integer.valueOf(request.getContinuationToken()) + 1;
+            String[] tokens = request.getContinuationToken().split(",");
+            logger.info("tokens: " + tokens);
+            return Arrays.stream(tokens).map(token -> Integer.parseInt(token)).collect(Collectors.toList());
         }
 
         //No continuation token present
-        return 0;
+        return Arrays.asList(new Integer[]{0, 0});
     }
 
     /*
     Used to create pagination tokens by encoding the number of the next partition to process.
      */
-    private String encodeContinuationToken(int partition)
+    private String encodeContinuationToken(int partitionToken, int rangeValueToken)
     {
-        return String.valueOf(partition);
+        return String.valueOf(partitionToken) + "," + String.valueOf(rangeValueToken);
     }
 }
