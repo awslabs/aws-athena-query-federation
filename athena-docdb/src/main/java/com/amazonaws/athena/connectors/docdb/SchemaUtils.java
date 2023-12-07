@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.docdb;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import org.apache.arrow.vector.types.Types;
@@ -70,9 +69,8 @@ public class SchemaUtils
      * to use a reasonable default (like String) and coerce heterogeneous fields to avoid query failure but forcing
      * explicit handling by defining Schema in AWS Glue is likely a better approach.
      */
-    public static Schema inferSchema(MongoClient client, TableName table, int numObjToSample)
+    public static Schema inferSchema(MongoDatabase db, TableName table, int numObjToSample)
     {
-        MongoDatabase db = client.getDatabase(table.getSchemaName());
         int docCount = 0;
         int fieldCount = 0;
         try (MongoCursor<Document> docs = db.getCollection(table.getTableName()).find().batchSize(numObjToSample)

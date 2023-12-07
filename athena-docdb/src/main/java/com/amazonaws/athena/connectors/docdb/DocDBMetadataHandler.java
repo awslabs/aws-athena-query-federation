@@ -45,6 +45,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.base.Strings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -233,6 +234,9 @@ public class DocDBMetadataHandler
             throws Exception
     {
         logger.info("doGetTable: enter", request.getTableName());
+        String schemaNameInput = request.getTableName().getSchemaName();
+        String tableNameInput = request.getTableName().getTableName();
+        TableName tableName = new TableName(schemaNameInput, tableNameInput);
         Schema schema = null;
         try {
             if (glue != null) {
@@ -250,9 +254,14 @@ public class DocDBMetadataHandler
         if (schema == null) {
             logger.info("doGetTable: Inferring schema for table[{}].", request.getTableName());
             MongoClient client = getOrCreateConn(request);
-            schema = SchemaUtils.inferSchema(client, request.getTableName(), SCHEMA_INFERRENCE_NUM_DOCS);
+            //Attempt to update schema and table name with case insensitive match if enable
+            schemaNameInput = DocDBCaseInsensitiveResolver.getSchemaNameCaseInsensitiveMatch(configOptions, client, schemaNameInput);
+            MongoDatabase db = client.getDatabase(schemaNameInput);
+            tableNameInput = DocDBCaseInsensitiveResolver.getTableNameCaseInsensitiveMatch(configOptions, db, tableNameInput);
+            tableName = new TableName(schemaNameInput, tableNameInput);
+            schema = SchemaUtils.inferSchema(db, tableName, SCHEMA_INFERRENCE_NUM_DOCS);
         }
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+        return new GetTableResponse(request.getCatalogName(), tableName, schema);
     }
 
     /**
