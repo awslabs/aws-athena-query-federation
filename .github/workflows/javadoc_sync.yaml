@@ -5,8 +5,7 @@ on:
       - master
 jobs:
   build-and-deploy:
-    runs-on:
-      group: aws-athena-query-federation
+    runs-on: aws-athena-query-federation_ubuntu-latest_16-core
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +20,9 @@ jobs:
         run: mvn -B javadoc:aggregate --file pom.xml
 
       - name: Switch to gh-pages branch
-        run: git checkout gh-pages
+        run: |
+          git fetch
+          git checkout gh-pages
 
       - name: Remove old files
         run: rm -rf com
