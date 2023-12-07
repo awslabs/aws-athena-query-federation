@@ -77,6 +77,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -356,6 +357,60 @@ public class DocDBMetadataHandlerTest
         } catch(IllegalArgumentException ex){
             assertEquals("Schema name is empty or more than 1 for case insensitive match. schemaName: deFAULT, size: 2", ex.getMessage());
         }
+    }
+
+    @Test
+    public void doGetTableCaseInsensitiveMatchNotEnable()
+            throws Exception
+    {
+
+        String mixedCaseSchemaName = "deFAULT";
+        String mixedCaseTableName = "tesT_Table";
+        List<Document> documents = new ArrayList<>();
+
+        Document doc1 = new Document();
+        documents.add(doc1);
+        doc1.put("stringCol", "stringVal");
+        doc1.put("intCol", 1);
+        doc1.put("doubleCol", 2.2D);
+        doc1.put("longCol", 100L);
+        doc1.put("unsupported", new UnsupportedType());
+
+        Document doc2 = new Document();
+        documents.add(doc2);
+        doc2.put("stringCol2", "stringVal");
+        doc2.put("intCol2", 1);
+        doc2.put("doubleCol2", 2.2D);
+        doc2.put("longCol2", 100L);
+
+        Document doc3 = new Document();
+        documents.add(doc3);
+        doc3.put("stringCol", "stringVal");
+        doc3.put("intCol2", 1);
+        doc3.put("doubleCol", 2.2D);
+        doc3.put("longCol2", 100L);
+
+        MongoDatabase mockDatabase = mock(MongoDatabase.class);
+        MongoCollection mockCollection = mock(MongoCollection.class);
+        FindIterable mockIterable = mock(FindIterable.class);
+        when(mockClient.getDatabase(eq(mixedCaseSchemaName))).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(eq(mixedCaseTableName))).thenReturn(mockCollection);
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        TableName tableNameInput = new TableName(mixedCaseSchemaName, mixedCaseTableName);
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput);
+        GetTableResponse res = handler.doGetTable(allocator, req);
+
+        assertEquals(mixedCaseSchemaName, res.getTableName().getSchemaName());
+        assertEquals(mixedCaseTableName, res.getTableName().getTableName());
+
+        verify(mockClient, Mockito.never()).listDatabaseNames();
+        verify(mockDatabase, Mockito.never()).listCollectionNames();
+
     }
 
     @Test
