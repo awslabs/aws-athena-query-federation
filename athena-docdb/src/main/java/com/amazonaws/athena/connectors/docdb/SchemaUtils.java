@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Collection of helpful utilities that handle DocumentDB schema inference, type, and naming conversion.
@@ -70,9 +71,8 @@ public class SchemaUtils
      * to use a reasonable default (like String) and coerce heterogeneous fields to avoid query failure but forcing
      * explicit handling by defining Schema in AWS Glue is likely a better approach.
      */
-    public static Schema inferSchema(MongoClient client, TableName table, int numObjToSample)
+    public static Schema inferSchema(MongoDatabase db, TableName table, int numObjToSample)
     {
-        MongoDatabase db = client.getDatabase(table.getSchemaName());
         int docCount = 0;
         int fieldCount = 0;
         try (MongoCursor<Document> docs = db.getCollection(table.getTableName()).find().batchSize(numObjToSample)
