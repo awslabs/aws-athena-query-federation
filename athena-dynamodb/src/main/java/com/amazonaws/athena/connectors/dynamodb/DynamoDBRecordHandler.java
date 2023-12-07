@@ -245,13 +245,15 @@ public class DynamoDBRecordHandler
     private List<String> getRangeValues(String rangeKeyFilter) 
     {
         List<String> rangeValues = new ArrayList<>();  
-        if (rangeKeyFilter != null) {
-            String[] splitFilter = rangeKeyFilter.split(" ");
-            if (splitFilter.length >= 3 && splitFilter[1].equals("IN")) {
-                String[] splitValues = splitFilter[2].replaceFirst("\\(", "").replaceAll("\\)$", "").split(",");
-                for (String value : splitValues) {
-                    rangeValues.add(value);
-                }
+        if (rangeKeyFilter == null) {
+            return rangeValues;
+        }
+  
+        String[] splitFilter = rangeKeyFilter.split(" ");
+        if (splitFilter.length >= 3 && splitFilter[1].equals("IN")) {
+            String[] splitValues = splitFilter[2].replaceFirst("\\(", "").replaceAll("\\)$", "").split(",");
+            for (String value : splitValues) {
+                rangeValues.add(value);
             }
         }
         return rangeValues;
