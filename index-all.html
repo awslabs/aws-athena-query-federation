@@ -2337,6 +2337,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBMetadataHandler.html#DOCDB_CONN_STR">DOCDB_CONN_STR</a></span> - Static variable in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.docdb"><span class="typeNameLink">DocDBCaseInsensitiveResolver</span></a> - Class in <a href="com/amazonaws/athena/connectors/docdb/package-summary.html">com.amazonaws.athena.connectors.docdb</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/docdb/DocDBCompositeHandler.html" title="class in com.amazonaws.athena.connectors.docdb"><span class="typeNameLink">DocDBCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/docdb/package-summary.html">com.amazonaws.athena.connectors.docdb</a></dt>
 <dd>
 <div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -5294,6 +5296,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns the schema name that tables should be listed for.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html#getSchemaNameCaseInsensitiveMatch(java.util.Map,com.mongodb.client.MongoClient,java.lang.String)">getSchemaNameCaseInsensitiveMatch(Map&lt;String, String&gt;, MongoClient, String)</a></span> - Static method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBCaseInsensitiveResolver</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#getSchemaNameQuery(java.sql.Connection,java.lang.String)">getSchemaNameQuery(Connection, String)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html#getSchemas()">getSchemas()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></dt>
@@ -5652,6 +5656,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/DescribeTableQueryBuilder.html#getTableName()">getTableName()</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html#getTableName()">getTableName()</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">SelectQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html#getTableNameCaseInsensitiveMatch(java.util.Map,com.mongodb.client.MongoDatabase,java.lang.String)">getTableNameCaseInsensitiveMatch(Map&lt;String, String&gt;, MongoDatabase, String)</a></span> - Static method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBCaseInsensitiveResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#getTableNameQuery(java.sql.Connection,java.lang.String,java.lang.String)">getTableNameQuery(Connection, String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>&nbsp;</dd>
@@ -6404,7 +6410,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
  by scanning up to the requested number of rows and using basic schema inference to determine
  data types.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html#inferSchema(com.mongodb.client.MongoClient,com.amazonaws.athena.connector.lambda.domain.TableName,int)">inferSchema(MongoClient, TableName, int)</a></span> - Static method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html" title="class in com.amazonaws.athena.connectors.docdb">SchemaUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html#inferSchema(com.mongodb.client.MongoDatabase,com.amazonaws.athena.connector.lambda.domain.TableName,int)">inferSchema(MongoDatabase, TableName, int)</a></span> - Static method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html" title="class in com.amazonaws.athena.connectors.docdb">SchemaUtils</a></dt>
 <dd>
 <div class="block">This method will produce an Apache Arrow Schema for the given TableName and DocumentDB connection
  by scanning up to the requested number of rows and using basic schema inference to determine
