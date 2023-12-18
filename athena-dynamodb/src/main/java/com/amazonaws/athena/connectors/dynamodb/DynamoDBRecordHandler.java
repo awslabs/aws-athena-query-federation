@@ -57,8 +57,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -234,6 +236,29 @@ public class DynamoDBRecordHandler
         return constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause();
     }
 
+    private boolean rangeFilterHasIn(String rangeKeyFilter) 
+    {
+        String[] filterArray = rangeKeyFilter.split(" ");
+        return (filterArray.length >= 3) && (filterArray[1].equals("IN"));
+    }
+
+    private List<String> getRangeValues(String rangeKeyFilter) 
+    {
+        List<String> rangeValues = new ArrayList<>();  
+        if (rangeKeyFilter == null) {
+            return rangeValues;
+        }
+  
+        String[] splitFilter = rangeKeyFilter.split(" ");
+        if (splitFilter.length >= 3 && splitFilter[1].equals("IN")) {
+            String[] splitValues = splitFilter[2].replaceFirst("\\(", "").replaceAll("\\)$", "").split(",");
+            for (String value : splitValues) {
+                rangeValues.add(value);
+            }
+        }
+        return rangeValues;
+    }
+
     /*
     Converts a split into a Query or Scan request
      */
@@ -274,7 +299,15 @@ public class DynamoDBRecordHandler
             String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName);
             String keyConditionExpression = hashKeyAlias + " = " + HASH_KEY_VALUE_ALIAS;
             if (rangeKeyFilter != null) {
-                keyConditionExpression += " AND " + rangeKeyFilter;
+                if (rangeFilterHasIn(rangeKeyFilter)) {
+                    List<String> rangeKeyValues = getRangeValues(rangeKeyFilter);
+                    for (String value : rangeKeyValues) {
+                        expressionAttributeValues.remove(value);
+                    }
+                }
+                else {            
+                    keyConditionExpression += " AND " + rangeKeyFilter;
+                }
             }
             expressionAttributeNames.put(hashKeyAlias, hashKeyName);
             expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class));

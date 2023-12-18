@@ -40,6 +40,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -126,6 +128,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "WHERE t.object_id = (select object_id from sys.objects o where o.name = ? " +
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT t.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
 
     public SqlServerMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -158,6 +161,29 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
                 .addField(PARTITION_NUMBER, Types.MinorType.VARCHAR.getType());
         return schemaBuilder.build();
+    }
+    @VisibleForTesting
+    protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int token, int limit) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
+        preparedStatement.setInt(1, token);
+        preparedStatement.setInt(2, limit);
+        LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
+    }
+
+    @Override
+    protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    {
+        String token = listTablesRequest.getNextToken();
+        int pageSize = listTablesRequest.getPageSize();
+
+        int t = token != null ? Integer.parseInt(token) : 0;
+
+        LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
     }
     @Override
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)

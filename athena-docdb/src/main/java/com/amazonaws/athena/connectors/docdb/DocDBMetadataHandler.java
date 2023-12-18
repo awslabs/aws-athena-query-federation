@@ -43,10 +43,9 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -56,6 +55,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * Handles metadata requests for the Athena DocumentDB Connector.
@@ -168,22 +171,21 @@ public class DocDBMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
         MongoClient client = getOrCreateConn(request);
+        Stream<String> tableNames = doListTablesWithCommand(client, request);
 
-        try (MongoCursor<String> itr = client.getDatabase(request.getSchemaName()).listCollectionNames().iterator()) {
-            List<TableName> tables = new ArrayList<>();
-            while (itr.hasNext()) {
-                tables.add(new TableName(request.getSchemaName(), itr.next()));
-            }
+        int startToken = request.getNextToken() != null ? Integer.parseInt(request.getNextToken()) : 0;
+        int pageSize = request.getPageSize();
+        String nextToken = null;
 
-            return new ListTablesResponse(request.getCatalogName(), tables, null);
+        if (pageSize != UNLIMITED_PAGE_SIZE_VALUE) {
+            logger.info("Starting at token {} w/ page size {}", startToken, pageSize);
+            tableNames = tableNames.skip(startToken).limit(request.getPageSize());
+            nextToken = Integer.toString(startToken + pageSize);
         }
-        catch (MongoCommandException mongoCommandException) {
-            //do this in failed case instead of replace method in case API changes on doc db.
-            logger.warn("Exception on listCollectionNames on Mongo JAVA client, trying with mongo command line.", mongoCommandException);
-            List<TableName> tableNames = doListTablesWithCommand(client, request);
 
-            return new ListTablesResponse(request.getCatalogName(), tableNames.isEmpty() ? ImmutableList.of() : tableNames, null);
-        }
+        List<TableName> paginatedTables = tableNames.map(tableName -> new TableName(request.getSchemaName(), tableName)).collect(Collectors.toList());
+        logger.info("doListTables returned {} tables. Next token is {}", paginatedTables.size(), nextToken);
+        return new ListTablesResponse(request.getCatalogName(), paginatedTables, nextToken);
     }
 
     /**
@@ -208,18 +210,15 @@ public class DocDBMetadataHandler
      * @param request
      * @return
      */
-    private List<TableName> doListTablesWithCommand(MongoClient client, ListTablesRequest request)
+    private Stream<String> doListTablesWithCommand(MongoClient client, ListTablesRequest request)
     {
         logger.debug("doListTablesWithCommand Start");
-        List<TableName> tables = new ArrayList<>();
-        Document document = client.getDatabase(request.getSchemaName()).runCommand(new Document("listCollections", 1).append("nameOnly", true).append("authorizedCollections", true));
+        List<String> tables = new ArrayList<>();
+        Document queryDocument = new Document("listCollections", 1).append("nameOnly", true).append("authorizedCollections", true);
+        Document document = client.getDatabase(request.getSchemaName()).runCommand(queryDocument);
 
         List<Document> list = ((Document) document.get("cursor")).getList("firstBatch", Document.class);
-        for (Document doc : list) {
-            tables.add(new TableName(request.getSchemaName(), doc.getString("name")));
-        }
-
-        return tables;
+        return list.stream().map(doc -> doc.getString("name")).sorted();
     }
 
     /**
@@ -235,6 +234,9 @@ public class DocDBMetadataHandler
             throws Exception
     {
         logger.info("doGetTable: enter", request.getTableName());
+        String schemaNameInput = request.getTableName().getSchemaName();
+        String tableNameInput = request.getTableName().getTableName();
+        TableName tableName = new TableName(schemaNameInput, tableNameInput);
         Schema schema = null;
         try {
             if (glue != null) {
@@ -252,9 +254,14 @@ public class DocDBMetadataHandler
         if (schema == null) {
             logger.info("doGetTable: Inferring schema for table[{}].", request.getTableName());
             MongoClient client = getOrCreateConn(request);
-            schema = SchemaUtils.inferSchema(client, request.getTableName(), SCHEMA_INFERRENCE_NUM_DOCS);
+            //Attempt to update schema and table name with case insensitive match if enable
+            schemaNameInput = DocDBCaseInsensitiveResolver.getSchemaNameCaseInsensitiveMatch(configOptions, client, schemaNameInput);
+            MongoDatabase db = client.getDatabase(schemaNameInput);
+            tableNameInput = DocDBCaseInsensitiveResolver.getTableNameCaseInsensitiveMatch(configOptions, db, tableNameInput);
+            tableName = new TableName(schemaNameInput, tableNameInput);
+            schema = SchemaUtils.inferSchema(db, tableName, SCHEMA_INFERRENCE_NUM_DOCS);
         }
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+        return new GetTableResponse(request.getCatalogName(), tableName, schema);
     }
 
     /**
