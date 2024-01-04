@@ -13,16 +13,16 @@
         <!--<maven.compiler.release>8</maven.compiler.release>-->
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.12.1</maven.compiler.plugin.version>
-        <aws-sdk.version>1.12.625</aws-sdk.version>
+        <aws-sdk.version>1.12.631</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
         <jsii.version>1.93.0</jsii.version>
-        <slf4j-log4j.version>2.0.9</slf4j-log4j.version>
+        <slf4j-log4j.version>2.0.10</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.8.2</jqwik.version>
-        <assertj.version>3.24.2</assertj.version>
+        <assertj.version>3.25.1</assertj.version>
         <testng.version>7.8.0</testng.version>
         <fasterxml.jackson.version>2.16.0</fasterxml.jackson.version>
         <surefire.failsafe.version>3.2.3</surefire.failsafe.version>
