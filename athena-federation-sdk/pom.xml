@@ -192,6 +192,16 @@
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-netty</artifactId>
             <version>${apache.arrow.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-buffer</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-common</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -391,8 +401,14 @@
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
                         <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
-</transformer>
+                        </transformer>
                     </transformers>
+                    <relocations>
+                        <relocation>
+                            <pattern>io.netty</pattern>
+                            <shadedPattern>athena.com.io.netty</shadedPattern>
+                        </relocation>
+                    </relocations>
                 </configuration>
                 <dependencies>
                     <dependency>
@@ -420,14 +436,15 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <!-- Requires the AWS SDK, Slf4j, and FlatBuffers to be available at runtime for metadata.
-                            Also requires BouncyCastle for records. -->
+                            <!-- Requires the AWS SDK, Slf4j to be available at runtime for metadata.Also requires BouncyCastle for records. -->
+                            <!-- This include Athena Federation SDK, Apache Arrow(including arrow-memory-netty) and io.netty-->
                             <shadedClassifierName>with-arrow</shadedClassifierName>
-                            <minimizeJar>true</minimizeJar>
                             <artifactSet>
                                 <includes>
                                     <include>com.amazonaws.athena:*</include>
                                     <include>org.apache.arrow:*</include>
+                                    <include>com.google.flatbuffers:*</include>
+                                    <include>io.netty:*</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
@@ -460,6 +477,7 @@
                     </execution>
                 </executions>
             </plugin>
+
         </plugins>
     </build>
 </project>
