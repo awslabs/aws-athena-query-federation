@@ -14,6 +14,7 @@ jobs:
         with:
           cancel_others: 'true'
           concurrent_skipping: 'same_content_newer'
+          do_not_skip: '["workflow_dispatch", "schedule", "merge_group", "pull_request"]'
 
   build:
     needs: pre_job
