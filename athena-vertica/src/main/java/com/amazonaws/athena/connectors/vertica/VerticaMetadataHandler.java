@@ -41,7 +41,7 @@ import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import io.netty.util.internal.StringUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -71,7 +71,7 @@ public class VerticaMetadataHandler
     private static  final String TABLE_SCHEMA = "TABLE_SCHEM";
     private static final String[] TABLE_TYPES = {"TABLE"};
     private static final String EXPORT_BUCKET_KEY = "export_bucket";
-    private static final String EMPTY_STRING = StringUtil.EMPTY_STRING;
+    private static final String EMPTY_STRING = StringUtils.EMPTY;
     private final VerticaConnectionFactory connectionFactory;
     private final QueryFactory queryFactory = new QueryFactory();
     private final VerticaSchemaUtils verticaSchemaUtils;
