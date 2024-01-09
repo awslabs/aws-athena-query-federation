@@ -74,12 +74,12 @@ public class NeptuneRecordHandler extends RecordHandler
         switch(graphType){
             case PROPERTYGRAPH: 
                 return new NeptuneGremlinConnection(configOptions.get(Constants.CFG_ENDPOINT),
-                configOptions.get(Constants.CFG_PORT), Boolean.parseBoolean(configOptions.get(Constants.CFG_IAM)), 
+                configOptions.get(Constants.CFG_PORT), Boolean.parseBoolean(configOptions.getOrDefault(Constants.CFG_IAM, "false")),
                 configOptions.get(Constants.CFG_REGION));
 
             case RDF:
                 return new NeptuneSparqlConnection(configOptions.get(Constants.CFG_ENDPOINT),
-                        configOptions.get(Constants.CFG_PORT), Boolean.parseBoolean(configOptions.get(Constants.CFG_IAM)), 
+                        configOptions.get(Constants.CFG_PORT), Boolean.parseBoolean(configOptions.getOrDefault(Constants.CFG_IAM, "false")),
                         configOptions.get(Constants.CFG_REGION));
         }
         return null;
