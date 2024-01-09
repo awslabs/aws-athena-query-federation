@@ -43,6 +43,10 @@ public class DatabaseConnectionConfigBuilder
     private static final String SECRET_PATTERN_STRING = "\\$\\{(([a-z-]+!)?[a-zA-Z0-9:/_+=.@-]+)}";
     public static final Pattern SECRET_PATTERN = Pattern.compile(SECRET_PATTERN_STRING);
 
+    public static final String DEFAULT_JDBC_CONNECTION_URL_PROPERTY = "default_connection_string";
+    public static final String DEFAULT_SECRET_PROPERTY = "secret_name";
+    public static final String DEFAULT_GLUE_CONNECTION = "glue_connection";
+
     private Map<String, String> properties;
 
     private String engine;
@@ -92,26 +96,32 @@ public class DatabaseConnectionConfigBuilder
         List<DatabaseConnectionConfig> databaseConnectionConfigs = new ArrayList<>();
 
         int numberOfCatalogs = 0;
-        for (Map.Entry<String, String> property : this.properties.entrySet()) {
-            final String key = property.getKey();
-            final String value = property.getValue();
-
-            String catalogName;
-            if (DEFAULT_CONNECTION_STRING_PROPERTY.equals(key.toLowerCase())) {
-                catalogName = key.toLowerCase();
-            }
-            else if (key.endsWith(CONNECTION_STRING_PROPERTY_SUFFIX)) {
-                catalogName = key.replace(CONNECTION_STRING_PROPERTY_SUFFIX, "");
-            }
-            else {
-                // unknown property ignore
-                continue;
-            }
-            databaseConnectionConfigs.add(extractDatabaseConnectionConfig(catalogName, value));
-
+        if (StringUtils.isBlank(properties.get(DEFAULT_GLUE_CONNECTION))) {
+            databaseConnectionConfigs.add(extractDatabaseGlueConnectionConfig(DEFAULT_CONNECTION_STRING_PROPERTY));
             numberOfCatalogs++;
-            if (numberOfCatalogs > MUX_CATALOG_LIMIT) {
-                throw new RuntimeException("Too many database instances in mux. Max supported is " + MUX_CATALOG_LIMIT);
+        }
+        else {
+            for (Map.Entry<String, String> property : this.properties.entrySet()) {
+                final String key = property.getKey();
+                final String value = property.getValue();
+    
+                String catalogName;
+                if (DEFAULT_CONNECTION_STRING_PROPERTY.equals(key.toLowerCase())) {
+                    catalogName = key.toLowerCase();
+                }
+                else if (key.endsWith(CONNECTION_STRING_PROPERTY_SUFFIX)) {
+                    catalogName = key.replace(CONNECTION_STRING_PROPERTY_SUFFIX, "");
+                }
+                else {
+                    // unknown property ignore
+                    continue;
+                }
+                databaseConnectionConfigs.add(extractDatabaseConnectionConfig(catalogName, value));
+    
+                numberOfCatalogs++;
+                if (numberOfCatalogs > MUX_CATALOG_LIMIT) {
+                    throw new RuntimeException("Too many database instances in mux. Max supported is " + MUX_CATALOG_LIMIT);
+                }
             }
         }
 
@@ -139,6 +149,14 @@ public class DatabaseConnectionConfigBuilder
 
         return optionalSecretName.map(s -> new DatabaseConnectionConfig(catalogName, this.engine, jdbcConnectionString, s))
                 .orElseGet(() -> new DatabaseConnectionConfig(catalogName, this.engine, jdbcConnectionString));
+    }
+
+    private DatabaseConnectionConfig extractDatabaseGlueConnectionConfig(final String catalogName)
+    {
+        final String jdbcConnectionString = properties.get(DEFAULT_JDBC_CONNECTION_URL_PROPERTY);
+        final String secretName = properties.get(DEFAULT_SECRET_PROPERTY);
+        Validate.notBlank(jdbcConnectionString, "JDBC Connection string must not be blank.");
+        return StringUtils.isBlank(secretName) ? new DatabaseConnectionConfig(catalogName, this.engine, jdbcConnectionString) : new DatabaseConnectionConfig(catalogName, this.engine, jdbcConnectionString, secretName);
     }
 
     private Optional<String> extractSecretName(final String jdbcConnectionString)
