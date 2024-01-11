@@ -28,7 +28,6 @@
         <surefire.failsafe.version>3.2.3</surefire.failsafe.version>
         <log4j2Version>2.22.1</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
-        <netty.version>4.1.101.Final</netty.version>
         <guava.version>33.0.0-jre</guava.version>
         <protobuf3.version>3.25.1</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
