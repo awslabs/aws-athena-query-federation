@@ -19,8 +19,8 @@
     "ts-node": "^10.9.1"
   },
   "dependencies": {
-    "@aws-cdk/aws-glue-alpha": "2.63.2-alpha.0",
-    "@aws-cdk/aws-redshift-alpha": "2.63.2-alpha.0",
+    "@aws-cdk/aws-glue-alpha": "2.118.0-alpha.0",
+    "@aws-cdk/aws-redshift-alpha": "2.118.0-alpha.0",
     "aws-cdk-lib": "2.118.0",
     "dotenv": "^16.0.3",
     "source-map-support": "^0.5.21",

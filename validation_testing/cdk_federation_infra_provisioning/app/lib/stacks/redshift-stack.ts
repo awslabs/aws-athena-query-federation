@@ -62,6 +62,7 @@ export class RedshiftStack extends cdk.Stack {
     securityGroup.addIngressRule(securityGroup, ec2.Port.allTcp());
 
     // https://github.com/aws/aws-cdk/blob/main/packages/%40aws-cdk/aws-redshift/lib/cluster.ts
+    // Original L2 Construct
     /* const cluster = new redshift.Cluster(this, 'redshift_cluster', {
         numberOfNodes: 2,
         port: 5439,
@@ -91,12 +92,13 @@ export class RedshiftStack extends cdk.Stack {
           parameterValue: 'true',
         }]
     });
- 
+
+    // L1 Construct Temporary Solution until L2 Construct Works Again 
     const cfnCluster = new cfnredshift.CfnCluster(this, 'MyCfnCluster', {
         clusterType: 'single-node',
         dbName: 'test',
         masterUsername: 'athena',
-        masterUserPassword: 'Federation1!',
+        masterUserPassword: password,
         nodeType: 'dc2.large',
         clusterSubnetGroupName: cfnClusterSubnetGroup.attrClusterSubnetGroupName,
         publiclyAccessible: false,
