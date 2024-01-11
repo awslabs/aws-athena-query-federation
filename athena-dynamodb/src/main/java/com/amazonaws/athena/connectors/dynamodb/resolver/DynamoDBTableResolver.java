@@ -48,7 +48,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
  * which may have captial letters in them without issue. It does so by fetching all table names and doing
  * a case insensitive search over them. It will first try to do a targeted get to reduce the penalty for
  * tables which don't have capitalization.
- *
+ * <p>
  * TODO add caching
  */
 public class DynamoDBTableResolver
@@ -58,11 +58,13 @@ public class DynamoDBTableResolver
     private DynamoDbClient ddbClient;
     // used to handle Throttling events using an AIMD strategy for congestion control.
     private ThrottlingInvoker invoker;
+    private List<String> allowedTables;
 
-    public DynamoDBTableResolver(ThrottlingInvoker invoker, DynamoDbClient ddbClient)
+    public DynamoDBTableResolver(ThrottlingInvoker invoker, DynamoDbClient ddbClient, List<String> allowedTables)
     {
         this.invoker = invoker;
         this.ddbClient = ddbClient;
+        this.allowedTables = allowedTables;
     }
 
     /**
@@ -90,7 +92,22 @@ public class DynamoDBTableResolver
                         .limit(limit)
                         .build();
             ListTablesResponse response = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
-            tables.addAll(response.tableNames());
+            List<String> responseTableNames = response.tableNames();
+
+            if (!allowedTables.isEmpty()) {
+                responseTableNames.forEach(tableName -> {
+                    if (allowedTables.contains(tableName)) {
+                        tables.add(tableName);
+                    }
+                    else {
+                        logger.warn("{} excluded from tables-to-scan", tableName);
+                    }
+                });
+            }
+            else {
+                tables.addAll(responseTableNames);
+            }
+
             nextToken = response.lastEvaluatedTableName();
         }
         while (nextToken != null && pageSize == UNLIMITED_PAGE_SIZE_VALUE);
