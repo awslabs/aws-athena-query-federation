@@ -48,7 +48,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
  * which may have captial letters in them without issue. It does so by fetching all table names and doing
  * a case insensitive search over them. It will first try to do a targeted get to reduce the penalty for
  * tables which don't have capitalization.
- *
+ * <p>
  * TODO add caching
  */
 public class DynamoDBTableResolver
@@ -58,11 +58,13 @@ public class DynamoDBTableResolver
     private AmazonDynamoDB ddbClient;
     // used to handle Throttling events using an AIMD strategy for congestion control.
     private ThrottlingInvoker invoker;
+    private List<String> allowedTables;
 
-    public DynamoDBTableResolver(ThrottlingInvoker invoker, AmazonDynamoDB ddbClient)
+    public DynamoDBTableResolver(ThrottlingInvoker invoker, AmazonDynamoDB ddbClient, List<String> allowedTables)
     {
         this.invoker = invoker;
         this.ddbClient = ddbClient;
+        this.allowedTables = allowedTables;
     }
 
     /**
@@ -88,11 +90,25 @@ public class DynamoDBTableResolver
             ListTablesRequest ddbRequest = new ListTablesRequest()
                     .withExclusiveStartTableName(nextToken).withLimit(limit);
             ListTablesResult result = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
-            tables.addAll(result.getTableNames());
+            List<String> resultTableNames = result.getTableNames();
+            if (!allowedTables.isEmpty()) {
+                resultTableNames.forEach(tableName -> {
+                    if (allowedTables.contains(tableName)) {
+                        tables.add(tableName);
+                    }
+                    else {
+                        logger.warn("{} excluded from tables-to-scan", tableName);
+                    }
+                });
+            }
+            else {
+                tables.addAll(resultTableNames);
+            }
+
             nextToken = result.getLastEvaluatedTableName();
         }
         while (nextToken != null && pageSize == UNLIMITED_PAGE_SIZE_VALUE);
-        logger.info("{} tables returned with pagination", tables.size());
+        logger.warn("{} tables returned with pagination", tables.size());
         return new DynamoDBPaginatedTables(tables, nextToken);
     }
 
