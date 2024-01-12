@@ -31,13 +31,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: Build jars
-        run: mvn clean package -T 1C -DskipTests
+        run: mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
       - name: Setup Repo Root Directory
         run: echo "REPOSITORY_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       - name: Setup AWS Cred
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
+          role-duration-seconds: 18000
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE }}
       - name: Run tests
         run: |
