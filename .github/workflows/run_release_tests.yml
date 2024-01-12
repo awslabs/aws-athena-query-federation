@@ -1,14 +1,17 @@
-name: Run release tests
+name: Daily Run release tests
 
 on:
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
-
-
 
 jobs:
   run_release_tests:
     name: run release tests
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: install dependencies. note aws is pre-installed and we use a specific action for node.
         run: |
@@ -29,8 +32,13 @@ jobs:
           fetch-depth: 0
       - name: Build jars
         run: mvn clean package -T 1C -DskipTests
-      - name: env vars
+      - name: Setup Repo Root Directory
         run: echo "REPOSITORY_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - name: Setup AWS Cred
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE }}
       - name: Run tests
         run: |
             cd $GITHUB_WORKSPACE/validation_testing;
@@ -38,9 +46,6 @@ jobs:
         env:
           # env vars that are secrets should always be set in the env field, so they aren't visible in $GITHUB_ENV file
           AWS_DEFAULT_REGION: 'us-east-1'
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
           RESULTS_LOCATION: ${{ secrets.RESULTS_LOCATION }}
           DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
           S3_DATA_PATH: ${{ secrets.S3_DATA_PATH }}
