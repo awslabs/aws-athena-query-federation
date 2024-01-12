@@ -20,9 +20,11 @@
 package com.amazonaws.athena.connectors.neptune.propertygraph;
 
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.neptune.auth.NeptuneNettyHttpSigV4Signer;
+import com.amazonaws.neptune.auth.NeptuneSigV4SignerException;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
-import org.apache.tinkerpop.gremlin.driver.SigV4WebSocketChannelizer;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -40,7 +42,19 @@ public class NeptuneGremlinConnection extends NeptuneConnection
                .enableSsl(true);
                
         if (enabledIAM) {
-            builder = builder.channelizer(SigV4WebSocketChannelizer.class);
+            builder.handshakeInterceptor(r ->
+                    {
+                        try {
+                            NeptuneNettyHttpSigV4Signer sigV4Signer =
+                                    new NeptuneNettyHttpSigV4Signer(region, new DefaultAWSCredentialsProviderChain());
+                            sigV4Signer.signRequest(r);
+                        }
+                        catch (NeptuneSigV4SignerException e) {
+                            throw new RuntimeException("Exception occurred while signing the request", e);
+                        }
+                        return r;
+                    }
+            );
         }
         
         cluster = builder.create();
