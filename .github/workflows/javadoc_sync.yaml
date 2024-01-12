@@ -17,7 +17,7 @@ jobs:
           java-version: '11'
 
       - name: Build Javadoc with Maven
-        run: mvn -B javadoc:aggregate --file pom.xml
+        run: mvn -B javadoc:aggregate --file pom.xml -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
 
       - name: Switch to gh-pages branch
         run: |
