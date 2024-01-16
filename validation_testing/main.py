@@ -26,9 +26,9 @@ def assert_required_env_vars_set():
         raise RuntimeError("not all expected environment variables were set!")
 
 def pre_test_infra_check():
-    # Responsible for manking sure that all stacks from previous runs are cleaned
+    # Responsible for making sure that all stacks from previous runs are cleaned
     # This is needed as sometimes we have resources that are stuck around after tests
-    # That make the stack deletion impossible, such as ENIs. 
+    # That makes the stack deletion impossible, such as ENIs. 
     # This will ensure that everything is cleaned up before bringing up a new stack
     for connector in TESTABLE_CONNECTORS:
       shell_command = f'sh run_cleanup_infra.sh {connector}'
