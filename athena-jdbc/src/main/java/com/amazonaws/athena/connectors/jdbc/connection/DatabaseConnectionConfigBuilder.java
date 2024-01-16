@@ -96,7 +96,7 @@ public class DatabaseConnectionConfigBuilder
         List<DatabaseConnectionConfig> databaseConnectionConfigs = new ArrayList<>();
 
         int numberOfCatalogs = 0;
-        if (StringUtils.isBlank(properties.get(DEFAULT_GLUE_CONNECTION))) {
+        if (!StringUtils.isBlank(properties.get(DEFAULT_GLUE_CONNECTION))) {
             databaseConnectionConfigs.add(extractDatabaseGlueConnectionConfig(DEFAULT_CONNECTION_STRING_PROPERTY));
             numberOfCatalogs++;
         }

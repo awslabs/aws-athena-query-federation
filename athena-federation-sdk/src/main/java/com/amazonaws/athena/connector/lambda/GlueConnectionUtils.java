@@ -51,9 +51,10 @@ public class GlueConnectionUtils
         String glueConnectionName = envConfig.get(DEFAULT_GLUE_CONNECTION);
         if (glueConnectionName != null) {
             HashMap<String, String> cachedConfig = connectionNameCache.get(glueConnectionName);
-            if (cachedConfig != null) {
+            if (cachedConfig == null) {
                 try {
                     HashMap<String, HashMap<String, String>> athenaDriverPropertiesToMap = new HashMap<String, HashMap<String, String>>();
+
                     AWSGlue awsGlue = AWSGlueClientBuilder.standard().withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT)).build();
                     GetConnectionResult glueConnection = awsGlue.getConnection(new GetConnectionRequest().withName(glueConnectionName));
                     Connection connection = glueConnection.getConnection();
@@ -74,6 +75,8 @@ public class GlueConnectionUtils
                 catch (Exception err) {
                     logger.error("Error thrown during fetching of {} connection properties. {}", glueConnectionName, err.toString());
                 }
+            }else{
+                return cachedConfig;
             }
         }
         else {            

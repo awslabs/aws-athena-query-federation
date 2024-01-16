@@ -54,12 +54,10 @@ public final class JDBCUtil
         List<DatabaseConnectionConfig> databaseConnectionConfigs = DatabaseConnectionConfigBuilder.buildFromSystemEnv(databaseEngine, configOptions);
 
         for (DatabaseConnectionConfig databaseConnectionConfig : databaseConnectionConfigs) {
-            if (DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY.equals(databaseConnectionConfig.getCatalog())
-                    && databaseEngine.equals(databaseConnectionConfig.getEngine())) {
+            if (DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY.equals(databaseConnectionConfig.getCatalog())) {
                 return databaseConnectionConfig;
             }
         }
-
         throw new RuntimeException(String.format("Must provide default connection string parameter %s for database type %s",
                 DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY, databaseEngine));
     }
