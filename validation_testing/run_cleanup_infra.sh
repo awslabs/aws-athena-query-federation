@@ -61,7 +61,7 @@ npm run build;
 npm run cdk synth;
 yes | npm run cdk destroy ${CONNECTOR_NAME}CdkStack;
 
-# Check if the stack is clean up -- Otherwise fail so that On-Call cal manually clean up the stack.
+# Check if the stack is clean up -- Otherwise fail so that On-Call can manually clean up the stack.
 stacks=$(aws cloudformation list-stacks --stack-status-filter CREATE_FAILED ROLLBACK_FAILED DELETE_IN_PROGRESS DELETE_FAILED | jq -r --arg prefix "$prefix" '.StackSummaries[] | select(.StackName | startswith($prefix)) | .StackName')
 if [ -z "$stacks" ]; then
     echo "FINISHED CLEANING UP RESOURCES FOR ${CONNECTOR_NAME}."
