@@ -31,7 +31,7 @@ def pre_test_infra_check():
     # That make the stack deletion impossible, such as ENIs. 
     # This will ensure that everything is cleaned up before bringing up a new stack
     for connector in TESTABLE_CONNECTORS:
-      shell_command = f'sh run_cleanup_infra.sh {connector_name}'
+      shell_command = f'sh run_cleanup_infra.sh {connector}'
       subprocess.run(shell_command, shell=True, check=True)
 
 if __name__ == '__main__':
