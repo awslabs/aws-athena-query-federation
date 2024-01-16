@@ -48,7 +48,7 @@ done
 # #todo: this is results in latest changes of redshift construct
 #        We need to move back to L2 contruct, once its fixed
 echo "STEP 3: CLEANING UP ANY REDSHIFT PARAMETER GROUP"
-if [ ${CONNECTOR_NAME} -eq redshift ]; then
+if [ "${CONNECTOR_NAME}" = "redshift" ]; then
     aws redshift  delete-cluster-parameter-group -- delete-cluster-parameter-group caseinsensitiveparametername
 fi
 
