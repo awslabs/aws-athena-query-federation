@@ -24,11 +24,6 @@
             <version>2022.47.1</version>
         </dependency>
         <dependency>
-            <groupId>Hive</groupId>
-            <artifactId>HiveJDBC42</artifactId>
-            <version>${clouderaVersion}</version>
-        </dependency>
-        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
             <version>2022.47.1</version>
