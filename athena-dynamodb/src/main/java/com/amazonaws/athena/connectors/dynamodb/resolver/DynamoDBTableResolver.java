@@ -48,7 +48,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
  * which may have captial letters in them without issue. It does so by fetching all table names and doing
  * a case insensitive search over them. It will first try to do a targeted get to reduce the penalty for
  * tables which don't have capitalization.
- * <p>
+ *
  * TODO add caching
  */
 public class DynamoDBTableResolver

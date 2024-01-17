@@ -206,7 +206,6 @@ public class DynamoDBMetadataHandler
      * <p>
      * If the specified schema is "default", this also returns an intersection with actual tables in DynamoDB.
      * Pagination only implemented for DynamoDBTableResolver.listTables()
-     *
      * @see GlueMetadataHandler
      */
     @Override
@@ -220,7 +219,7 @@ public class DynamoDBMetadataHandler
             try {
                 // does not validate that the tables are actually DDB tables
                 combinedTables.addAll(super.doListTables(allocator, new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
-                        request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE), TABLE_FILTER).getTables());
+                                request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE), TABLE_FILTER).getTables());
             }
             catch (RuntimeException e) {
                 logger.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
