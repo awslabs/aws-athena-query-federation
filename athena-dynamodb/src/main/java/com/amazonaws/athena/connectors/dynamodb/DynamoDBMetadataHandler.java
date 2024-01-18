@@ -71,6 +71,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -119,6 +120,7 @@ public class DynamoDBMetadataHandler
     @VisibleForTesting
     static final int MAX_SPLITS_PER_REQUEST = 1000;
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBMetadataHandler.class);
+    private static final String ALLOWED_TABLES_ENV = "allowed_tables";
     static final String DYNAMODB = "dynamodb";
     private static final String SOURCE_TYPE = "ddb";
     // defines the value that should be present in the Glue Database URI to enable the DB for DynamoDB.
@@ -143,7 +145,14 @@ public class DynamoDBMetadataHandler
                 .build();
         this.glueClient = getAwsGlue();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
-        this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
+
+        String allowedTablesEnvStr = configOptions.getOrDefault(ALLOWED_TABLES_ENV, "");
+        List<String> allowedTables = new ArrayList<>();
+        if (!allowedTablesEnvStr.isEmpty()) {
+            allowedTables = Arrays.asList(allowedTablesEnvStr.split(";", -1));
+        }
+
+        this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient, allowedTables);
     }
 
     @VisibleForTesting
@@ -161,7 +170,7 @@ public class DynamoDBMetadataHandler
         this.glueClient = glueClient;
         this.ddbClient = ddbClient;
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
-        this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
+        this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient, new ArrayList<>());
     }
 
     /**
