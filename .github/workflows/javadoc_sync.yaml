@@ -11,13 +11,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'corretto'
           java-version: '11'
 
       - name: Build Javadoc with Maven
-        run: mvn -B javadoc:aggregate --file pom.xml
+        run: mvn -B javadoc:aggregate --file pom.xml -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
 
       - name: Switch to gh-pages branch
         run: |
