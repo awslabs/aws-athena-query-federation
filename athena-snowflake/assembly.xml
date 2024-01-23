@@ -19,12 +19,21 @@
         </fileSet>
     </fileSets>
     <dependencySets>
-        <!-- Include all dependencies in the lib/ directory -->
         <dependencySet>
-            <outputDirectory>lib</outputDirectory>
-            <excludes>
-                <exclude>${project.groupId}:${project.artifactId}:jar:*</exclude>
-            </excludes>
+            <outputDirectory>/</outputDirectory>
+            <useProjectArtifact>false</useProjectArtifact>
+            <unpack>true</unpack>
+            <scope>runtime</scope>
+            <unpackOptions>
+                <excludes>
+                    <exclude>**/*.dylib</exclude>
+                    <exclude>**/*.dll</exclude>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>**/Log4j2Plugins.dat</exclude>
+                </excludes>
+            </unpackOptions>
         </dependencySet>
     </dependencySets>
 </assembly>
