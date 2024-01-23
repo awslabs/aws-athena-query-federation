@@ -20,21 +20,12 @@
     </fileSets>
     <dependencySets>
         <dependencySet>
-            <outputDirectory>/</outputDirectory>
+            <outputDirectory>lib</outputDirectory>
             <useProjectArtifact>false</useProjectArtifact>
-            <unpack>true</unpack>
-            <scope>runtime</scope>
-            <unpackOptions>
-                <excludes>
-                    <exclude>**/*.dylib</exclude>
-                    <exclude>**/*.dll</exclude>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                    <exclude>**/Log4j2Plugins.dat</exclude>
-                    <exclude>com.amazonaws:aws-athena-federation-sdk:jar:*</exclude>
-                </excludes>
-            </unpackOptions>
+            <useTransitiveDependencies>false</useTransitiveDependencies>
+            <excludes>
+                <exclude>${project.groupId}:${project.artifactId}:jar:*</exclude>
+            </excludes>
         </dependencySet>
-    </dependencySets>
+    </dependencySets> 
 </assembly>
