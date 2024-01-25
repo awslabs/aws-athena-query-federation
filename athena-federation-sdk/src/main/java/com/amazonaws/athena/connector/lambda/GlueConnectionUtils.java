@@ -35,6 +35,8 @@ import java.util.Map;
 
 public class GlueConnectionUtils
 {
+    public static final String DEFAULT_GAMMA_ENDPOINT = "https://glue-gamma.ap-south-2.amazonaws.com";
+    public static final String DEFAULT_REGION = "ap-south-2";
     public static final String DEFAULT_GLUE_CONNECTION = "glue_connection";
     private static final int CONNECT_TIMEOUT = 250;
     private static final Logger logger = LoggerFactory.getLogger(GlueConnectionUtils.class);
@@ -55,7 +57,7 @@ public class GlueConnectionUtils
                 try {
                     HashMap<String, HashMap<String, String>> athenaDriverPropertiesToMap = new HashMap<String, HashMap<String, String>>();
 
-                    AWSGlue awsGlue = AWSGlueClientBuilder.standard().withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT)).build();
+                    AWSGlue awsGlue = AWSGlueClientBuilder.standard().withEndpointConfiguration(new AWSGlueClientBuilder.EndpointConfiguration(DEFAULT_GAMMA_ENDPOINT, DEFAULT_REGION)).withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT)).build();
                     GetConnectionResult glueConnection = awsGlue.getConnection(new GetConnectionRequest().withName(glueConnectionName));
                     Connection connection = glueConnection.getConnection();
                     String athenaDriverPropertiesAsString = connection.getConnectionProperties().get("AthenaDriverProperties");
