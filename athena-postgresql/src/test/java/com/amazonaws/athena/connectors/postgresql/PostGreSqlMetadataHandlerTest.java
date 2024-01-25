@@ -404,6 +404,67 @@ public class PostGreSqlMetadataHandlerTest
         logger.info("doGetTableWithArrayColumns - exit");
    }
 
+    @Test
+    public void doGetTableWithUnBoundNumericColumns()
+            throws Exception
+    {
+        logger.info("GetTableWithUnBoundNumericColumns - enter");
+
+        String[] schema = {"DATA_TYPE", "COLUMN_NAME",  "COLUMN_SIZE", "DECIMAL_DIGITS", "TYPE_NAME"};
+        Object[][] values = {
+                {Types.NUMERIC, "numeric_col", 131089, 0, "_numeric"}
+        };
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder
+                .addListField("numeric_col", new ArrowType.Decimal(38,0));
+
+        postGreSqlMetadataHandler.getPartitionSchema("testCatalog").getFields()
+                .forEach(expectedSchemaBuilder::addField);
+        Schema expected = expectedSchemaBuilder.build();
+
+        ResultSet caseInsensitiveSchemaResult = Mockito.mock(ResultSet.class);
+        String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
+        PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
+        preparedSchemaStatement.setString(1, "testschema");
+        preparedSchemaStatement.setString(2, "testschema");
+
+        String[] columnNames = new String[] {"schema_name"};
+        String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+        caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+
+        Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult);
+
+        TableName inputTableName = new TableName("testSchema", "testtable");
+        columnNames = new String[] {"table_name"};
+        tableNameValues = new String[][]{new String[] {"testTable"}};
+        ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setString(1, "testtable");
+        preparedStatement.setString(2, "testtable");
+        preparedStatement.setString(3, "testSchema");
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
+        String resolvedTableName = "testTable";
+
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), resolvedTableName, null)).thenReturn(resultSet);
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+
+        GetTableResponse getTableResponse = this.postGreSqlMetadataHandler.doGetTable(new BlockAllocatorImpl(),
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+
+        logger.info("Schema: {}", getTableResponse.getSchema());
+
+        TableName expectedTableName = new TableName("testSchema", "testTable");
+        Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(expectedTableName, getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+
+        logger.info("doGetTableWithArrayColumns - exit");
+    }
+
    @Test
    public void doGetTableMaterializedView()
            throws Exception

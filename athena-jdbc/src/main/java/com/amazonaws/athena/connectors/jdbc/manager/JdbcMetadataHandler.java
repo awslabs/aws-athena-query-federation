@@ -262,11 +262,10 @@ public abstract class JdbcMetadataHandler
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
             boolean found = false;
             while (resultSet.next()) {
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                ArrowType columnType = getArrowTypeFromDataType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
-                        resultSet.getInt("DECIMAL_DIGITS"),
-                        configOptions);
+                        resultSet.getInt("DECIMAL_DIGITS"));
                 String columnName = resultSet.getString("COLUMN_NAME");
                 if (columnType != null && SupportedTypes.isSupported(columnType)) {
                     if (columnType instanceof ArrowType.List) {
@@ -297,6 +296,14 @@ public abstract class JdbcMetadataHandler
 
             return schemaBuilder.build();
         }
+    }
+
+    protected ArrowType getArrowTypeFromDataType(int dataType, int columnSize, int decimalDigits) {
+        return JdbcArrowTypeConverter.toArrowType(
+                dataType,
+                columnSize,
+                decimalDigits,
+                configOptions);
     }
 
     private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)

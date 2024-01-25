@@ -31,8 +31,6 @@ import java.sql.Types;
  */
 public final class JdbcArrowTypeConverter
 {
-    private static final int DEFAULT_PRECISION = 38;
-
     private JdbcArrowTypeConverter() {}
 
     /**
@@ -45,18 +43,8 @@ public final class JdbcArrowTypeConverter
      */
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale, java.util.Map<String, String> configOptions)
     {
-        int defaultScale = Integer.parseInt(configOptions.getOrDefault("default_scale", "0"));
-        int resolvedPrecision = precision;
-        int resolvedScale = scale;
-        boolean needsResolving = jdbcType == Types.NUMERIC && (precision == 0 && scale == 0);
-        // Resolve Precision and Scale if they're not available
-        if (needsResolving) {
-            resolvedPrecision = DEFAULT_PRECISION;
-            resolvedScale = defaultScale;
-        }
-
         ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
-                new JdbcFieldInfo(jdbcType, resolvedPrecision, resolvedScale),
+                new JdbcFieldInfo(jdbcType, precision, scale),
                 null);
 
         if (arrowType instanceof ArrowType.Date) {

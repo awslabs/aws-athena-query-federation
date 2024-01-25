@@ -94,7 +94,7 @@ public class PostGreSqlMetadataHandler
     private static final String PARTITION_SCHEMA_NAME = "child_schema";
     private static final String PARTITION_NAME = "child";
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
-
+    private static final int SUPPORTED_MAX_PRECISION = 38;
     static final String LIST_PAGINATED_TABLES_QUERY = "SELECT a.\"TABLE_NAME\", a.\"TABLE_SCHEM\" FROM ((SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?) UNION (SELECT matviewname as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" from pg_catalog.pg_matviews mv where has_table_privilege(format('%I.%I', mv.schemaname, mv.matviewname), 'select') and schemaname = ?)) AS a ORDER BY a.\"TABLE_NAME\" LIMIT ? OFFSET ?";
 
     /**
@@ -397,6 +397,20 @@ public class PostGreSqlMetadataHandler
             default:
                 return super.getArrayArrowTypeFromTypeName(typeName, precision, scale);
         }
+    }
+
+    @Override
+    protected ArrowType getArrowTypeFromDataType(int dataType, int columnSize, int decimalDigits) {
+        int defaultScale = Integer.parseInt(configOptions.getOrDefault("default_scale", "0"));
+
+        int resolvedColumnSize =
+                dataType == java.sql.Types.NUMERIC ?
+                        Math.min(columnSize, SUPPORTED_MAX_PRECISION) : columnSize;
+        int resolvedDecimalDigits =
+                dataType == java.sql.Types.NUMERIC && columnSize > SUPPORTED_MAX_PRECISION ?
+                    defaultScale : decimalDigits;
+
+        return super.getArrowTypeFromDataType(dataType, resolvedColumnSize, resolvedDecimalDigits);
     }
 
     protected List<TableName> getPaginatedResults(Connection connection, String databaseName, int token, int limit) throws SQLException
