@@ -24,8 +24,6 @@ import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-import java.sql.Types;
-
 /**
  * Utility abstracts Jdbc to Arrow type conversions.
  */

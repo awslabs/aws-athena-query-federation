@@ -400,7 +400,8 @@ public class PostGreSqlMetadataHandler
     }
 
     @Override
-    protected ArrowType getArrowTypeFromDataType(int dataType, int columnSize, int decimalDigits) {
+    protected ArrowType getArrowTypeFromDataType(int dataType, int columnSize, int decimalDigits)
+    {
         int defaultScale = Integer.parseInt(configOptions.getOrDefault("default_scale", "0"));
 
         int resolvedColumnSize =

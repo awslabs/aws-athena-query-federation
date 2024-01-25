@@ -298,7 +298,8 @@ public abstract class JdbcMetadataHandler
         }
     }
 
-    protected ArrowType getArrowTypeFromDataType(int dataType, int columnSize, int decimalDigits) {
+    protected ArrowType getArrowTypeFromDataType(int dataType, int columnSize, int decimalDigits)
+    {
         return JdbcArrowTypeConverter.toArrowType(
                 dataType,
                 columnSize,
