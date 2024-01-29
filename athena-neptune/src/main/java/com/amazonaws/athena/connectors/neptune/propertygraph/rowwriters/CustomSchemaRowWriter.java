@@ -78,7 +78,7 @@ public final class CustomSchemaRowWriter
 
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate BIT*" + field.getName() + "*" + minorType + "*"
-                                    + fieldValue + "*" + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
 
                             if (fieldValue.getClass().equals(Boolean.class)) {                              
                                 Boolean booleanValue = Boolean.parseBoolean(fieldValue.toString());
@@ -114,7 +114,7 @@ public final class CustomSchemaRowWriter
                             else {
                                 Object fieldValue = obj.get(fieldName);
                                 logger.debug("writeRowTemplate VARCHAR*" + field.getName() + "*" + minorType + "*"
-                                        + fieldValue + "*" + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                                        + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
 
                                 if (fieldValue != null) {
                                     if (fieldValue.getClass().equals(String.class)) {
@@ -146,7 +146,7 @@ public final class CustomSchemaRowWriter
 
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate DATEMILLI*" + field.getName() + "*" + minorType + "*"
-                                    + fieldValue + "*" + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
                             if (fieldValue.getClass().equals(Date.class)) {                              
                                 value.value = ((Date) fieldValue).getTime();
                                 value.isSet = 1;
@@ -170,7 +170,7 @@ public final class CustomSchemaRowWriter
 
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate INT*" + field.getName() + "*" + minorType + "*"
-                                    + fieldValue + "*" + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
                             if (fieldValue.getClass().equals(Integer.class)) {
                                 value.value = Integer.parseInt(fieldValue.toString());
                                 value.isSet = 1;
@@ -194,7 +194,7 @@ public final class CustomSchemaRowWriter
 
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate BIGINT*" + field.getName() + "*" + minorType + "*"
-                                    + fieldValue + "*" + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
                             if (fieldValue.getClass().equals(Long.class)) {
                                 value.value = Long.parseLong(fieldValue.toString());
                                 value.isSet = 1;
@@ -218,7 +218,7 @@ public final class CustomSchemaRowWriter
 
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate FLOAT4*" + field.getName() + "*" + minorType + "*"
-                                    + fieldValue + "*" + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
                             if (fieldValue.getClass().equals(Float.class)) {
                                 value.value = Float.parseFloat(fieldValue.toString());
                                 value.isSet = 1;
@@ -242,7 +242,7 @@ public final class CustomSchemaRowWriter
 
                             Object fieldValue = obj.get(fieldName);
                             logger.debug("writeRowTemplate FLOAT8*" + field.getName() + "*" + minorType + "*"
-                                    + fieldValue + "*" + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
                             if (fieldValue.getClass().equals(Double.class)) {
                                 value.value = Double.parseDouble(fieldValue.toString());
                                 value.isSet = 1;
@@ -261,7 +261,7 @@ public final class CustomSchemaRowWriter
         }
         catch (Throwable e) {
             logger.error("writeRowTemplate exception for *" + field.getName() + "*" + minorType + "*", e);
-            //throw new RuntimeException(e);
+            throw new RuntimeException(e);
         }
     }
 
