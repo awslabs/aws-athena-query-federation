@@ -38,7 +38,7 @@ public class GlueConnectionUtils
     public static final String DEFAULT_GAMMA_ENDPOINT = "https://glue-gamma.ap-south-2.amazonaws.com";
     public static final String DEFAULT_REGION = "ap-south-2";
     public static final String DEFAULT_GLUE_CONNECTION = "glue_connection";
-    private static final int CONNECT_TIMEOUT = 250;
+    private static final int CONNECT_TIMEOUT = 1000;
     private static final Logger logger = LoggerFactory.getLogger(GlueConnectionUtils.class);
     private static HashMap<String, HashMap<String, String>> connectionNameCache = new HashMap<>();
 
@@ -58,7 +58,8 @@ public class GlueConnectionUtils
                     HashMap<String, HashMap<String, String>> athenaDriverPropertiesToMap = new HashMap<String, HashMap<String, String>>();
 
                     AWSGlue awsGlue = AWSGlueClientBuilder.standard().withEndpointConfiguration(new AWSGlueClientBuilder.EndpointConfiguration(DEFAULT_GAMMA_ENDPOINT, DEFAULT_REGION)).withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT)).build();
-                    GetConnectionResult glueConnection = awsGlue.getConnection(new GetConnectionRequest().withName(glueConnectionName));
+                    GetConnectionRequest getGlueConnectionRequest = new GetConnectionRequest().withName(glueConnectionName);
+                    GetConnectionResult glueConnection = awsGlue.getConnection(getGlueConnectionRequest);
                     Connection connection = glueConnection.getConnection();
                     String athenaDriverPropertiesAsString = connection.getConnectionProperties().get("AthenaDriverProperties");
                     try {
@@ -75,7 +76,9 @@ public class GlueConnectionUtils
                     connectionNameCache.put(glueConnectionName, envConfig);
                 }
                 catch (Exception err) {
-                    logger.error("Error thrown during fetching of {} connection properties. {}", glueConnectionName, err.toString());
+                    logger.debug("Error thrown during fetching of {} connection properties.", glueConnectionName);
+                    logger.debug(err.toString());
+                    throw new RuntimeException("Error thrown during fetching of " + glueConnectionName + " connection properties.");
                 }
             }else{
                 return cachedConfig;

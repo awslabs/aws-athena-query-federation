@@ -91,7 +91,7 @@ public class DatabaseConnectionConfigBuilder
     public List<DatabaseConnectionConfig> build()
     {
         Validate.notEmpty(this.properties, "properties must not be empty");
-        Validate.notBlank(this.properties.get(DEFAULT_CONNECTION_STRING_PROPERTY), "Default connection string must be present");
+        // Validate.notBlank(this.properties.get(DEFAULT_CONNECTION_STRING_PROPERTY), "Default connection string must be present");
 
         List<DatabaseConnectionConfig> databaseConnectionConfigs = new ArrayList<>();
 
