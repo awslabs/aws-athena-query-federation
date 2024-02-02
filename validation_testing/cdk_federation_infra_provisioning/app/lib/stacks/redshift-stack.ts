@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import { aws_redshift as cfnredshift } from 'aws-cdk-lib';
 import * as redshift from '@aws-cdk/aws-redshift-alpha';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as glue from '@aws-cdk/aws-glue-alpha';
@@ -40,6 +41,14 @@ export class RedshiftStack extends cdk.Stack {
         }
     });
 
+    const isolatedSubnets = vpc.isolatedSubnets;
+    const publicSubnets = vpc.publicSubnets;
+
+    const cfnClusterSubnetGroup = new cfnredshift.CfnClusterSubnetGroup(this, 'MyCfnClusterSubnetGroup', {
+        description: 'Redshift Cluster Subnet Group',
+        subnetIds: [isolatedSubnets[0].subnetId, publicSubnets[0].subnetId]
+    });
+
     const glueInterfaceVpcEndpoint = new ec2.InterfaceVpcEndpoint(this, 'glue_interface_vpc_endpoint', {
       vpc,
       service: ec2.InterfaceVpcEndpointAwsService.GLUE
@@ -53,7 +62,8 @@ export class RedshiftStack extends cdk.Stack {
     securityGroup.addIngressRule(securityGroup, ec2.Port.allTcp());
 
     // https://github.com/aws/aws-cdk/blob/main/packages/%40aws-cdk/aws-redshift/lib/cluster.ts
-    const cluster = new redshift.Cluster(this, 'redshift_cluster', {
+    // Original L2 Construct
+    /* const cluster = new redshift.Cluster(this, 'redshift_cluster', {
         numberOfNodes: 2,
         port: 5439,
         vpc: vpc,
@@ -70,10 +80,35 @@ export class RedshiftStack extends cdk.Stack {
         publiclyAccessible: false // this is the default but just to be explicit
     });
     cluster.addToParameterGroup('enable_case_sensitive_identifier', 'true');
+    */
+    
+    const cfnClusterParameterGroup = new cfnredshift.CfnClusterParameterGroup(this, 'MyCfnClusterParameterGroup', {
+        description: 'case insensitive parameter',
+        parameterGroupFamily: 'redshift-1.0',
+
+        parameterGroupName: 'caseinsensitiveparametername',
+        parameters: [{
+          parameterName: 'enable_case_sensitive_identifier',
+          parameterValue: 'true',
+        }]
+    });
+
+    // L1 Construct Temporary Solution until L2 Construct Works Again 
+    const cfnCluster = new cfnredshift.CfnCluster(this, 'MyCfnCluster', {
+        clusterType: 'single-node',
+        dbName: 'test',
+        masterUsername: 'athena',
+        masterUserPassword: password,
+        nodeType: 'dc2.large',
+        clusterSubnetGroupName: cfnClusterSubnetGroup.attrClusterSubnetGroupName,
+        publiclyAccessible: false,
+        vpcSecurityGroupIds: [securityGroup.securityGroupId],
+        clusterParameterGroupName: 'caseinsensitiveparametername'
+    });
 
     const s3Spill = new s3.Bucket(this, 'redshift_spill_location', {});
 
-    const connectionString = `jdbc:redshift://${cluster.clusterEndpoint.socketAddress}/test?user=athena&password=${password}`;
+    const connectionString = `jdbc:redshift://${cfnCluster.attrEndpointAddress}:${cfnCluster.attrEndpointPort}/test?user=athena&password=${password}`;
     const subnet = vpc.isolatedSubnets[0];
     const glueConnection = new glue.Connection(this, 'redshift_glue_connection', {
       type: glue.ConnectionType.JDBC,
@@ -107,7 +142,7 @@ export class RedshiftStack extends cdk.Stack {
         role: glue_role,
         defaultArguments: {
           '--s3_full_prefix': s3_path, 
-          '--db_url': `jdbc:redshift://${cluster.clusterEndpoint.socketAddress}/test`,
+          '--db_url': `jdbc:redshift://${cfnCluster.attrEndpointAddress}:${cfnCluster.attrEndpointPort}/test`,
           '--username': 'athena',
           '--password': password, 
           '--redshiftTmpDir': `s3://${s3Spill.bucketName}/tmpDir`,
@@ -127,7 +162,7 @@ export class RedshiftStack extends cdk.Stack {
         glueConnection
       ],
       defaultArguments: {
-        '--db_url': cluster.clusterEndpoint.hostname,
+        '--db_url': cfnCluster.attrEndpointAddress,
         '--username': 'athena',
         '--password': password
       }

@@ -10,7 +10,7 @@
     <version>2022.47.1</version>
     <properties>
         <jetty.version>11.0.16</jetty.version>
-        <hbase.version>2.5.6-hadoop3</hbase.version>
+        <hbase.version>2.5.7-hadoop3</hbase.version>
     </properties>
     <dependencies>
         <dependency>
@@ -76,11 +76,6 @@
             <groupId>org.codehaus.jettison</groupId>
             <artifactId>jettison</artifactId>
             <version>1.5.4</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-transport</artifactId>
-            <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
@@ -166,10 +161,6 @@
                 <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>log4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>netty-transport</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>com.google.protobuf</groupId>

@@ -194,16 +194,6 @@
             <version>${apache.arrow.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-buffer</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-common</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-core</artifactId>
             <version>1.2.3</version>
@@ -391,8 +381,14 @@
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
                         <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
-</transformer>
+                        </transformer>
                     </transformers>
+                    <relocations>
+                        <relocation>
+                            <pattern>io.netty</pattern>
+                            <shadedPattern>athena.com.io.netty</shadedPattern>
+                        </relocation>
+                    </relocations>
                 </configuration>
                 <dependencies>
                     <dependency>
@@ -420,14 +416,15 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <!-- Requires the AWS SDK, Slf4j, and FlatBuffers to be available at runtime for metadata.
-                            Also requires BouncyCastle for records. -->
+                            <!-- Requires the AWS SDK, Slf4j to be available at runtime for metadata.Also requires BouncyCastle for records. -->
+                            <!-- This include Athena Federation SDK, Apache Arrow(including arrow-memory-netty) and io.netty-->
                             <shadedClassifierName>with-arrow</shadedClassifierName>
-                            <minimizeJar>true</minimizeJar>
                             <artifactSet>
                                 <includes>
                                     <include>com.amazonaws.athena:*</include>
                                     <include>org.apache.arrow:*</include>
+                                    <include>com.google.flatbuffers:*</include>
+                                    <include>io.netty:*</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
@@ -437,7 +434,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.3.0</version>
+                <version>2.4.0</version>
                 <configuration>
                     <verbose>false</verbose>
                     <addSvnKeyWords>false</addSvnKeyWords>
@@ -460,6 +457,7 @@
                     </execution>
                 </executions>
             </plugin>
+
         </plugins>
     </build>
 </project>
