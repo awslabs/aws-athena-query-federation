@@ -22,7 +22,7 @@
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.8.2</jqwik.version>
-        <assertj.version>3.25.2</assertj.version>
+        <assertj.version>3.25.3</assertj.version>
         <testng.version>7.9.0</testng.version>
         <fasterxml.jackson.version>2.16.1</fasterxml.jackson.version>
         <surefire.failsafe.version>3.2.5</surefire.failsafe.version>
