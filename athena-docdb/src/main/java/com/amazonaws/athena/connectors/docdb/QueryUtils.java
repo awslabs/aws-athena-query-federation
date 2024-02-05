@@ -44,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.bson.Document;
+import org.bson.json.JsonParseException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -244,5 +245,15 @@ public final class QueryUtils
             return ((Text) value).toString();
         }
         return value;
+    }
+
+    public static Document parseFilter(String filter)
+    {
+        try {
+            return Document.parse(filter);
+        }
+        catch (JsonParseException e) {
+            throw new RuntimeException("Can't parse 'filter' argument as json", e);
+        }
     }
 }

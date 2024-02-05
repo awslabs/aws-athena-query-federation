@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.docdb.ptf.DocDBQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -142,10 +143,22 @@ public class DocDBRecordHandler
         Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
 
         MongoClient client = getOrCreateConn(recordsRequest.getSplit());
-        MongoDatabase db = client.getDatabase(schemaName);
-        MongoCollection<Document> table = db.getCollection(tableName);
+        MongoDatabase db;
+        MongoCollection<Document> table;
+        Document query;
 
-        Document query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            //todo; add verifications
+            Map<String, String> qptArgument = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            db = client.getDatabase(qptArgument.get(DocDBQueryPassthrough.DATABASE));
+            table = db.getCollection(qptArgument.get(DocDBQueryPassthrough.COLLECTION));
+            query = QueryUtils.parseFilter(qptArgument.get(DocDBQueryPassthrough.FILTER));
+        }
+        else {
+            db =  client.getDatabase(schemaName);
+            table = db.getCollection(tableName);
+            query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+        }
 
         String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
         boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
