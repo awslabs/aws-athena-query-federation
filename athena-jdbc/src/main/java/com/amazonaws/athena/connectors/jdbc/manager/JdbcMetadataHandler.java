@@ -243,6 +243,7 @@ public abstract class JdbcMetadataHandler
             TableName caseInsensitiveTableMatch = caseInsensitiveTableSearch(connection, getTableRequest.getTableName().getSchemaName(),
                     getTableRequest.getTableName().getTableName());
             Schema caseInsensitiveSchemaMatch = getSchema(connection, caseInsensitiveTableMatch, partitionSchema);
+
             return new GetTableResponse(getTableRequest.getCatalogName(), caseInsensitiveTableMatch, caseInsensitiveSchemaMatch,
                         partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -278,12 +279,11 @@ public abstract class JdbcMetadataHandler
 
                 int precision = metadata.getPrecision(columnIndex);
                 int scale = metadata.getScale(columnIndex);
-                int decimalDigits = precision - scale;
 
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         metadata.getColumnType(columnIndex),
-                        metadata.getColumnDisplaySize(columnIndex),
-                        decimalDigits,
+                        precision,
+                        scale,
                         configOptions);
 
                 if (columnType != null && SupportedTypes.isSupported(columnType)) {
@@ -291,7 +291,7 @@ public abstract class JdbcMetadataHandler
                         schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
                                 metadata.getTableName(columnIndex),
                                 metadata.getColumnDisplaySize(columnIndex),
-                                decimalDigits));
+                                precision));
                     }
                     else {
                         schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
