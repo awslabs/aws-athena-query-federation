@@ -75,8 +75,7 @@ public class VerticaConnectionFactory
      */
     private boolean connectionTest(Connection conn) throws SQLException {
         try {
-            conn.isValid(CONNECTION_TIMEOUT);
-            return true;
+            return conn.isValid(CONNECTION_TIMEOUT);
         }
         catch (RuntimeException | SQLException ex) {
             logger.warn("getOrCreateConn: Exception while testing existing connection.", ex);

@@ -55,7 +55,8 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-bigquery</artifactId>
-            <version>2.36.0</version>
+            <!-- starting with version 2.36.0 there is a breaking change, do not update -->
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.api.grpc</groupId>
@@ -70,7 +71,7 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-resourcemanager</artifactId>
-            <version>1.35.0</version>
+            <version>1.36.0</version>
         </dependency>
         <dependency>
             <groupId>nl.jqno.equalsverifier</groupId>
