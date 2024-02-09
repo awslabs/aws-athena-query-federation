@@ -224,6 +224,11 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(),
                 getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+        if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
+            LOGGER.info("QPT Split Requested");
+            return setupQueryPassthroughSplit(getSplitsRequest);
+        }
+
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         Set<Split> splits = new HashSet<>();
         Block partitions = getSplitsRequest.getPartitions();
@@ -270,6 +275,8 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
         capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
                 LimitPushdownSubType.INTEGER_CONSTANT
         ));
+
+        capabilities.put(jdbcQueryPassthrough.getFunctionSignature(), jdbcQueryPassthrough.getQueryPassthroughCapabilities());
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
