@@ -203,6 +203,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
 
+        capabilities.put(jdbcQueryPassthrough.getFunctionSignature(), jdbcQueryPassthrough.getQueryPassthroughCapabilities());
+
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
@@ -300,6 +302,10 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+        if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
+            LOGGER.info("QPT Split Requested");
+            return setupQueryPassthroughSplit(getSplitsRequest);
+        }
 
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         LOGGER.info("partitionContd: {}", partitionContd);
