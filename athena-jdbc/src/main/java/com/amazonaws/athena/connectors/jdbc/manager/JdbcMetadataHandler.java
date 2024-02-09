@@ -25,7 +25,9 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
+import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -40,6 +42,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.RdsSecretsCredentialProvider;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
 import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -58,11 +61,15 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -82,6 +89,7 @@ public abstract class JdbcMetadataHandler
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final SplitterFactory splitterFactory = new SplitterFactory();
+    protected JdbcQueryPassthrough jdbcQueryPassthrough = new JdbcQueryPassthrough();
 
     /**
      * Used only by Multiplexing handler. All calls will be delegated to respective database handler.
@@ -235,8 +243,67 @@ public abstract class JdbcMetadataHandler
             TableName caseInsensitiveTableMatch = caseInsensitiveTableSearch(connection, getTableRequest.getTableName().getSchemaName(),
                     getTableRequest.getTableName().getTableName());
             Schema caseInsensitiveSchemaMatch = getSchema(connection, caseInsensitiveTableMatch, partitionSchema);
+
             return new GetTableResponse(getTableRequest.getCatalogName(), caseInsensitiveTableMatch, caseInsensitiveSchemaMatch,
                         partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+        }
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
+    {
+        if (!getTableRequest.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + getTableRequest);
+        }
+
+        jdbcQueryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
+        String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
+
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
+            ResultSetMetaData metadata = preparedStatement.getMetaData();
+            if (metadata == null) {
+                throw new UnsupportedOperationException("Query not supported: ResultSetMetaData not available for query: " + customerPassedQuery);
+            }
+            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+            for (int columnIndex = 1; columnIndex <= metadata.getColumnCount(); columnIndex++) {
+                String columnName = metadata.getColumnName(columnIndex);
+                String columnLabel = metadata.getColumnLabel(columnIndex);
+                //todo; is there a mechanism to pass both back to the engine?
+                columnName = columnName.equals(columnLabel) ? columnName : columnLabel;
+
+                int precision = metadata.getPrecision(columnIndex);
+                int scale = metadata.getScale(columnIndex);
+
+                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                        metadata.getColumnType(columnIndex),
+                        precision,
+                        scale,
+                        configOptions);
+
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    if (columnType instanceof ArrowType.List) {
+                        schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
+                                metadata.getTableName(columnIndex),
+                                metadata.getColumnDisplaySize(columnIndex),
+                                precision));
+                    }
+                    else {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    }
+                }
+                else {
+                    // Default to VARCHAR ArrowType
+                    LOGGER.warn("getSchema: Unable to map type for column[" + columnName +
+                            "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
+                }
+            }
+
+            Schema schema = schemaBuilder.build();
+            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), schema, Collections.emptySet());
         }
     }
 
@@ -372,5 +439,22 @@ public abstract class JdbcMetadataHandler
     {
         // Default ARRAY type is VARCHAR.
         return new ArrowType.Utf8();
+    }
+
+    /**
+     * Helper function that provides a single partition for Query Pass-Through
+     *
+     */
+    protected GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
+    {
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
+
+        //Since this is QPT query we return a fixed split.
+        Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+        return new GetSplitsResponse(request.getCatalogName(),
+                Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .applyProperties(qptArguments)
+                        .build());
     }
 }
