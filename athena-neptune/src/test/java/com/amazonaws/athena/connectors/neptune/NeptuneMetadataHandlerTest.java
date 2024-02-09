@@ -53,6 +53,7 @@ import java.util.Map;
 
 import static org.junit.Assert.*;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;

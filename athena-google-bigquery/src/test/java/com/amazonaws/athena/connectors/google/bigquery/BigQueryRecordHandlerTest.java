@@ -87,6 +87,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryTestUtils.getBlockTestSchema;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -263,7 +264,7 @@ public class BigQueryRecordHandlerTest
                                 .withIsDirectory(true)
                                 .build(),
                         keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 0,          //This is ignored when directly calling readWithConstraints.
                 0)) {
 

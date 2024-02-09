@@ -26,6 +26,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
+import java.util.Map;
+
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -35,6 +37,7 @@ public class GetTableRequest
         extends MetadataRequest
 {
     private final TableName tableName;
+    private Map<String, String> queryPassthroughArguments;
 
     /**
      * Constructs a new GetTableRequest object.
@@ -44,7 +47,7 @@ public class GetTableRequest
      * @param catalogName The catalog name that the table belongs to.
      * @param tableName The name of the table metadata is being requested for.
      */
-    @JsonCreator
+    @Deprecated
     public GetTableRequest(@JsonProperty("identity") FederatedIdentity identity,
             @JsonProperty("queryId") String queryId,
             @JsonProperty("catalogName") String catalogName,
@@ -53,6 +56,29 @@ public class GetTableRequest
         super(identity, MetadataRequestType.GET_TABLE, queryId, catalogName);
         requireNonNull(tableName, "tableName is null");
         this.tableName = tableName;
+    }
+
+    /**
+     * Constructs a new GetTableRequest object.
+     * @param identity
+     * @param queryId
+     * @param catalogName
+     * @param tableName
+     * @param queryPassthroughArguments
+     */
+    @JsonCreator
+    public GetTableRequest(@JsonProperty("identity") FederatedIdentity identity,
+            @JsonProperty("queryId") String queryId,
+            @JsonProperty("catalogName") String catalogName,
+            @JsonProperty("tableName") TableName tableName,
+            @JsonProperty("queryPassthroughArguments") Map<String, String> queryPassthroughArguments)
+    {
+        super(identity, MetadataRequestType.GET_TABLE, queryId, catalogName);
+        requireNonNull(tableName, "tableName is null");
+        requireNonNull(queryPassthroughArguments, "queryPassthroughArguments is null");
+
+        this.tableName = tableName;
+        this.queryPassthroughArguments = queryPassthroughArguments;
     }
 
     /**
@@ -72,12 +98,22 @@ public class GetTableRequest
         //No Op
     }
 
+    public Map<String, String> getQueryPassthroughArguments()
+    {
+        return this.queryPassthroughArguments;
+    }
+
+    public boolean isQueryPassthrough()
+    {
+        return this.queryPassthroughArguments != null && !this.queryPassthroughArguments.isEmpty();
+    }
     @Override
     public String toString()
     {
         return "GetTableRequest{" +
                 "queryId=" + getQueryId() +
                 ", tableName=" + tableName +
+                "queryPassthroughArguments=" + queryPassthroughArguments +
                 '}';
     }
 
@@ -95,12 +131,13 @@ public class GetTableRequest
 
         return Objects.equal(this.tableName, that.tableName) &&
                 Objects.equal(this.getRequestType(), that.getRequestType()) &&
-                Objects.equal(this.getCatalogName(), that.getCatalogName());
+                Objects.equal(this.getCatalogName(), that.getCatalogName()) &&
+                Objects.equal(this.getQueryPassthroughArguments(), that.getQueryPassthroughArguments());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(tableName, getRequestType(), getCatalogName());
+        return Objects.hashCode(tableName, getRequestType(), getCatalogName(), getQueryPassthroughArguments());
     }
 }

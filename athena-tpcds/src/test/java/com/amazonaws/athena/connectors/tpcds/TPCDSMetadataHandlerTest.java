@@ -192,7 +192,7 @@ public class TPCDSMetadataHandlerTest
                 new TableName("tpcds1", "customer"),
                 partitions,
                 Collections.EMPTY_LIST,
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 continuationToken);
 
         int numContinuations = 0;

@@ -67,7 +67,10 @@ import java.util.List;
 import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
-import static org.junit.Assert.*;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -421,7 +424,7 @@ public class ElasticsearchMetadataHandlerTest
                 new TableName("movies", index),
                 partitions,
                 partitionCols,
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);

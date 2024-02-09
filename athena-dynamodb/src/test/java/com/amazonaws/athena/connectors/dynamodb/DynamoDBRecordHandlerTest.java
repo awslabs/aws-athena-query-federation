@@ -72,11 +72,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
@@ -162,7 +164,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -263,7 +265,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -300,7 +302,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -374,7 +376,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -435,7 +437,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_3_NAME,
                 schema3,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -499,7 +501,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_4_NAME,
                 schema4,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -544,7 +546,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_4_NAME,
                 schema4,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -602,7 +604,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_5_NAME,
                 schema5,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -655,7 +657,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_6_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -710,7 +712,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_7_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -790,7 +792,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_8_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -854,7 +856,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_8_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
