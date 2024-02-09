@@ -50,7 +50,6 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler.TABLES_AND_VIEWS;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DRIVER_CLASS;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_NAME;
@@ -124,6 +123,8 @@ public class RedshiftMetadataHandler
         capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
             TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
+
+        capabilities.put(jdbcQueryPassthrough.getFunctionSignature(), jdbcQueryPassthrough.getQueryPassthroughCapabilities());
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
