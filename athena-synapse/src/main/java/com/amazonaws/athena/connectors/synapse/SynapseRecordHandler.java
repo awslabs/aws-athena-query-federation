@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -83,7 +83,15 @@ public class SynapseRecordHandler extends JdbcRecordHandler
     @Override
     public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split) throws SQLException
     {
-        PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        PreparedStatement preparedStatement;
+
+        if (constraints.isQueryPassThrough()) {
+            preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+        }
+        else {
+            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(),
+                    schema, constraints, split);
+        }
         // Disable fetching all rows.
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
@@ -129,7 +137,7 @@ public class SynapseRecordHandler extends JdbcRecordHandler
                 com.microsoft.sqlserver.jdbc.SQLServerException:  '@@TRANCOUNT' is not supported.
                 So we are evading this connection.commit(), in case of Azure serverless environment.
                  */
-                if (!"azureServerless".equals(SynapseUtil.checkEnvironment(connection.getMetaData().getURL()))) {
+                if (!SynapseConstants.SQL_POOL.equals(SynapseUtil.checkEnvironment(connection.getMetaData().getURL()))) {
                     connection.commit();
                 }
             }
