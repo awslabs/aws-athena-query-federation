@@ -82,7 +82,6 @@ public class CachableSecretsManager
             m1.find();
             result = result.replace(nextSecret, getSecret(m1.group(1)));
         }
-        logger.debug("resolveSecrets: Input raw string: " + rawString + " result string: " + result);
         return result;
     }
 
