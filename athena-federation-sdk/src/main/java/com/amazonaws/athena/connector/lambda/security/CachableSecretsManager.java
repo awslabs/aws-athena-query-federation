@@ -46,8 +46,8 @@ public class CachableSecretsManager
     private static final long MAX_CACHE_AGE_MS = 60_000;
     protected static final int MAX_CACHE_SIZE = 10;
 
-    private static final String SECRET_PATTERN = "(\\$\\{[a-zA-Z0-9-_\\-]+\\})";
-    private static final String SECRET_NAME_PATTERN = "\\$\\{([a-zA-Z0-9-_\\-]+)\\}";
+    private static final String SECRET_PATTERN = "(\\$\\{[a-zA-Z0-9-\\/_\\-\\.\\+=@]+\\})";
+    private static final String SECRET_NAME_PATTERN = "\\$\\{([a-zA-Z0-9-\\/_\\-\\.\\+=@]+)\\}";
     private static final Pattern PATTERN = Pattern.compile(SECRET_PATTERN);
     private static final Pattern NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN);
 
@@ -82,6 +82,7 @@ public class CachableSecretsManager
             m1.find();
             result = result.replace(nextSecret, getSecret(m1.group(1)));
         }
+        logger.debug("resolveSecrets: Input raw string: " + rawString + " result string: " + result);
         return result;
     }
 

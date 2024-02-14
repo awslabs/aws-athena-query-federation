@@ -124,6 +124,10 @@ public class CacheableSecretsManagerTest
         String commonErrorsExpected = "ThisIsM}yStringWi${thTwoSecretS{uperSecretSecrets";
         assertEquals(commonErrorsExpected, cachableSecretsManager.resolveSecrets(commonErrors));
 
+        String secretAllowedSpecialChars = "ThisIs${/My}StringW${ith_}All${Of+The}${@llowed=}${Special-Characters.}";
+        String secretAllowedSpecialCharsExpected = "ThisIs/MyStringWith_AllOf+The@llowed=Special-Characters.";
+        assertEquals(secretAllowedSpecialCharsExpected, cachableSecretsManager.resolveSecrets(secretAllowedSpecialChars));
+
         String unknownSecret = "This${Unknown}";
         try {
             cachableSecretsManager.resolveSecrets(unknownSecret);
