@@ -379,7 +379,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                     String dataType = metadata.getColumnTypeName(columnIndex);
 
                     if (dataType != null && SynapseSQLDataType.isSupported(dataType)) {
-                        columnType = SynapseSQLDataType.fromId(dataType);
+                        columnType = SynapseSQLDataType.fromType(dataType);
                     }
 
                     if (columnType != null && SupportedTypes.isSupported(columnType)) {
@@ -539,7 +539,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("dataType: " + dataType);
 
                 if (dataType != null && SynapseSQLDataType.isSupported(dataType)) {
-                    columnType = SynapseSQLDataType.fromId(dataType);
+                    columnType = SynapseSQLDataType.fromType(dataType);
                 }
 
                 /**

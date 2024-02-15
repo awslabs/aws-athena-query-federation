@@ -40,22 +40,22 @@ public enum SynapseSQLDataType {
 
     static {
         for (SynapseSQLDataType next : values()) {
-            SYNAPSE_SQL_DATA_TYPE_MAP.put(next.id, next);
+            SYNAPSE_SQL_DATA_TYPE_MAP.put(next.synapseType, next);
         }
     }
 
-    private String id;
+    private String synapseType;
     private ArrowType arrowType;
 
-    SynapseSQLDataType(String id, ArrowType arrowType)
+    SynapseSQLDataType(String synapseType, ArrowType arrowType)
     {
-        this.id = id;
+        this.synapseType = synapseType;
         this.arrowType = arrowType;
     }
 
-    public static ArrowType fromId(String id)
+    public static ArrowType fromType(String synapseType)
     {
-        SynapseSQLDataType result = SYNAPSE_SQL_DATA_TYPE_MAP.get(id);
+        SynapseSQLDataType result = SYNAPSE_SQL_DATA_TYPE_MAP.get(synapseType);
         return result.arrowType;
     }
 
