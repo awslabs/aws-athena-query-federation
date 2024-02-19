@@ -334,7 +334,7 @@ public class GlueFieldLexerTest
         // complex case
         String input = "map<array<int>, map<string, string>>";
         Field field = GlueFieldLexer.lex("SomeMap", input);
-        String expectedFieldToString = "SomeMap: Map(false)<ENTRIES: Struct<key: List<key: Int(32, true)> not null, value: Map(false)<ENTRIES: Struct<key: Utf8 not null, value: Utf8> not null>> not null>";
+        String expectedFieldToString = "SomeMap: Map(false)<entries: Struct<key: List<key: Int(32, true)> not null, value: Map(false)<entries: Struct<key: Utf8 not null, value: Utf8> not null>> not null>";
         assertEquals(expectedFieldToString, field.toString());
 
         // Extra complex case
@@ -344,7 +344,7 @@ public class GlueFieldLexerTest
             ">";
         String input2 = "map<" + innerStruct + ", map<string, " + innerStruct + ">>";
         Field field2 = GlueFieldLexer.lex("SomeMap2", input2);
-        String expectedFieldToString2 = "SomeMap2: Map(false)<ENTRIES: Struct<key: Struct<somearrfield0: List<somearrfield0: List<somearrfield0: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner0: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 8)>>> not null, value: Map(false)<ENTRIES: Struct<key: Utf8 not null, value: Struct<somearrfield0: List<somearrfield0: List<somearrfield0: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner0: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 8)>>>> not null>> not null>";
+        String expectedFieldToString2 = "SomeMap2: Map(false)<entries: Struct<key: Struct<somearrfield0: List<somearrfield0: List<somearrfield0: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner0: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 8)>>> not null, value: Map(false)<entries: Struct<key: Utf8 not null, value: Struct<somearrfield0: List<somearrfield0: List<somearrfield0: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner0: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 8)>>>> not null>> not null>";
         assertEquals(expectedFieldToString2, field2.toString());
     }
 }
