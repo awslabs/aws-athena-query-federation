@@ -355,10 +355,8 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                             String.valueOf(metadata.getPrecision(columnIndex)),
                             String.valueOf(metadata.getScale(columnIndex)));
                     columnNameAndDataTypeMap.put(metadata.getColumnName(columnIndex), columnDetails);
-
                 }
                 schemaBuilder = doDataTypeConversion(columnNameAndDataTypeMap);
-
             }
 
             else {
