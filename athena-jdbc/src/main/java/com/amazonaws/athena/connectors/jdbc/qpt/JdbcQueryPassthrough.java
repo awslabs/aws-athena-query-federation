@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.jdbc.qpt;
 
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -42,6 +44,7 @@ public class JdbcQueryPassthrough implements QueryPassthroughSignature
 
     public static final List<String> ARGUMENTS = Arrays.asList(QUERY);
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(JdbcQueryPassthrough.class);
     @Override
     public String getFunctionSchema()
     {
@@ -58,5 +61,11 @@ public class JdbcQueryPassthrough implements QueryPassthroughSignature
     public List<String> getFunctionArguments()
     {
         return ARGUMENTS;
+    }
+
+    @Override
+    public Logger getLogger()
+    {
+        return LOGGER;
     }
 }
