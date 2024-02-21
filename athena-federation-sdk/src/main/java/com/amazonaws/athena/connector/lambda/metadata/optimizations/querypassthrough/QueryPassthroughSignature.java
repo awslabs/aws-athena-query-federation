@@ -20,9 +20,9 @@
 package com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough;
 
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,20 +30,20 @@ import java.util.Map;
 
 public interface QueryPassthroughSignature
 {
-    static final Logger LOGGER = LoggerFactory.getLogger(QueryPassthroughSignature.class);
-
     public static final String SCHEMA_FUNCTION_NAME = "schemaFunctionName";
+    public static final String ENABLE_QUERY_PASSTHROUGH = "enable_query_passthrough";
+    public static final String DEFAULT_ENABLE_QUERY_PASSTHROUGH_STATE = "true";
     /**
      *
      * @return QPT Function's Schema (also known as a domain or namepsace)
      */
-    public abstract String getFunctionSchema();
+    String getFunctionSchema();
 
     /**
      *
      * @return QPT Function's name
      */
-    public abstract String getFunctionName();
+    String getFunctionName();
 
     /**
      * Returns the full function schema and name
@@ -58,7 +58,13 @@ public interface QueryPassthroughSignature
      *
      * @return Query Passthrough Function's Arguments
      */
-    public abstract List<String> getFunctionArguments();
+    List<String> getFunctionArguments();
+
+    /**
+     * note: due to needing to stay compatible with JDK8; we can't use JDK9 private method
+     * @return a logger
+     */
+    Logger getLogger();
 
     /**
      * verify that the arguments returned by the engine are the same that the connector defined
@@ -83,7 +89,7 @@ public interface QueryPassthroughSignature
                 throw new IllegalArgumentException("Missing Query Passthrough Value for Argument: " + argument);
             }
         }
-        //Final perform any connector-specific verification;
+        //Finally, perform any connector-specific verification;
         customConnectorVerifications();
     }
 
@@ -104,16 +110,16 @@ public interface QueryPassthroughSignature
     {
         if (argumentValues.containsKey(SCHEMA_FUNCTION_NAME)) {
             String receivedSignature = argumentValues.get(SCHEMA_FUNCTION_NAME);
-            LOGGER.info("Found signature: {}", receivedSignature);
+            getLogger().info("Found signature: {}", receivedSignature);
             return receivedSignature.equalsIgnoreCase(getFunctionSignature());
         }
-        LOGGER.warn("No matching function signature found: {}", getFunctionSignature());
+        getLogger().warn("No matching function signature found: {}", getFunctionSignature());
         return false;
     }
 
     /**
      * Creates a list of Optimization that includes the query passthrough definition
-     * @return
+     * @return list of capability describes of the signature of the current implementation
      */
     default List<OptimizationSubType> getQueryPassthroughCapabilities()
     {
@@ -123,5 +129,34 @@ public interface QueryPassthroughSignature
         queryPassthroughDefinition.add(QueryPassthrough.QUERY_PASSTHROUGH_ARGUMENTS.withArguments(getFunctionArguments()));
 
         return queryPassthroughDefinition;
+    }
+
+    /**
+     * Adds the query passthrough implementation, if user has not disabled it, to the connector's capabilities
+     * @param capabilities
+     * @param configOptions
+     */
+    default void addQueryPassthroughCapabilityIfEnabled(ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities, Map<String, String> configOptions)
+    {
+        if (allowQueryPassthrough(configOptions)) {
+            getLogger().info("Query Passthrough is enabled; adding implementation to connector's capabilities");
+            capabilities.put(getFunctionSignature(), getQueryPassthroughCapabilities());
+        }
+        else {
+            getLogger().info("Query Passthrough is disabled");
+        }
+    }
+
+    /**
+     * A method that checks the Lambda's environment variables to see if QPT is disabled/enabled
+     * @param configOptions
+     * @return true if enabled; otherwise false
+     */
+    default boolean allowQueryPassthrough(Map<String, String> configOptions)
+    {
+        String enableQueryPassthroughEnvVal = configOptions
+                .getOrDefault(ENABLE_QUERY_PASSTHROUGH, DEFAULT_ENABLE_QUERY_PASSTHROUGH_STATE)
+                .toLowerCase();
+        return enableQueryPassthroughEnvVal.equals("true");
     }
 }
