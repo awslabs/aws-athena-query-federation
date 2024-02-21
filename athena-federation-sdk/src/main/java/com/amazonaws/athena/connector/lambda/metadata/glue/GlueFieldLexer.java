@@ -160,11 +160,11 @@ public class GlueFieldLexer
 
         FieldType keyFieldTypeNotNullable = new FieldType(false, keyType.getType(), keyType.getDictionary(), keyType.getMetadata());
         Field keyFieldNotNullable = new Field(keyType.getName(), keyFieldTypeNotNullable, keyType.getChildren());
-
+      
         return FieldBuilder.newBuilder(name, new ArrowType.Map(false))
-             .addField("ENTRIES", Types.MinorType.STRUCT.getType(), false,
-                  Arrays.asList(keyFieldNotNullable, valueType))
-             .build();
+            .addField("entries", Types.MinorType.STRUCT.getType(), false,
+                Arrays.asList(keyFieldNotNullable, valueType))
+            .build();
     }
 
     private static void expectTokenMarkerIsFieldStart(GlueTypeParser.Token token)

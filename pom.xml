@@ -13,7 +13,7 @@
         <!--<maven.compiler.release>8</maven.compiler.release>-->
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.12.1</maven.compiler.plugin.version>
-        <aws-sdk.version>1.12.656</aws-sdk.version>
+        <aws-sdk.version>1.12.661</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
@@ -29,7 +29,7 @@
         <log4j2Version>2.22.1</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
         <guava.version>33.0.0-jre</guava.version>
-        <protobuf3.version>3.25.2</protobuf3.version>
+        <protobuf3.version>3.25.3</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
