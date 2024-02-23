@@ -198,7 +198,7 @@ public class BigQueryMetadataHandlerTest
         //Make the call
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,
-                new TableName(datasetName, tableName));
+                new TableName(datasetName, tableName), Collections.emptyMap());
 
         GetTableResponse response = bigQueryMetadataHandler.doGetTable(blockAllocator, getTableRequest);
 
@@ -216,7 +216,7 @@ public class BigQueryMetadataHandlerTest
         //Make the call
         GetTableRequest getTableRequest1 = new GetTableRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,
-                new TableName(datasetName, tableName));
+                new TableName(datasetName, tableName), Collections.emptyMap());
 
         GetTableResponse responseComplex = bigQueryMetadataHandler.doGetTable(blockAllocator, getTableRequest1);
 

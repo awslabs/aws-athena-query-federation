@@ -1,9 +1,10 @@
 */target
 */dependency-reduced-pom.xml
+dependency-reduced-pom.xml
 */*.xml.unformatted
 .idea/
 /target/
-*/*.iml
+**/*.iml
 .classpath
 .factorypath
 .project
