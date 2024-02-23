@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -167,20 +167,27 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </td>
 </tr>
 <tr id="i1" class="rowColor">
+<td class="colFirst"><code><a href="Split.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split.Builder</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#applyProperties(java.util.Map)">applyProperties</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;inputProperties)</code></th>
+<td class="colLast">
+<div class="block">Apply a map of properties to the split</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
 <td class="colFirst"><code><a href="Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#build()">build</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Builds the Split</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="Split.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split.Builder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#withEncryptionKey(com.amazonaws.athena.connector.lambda.security.EncryptionKey)">withEncryptionKey</a></span>&#8203;(<a href="../security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a>&nbsp;key)</code></th>
 <td class="colLast">
 <div class="block">Sets the optional EncryptionKey this Split can use to encrypt/decrypt data.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code><a href="Split.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split.Builder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#withSpillLocation(com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation)">withSpillLocation</a></span>&#8203;(<a href="spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a>&nbsp;val)</code></th>
 <td class="colLast">
@@ -258,6 +265,22 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <dd><code>key</code> - The EncryptionKey</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>The Builder itself.</dd>
+</dl>
+</li>
+</ul>
+<a id="applyProperties(java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>applyProperties</h4>
+<pre class="methodSignature">public&nbsp;<a href="Split.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split.Builder</a>&nbsp;applyProperties&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;inputProperties)</pre>
+<div class="block">Apply a map of properties to the split</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>inputProperties</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Builder</dd>
 </dl>
 </li>
 </ul>

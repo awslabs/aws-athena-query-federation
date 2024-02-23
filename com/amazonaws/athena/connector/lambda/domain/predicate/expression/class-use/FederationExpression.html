@@ -118,6 +118,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connector.lambda.serde.v4">com.amazonaws.athena.connector.lambda.serde.v4</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr class="rowColor">
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connector.lambda.serde.v5">com.amazonaws.athena.connector.lambda.serde.v5</a></th>
+<td class="colLast">&nbsp;</td>
+</tr>
 </tbody>
 </table>
 </li>
@@ -155,6 +159,16 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;expression,
            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByClause,
            long&nbsp;limit)</code></th>
+<td class="colLast">
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+</td>
+</tr>
+<tr class="rowColor">
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../Constraints.html#%3Cinit%3E(java.util.Map,java.util.List,java.util.List,long,java.util.Map)">Constraints</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="../../ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;summary,
+           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;expression,
+           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByClause,
+           long&nbsp;limit,
+           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;queryPassthroughArguments)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -336,6 +350,34 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../serde/v4/ConstraintsSerDeV4.Serializer.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe.Serializer,com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer,com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer)">Serializer</a></span>&#8203;(<a href="../../../../serde/v2/ValueSetSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ValueSetSerDe.Serializer</a>&nbsp;valueSetSerializer,
+          <a href="../../../../serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;federationExpressionSerializer,
+          <a href="../../../../serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByFieldSerializer)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</section>
+</li>
+<li class="blockList">
+<section><a id="com.amazonaws.athena.connector.lambda.serde.v5">
+<!--   -->
+</a>
+<h3>Uses of <a href="../FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a> in <a href="../../../../serde/v5/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v5</a></h3>
+<table class="useSummary">
+<caption><span>Constructor parameters in <a href="../../../../serde/v5/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v5</a> with type arguments of type <a href="../FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Constructor</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../serde/v5/ConstraintsSerDeV5.Deserializer.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe.Deserializer,com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer,com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer)">Deserializer</a></span>&#8203;(<a href="../../../../serde/v2/ValueSetSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ValueSetSerDe.Deserializer</a>&nbsp;valueSetDeserializer,
+            <a href="../../../../serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;federationExpressionDeserializer,
+            <a href="../../../../serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../../OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByFieldDeserializer)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../serde/v5/ConstraintsSerDeV5.Serializer.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe.Serializer,com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer,com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer)">Serializer</a></span>&#8203;(<a href="../../../../serde/v2/ValueSetSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ValueSetSerDe.Serializer</a>&nbsp;valueSetSerializer,
           <a href="../../../../serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;federationExpressionSerializer,
           <a href="../../../../serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByFieldSerializer)</code></th>
 <td class="colLast">&nbsp;</td>

@@ -131,10 +131,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
-<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connector.lambda.udf">com.amazonaws.athena.connector.lambda.udf</a></th>
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connector.lambda.serde.v5">com.amazonaws.athena.connector.lambda.serde.v5</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connector.lambda.udf">com.amazonaws.athena.connector.lambda.udf</a></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connector.validation">com.amazonaws.athena.connector.validation</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -189,10 +193,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </td>
 </tr>
 <tr class="rowColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../metadata/GetTableRequest.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName)">GetTableRequest</a></span>&#8203;(<a href="../FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../metadata/GetTableRequest.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.util.Map)">GetTableRequest</a></span>&#8203;(<a href="../FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;queryId,
                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
-               <a href="../../domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</code></th>
+               <a href="../../domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;queryPassthroughArguments)</code></th>
 <td class="colLast">
 <div class="block">Constructs a new GetTableRequest object.</div>
 </td>
@@ -448,6 +453,32 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tr class="altColor">
 <td class="colFirst"><code>protected <a href="../../metadata/MetadataRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataRequest</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">GetDataSourceCapabilitiesRequestSerDeV4.Deserializer.</span><code><span class="memberNameLink"><a href="../../serde/v4/GetDataSourceCapabilitiesRequestSerDeV4.Deserializer.html#doRequestDeserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext,com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,java.lang.String)">doRequestDeserialize</a></span>&#8203;(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                    com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt,
+                    <a href="../FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
+                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;queryId,
+                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</section>
+</li>
+<li class="blockList">
+<section><a id="com.amazonaws.athena.connector.lambda.serde.v5">
+<!--   -->
+</a>
+<h3>Uses of <a href="../FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a> in <a href="../../serde/v5/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v5</a></h3>
+<table class="useSummary">
+<caption><span>Methods in <a href="../../serde/v5/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v5</a> with parameters of type <a href="../FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Method</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../../metadata/MetadataRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataRequest</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">GetTableRequestSerDeV5.Deserializer.</span><code><span class="memberNameLink"><a href="../../serde/v5/GetTableRequestSerDeV5.Deserializer.html#doRequestDeserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext,com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,java.lang.String)">doRequestDeserialize</a></span>&#8203;(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
                     com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt,
                     <a href="../FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;queryId,

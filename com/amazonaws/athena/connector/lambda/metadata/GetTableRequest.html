@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -169,10 +169,11 @@ extends <a href="MetadataRequest.html" title="class in com.amazonaws.athena.conn
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName)">GetTableRequest</a></span>&#8203;(<a href="../security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.util.Map)">GetTableRequest</a></span>&#8203;(<a href="../security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;queryId,
                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
-               <a href="../domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</code></th>
+               <a href="../domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;queryPassthroughArguments)</code></th>
 <td class="colLast">
 <div class="block">Constructs a new GetTableRequest object.</div>
 </td>
@@ -206,18 +207,28 @@ extends <a href="MetadataRequest.html" title="class in com.amazonaws.athena.conn
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getQueryPassthroughArguments()">getQueryPassthroughArguments</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="../domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTableName()">getTableName</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Returns the name of the table metadata is being requested for.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>int</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#hashCode()">hashCode</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code>boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isQueryPassthrough()">isQueryPassthrough</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#toString()">toString</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
@@ -260,7 +271,7 @@ extends <a href="MetadataRequest.html" title="class in com.amazonaws.athena.conn
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName)">
+<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -269,7 +280,8 @@ extends <a href="MetadataRequest.html" title="class in com.amazonaws.athena.conn
 <pre>public&nbsp;GetTableRequest&#8203;(<a href="../security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;queryId,
                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
-                       <a href="../domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</pre>
+                       <a href="../domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;queryPassthroughArguments)</pre>
 <div class="block">Constructs a new GetTableRequest object.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -277,6 +289,7 @@ extends <a href="MetadataRequest.html" title="class in com.amazonaws.athena.conn
 <dd><code>queryId</code> - The ID of the query requesting metadata.</dd>
 <dd><code>catalogName</code> - The catalog name that the table belongs to.</dd>
 <dd><code>tableName</code> - The name of the table metadata is being requested for.</dd>
+<dd><code>queryPassthroughArguments</code> - </dd>
 </dl>
 </li>
 </ul>
@@ -316,6 +329,24 @@ extends <a href="MetadataRequest.html" title="class in com.amazonaws.athena.conn
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
 </dl>
+</li>
+</ul>
+<a id="getQueryPassthroughArguments()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getQueryPassthroughArguments</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getQueryPassthroughArguments()</pre>
+</li>
+</ul>
+<a id="isQueryPassthrough()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>isQueryPassthrough</h4>
+<pre class="methodSignature">public&nbsp;boolean&nbsp;isQueryPassthrough()</pre>
 </li>
 </ul>
 <a id="toString()">

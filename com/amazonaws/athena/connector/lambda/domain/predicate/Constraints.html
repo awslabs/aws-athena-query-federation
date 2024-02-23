@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -183,16 +183,20 @@ implements <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(java.util.Map)">Constraints</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;summary)</code></th>
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(java.util.Map,java.util.List,java.util.List,long)">Constraints</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;summary,
+           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="expression/FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;expression,
+           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByClause,
+           long&nbsp;limit)</code></th>
 <td class="colLast">
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 </td>
 </tr>
 <tr class="rowColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(java.util.Map,java.util.List,java.util.List,long)">Constraints</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;summary,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(java.util.Map,java.util.List,java.util.List,long,java.util.Map)">Constraints</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;summary,
            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="expression/FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;expression,
            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByClause,
-           long&nbsp;limit)</code></th>
+           long&nbsp;limit,
+           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;queryPassthroughArguments)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -239,28 +243,38 @@ implements <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getQueryPassthroughArguments()">getQueryPassthroughArguments</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSummary()">getSummary</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Provides access to the associative predicates that are part of the Constraints.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>int</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#hashCode()">hashCode</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#hasLimit()">hasLimit</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#hasNonEmptyOrderByClause()">hasNonEmptyOrderByClause</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
+<td class="colFirst"><code>boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isQueryPassThrough()">isQueryPassThrough</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#toString()">toString</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
@@ -312,18 +326,21 @@ implements <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a id="&lt;init&gt;(java.util.Map)">
+<a id="&lt;init&gt;(java.util.Map,java.util.List,java.util.List,long)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>Constraints</h4>
 <pre><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Deprecated.html?is-external=true" title="class or interface in java.lang" class="externalLink">@Deprecated</a>
-public&nbsp;Constraints&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;summary)</pre>
+public&nbsp;Constraints&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;summary,
+                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="expression/FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;expression,
+                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByClause,
+                   long&nbsp;limit)</pre>
 <div class="deprecationBlock"><span class="deprecatedLabel">Deprecated.</span></div>
 </li>
 </ul>
-<a id="&lt;init&gt;(java.util.Map,java.util.List,java.util.List,long)">
+<a id="&lt;init&gt;(java.util.Map,java.util.List,java.util.List,long,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -332,7 +349,16 @@ public&nbsp;Constraints&#8203;(<a href="https://docs.oracle.com/en/java/javase/1
 <pre>public&nbsp;Constraints&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;summary,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="expression/FederationExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">FederationExpression</a>&gt;&nbsp;expression,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a>&gt;&nbsp;orderByClause,
-                   long&nbsp;limit)</pre>
+                   long&nbsp;limit,
+                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;queryPassthroughArguments)</pre>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>summary</code> - </dd>
+<dd><code>expression</code> - </dd>
+<dd><code>orderByClause</code> - </dd>
+<dd><code>limit</code> - </dd>
+<dd><code>queryPassthroughArguments</code> - </dd>
+</dl>
 </li>
 </ul>
 </li>
@@ -402,6 +428,24 @@ public&nbsp;Constraints&#8203;(<a href="https://docs.oracle.com/en/java/javase/1
 <li class="blockList">
 <h4>hasNonEmptyOrderByClause</h4>
 <pre class="methodSignature">public&nbsp;boolean&nbsp;hasNonEmptyOrderByClause()</pre>
+</li>
+</ul>
+<a id="getQueryPassthroughArguments()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getQueryPassthroughArguments</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getQueryPassthroughArguments()</pre>
+</li>
+</ul>
+<a id="isQueryPassThrough()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>isQueryPassThrough</h4>
+<pre class="methodSignature">public&nbsp;boolean&nbsp;isQueryPassThrough()</pre>
 </li>
 </ul>
 <a id="equals(java.lang.Object)">

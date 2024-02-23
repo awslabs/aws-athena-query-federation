@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":6,"i2":6,"i3":10,"i4":10,"i5":6,"i6":6,"i7":10,"i8":10,"i9":6,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10};
+var data = {"i0":10,"i1":10,"i2":6,"i3":6,"i4":10,"i5":10,"i6":6,"i7":6,"i8":10,"i9":10,"i10":6,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -254,6 +254,14 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
+<td class="colFirst"><code><a href="../metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema</a></span>&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                           <a href="../metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code></th>
+<td class="colLast">
+<div class="block">Used to get definition (field names, types, descriptions, etc...) of a Query PassThrough.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>abstract <a href="../metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits</a></span>&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
            <a href="../metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code></th>
@@ -261,7 +269,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">Used to split-up the reads required to scan the requested batch of partition(s).</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>abstract <a href="../metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable</a></span>&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
           <a href="../metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code></th>
@@ -269,7 +277,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">Used to get definition (field names, types, descriptions, etc...) of a Table.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code><a href="../metadata/GetTableLayoutResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetTableLayout(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">doGetTableLayout</a></span>&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                 <a href="../metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request)</code></th>
@@ -277,7 +285,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doHandleRequest(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.fasterxml.jackson.databind.ObjectMapper,com.amazonaws.athena.connector.lambda.metadata.MetadataRequest,java.io.OutputStream)">doHandleRequest</a></span>&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                com.fasterxml.jackson.databind.ObjectMapper&nbsp;objectMapper,
@@ -285,7 +293,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/OutputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">OutputStream</a>&nbsp;outputStream)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>abstract <a href="../metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames</a></span>&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                  <a href="../metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)</code></th>
@@ -293,7 +301,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">Used to get the list of schemas (aka databases) that this source contains.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>abstract <a href="../metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables</a></span>&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
             <a href="../metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;request)</code></th>
@@ -301,14 +309,14 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">Used to get the list of tables that this source contains.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">doPing</a></span>&#8203;(<a href="../request/PingRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">PingRequest</a>&nbsp;request)</code></th>
 <td class="colLast">
 <div class="block">Used to warm up your function as well as to discovery its capabilities (e.g.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#enhancePartitionSchema(com.amazonaws.athena.connector.lambda.data.SchemaBuilder,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">enhancePartitionSchema</a></span>&#8203;(<a href="../data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a>&nbsp;partitionSchemaBuilder,
                       <a href="../metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request)</code></th>
@@ -316,7 +324,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">This method can be used to add additional fields to the schema of our partition response.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>abstract void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a></span>&#8203;(<a href="../data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
@@ -325,38 +333,38 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSecret(java.lang.String)">getSecret</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;secretName)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/InputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">InputStream</a>&nbsp;inputStream,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/OutputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">OutputStream</a>&nbsp;outputStream,
              com.amazonaws.services.lambda.runtime.Context&nbsp;context)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>protected <a href="../security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeEncryptionKey()">makeEncryptionKey</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>protected <a href="../domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeSpillLocation(com.amazonaws.athena.connector.lambda.metadata.MetadataRequest)">makeSpillLocation</a></span>&#8203;(<a href="../metadata/MetadataRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataRequest</a>&nbsp;request)</code></th>
 <td class="colLast">
 <div class="block">Used to make a spill location for a split.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#onPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">onPing</a></span>&#8203;(<a href="../request/PingRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">PingRequest</a>&nbsp;request)</code></th>
 <td class="colLast">
 <div class="block">Provides you a signal that can be used to warm up your function.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resolveSecrets(java.lang.String)">resolveSecrets</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;rawString)</code></th>
 <td class="colLast">
@@ -633,6 +641,29 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
  catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
+</dl>
+</li>
+</ul>
+<a id="doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>doGetQueryPassthroughSchema</h4>
+<pre class="methodSignature">public&nbsp;<a href="../metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a>&nbsp;doGetQueryPassthroughSchema&#8203;(<a href="../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                                                    <a href="../metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)
+                                             throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></pre>
+<div class="block">Used to get definition (field names, types, descriptions, etc...) of a Query PassThrough.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>allocator</code> - Tool for creating and managing Apache Arrow Blocks.</dd>
+<dd><code>request</code> - Provides details on who made the request and which Athena catalog, database, and table they are querying.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>A GetTableResponse which primarily contains:
+ 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
+ 2. A Set<String> of partition column names (or empty if the table isn't partitioned).</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
 </dl>
