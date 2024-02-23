@@ -255,7 +255,7 @@ public class DynamoDBMetadataHandlerTest
     {
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
-        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_NAME);
+        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_NAME, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         logger.info("doGetTable - {}", res.getSchema());
@@ -271,7 +271,7 @@ public class DynamoDBMetadataHandlerTest
     {
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
-        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME);
+        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         logger.info("doGetEmptyTable - {}", res.getSchema());
@@ -286,7 +286,7 @@ public class DynamoDBMetadataHandlerTest
     {
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
-        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME);
+        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         logger.info("doGetTable - {}", res.getSchema());
@@ -402,7 +402,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that both bounds are present for col_6 which is not a sort key
@@ -435,7 +435,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that both bounds are present for col_6 which is not a sort key
@@ -509,7 +509,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
@@ -519,7 +519,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_TABLE_NAME,
                 layoutResponse.getPartitions(),
                 ImmutableList.of(),
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 null);
         logger.info("doGetSplits: req[{}]", req);
 
@@ -563,7 +563,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_TABLE_NAME,
                 layoutResponse.getPartitions(),
                 ImmutableList.of("col_0"),
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 null);
         logger.info("doGetSplits: req[{}]", req);
 
@@ -608,7 +608,7 @@ public class DynamoDBMetadataHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = handler.doGetTable(allocator, getTableRequest);
         logger.info("validateSourceTableNamePropagation: GetTableResponse[{}]", getTableResponse);
         Map<String, String> customMetadata = getTableResponse.getSchema().getCustomMetadata();
@@ -619,7 +619,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 tableName,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 getTableResponse.getSchema(),
                 Collections.EMPTY_SET);
 
@@ -649,7 +649,7 @@ public class DynamoDBMetadataHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = handler.doGetTable(allocator, getTableRequest);
         logger.info("validateSourceTableNamePropagation: GetTableResponse[{}]", getTableResponse);
         Map<String, String> customMetadata = getTableResponse.getSchema().getCustomMetadata();

@@ -44,7 +44,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
-import net.jqwik.api.Table;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -328,7 +327,7 @@ public class MySqlMetadataHandlerTest
         Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
 
         GetTableResponse getTableResponse = this.mySqlMetadataHandler.doGetTable(this.blockAllocator,
-                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 
     @org.testng.annotations.Test(expectedExceptions = {RuntimeException.class}, expectedExceptionsMessageRegExp = "During Case Insensitive look up could not find Table testtable in Database testSchema")
@@ -342,6 +341,6 @@ public class MySqlMetadataHandlerTest
         Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
 
         GetTableResponse getTableResponse = this.mySqlMetadataHandler.doGetTable(this.blockAllocator,
-                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 }

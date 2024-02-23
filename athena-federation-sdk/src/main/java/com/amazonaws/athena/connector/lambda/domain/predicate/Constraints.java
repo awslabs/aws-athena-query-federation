@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -49,14 +48,9 @@ public class Constraints
     private List<FederationExpression> expression;
     private final List<OrderByField> orderByClause;
     private long limit;
+    private Map<String, String> queryPassthroughArguments;
 
     @Deprecated
-    public Constraints(Map<String, ValueSet> summary) 
-    {
-        this(summary, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
-    }
-
-    @JsonCreator
     public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
                        @JsonProperty("expression") List<FederationExpression> expression,
                        @JsonProperty("orderByClause") List<OrderByField> orderByClause,
@@ -66,6 +60,28 @@ public class Constraints
         this.expression = expression;
         this.orderByClause = orderByClause;
         this.limit = limit;
+    }
+
+    /**
+     *
+     * @param summary
+     * @param expression
+     * @param orderByClause
+     * @param limit
+     * @param queryPassthroughArguments
+     */
+    @JsonCreator
+    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
+                       @JsonProperty("expression") List<FederationExpression> expression,
+                       @JsonProperty("orderByClause") List<OrderByField> orderByClause,
+                       @JsonProperty("limit") long limit,
+                       @JsonProperty("queryPassthroughArguments") Map<String, String> queryPassthroughArguments)
+    {
+        this.summary = summary;
+        this.expression = expression;
+        this.orderByClause = orderByClause;
+        this.limit = limit;
+        this.queryPassthroughArguments = queryPassthroughArguments;
     }
 
     /**
@@ -103,6 +119,16 @@ public class Constraints
         return this.orderByClause != null && this.orderByClause.size() > 0;
     }
 
+    public Map<String, String> getQueryPassthroughArguments()
+    {
+        return this.queryPassthroughArguments;
+    }
+
+    public boolean isQueryPassThrough()
+    {
+        return this.queryPassthroughArguments != null && !this.queryPassthroughArguments.isEmpty();
+    }
+
     @Override
     public boolean equals(Object o)
     {
@@ -118,7 +144,8 @@ public class Constraints
         return Objects.equal(this.summary, that.summary) &&
                 Objects.equal(this.expression, that.expression) &&
                 Objects.equal(this.orderByClause, that.orderByClause) &&
-                Objects.equal(this.limit, that.limit);
+                Objects.equal(this.limit, that.limit) &&
+                Objects.equal(this.getQueryPassthroughArguments(), that.getQueryPassthroughArguments());
     }
 
     @Override
@@ -129,6 +156,7 @@ public class Constraints
                 "expression=" + expression +
                 "orderByClause=" + orderByClause +
                 "limit=" + limit +
+                "queryPassthroughArguments=" + queryPassthroughArguments +
                 '}';
     }
 

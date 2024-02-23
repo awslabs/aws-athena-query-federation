@@ -30,8 +30,8 @@ import org.junit.Before;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_FIVE;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_FOUR;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
 
@@ -41,6 +41,7 @@ public abstract class TypedSerDeTest<T>
     protected BlockAllocator allocator;
     protected ObjectMapper mapper;
     protected ObjectMapper mapperV4;
+    protected ObjectMapper mapperV5;
     protected FederatedIdentity federatedIdentity = new FederatedIdentity("testArn", "0123456789", Collections.emptyMap(), Collections.emptyList());
     protected String expectedSerDeText;
     protected T expected;
@@ -51,8 +52,10 @@ public abstract class TypedSerDeTest<T>
         allocator = new BlockAllocatorImpl("test-allocator-id");
         mapper = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
         mapperV4 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_FOUR);
+        mapperV5 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_FIVE);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapperV4.enable(SerializationFeature.INDENT_OUTPUT);
+        mapperV5.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
     @After

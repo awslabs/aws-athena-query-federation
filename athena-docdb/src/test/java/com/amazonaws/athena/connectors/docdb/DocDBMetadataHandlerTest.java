@@ -219,7 +219,7 @@ public class DocDBMetadataHandlerTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
@@ -307,7 +307,7 @@ public class DocDBMetadataHandlerTest
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
         TableName tableNameInput = new TableName("DEfault", TEST_TABLE.toUpperCase());
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput);
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput, Collections.emptyMap());
         GetTableResponse res = caseInsensitiveHandler.doGetTable(allocator, req);
 
         assertEquals(DEFAULT_SCHEMA, res.getTableName().getSchemaName());
@@ -359,7 +359,7 @@ public class DocDBMetadataHandlerTest
         when(mockListDatabaseNamesIterable.spliterator()).thenReturn(ImmutableList.of(DEFAULT_SCHEMA, DEFAULT_SCHEMA.toUpperCase()).spliterator());
 
         TableName tableNameInput = new TableName("deFAULT", TEST_TABLE.toUpperCase());
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput);
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput, Collections.emptyMap());
         try {
             GetTableResponse res = caseInsensitiveHandler.doGetTable(allocator, req);
             fail("doGetTableCaseInsensitiveMatchMultipleMatch should failed");
@@ -411,7 +411,7 @@ public class DocDBMetadataHandlerTest
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
         TableName tableNameInput = new TableName(mixedCaseSchemaName, mixedCaseTableName);
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput);
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         assertEquals(mixedCaseSchemaName, res.getTableName().getSchemaName());
