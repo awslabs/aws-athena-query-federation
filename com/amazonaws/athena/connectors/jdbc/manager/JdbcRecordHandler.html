@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":6,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10};
+var data = {"i0":10,"i1":6,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -96,7 +96,7 @@ loadScripts(document, 'script');</script>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
@@ -161,6 +161,19 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <!--   -->
 </a>
 <h3>Field Summary</h3>
+<table class="memberSummary">
+<caption><span>Fields</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Field</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#queryPassthrough">queryPassthrough</a></span></code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</table>
 <ul class="blockList">
 <li class="blockList"><a id="fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.RecordHandler">
 <!--   -->
@@ -222,6 +235,12 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#buildQueryPassthroughSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">buildQueryPassthroughSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+                        <a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>abstract <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
@@ -233,17 +252,17 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <div class="block">Builds split SQL string and returns prepared statement.</div>
 </td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>protected <a href="../connection/JdbcCredentialProvider.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredentialProvider</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getCredentialProvider()">getCredentialProvider</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected <a href="../connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getJdbcConnectionFactory()">getJdbcConnectionFactory</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>protected <a href="../../../connector/lambda/data/writers/extractors/Extractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors">Extractor</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeExtractor(org.apache.arrow.vector.types.pojo.Field,java.sql.ResultSet,java.util.Map)">makeExtractor</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/ResultSet.html?is-external=true" title="class or interface in java.sql" class="externalLink">ResultSet</a>&nbsp;resultSet,
@@ -252,14 +271,14 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <div class="block">Creates an Extractor for the given field.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>protected <a href="../../../connector/lambda/data/writers/fieldwriters/FieldWriterFactory.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">FieldWriterFactory</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeFactory(org.apache.arrow.vector.types.pojo.Field)">makeFactory</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field)</code></th>
 <td class="colLast">
 <div class="block">Create a field extractor for complex List type.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></span>&#8203;(<a href="../../../connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;blockSpiller,
                   <a href="../../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest,
@@ -292,6 +311,25 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <div class="details">
 <ul class="blockList">
 <li class="blockList">
+<!-- ============ FIELD DETAIL =========== -->
+<section>
+<ul class="blockList">
+<li class="blockList"><a id="field.detail">
+<!--   -->
+</a>
+<h3>Field Detail</h3>
+<a id="queryPassthrough">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>queryPassthrough</h4>
+<pre>protected final&nbsp;<a href="../qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a> queryPassthrough</pre>
+</li>
+</ul>
+</li>
+</ul>
+</section>
 <!-- ========= CONSTRUCTOR DETAIL ======== -->
 <section>
 <ul class="blockList">
@@ -414,7 +452,7 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <a id="buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>buildSplitSql</h4>
 <pre class="methodSignature">public abstract&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a>&nbsp;buildSplitSql&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
@@ -437,6 +475,21 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <dd>prepared statement with sql. See <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink"><code>PreparedStatement</code></a></dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code> - JDBC database exception.</dd>
+</dl>
+</li>
+</ul>
+<a id="buildQueryPassthroughSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>buildQueryPassthroughSql</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a>&nbsp;buildQueryPassthroughSql&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
+                                                  <a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints)
+                                           throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></pre>
+<dl>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code></dd>
 </dl>
 </li>
 </ul>
@@ -499,7 +552,7 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
