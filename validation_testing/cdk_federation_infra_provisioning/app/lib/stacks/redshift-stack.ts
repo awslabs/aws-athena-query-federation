@@ -41,6 +41,7 @@ export class RedshiftStack extends cdk.Stack {
         }
     });
 
+    /*
     const isolatedSubnets = vpc.isolatedSubnets;
     const publicSubnets = vpc.publicSubnets;
 
@@ -48,7 +49,8 @@ export class RedshiftStack extends cdk.Stack {
         description: 'Redshift Cluster Subnet Group',
         subnetIds: [isolatedSubnets[0].subnetId, publicSubnets[0].subnetId]
     });
-
+    */
+    
     const glueInterfaceVpcEndpoint = new ec2.InterfaceVpcEndpoint(this, 'glue_interface_vpc_endpoint', {
       vpc,
       service: ec2.InterfaceVpcEndpointAwsService.GLUE
@@ -63,7 +65,7 @@ export class RedshiftStack extends cdk.Stack {
 
     // https://github.com/aws/aws-cdk/blob/main/packages/%40aws-cdk/aws-redshift/lib/cluster.ts
     // Original L2 Construct
-    /* const cluster = new redshift.Cluster(this, 'redshift_cluster', {
+    const cluster = new redshift.Cluster(this, 'redshift_cluster', {
         numberOfNodes: 2,
         port: 5439,
         vpc: vpc,
@@ -80,8 +82,8 @@ export class RedshiftStack extends cdk.Stack {
         publiclyAccessible: false // this is the default but just to be explicit
     });
     cluster.addToParameterGroup('enable_case_sensitive_identifier', 'true');
-    */
     
+    /*
     const cfnClusterParameterGroup = new cfnredshift.CfnClusterParameterGroup(this, 'MyCfnClusterParameterGroup', {
         description: 'case insensitive parameter',
         parameterGroupFamily: 'redshift-1.0',
@@ -105,10 +107,12 @@ export class RedshiftStack extends cdk.Stack {
         vpcSecurityGroupIds: [securityGroup.securityGroupId],
         clusterParameterGroupName: 'caseinsensitiveparametername'
     });
+    */
 
     const s3Spill = new s3.Bucket(this, 'redshift_spill_location', {});
 
-    const connectionString = `jdbc:redshift://${cfnCluster.attrEndpointAddress}:${cfnCluster.attrEndpointPort}/test?user=athena&password=${password}`;
+    const connectionString = `jdbc:redshift://${cluster.clusterEndpoint.socketAddress}/test?user=athena&password=${password}`;
+    //const connectionString = `jdbc:redshift://${cfnCluster.attrEndpointAddress}:${cfnCluster.attrEndpointPort}/test?user=athena&password=${password}`;
     const subnet = vpc.isolatedSubnets[0];
     const glueConnection = new glue.Connection(this, 'redshift_glue_connection', {
       type: glue.ConnectionType.JDBC,
@@ -142,7 +146,8 @@ export class RedshiftStack extends cdk.Stack {
         role: glue_role,
         defaultArguments: {
           '--s3_full_prefix': s3_path, 
-          '--db_url': `jdbc:redshift://${cfnCluster.attrEndpointAddress}:${cfnCluster.attrEndpointPort}/test`,
+          '--db_url': `jdbc:redshift://${cluster.clusterEndpoint.socketAddress}/test`,
+          //'--db_url': `jdbc:redshift://${cfnCluster.attrEndpointAddress}:${cfnCluster.attrEndpointPort}/test`,
           '--username': 'athena',
           '--password': password, 
           '--redshiftTmpDir': `s3://${s3Spill.bucketName}/tmpDir`,
@@ -162,7 +167,8 @@ export class RedshiftStack extends cdk.Stack {
         glueConnection
       ],
       defaultArguments: {
-        '--db_url': cfnCluster.attrEndpointAddress,
+        '--db_url': cluster.clusterEndpoint.hostname,
+        //'--db_url': cfnCluster.attrEndpointAddress,
         '--username': 'athena',
         '--password': password
       }
