@@ -53,6 +53,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.RdsSecretsCredentialProvider;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -96,6 +97,8 @@ public abstract class JdbcRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
+
+    protected final JdbcQueryPassthrough queryPassthrough = new JdbcQueryPassthrough();
 
     /**
      * Used only by Multiplexing handler. All invocations will be delegated to respective database handler.
@@ -316,4 +319,13 @@ public abstract class JdbcRecordHandler
      */
     public abstract PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
             throws SQLException;
+
+    public PreparedStatement buildQueryPassthroughSql(Connection jdbcConnection, Constraints constraints) throws SQLException
+    {
+        PreparedStatement preparedStatement;
+        queryPassthrough.verify(constraints.getQueryPassthroughArguments());
+        String clientPassQuery = constraints.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
+        preparedStatement = jdbcConnection.prepareStatement(clientPassQuery);
+        return preparedStatement;
+    }
 }
