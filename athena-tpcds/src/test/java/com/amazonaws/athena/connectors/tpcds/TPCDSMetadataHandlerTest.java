@@ -135,7 +135,7 @@ public class TPCDSMetadataHandlerTest
         GetTableRequest req = new GetTableRequest(identity,
                 "queryId",
                 "default",
-                new TableName(expectedSchema, "customer"));
+                new TableName(expectedSchema, "customer"), Collections.emptyMap());
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {} {}", res.getTableName(), res.getSchema());
@@ -192,7 +192,7 @@ public class TPCDSMetadataHandlerTest
                 new TableName("tpcds1", "customer"),
                 partitions,
                 Collections.EMPTY_LIST,
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 continuationToken);
 
         int numContinuations = 0;

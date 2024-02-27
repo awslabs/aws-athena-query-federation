@@ -80,11 +80,13 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
 import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.allocator;
@@ -97,7 +99,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.nullable;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -250,7 +251,7 @@ public class GcsMetadataHandlerTest
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", PARQUET);
         Schema schema = new Schema(asList(field), metadataSchema);
-        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "gcs", new TableName(SCHEMA_NAME, "testtable"));
+        GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "gcs", new TableName(SCHEMA_NAME, "testtable"), Collections.emptyMap());
         Table table = new Table();
         table.setName(TABLE_1);
         table.setDatabaseName(DATABASE_NAME);
@@ -301,7 +302,8 @@ public class GcsMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName(DATABASE_NAME, TABLE_1));
         Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
-        Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), 2000));
+        Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), 2000) ,
+                Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap());
         Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(constraints);
         BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
         gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, null);
@@ -314,7 +316,7 @@ public class GcsMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.VARCHAR.getType(), 2000, 2001);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("year"), new Constraints(new HashMap<>()), null);
+                partitions, ImmutableList.of("year"), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
@@ -351,7 +353,7 @@ public class GcsMetadataHandlerTest
         partitions.setRowCount(num_partitions);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("yearCol", "monthCol"), new Constraints(new HashMap<>()), null);
+                partitions, ImmutableList.of("yearCol", "monthCol"), new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
@@ -377,7 +379,7 @@ public class GcsMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(blockAllocator, "gcs_file_format", Types.MinorType.VARCHAR.getType(), 2000, 2001);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("gcs_file_format"), new Constraints(new HashMap<>()), null);
+                partitions, ImmutableList.of("gcs_file_format"), new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);

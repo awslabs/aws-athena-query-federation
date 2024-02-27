@@ -154,7 +154,7 @@
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
             <artifactId>elasticsearch-rest-client</artifactId>
-            <version>8.12.1</version>
+            <version>8.12.2</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.elasticsearch.client/elasticsearch-rest-high-level-client -->
         <dependency>

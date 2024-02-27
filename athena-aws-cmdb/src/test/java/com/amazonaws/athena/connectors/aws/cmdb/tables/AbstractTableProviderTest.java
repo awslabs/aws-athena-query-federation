@@ -178,7 +178,7 @@ public abstract class AbstractTableProviderTest
     @Test
     public void readTableTest()
     {
-        GetTableRequest request = new GetTableRequest(identity, expectedQuery, expectedCatalog, expectedTableName);
+        GetTableRequest request = new GetTableRequest(identity, expectedQuery, expectedCatalog, expectedTableName, Collections.emptyMap());
         GetTableResponse response = provider.getTable(allocator, request);
         assertTrue(response.getSchema().getFields().size() > 1);
 

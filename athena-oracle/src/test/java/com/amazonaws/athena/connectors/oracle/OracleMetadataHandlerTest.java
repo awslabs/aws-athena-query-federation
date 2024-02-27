@@ -33,7 +33,6 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.athena.connectors.oracle.OracleMetadataHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
@@ -330,7 +329,7 @@ public class OracleMetadataHandlerTest
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
 
         GetTableResponse getTableResponse = this.oracleMetadataHandler.doGetTable(
-                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
 
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
