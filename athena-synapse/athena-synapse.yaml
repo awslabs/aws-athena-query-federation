@@ -66,6 +66,7 @@ Conditions:
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryARN, ""]]
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
+  IsVPCAccessSelected: !And [ !Condition HasSecurityGroups, !Condition HasSubnets ]
 
 Resources:
   JdbcConnectorConfig:
@@ -86,8 +87,8 @@ Resources:
       MemorySize: !Ref LambdaMemory
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
       VpcConfig:
-        SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
-        SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue" ]
+        SecurityGroupIds: !If [ IsVPCAccessSelected, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
+        SubnetIds: !If [ IsVPCAccessSelected, !Ref SubnetIds, !Ref "AWS::NoValue" ]
 
   FunctionRole:
     Condition: NotHasLambdaRole
