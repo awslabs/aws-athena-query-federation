@@ -65,7 +65,6 @@ Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
-  IsVPCAccessSelected: !And [ !Condition HasSecurityGroups, !Condition HasSubnets ]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -121,5 +120,5 @@ Resources:
         #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
         - VPCAccessPolicy: {}
       VpcConfig:
-        SecurityGroupIds: !If [ IsVPCAccessSelected, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
-        SubnetIds: !If [ IsVPCAccessSelected, !Ref SubnetIds, !Ref "AWS::NoValue" ]
+        SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
+        SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue" ]
