@@ -1,0 +1,20 @@
+{
+  "@type" : "GetTableRequest",
+  "identity" : {
+    "id" : "UNKNOWN",
+    "principal" : "UNKNOWN",
+    "account" : "0123456789",
+    "arn" : "testArn",
+    "tags" : { },
+    "groups" : [ ]
+  },
+  "queryId" : "test-query-id",
+  "catalogName" : "test-catalog",
+  "tableName" : {
+    "schemaName" : "test-schema",
+    "tableName" : "test-table"
+  },
+  "queryPassthroughArguments" : {
+    "query" : "SELECT * FROM DUMMY_TABLE;"
+  }
+}

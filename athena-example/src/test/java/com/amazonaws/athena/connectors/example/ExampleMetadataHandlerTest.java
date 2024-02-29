@@ -187,7 +187,7 @@ public class ExampleMetadataHandlerTest
 
         logger.info("doGetTable - enter");
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "default",
-                new TableName("schema1", "table1"));
+                new TableName("schema1", "table1"), Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
         assertTrue(res.getSchema().getFields().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);

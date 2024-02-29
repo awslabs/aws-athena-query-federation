@@ -37,6 +37,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -133,7 +134,7 @@ public class LambdaMetadataProvider
     log.info("Submitting GetTableRequest with ID " + queryId);
 
     try (GetTableRequest request =
-                 new GetTableRequest(identity, queryId, catalog, tableName)) {
+                 new GetTableRequest(identity, queryId, catalog, tableName, Collections.emptyMap())) {
       log.info("Submitting request: {}", request);
       GetTableResponse response = (GetTableResponse) getService(metadataFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);

@@ -151,7 +151,7 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doGetMetricsTable - enter");
 
-        GetTableRequest metricsTableReq = new GetTableRequest(identity, "queryId", "default", new TableName(defaultSchema, "metrics"));
+        GetTableRequest metricsTableReq = new GetTableRequest(identity, "queryId", "default", new TableName(defaultSchema, "metrics"), Collections.emptyMap());
         GetTableResponse metricsTableRes = handler.doGetTable(allocator, metricsTableReq);
         logger.info("doGetMetricsTable - {} {}", metricsTableRes.getTableName(), metricsTableRes.getSchema());
 
@@ -170,7 +170,7 @@ public class MetricsMetadataHandlerTest
         GetTableRequest metricsTableReq = new GetTableRequest(identity,
                 "queryId",
                 "default",
-                new TableName(defaultSchema, "metric_samples"));
+                new TableName(defaultSchema, "metric_samples"), Collections.emptyMap());
 
         GetTableResponse metricsTableRes = handler.doGetTable(allocator, metricsTableReq);
         logger.info("doGetMetricSamplesTable - {} {}", metricsTableRes.getTableName(), metricsTableRes.getSchema());
