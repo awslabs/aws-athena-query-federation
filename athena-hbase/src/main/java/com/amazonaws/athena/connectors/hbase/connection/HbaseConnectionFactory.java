@@ -143,8 +143,7 @@ public class HbaseConnectionFactory
                     logger.debug("keytabLocation: " + keytabLocation);
                 }
                 catch (Exception e) {
-                    logger.error("Exception while copying config files from S3 to temp folder: " + e.getMessage());
-                    throw new RuntimeException(e);
+                    throw new RuntimeException("Exception while copying config files from S3 to temp folder: " + e);
                 }
             }
 
@@ -154,8 +153,7 @@ public class HbaseConnectionFactory
                 UserGroupInformation.loginUserFromKeytab(principalName, keytabLocation);
             }
             catch (IOException ex) {
-                logger.error("Exception in UserGroupInformation.loginUserFromKeytab: " + ex.getMessage());
-                throw new RuntimeException(ex);
+                throw new RuntimeException("Exception in UserGroupInformation.loginUserFromKeytab: " + ex);
             }
             logger.debug("UserGroupInformation.loginUserFromKeytab Success.");
         }
