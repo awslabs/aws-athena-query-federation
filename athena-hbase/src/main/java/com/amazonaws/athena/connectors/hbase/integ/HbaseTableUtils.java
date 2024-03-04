@@ -115,7 +115,7 @@ public class HbaseTableUtils
                     logger.debug("krb5.conf location: " + tempDir + File.separator + "krb5.conf");
                 }
                 catch (Exception e) {
-                    throw new RuntimeException("Exception while copying config files from S3 to temp folder: " + e);
+                    throw new RuntimeException("Exception while copying config files from S3 to temp folder: " + e.getMessage(), e);
                 }
             }
             logger.debug("keytabLocation: " + keytabLocation);
@@ -126,7 +126,7 @@ public class HbaseTableUtils
                 UserGroupInformation.loginUserFromKeytab(principalName, keytabLocation);
             }
             catch (IOException ex) {
-                throw new RuntimeException("Exception in UserGroupInformation.loginUserFromKeytab: " + ex);
+                throw new RuntimeException("Exception in UserGroupInformation.loginUserFromKeytab: " + ex.getMessage(), ex);
             }
             logger.debug("UserGroupInformation.loginUserFromKeytab Success.");
         }
