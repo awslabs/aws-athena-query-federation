@@ -31,8 +31,8 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecima
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.types.Types;
@@ -86,40 +86,60 @@ public final class DDBTypeUtils
      * @param value the value of the field
      * @return the inferred Arrow field
      */
-    public static Field inferArrowField(String key, Object value)
+    public static Field inferArrowField(String key, AttributeValue value)
     {
         logger.debug("inferArrowField invoked for key {} of class {}", key,
                 value != null ? value.getClass() : null);
-        if (value == null) {
+        EnhancedAttributeValue enhancedAttributeValue = EnhancedAttributeValue.fromAttributeValue(value);
+
+        if (enhancedAttributeValue.isNull() || enhancedAttributeValue == null) {
             return null;
         }
 
-        if (value instanceof String) {
+        if (enhancedAttributeValue.isString()) {
             return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
         }
-        else if (value instanceof byte[]) {
+        else if (enhancedAttributeValue.isBytes()) {
             return new Field(key, FieldType.nullable(Types.MinorType.VARBINARY.getType()), null);
         }
-        else if (value instanceof Boolean) {
+        else if (enhancedAttributeValue.isBoolean()) {
             return new Field(key, FieldType.nullable(Types.MinorType.BIT.getType()), null);
         }
-        else if (value instanceof BigDecimal) {
+        else if (enhancedAttributeValue.isNumber()) {
             return new Field(key, FieldType.nullable(new ArrowType.Decimal(38, 9)), null);
         }
-        else if (value instanceof List || value instanceof Set) {
+        else if (enhancedAttributeValue.isSetOfBytes() || enhancedAttributeValue.isSetOfNumbers() || enhancedAttributeValue.isSetOfStrings()) {
             Field child = null;
-            if (((Collection) value).isEmpty()) {
+
+            if (enhancedAttributeValue.isSetOfBytes()) {
+                child = new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+            }
+            else { 
+               child = new new Field(key, FieldType.nullable(Types.MinorType.VARBINARY.getType()), null); 
+            }
+          
+            return child == null
+                    ? null
+                    : new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),
+                                Collections.singletonList(child));
+        }
+        else if (enhancedAttributeValue.isListOfAttributeValues()) { 
+            Field child = null;
+            List<AttributeValue> listofAttributes = enhancedAttributeValue.asListOfAttributeValues();
+
+            if (listofAttributes.isEmpty()) {
                 logger.warn("Automatic schema inference encountered empty List or Set {}. Unable to determine element types. Falling back to VARCHAR representation", key);
-                child = inferArrowField("", "");
+                //todo; arfaraj need to figure this out
+                //child = inferArrowField("", "");
             }
             else {
-                Iterator iterator = ((Collection) value).iterator();
-                Object previousValue = iterator.next();
+                Iterator iterator = standardCollection.iterator();
+                AttributeValue previousValue = iterator.next();
                 boolean allElementsAreSameType = true;
                 while (iterator.hasNext()) {
-                    Object currentValue = iterator.next();
+                    AttributeValue currentValue = iterator.next();
                     // null is considered the same as any prior type
-                    if (previousValue != null && currentValue != null && !previousValue.getClass().equals(currentValue.getClass())) {
+                    if (previousValue != null && currentValue != null && !previousValue.type().equals(currentValue.type())) {
                         allElementsAreSameType = false;
                         break;
                     }
@@ -140,12 +160,12 @@ public final class DDBTypeUtils
                     : new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),
                                 Collections.singletonList(child));
         }
-        else if (value instanceof Map) {
+        else if (enhancedAttributeValue.isMap()) {
             List<Field> children = new ArrayList<>();
             // keys are always Strings in DDB's case
-            Map<String, Object> doc = (Map<String, Object>) value;
+            Map<String, AttributeValue> doc = value.m();
             for (String childKey : doc.keySet()) {
-                Object childVal = doc.get(childKey);
+                AttributeValue childVal = doc.get(childKey);
                 Field child = inferArrowField(childKey, childVal);
                 if (child != null) {
                     children.add(child);
@@ -161,6 +181,7 @@ public final class DDBTypeUtils
             return new Field(key, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
         }
 
+        // #todo; fix this
         String className = (value == null || value.getClass() == null) ? "null" : value.getClass().getName();
         throw new RuntimeException("Unknown type[" + className + "] for field[" + key + "]");
     }

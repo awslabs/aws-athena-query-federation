@@ -23,21 +23,20 @@ import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
-import com.amazonaws.services.dynamodbv2.model.GlobalSecondaryIndexDescription;
-import com.amazonaws.services.dynamodbv2.model.IndexStatus;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.LocalSecondaryIndexDescription;
-import com.amazonaws.services.dynamodbv2.model.ProjectionType;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.ScanResult;
-import com.amazonaws.services.dynamodbv2.model.TableDescription;
+
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.DescribeTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.GlobalSecondaryIndexDescription;
+import software.amazon.awssdk.services.dynamodb.model.IndexStatus;
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
+import software.amazon.awssdk.services.dynamodb.model.KeyType;
+import software.amazon.awssdk.services.dynamodb.model.LocalSecondaryIndexDescription;
+import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
+import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
+import software.amazon.awssdk.services.dynamodb.model.TableDescription;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -76,23 +75,28 @@ public final class DDBTableUtils
      * @param ddbClient the DDB client to use
      * @return the table metadata
      */
-    public static DynamoDBTable getTable(String tableName, ThrottlingInvoker invoker, AmazonDynamoDB ddbClient)
+    public static DynamoDBTable getTable(String tableName, ThrottlingInvoker invoker, DynamoDbClient ddbClient)
             throws TimeoutException
     {
-        DescribeTableRequest request = new DescribeTableRequest().withTableName(tableName);
-        TableDescription table = invoker.invoke(() -> ddbClient.describeTable(request).getTable());
+        DescribeTableRequest request = DescribeTableRequest.builder().tableName(tableName).build();
 
-        KeyNames keys = getKeys(table.getKeySchema());
+        TableDescription table = invoker.invoke(() -> ddbClient.describeTable(request).table());
+
+        KeyNames keys = getKeys(table.keySchema());
 
         // get data statistics
-        long approxTableSizeInBytes = table.getTableSizeBytes();
-        long approxItemCount = table.getItemCount();
-        final long provisionedReadCapacity = table.getProvisionedThroughput() != null ? table.getProvisionedThroughput().getReadCapacityUnits() : PSUEDO_CAPACITY_FOR_ON_DEMAND;
+        long approxTableSizeInBytes = table.tableSizeBytes();
+        long approxItemCount = table.itemCount();
+
+        ProvisionedThroughputDescription provisionedThroughputDescription = table.provisionedThroughput();
+        // #todo: from the Documentation; this doesn't seem to be returning null from the looks of it; but test;
+        final long provisionedReadCapacity =  provisionedThroughputDescription != null ? provisionedThroughputDescription.readCapacityUnits() : PSUEDO_CAPACITY_FOR_ON_DEMAND;
 
         // get secondary indexes
-        List<LocalSecondaryIndexDescription> localSecondaryIndexes = table.getLocalSecondaryIndexes() != null ? table.getLocalSecondaryIndexes() : ImmutableList.of();
-        List<GlobalSecondaryIndexDescription> globalSecondaryIndexes = table.getGlobalSecondaryIndexes() != null ? table.getGlobalSecondaryIndexes() : ImmutableList.of();
+        List<LocalSecondaryIndexDescription> localSecondaryIndexes = table.hasLocalSecondaryIndexes() ? table.localSecondaryIndexes() : ImmutableList.of();
+        List<GlobalSecondaryIndexDescription> globalSecondaryIndexes = table.hasGlobalSecondaryIndexes() ? table.globalSecondaryIndexes() : ImmutableList.of();
         ImmutableList.Builder<DynamoDBIndex> indices = ImmutableList.builder();
+
         localSecondaryIndexes.forEach(i -> {
             KeyNames indexKeys = getKeys(i.getKeySchema());
             // DynamoDB automatically fetches all attributes from the table for local secondary index, so ignore projected attributes
@@ -137,20 +141,25 @@ public final class DDBTableUtils
      * @param ddbClient the DDB client to use
      * @return the table's derived schema
      */
-    public static Schema peekTableForSchema(String tableName, ThrottlingInvoker invoker, AmazonDynamoDB ddbClient)
+    public static Schema peekTableForSchema(String tableName, ThrottlingInvoker invoker, DynamoDbClient ddbClient)
             throws TimeoutException
     {
-        ScanRequest scanRequest = new ScanRequest().withTableName(tableName).withLimit(SCHEMA_INFERENCE_NUM_RECORDS);
+        ScanRequest scanRequest = new ScanRequest().builder()
+                                                   .tableName(tableName)
+                                                   .limit(SCHEMA_INFERENCE_NUM_RECORDS);
+                                                   .build();
         SchemaBuilder schemaBuilder = new SchemaBuilder();
+
         try {
-            ScanResult scanResult = invoker.invoke(() -> ddbClient.scan(scanRequest));
-            List<Map<String, AttributeValue>> items = scanResult.getItems();
-            Set<String> discoveredColumns = new HashSet<>();
-            if (!items.isEmpty()) {
+            ScanResponse scanResponse = invoker.invoke(() -> ddbClient.scan(scanRequest));
+            if (scanResponse.hasItems()) {
+                List<Map<String, AttributeValue>> items = scanResponse.items();
+                Set<String> discoveredColumns = new HashSet<>();
+
                 for (Map<String, AttributeValue> item : items) {
                     for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
                         if (!discoveredColumns.contains(column.getKey())) {
-                            Field field = DDBTypeUtils.inferArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue()));
+                            Field field = DDBTypeUtils.inferArrowField(column.getKey(), column.getValue());
                             if (field != null) {
                                 schemaBuilder.addField(field);
                                 discoveredColumns.add(column.getKey());
@@ -163,16 +172,16 @@ public final class DDBTableUtils
                 // there's no items, so use any attributes defined in the table metadata
                 DynamoDBTable table = getTable(tableName, invoker, ddbClient);
                 for (AttributeDefinition attributeDefinition : table.getKnownAttributeDefinitions()) {
-                    schemaBuilder.addField(DDBTypeUtils.getArrowFieldFromDDBType(attributeDefinition.getAttributeName(), attributeDefinition.getAttributeType()));
+                    schemaBuilder.addField(DDBTypeUtils.getArrowFieldFromDDBType(attributeDefinition.attributeName(), attributeDefinition.attributeType()));
                 }
             }
         }
-        catch (AmazonDynamoDBException amazonDynamoDBException) {
-            if (amazonDynamoDBException.getMessage().contains("AWSKMSException")) {
-                logger.warn("Failed to retrieve table schema due to KMS issue, empty schema for table: {}. Error Message: {}", tableName, amazonDynamoDBException.getMessage());
+        catch (RuntimeException runtimeException) {
+            if (runtimeException.getMessage().contains("AWSKMSException")) {
+                logger.warn("Failed to retrieve table schema due to KMS issue, empty schema for table: {}. Error Message: {}", tableName, runtimeException.getMessage());
             }
             else {
-                throw amazonDynamoDBException;
+                throw runtimeException;
             }
         }
         return schemaBuilder.build();
