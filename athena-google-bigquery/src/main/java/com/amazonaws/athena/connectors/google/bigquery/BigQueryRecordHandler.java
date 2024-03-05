@@ -232,7 +232,7 @@ public class BigQueryRecordHandler
                 for (ReadRowsResponse response : stream) {
                     Preconditions.checkState(response.hasArrowRecordBatch());
                     VectorSchemaRoot root = reader.processRows(response.getArrowRecordBatch());
-                    long rowLimit = (recordsRequest.getConstraints().getLimit() > 0) ? recordsRequest.getConstraints().getLimit() : root.getRowCount();
+                    long rowLimit = (recordsRequest.getConstraints().getLimit() > 0 && recordsRequest.getConstraints().getLimit() < root.getRowCount()) ? recordsRequest.getConstraints().getLimit() : root.getRowCount();
                     for (int rowIndex = 0; rowIndex < rowLimit; rowIndex++) {
                         outputResults(spiller, recordsRequest, root, rowIndex);
                     }
