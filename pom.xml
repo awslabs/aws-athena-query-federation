@@ -13,33 +13,36 @@
         <!--<maven.compiler.release>8</maven.compiler.release>-->
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.12.1</maven.compiler.plugin.version>
-        <aws-sdk.version>1.12.661</aws-sdk.version>
+        <!--- to meet engine version 1.12.533-->
+        <aws-sdk.version>1.12.533</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
         <jsii.version>1.94.0</jsii.version>
-        <slf4j-log4j.version>2.0.12</slf4j-log4j.version>
+        <!--- to meet engine version 2.0.7-->
+        <slf4j-log4j.version>2.0.7</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.8.2</jqwik.version>
+        <jqwik.version>1.8.3</jqwik.version>
         <assertj.version>3.25.3</assertj.version>
         <testng.version>7.9.0</testng.version>
-        <fasterxml.jackson.version>2.16.1</fasterxml.jackson.version>
+         <!--- to meet engine version 2.12.6 -->
+        <fasterxml.jackson.version>2.12.6</fasterxml.jackson.version>
         <surefire.failsafe.version>3.2.5</surefire.failsafe.version>
-        <log4j2Version>2.22.1</log4j2Version>
+        <log4j2Version>2.23.0</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
         <guava.version>33.0.0-jre</guava.version>
         <protobuf3.version>3.25.3</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
-        <mssql.jdbc.version>12.4.2.jre11</mssql.jdbc.version>
+        <mssql.jdbc.version>12.6.1.jre11</mssql.jdbc.version>
         <commons.cli.version>1.6.0</commons.cli.version>
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
         <mvn.checkstyle.version>3.3.1</mvn.checkstyle.version>
-        <mvn.shade.plugin.version>3.5.1</mvn.shade.plugin.version>
+        <mvn.shade.plugin.version>3.5.2</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.3.0</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.6.3</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.3.0</mvn.jar.plugin.version>

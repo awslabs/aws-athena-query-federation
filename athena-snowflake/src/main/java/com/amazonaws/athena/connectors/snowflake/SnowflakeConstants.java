@@ -29,7 +29,7 @@ public final class SnowflakeConstants
      * This constant limits the number of partitions. The default set to 50. A large number may cause a timeout issue.
      * We arrived at this number after performance testing with datasets of different size
      */
-    public static final int MAX_PARTITION_COUNT = 50;
+    public static final int MAX_PARTITION_COUNT = 1;
     /**
      * This constant limits the number of records to be returned in a single split.
      */

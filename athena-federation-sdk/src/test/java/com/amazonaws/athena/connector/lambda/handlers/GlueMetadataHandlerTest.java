@@ -73,6 +73,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -363,7 +364,7 @@ public class GlueMetadataHandlerTest
                     return mockResult;
                 });
 
-        GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table));
+        GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table), Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         logger.info("doGetTable - {}", res);
@@ -446,7 +447,7 @@ public class GlueMetadataHandlerTest
                     return mockResult;
                 });
 
-        GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table));
+        GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table), Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         logger.info("doGetTable - {}", res);
@@ -461,7 +462,7 @@ public class GlueMetadataHandlerTest
     @Test
     public void testGetCatalog() {
         // Catalog should be the account from the request
-        MetadataRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table));
+        MetadataRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table), Collections.emptyMap());
         String catalog = handler.getCatalog(req);
         assertEquals(IdentityUtil.fakeIdentity().getAccount(), catalog);
 

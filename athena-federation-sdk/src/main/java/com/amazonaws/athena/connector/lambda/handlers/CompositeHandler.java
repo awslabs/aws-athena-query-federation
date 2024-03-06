@@ -102,8 +102,9 @@ public class CompositeHandler
             try {
                 rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);
             }
-            catch (IllegalStateException e) { // if client has not upgraded to our latest, fallback to v2
-                objectMapper = VersionedObjectMapperFactory.create(allocator, 2);
+            catch (IllegalStateException e) { // if client has not upgraded to our latest, fallback to v4
+                logger.warn("Client's SerDe is not upgraded to latest version, defaulting to V4:", e);
+                objectMapper = VersionedObjectMapperFactory.create(allocator, 4);
                 rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);
             }
             if (rawReq instanceof MetadataRequest) {

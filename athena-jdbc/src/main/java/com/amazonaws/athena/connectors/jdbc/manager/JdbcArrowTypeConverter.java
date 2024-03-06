@@ -48,11 +48,15 @@ public final class JdbcArrowTypeConverter
         int defaultScale = Integer.parseInt(configOptions.getOrDefault("default_scale", "0"));
         int resolvedPrecision = precision;
         int resolvedScale = scale;
-        boolean needsResolving = jdbcType == Types.NUMERIC && (precision == 0 && scale == 0);
+        boolean needsResolving = jdbcType == Types.NUMERIC && (precision == 0 && scale <= 0);
+        boolean decimalExceedingPrecision = jdbcType == Types.DECIMAL && precision > DEFAULT_PRECISION;
         // Resolve Precision and Scale if they're not available
         if (needsResolving) {
             resolvedPrecision = DEFAULT_PRECISION;
             resolvedScale = defaultScale;
+        }
+        else if (decimalExceedingPrecision) {
+            resolvedPrecision = DEFAULT_PRECISION;
         }
 
         ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
