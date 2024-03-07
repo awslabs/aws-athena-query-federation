@@ -152,7 +152,7 @@ public final class DDBTableUtils
 
         try {
             ScanResponse scanResponse = invoker.invoke(() -> ddbClient.scan(scanRequest));
-            if (scanResponse.hasItems()) {
+            if (!scanResponse.items().isEmpty()) {
                 List<Map<String, AttributeValue>> items = scanResponse.items();
                 Set<String> discoveredColumns = new HashSet<>();
 
