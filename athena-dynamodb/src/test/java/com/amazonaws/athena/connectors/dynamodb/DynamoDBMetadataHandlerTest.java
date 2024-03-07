@@ -375,7 +375,7 @@ public class DynamoDBMetadataHandlerTest
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(startTime), ":v1", DDBTypeUtils.toAttributeValue(endTime));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(EnhancedDocument.fromAttributeValueMap(expressionValues).toJson()));
 
         // Tests to validate that we correctly generate predicates that avoid this error:
         //    "KeyConditionExpressions must only contain one condition per key"

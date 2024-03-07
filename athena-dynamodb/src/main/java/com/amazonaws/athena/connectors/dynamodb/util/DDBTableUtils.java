@@ -121,10 +121,10 @@ public final class DDBTableUtils
         String hashKey = null;
         String rangeKey = null;
         for (KeySchemaElement key : keys) {
-            if (key.keyType().toString().equals(KeyType.HASH.toString())) {
+            if (key.keyType().equals(KeyType.HASH)) {
                 hashKey = key.attributeName();
             }
-            else if (key.keyType().equals(KeyType.RANGE.toString())) {
+            else if (key.keyType().equals(KeyType.RANGE)) {
                 rangeKey = key.attributeName();
             }
         }
