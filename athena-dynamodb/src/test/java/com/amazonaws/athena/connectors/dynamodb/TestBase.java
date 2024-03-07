@@ -309,11 +309,11 @@ public class TestBase
                 .attributeDefinitions(
                         AttributeDefinition.builder()
                                 .attributeName("col_4")
-                                .attributeType(ScalarAttributeType.N.toString())
+                                .attributeType(ScalarAttributeType.N)
                                 .build(),
                         AttributeDefinition.builder()
                                 .attributeName("col_5")
-                                .attributeType(ScalarAttributeType.N.toString())
+                                .attributeType(ScalarAttributeType.N)
                                 .build())
                 .globalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate.builder()
                         .create(createIndexRequest)
@@ -321,9 +321,8 @@ public class TestBase
                 .build();
 
         ddb.updateTable(updateTableRequest);
-        waitForTableToBecomeActive(ddb, dbWaiter, table1CreateTableResponse, TEST_TABLE);
-//            System.exit(0);
-//            waitForActive(ddb, TEST_TABLE, "test_index");
+        dbWaiter.waitUntilTableExists(DescribeTableRequest.builder().tableName(TEST_TABLE).build());
+
 
         // for case sensitivity testing
         CreateTableRequest table2Request = CreateTableRequest.builder()
