@@ -59,12 +59,15 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.enhanced.dynamodb.AttributeConverter;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -399,8 +402,9 @@ public class DynamoDBMetadataHandler
             for (AttributeValue value : accumulator) {
                 expressionValueMapping.put(valueNameProducer2.getNext(), value);
             }
+
             partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, Jackson.toJsonString(aliasedColumns));
-            partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, Jackson.toJsonString(expressionValueMapping));
+            partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValueMapping).toJson());
         }
     }
 
@@ -435,8 +439,7 @@ public class DynamoDBMetadataHandler
                 Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
 
                 Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
-                String hashKeyValueJSON = Jackson.toJsonString(toAttributeValue(hashKeyValue));
-                splitMetadata.put(hashKeyName, hashKeyValueJSON);
+                splitMetadata.put(hashKeyName, DDBTypeUtils.attributeToJson(toAttributeValue(hashKeyValue), hashKeyName));
 
                 splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
 

@@ -32,7 +32,6 @@ import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.MapAttributeConverter;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.nio.ByteBuffer;
@@ -41,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

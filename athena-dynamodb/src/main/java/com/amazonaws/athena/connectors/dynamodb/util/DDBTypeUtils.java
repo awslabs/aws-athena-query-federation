@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.enhanced.dynamodb.EnhancedType;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.BigDecimalAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.BooleanAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.ByteArrayAttributeConverter;
@@ -52,6 +53,7 @@ import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.Map
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.SetAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.StringAttributeConverter;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.utils.ImmutableMap;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -619,6 +621,22 @@ public final class DDBTypeUtils
         else {
             throw new UnsupportedOperationException("Unsupported value type: " + value.getClass());
         }
+    }
+
+    public static String attributeToJson(AttributeValue attributeValue, String key)
+    {
+        EnhancedDocument enhancedDocument = EnhancedDocument.fromAttributeValueMap(ImmutableMap.of(key, attributeValue));
+        return enhancedDocument.toJson();
+    }
+
+
+    public static AttributeValue jsonToAttributeValue(String jsonString, String key)
+    {
+        EnhancedDocument enhancedDocument = EnhancedDocument.fromJson(jsonString);
+        if(!enhancedDocument.isPresent(key)) {
+            throw new RuntimeException("Unknown attribute Key");
+        }
+        return enhancedDocument.toMap().get(jsonString);
     }
 
     private static AttributeValue handleSetType(Set<?> value)

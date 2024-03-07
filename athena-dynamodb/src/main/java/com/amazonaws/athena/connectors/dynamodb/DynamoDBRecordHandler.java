@@ -47,6 +47,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
@@ -293,38 +294,41 @@ public class DynamoDBRecordHandler
                 })
                 .collect(Collectors.joining(","));
 
-            // prepare key condition expression
-            String indexName = split.getProperty(INDEX_METADATA);
-            String hashKeyName = split.getProperty(HASH_KEY_NAME_METADATA);
-            String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName);
-            String keyConditionExpression = hashKeyAlias + " = " + HASH_KEY_VALUE_ALIAS;
-            if (rangeKeyFilter != null) {
-                if (rangeFilterHasIn(rangeKeyFilter)) {
-                    List<String> rangeKeyValues = getRangeValues(rangeKeyFilter);
-                    for (String value : rangeKeyValues) {
-                        expressionAttributeValues.remove(value);
-                    }
+        // prepare key condition expression
+        String indexName = split.getProperty(INDEX_METADATA);
+        String hashKeyName = split.getProperty(HASH_KEY_NAME_METADATA);
+        String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName);
+        String keyConditionExpression = hashKeyAlias + " = " + HASH_KEY_VALUE_ALIAS;
+        if (rangeKeyFilter != null) {
+            if (rangeFilterHasIn(rangeKeyFilter)) {
+                List<String> rangeKeyValues = getRangeValues(rangeKeyFilter);
+                for (String value : rangeKeyValues) {
+                    expressionAttributeValues.remove(value);
                 }
-                else {            
-                    keyConditionExpression += " AND " + rangeKeyFilter;
-                }
+            } else {
+                keyConditionExpression += " AND " + rangeKeyFilter;
             }
-            expressionAttributeNames.put(hashKeyAlias, hashKeyName);
-            expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class));
+        }
+        expressionAttributeNames.put(hashKeyAlias, hashKeyName);
+        //todo; need to convert the json to Attribute Value
+        // need to clean this up
+        Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class);
+        Map<String, AttributeValue> attributeValueMap = EnhancedDocument.fromJson(split.getProperty(hashKeyName)).toMap();
+        expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, attributeValueMap.get(attributeValueMap.keySet().iterator().next()));
 
-            QueryRequest.Builder queryRequestBuilder = QueryRequest.builder()
-                    .tableName(tableName)
-                    .indexName(indexName)
-                    .keyConditionExpression(keyConditionExpression)
-                    .filterExpression(nonKeyFilter)
-                    .expressionAttributeNames(expressionAttributeNames)
-                    .expressionAttributeValues(expressionAttributeValues)
-                    .projectionExpression(projectionExpression)
-                    .exclusiveStartKey(exclusiveStartKey);
-            if (canApplyLimit(constraints)) {
-                queryRequestBuilder.limit((int) constraints.getLimit());
-            }
-            return queryRequestBuilder.build();
+        QueryRequest.Builder queryRequestBuilder = QueryRequest.builder()
+                .tableName(tableName)
+                .indexName(indexName)
+                .keyConditionExpression(keyConditionExpression)
+                .filterExpression(nonKeyFilter)
+                .expressionAttributeNames(expressionAttributeNames)
+                .expressionAttributeValues(expressionAttributeValues)
+                .projectionExpression(projectionExpression)
+                .exclusiveStartKey(exclusiveStartKey);
+        if (canApplyLimit(constraints)) {
+            queryRequestBuilder.limit((int) constraints.getLimit());
+        }
+        return queryRequestBuilder.build();
     }
 
     /*

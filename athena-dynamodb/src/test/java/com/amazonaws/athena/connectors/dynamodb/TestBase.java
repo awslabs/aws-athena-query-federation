@@ -21,18 +21,23 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
-
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
-import com.amazonaws.services.dynamodbv2.document.TableWriteItems;
-import com.amazonaws.services.dynamodbv2.local.embedded.DynamoDBEmbedded;
+
 import com.amazonaws.services.dynamodbv2.local.main.ServerRunner;
 import com.amazonaws.services.dynamodbv2.local.server.DynamoDBProxyServer;
-import org.w3c.dom.Attr;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -45,26 +50,19 @@ import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
 import software.amazon.awssdk.services.dynamodb.model.CreateTableResponse;
 import software.amazon.awssdk.services.dynamodb.model.DescribeTableRequest;
 import software.amazon.awssdk.services.dynamodb.model.DescribeTableResponse;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.GlobalSecondaryIndexUpdate;
 import software.amazon.awssdk.services.dynamodb.model.IndexStatus;
 import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
-import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
 import software.amazon.awssdk.services.dynamodb.model.Projection;
 import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
 import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
 import software.amazon.awssdk.services.dynamodb.model.PutRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import software.amazon.awssdk.services.dynamodb.model.TableStatus;
 import software.amazon.awssdk.services.dynamodb.model.UpdateTableRequest;
-import software.amazon.awssdk.services.dynamodb.model.UpdateTableResponse;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
+import software.amazon.awssdk.services.dynamodb.waiters.DynamoDbWaiter;
 
 import java.net.URI;
 import java.sql.Timestamp;
@@ -114,9 +112,8 @@ public class TestBase
     }
 
     @AfterClass
-    public static void tearDownOnce()
-    {
-        ddbClient.close();
+    public static void tearDownOnce() throws Exception {
+        server.stop();
     }
 
     private static void waitForActive(DynamoDbClient ddbClient, String tableName, String indexName)
@@ -131,7 +128,7 @@ public class TestBase
 
             if (!isIndexActive) {
                 try {
-                    Thread.sleep(20000); // Wait for 20 seconds before the next check
+                    Thread.sleep(2000); // Wait for 20 seconds before the next check
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     // Handle interruption
@@ -140,27 +137,36 @@ public class TestBase
         }
     }
 
-    private static void waitForTableToBecomeActive(DynamoDbClient ddb, String tableName) {
-        boolean isTableActive = false;
-        while (!isTableActive) {
-            try {
-                Thread.sleep(20000); // 20 seconds wait
-                DescribeTableResponse tableDescription = ddb.describeTable(DescribeTableRequest.builder()
-                        .tableName(tableName)
-                        .build());
-                isTableActive = tableDescription.table().tableStatus() == TableStatus.ACTIVE;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Thread interrupted while waiting for the table to become active.");
-            }
+    private static String waitForTableToBecomeActive(DynamoDbClient ddb, DynamoDbWaiter dbWaiter, CreateTableResponse createTableResponse, String tableName) {
+        System.out.println("------------------------------------------------------------------------");
+        System.out.println("Entered: waitForTableToBecomeActive: for: " + tableName);
+
+        try {
+            DescribeTableRequest tableRequest = DescribeTableRequest.builder()
+                    .tableName(tableName)
+                    .build();
+
+            // Wait until the Amazon DynamoDB table is created
+            dbWaiter.waitUntilTableExists(tableRequest);
+            String newTable = createTableResponse.tableDescription().tableName();
+            System.out.println("Table Name: " + tableName + " | New Table Name: " + newTable);
+            System.out.println("------------------------------------------------------------------------");
+            return newTable;
+
+        } catch (DynamoDbException e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
         }
+        return tableName;
     }
 
     //Adapted from: https://github.com/awslabs/amazon-dynamodb-local-samples/blob/main/DynamoDBLocal
     private static DynamoDbClient setupLocalDDB() throws Exception
     {
+        DynamoDbWaiter dbWaiter;
+        DynamoDbClient ddbClient;
+
         try {
-            System.setProperty("sqlite4java.library.path", "native-libs");
             String port = "8000";
             String uri = "http://localhost:" + port;
             // Create an in-memory and in-process instance of DynamoDB Local that runs over HTTP
@@ -168,37 +174,19 @@ public class TestBase
             System.out.println("Starting DynamoDB Local...");
             server = ServerRunner.createServerFromCommandLineArgs(localArgs);
             server.start();
+            System.out.println("Started DynamoDB Local...");
+
 
             //  Create a client and connect to DynamoDB Local
             //  Note: This is a dummy key and secret and AWS_ACCESS_KEY_ID can contain only letters (A–Z, a–z) and numbers (0–9).
-            DynamoDbClient ddbClient = DynamoDbClient.builder()
+            ddbClient = DynamoDbClient.builder()
                     .endpointOverride(URI.create(uri))
                     .httpClient(UrlConnectionHttpClient.builder().build())
                     .region(Region.US_WEST_2)
                     .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("dummyKey", "dummySecret")))
                     .build();
 
-            // For AttributeDefinitions
-            List<AttributeDefinition> attributeDefinitions = new ArrayList<>();
-            attributeDefinitions.add(AttributeDefinition.builder()
-                    .attributeName("col_0")
-                    .attributeType("S")
-                    .build());
-            attributeDefinitions.add(AttributeDefinition.builder()
-                    .attributeName("col_1")
-                    .attributeType("N")
-                    .build());
-
-            // For KeySchema
-            List<KeySchemaElement> keySchema = new ArrayList<>();
-            keySchema.add(KeySchemaElement.builder()
-                    .attributeName("col_0")
-                    .keyType(KeyType.HASH)
-                    .build());
-            keySchema.add(KeySchemaElement.builder()
-                    .attributeName("col_1")
-                    .keyType(KeyType.RANGE)
-                    .build());
+            dbWaiter = ddbClient.waiter();
 
             // Create ProvisionedThroughput using the builder pattern
             ProvisionedThroughput provisionedThroughput = ProvisionedThroughput.builder()
@@ -206,226 +194,262 @@ public class TestBase
                     .writeCapacityUnits(6L)
                     .build();
 
-            // Create CreateTableRequest using the builder pattern
-            CreateTableRequest createTableRequest = CreateTableRequest.builder()
-                    .tableName(TEST_TABLE)
-                    .keySchema(keySchema)
-                    .attributeDefinitions(attributeDefinitions)
-                    .provisionedThroughput(provisionedThroughput)
-                    .build();
-
-            ddbClient.createTable(createTableRequest);
-            waitForTableToBecomeActive(ddbClient, TEST_TABLE);
-
-            int len = 1000;
-            LocalDateTime dateTime = LocalDateTime.of(2019, 9, 23, 11, 18, 37);
-            for (int i = 0; i < len; i++) {
-                Map<String, AttributeValue> item = new HashMap<>();
-                // Populating the item map
-                item.put("col_0", AttributeValue.builder().s("test_str_" + (i - i % 3)).build());
-                item.put("col_1", AttributeValue.builder().n(String.valueOf(i)).build());
-                double doubleVal = 200000.0 + i / 2.0;
-                if (Math.floor(doubleVal) != doubleVal) {
-                    item.put("col_2", AttributeValue.builder().n(String.valueOf(doubleVal)).build());
-                }
-                // Assuming you have appropriate methods to create Map and List AttributeValues
-                item.put("col_3", DDBTypeUtils.toAttributeValue(ImmutableMap.of("modulo", i % 2, "nextModulos", ImmutableList.of((i + 1) % 2, ((i + 2) % 2)))));
-                item.put("col_4", AttributeValue.builder().n(String.valueOf(dateTime.toLocalDate().toEpochDay())).build());
-                item.put("col_5", AttributeValue.builder().n(String.valueOf(Timestamp.valueOf(dateTime).toInstant().toEpochMilli())).build());
-                item.put("col_6", i % 128 == 0 ? AttributeValue.builder().nul(true).build() : AttributeValue.builder().n(String.valueOf(i % 128)).build());
-                item.put("col_7", DDBTypeUtils.toAttributeValue(ImmutableList.of(-i,String.valueOf(i))));
-                item.put("col_8", DDBTypeUtils.toAttributeValue((ImmutableList.of(ImmutableMap.of("mostlyEmptyMap",
-                        i % 128 == 0 ? ImmutableMap.of("subtractions", ImmutableSet.of(i - 100, i - 200)) : ImmutableMap.of())))));
-                item.put("col_9", AttributeValue.builder().n(String.valueOf(100.0f + i)).build());
-                item.put("col_10", DDBTypeUtils.toAttributeValue(ImmutableList.of(ImmutableList.of(1 * i, 2 * i, 3 * i),
-                        ImmutableList.of(4 * i, 5 * i), ImmutableList.of(6 * i, 7 * i, 8 * i))));
-
-
-                List<WriteRequest> writeRequests = new ArrayList<>();
-                writeRequests.add(WriteRequest.builder()
-                        .putRequest(PutRequest.builder().item(item).build())
-                        .build());
-
-                if (writeRequests.size() == 25 || i == len - 1) {
-                    BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder()
-                            .requestItems(Map.of(TEST_TABLE, writeRequests))
-                            .build();
-
-                    BatchWriteItemResponse response = ddbClient.batchWriteItem(batchWriteItemRequest);
-                    // Handle response, check for unprocessed items, etc.
-                    writeRequests.clear(); // Clear the list for the next batch
-                }
-                dateTime = dateTime.plusHours(26);
-            }
-
-
-            CreateGlobalSecondaryIndexAction createIndexRequest = CreateGlobalSecondaryIndexAction.builder()
-                    .indexName("test_index")
-                    .keySchema(KeySchemaElement.builder()
-                                    .keyType(KeyType.HASH)
-                                    .attributeName("col_4")
-                                    .build(),
-                            KeySchemaElement.builder()
-                                    .keyType(KeyType.RANGE)
-                                    .attributeName("col_5")
-                                    .build())
-                    .projection(Projection.builder()
-                            .projectionType(ProjectionType.ALL)
-                            .build())
-                    .provisionedThroughput(provisionedThroughput)
-                    .build();
-
-            UpdateTableRequest updateTableRequest = UpdateTableRequest.builder()
-                    .tableName(TEST_TABLE)
-                    .attributeDefinitions(
-                            AttributeDefinition.builder()
-                                    .attributeName("col_4")
-                                    .attributeType(ScalarAttributeType.N.toString())
-                                    .build(),
-                            AttributeDefinition.builder()
-                                    .attributeName("col_5")
-                                    .attributeType(ScalarAttributeType.N.toString())
-                                    .build())
-                    .globalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate.builder()
-                            .create(createIndexRequest)
-                            .build())
-                    .build();
-
-            ddbClient.updateTable(updateTableRequest);
-            waitForTableToBecomeActive(ddbClient, TEST_TABLE);
-            waitForActive(ddbClient, TEST_TABLE, "test_index");
-
-            // for case sensitivity testing
-            CreateTableRequest table2Request = CreateTableRequest.builder()
-                    .tableName(TEST_TABLE2)
-                    .keySchema(keySchema)
-                    .attributeDefinitions(attributeDefinitions)
-                    .provisionedThroughput(provisionedThroughput)
-                    .build();
-
-            ddbClient.createTable(table2Request);
-            waitForTableToBecomeActive(ddbClient, TEST_TABLE2);
-            waitForActive(ddbClient, TEST_TABLE2, "test_index");
-
-            ///Glue Table;
-            List<AttributeDefinition> attributeDefinitionsGlue = new ArrayList<>();
-            attributeDefinitionsGlue.add(AttributeDefinition.builder()
-                    .attributeName("Col0")
-                    .attributeType("S")
-                    .build());
-            attributeDefinitionsGlue.add(AttributeDefinition.builder()
-                    .attributeName("Col1")
-                    .attributeType("S")
-                    .build());
-
-            List<KeySchemaElement> keySchemaGlue = new ArrayList<>();
-            keySchemaGlue.add(KeySchemaElement.builder()
-                    .attributeName("Col0")
-                    .keyType(KeyType.HASH)
-                    .build());
-            keySchemaGlue.add(KeySchemaElement.builder()
-                    .attributeName("Col1")
-                    .keyType(KeyType.RANGE)
-                    .build());
-            CreateTableRequest table3Request = CreateTableRequest.builder()
-                    .tableName(TEST_TABLE3)
-                    .keySchema(keySchemaGlue)
-                    .attributeDefinitions(attributeDefinitionsGlue)
-                    .provisionedThroughput(provisionedThroughput)
-                    .build();
-
-            ddbClient.createTable(table3Request);
-            waitForTableToBecomeActive(ddbClient, TEST_TABLE3);
-
-            Map<String, AttributeValue> item = new HashMap<>();
-            item.put("Col0", DDBTypeUtils.toAttributeValue("hashVal"));
-            item.put("Col1", DDBTypeUtils.toAttributeValue("20200227S091227"));
-            item.put("Col2", DDBTypeUtils.toAttributeValue("2020-02-27T09:12:27Z"));
-            item.put("Col3", DDBTypeUtils.toAttributeValue("27/02/2020"));
-            item.put("Col4", DDBTypeUtils.toAttributeValue("2020-02-27"));
-            item.put("Col5", DDBTypeUtils.toAttributeValue("2015-12-21T17:42:34-05:00"));
-            item.put("Col6", DDBTypeUtils.toAttributeValue("2015-12-21T17:42:34Z"));
-            item.put("Col7", DDBTypeUtils.toAttributeValue("2015-12-21T17:42:34"));
-
-            List<WriteRequest> table3WriteRequest = new ArrayList<>();
-            table3WriteRequest.add(WriteRequest.builder()
-                    .putRequest(PutRequest.builder().item(item).build())
-                    .build());
-
-            BatchWriteItemRequest table3BatchWriteItemRequest = BatchWriteItemRequest.builder()
-                    .requestItems(Map.of(TEST_TABLE3, table3WriteRequest))
-                    .build();
-            ddbClient.batchWriteItem(table3BatchWriteItemRequest);
-
-            //-----------------------------------------------------------------
-            // Define attribute definitions for Table 4
-            List<AttributeDefinition> table4AttributeDefinitions = new ArrayList<>();
-            table4AttributeDefinitions.add(AttributeDefinition.builder()
-                    .attributeName("Col0")
-                    .attributeType(ScalarAttributeType.S)
-                    .build());
-
-            // Define key schema for Table 4
-            List<KeySchemaElement> table4KeySchema = new ArrayList<>();
-            table4KeySchema.add(KeySchemaElement.builder()
-                    .attributeName("Col0")
-                    .keyType(KeyType.HASH)
-                    .build());
-
-            // Create Table Request for Table 4
-            CreateTableRequest table4TableRequest = CreateTableRequest.builder()
-                    .tableName(TEST_TABLE4)
-                    .keySchema(table4KeySchema)
-                    .attributeDefinitions(table4AttributeDefinitions)
-                    .provisionedThroughput(ProvisionedThroughput.builder() // Assuming 'provisionedThroughput' is defined
-                            .readCapacityUnits(5L)  // Example capacity units
-                            .writeCapacityUnits(5L)
-                            .build())
-                    .build();
-
-            ddbClient.createTable(table4TableRequest);
-            waitForTableToBecomeActive(ddbClient, TEST_TABLE4);
-
-            //-----------------------------------------------------------------
-            // Define attribute definitions for Table 5
-            List<AttributeDefinition> table5AttributeDefinitions = new ArrayList<>();
-            table5AttributeDefinitions.add(AttributeDefinition.builder()
-                    .attributeName("Col0")
-                    .attributeType(ScalarAttributeType.S)
-                    .build());
-
-            List<KeySchemaElement> table5KeySchema = new ArrayList<>();
-            table5KeySchema.add(KeySchemaElement.builder()
-                    .attributeName("Col0")
-                    .keyType(KeyType.HASH)
-                    .build());
-
-            CreateTableRequest table5CreateTableRequest = CreateTableRequest.builder()
-                    .tableName(TEST_TABLE5)
-                    .keySchema(table5KeySchema)
-                    .attributeDefinitions(table5AttributeDefinitions)
-                    .provisionedThroughput(provisionedThroughput)
-                    .build();
-
-           ddbClient.createTable(table5CreateTableRequest);
-           waitForTableToBecomeActive(ddbClient, TEST_TABLE5);
-
-            setUpTable6(provisionedThroughput, ddbClient);
-            setUpTable7(provisionedThroughput, ddbClient);
-            setUpTable8(provisionedThroughput, ddbClient);
-
+            setUpTable1And2(provisionedThroughput, ddbClient, dbWaiter);
+//            setUpTable3(provisionedThroughput, ddbClient, dbWaiter);
+//            setUpTable4(provisionedThroughput, ddbClient, dbWaiter);
+//            setUpTable5(provisionedThroughput, ddbClient, dbWaiter);
+//            setUpTable6(provisionedThroughput, ddbClient, dbWaiter);
+//            setUpTable7(provisionedThroughput, ddbClient, dbWaiter);
+//            setUpTable8(provisionedThroughput, ddbClient, dbWaiter);
 
             return ddbClient;
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
+    private static void setUpTable1And2(
+            ProvisionedThroughput provisionedThroughput,
+            DynamoDbClient ddb, DynamoDbWaiter dbWaiter)  {
+
+        // For AttributeDefinitions
+        List<AttributeDefinition> attributeDefinitions = new ArrayList<>();
+        attributeDefinitions.add(AttributeDefinition.builder()
+                .attributeName("col_0")
+                .attributeType("S")
+                .build());
+        attributeDefinitions.add(AttributeDefinition.builder()
+                .attributeName("col_1")
+                .attributeType("N")
+                .build());
+
+        // For KeySchema
+        List<KeySchemaElement> keySchema = new ArrayList<>();
+        keySchema.add(KeySchemaElement.builder()
+                .attributeName("col_0")
+                .keyType(KeyType.HASH)
+                .build());
+        keySchema.add(KeySchemaElement.builder()
+                .attributeName("col_1")
+                .keyType(KeyType.RANGE)
+                .build());
+
+        // Create CreateTableRequest using the builder pattern
+        CreateTableRequest createTableRequest = CreateTableRequest.builder()
+                .tableName(TEST_TABLE)
+                .keySchema(keySchema)
+                .attributeDefinitions(attributeDefinitions)
+                .provisionedThroughput(provisionedThroughput)
+                .build();
+
+        CreateTableResponse table1CreateTableResponse = ddb.createTable(createTableRequest);
+        String newTableName = waitForTableToBecomeActive(ddb, dbWaiter, table1CreateTableResponse, TEST_TABLE);
+        System.out.println("New Table Name: " + newTableName);
+
+        int len = 25;
+        LocalDateTime dateTime = LocalDateTime.of(2019, 9, 23, 11, 18, 37);
+        for (int i = 0; i < len; i++) {
+            Map<String, AttributeValue> item = new HashMap<>();
+            // Populating the item map
+            item.put("col_0", AttributeValue.builder().s("test_str_" + (i - i % 3)).build());
+            item.put("col_1", AttributeValue.builder().n(String.valueOf(i)).build());
+            double doubleVal = 200000.0 + i / 2.0;
+            if (Math.floor(doubleVal) != doubleVal) {
+                item.put("col_2", AttributeValue.builder().n(String.valueOf(doubleVal)).build());
+            }
+            // Assuming you have appropriate methods to create Map and List AttributeValues
+            item.put("col_3", DDBTypeUtils.toAttributeValue(ImmutableMap.of("modulo", i % 2, "nextModulos", ImmutableList.of((i + 1) % 2, ((i + 2) % 2)))));
+            item.put("col_4", AttributeValue.builder().n(String.valueOf(dateTime.toLocalDate().toEpochDay())).build());
+            item.put("col_5", AttributeValue.builder().n(String.valueOf(Timestamp.valueOf(dateTime).toInstant().toEpochMilli())).build());
+            item.put("col_6", i % 128 == 0 ? AttributeValue.builder().nul(true).build() : AttributeValue.builder().n(String.valueOf(i % 128)).build());
+            item.put("col_7", DDBTypeUtils.toAttributeValue(ImmutableList.of(-i,String.valueOf(i))));
+            item.put("col_8", DDBTypeUtils.toAttributeValue((ImmutableList.of(ImmutableMap.of("mostlyEmptyMap",
+                    i % 128 == 0 ? ImmutableMap.of("subtractions", ImmutableSet.of(i - 100, i - 200)) : ImmutableMap.of())))));
+            item.put("col_9", AttributeValue.builder().n(String.valueOf(100.0f + i)).build());
+            item.put("col_10", DDBTypeUtils.toAttributeValue(ImmutableList.of(ImmutableList.of(1 * i, 2 * i, 3 * i),
+                    ImmutableList.of(4 * i, 5 * i), ImmutableList.of(6 * i, 7 * i, 8 * i))));
+
+
+            List<WriteRequest> writeRequests = new ArrayList<>();
+            writeRequests.add(WriteRequest.builder()
+                    .putRequest(PutRequest.builder().item(item).build())
+                    .build());
+
+            if (writeRequests.size() == 25 || i == len - 1) {
+                BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder()
+                        .requestItems(Map.of(TEST_TABLE, writeRequests))
+                        .build();
+
+                BatchWriteItemResponse response = ddb.batchWriteItem(batchWriteItemRequest);
+                // Handle response, check for unprocessed items, etc.
+                writeRequests.clear(); // Clear the list for the next batch
+            }
+            dateTime = dateTime.plusHours(26);
+        }
+
+
+        CreateGlobalSecondaryIndexAction createIndexRequest = CreateGlobalSecondaryIndexAction.builder()
+                .indexName("test_index")
+                .keySchema(KeySchemaElement.builder()
+                                .keyType(KeyType.HASH)
+                                .attributeName("col_4")
+                                .build(),
+                        KeySchemaElement.builder()
+                                .keyType(KeyType.RANGE)
+                                .attributeName("col_5")
+                                .build())
+                .projection(Projection.builder()
+                        .projectionType(ProjectionType.ALL)
+                        .build())
+                .provisionedThroughput(provisionedThroughput)
+                .build();
+
+        UpdateTableRequest updateTableRequest = UpdateTableRequest.builder()
+                .tableName(TEST_TABLE)
+                .attributeDefinitions(
+                        AttributeDefinition.builder()
+                                .attributeName("col_4")
+                                .attributeType(ScalarAttributeType.N.toString())
+                                .build(),
+                        AttributeDefinition.builder()
+                                .attributeName("col_5")
+                                .attributeType(ScalarAttributeType.N.toString())
+                                .build())
+                .globalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate.builder()
+                        .create(createIndexRequest)
+                        .build())
+                .build();
+
+        ddb.updateTable(updateTableRequest);
+        waitForTableToBecomeActive(ddb, dbWaiter, table1CreateTableResponse, TEST_TABLE);
+//            System.exit(0);
+//            waitForActive(ddb, TEST_TABLE, "test_index");
+
+        // for case sensitivity testing
+        CreateTableRequest table2Request = CreateTableRequest.builder()
+                .tableName(TEST_TABLE2)
+                .keySchema(keySchema)
+                .attributeDefinitions(attributeDefinitions)
+                .provisionedThroughput(provisionedThroughput)
+                .build();
+
+
+        waitForTableToBecomeActive(ddb, dbWaiter, ddb.createTable(table2Request), TEST_TABLE2);
+
+    }
+    private static void setUpTable3(
+            ProvisionedThroughput provisionedThroughput,
+            DynamoDbClient ddb, DynamoDbWaiter dbWaiter)  {
+        ///Glue Table;
+        List<AttributeDefinition> attributeDefinitionsGlue = new ArrayList<>();
+        attributeDefinitionsGlue.add(AttributeDefinition.builder()
+                .attributeName("Col0")
+                .attributeType("S")
+                .build());
+        attributeDefinitionsGlue.add(AttributeDefinition.builder()
+                .attributeName("Col1")
+                .attributeType("S")
+                .build());
+
+        List<KeySchemaElement> keySchemaGlue = new ArrayList<>();
+        keySchemaGlue.add(KeySchemaElement.builder()
+                .attributeName("Col0")
+                .keyType(KeyType.HASH)
+                .build());
+        keySchemaGlue.add(KeySchemaElement.builder()
+                .attributeName("Col1")
+                .keyType(KeyType.RANGE)
+                .build());
+        CreateTableRequest table3Request = CreateTableRequest.builder()
+                .tableName(TEST_TABLE3)
+                .keySchema(keySchemaGlue)
+                .attributeDefinitions(attributeDefinitionsGlue)
+                .provisionedThroughput(provisionedThroughput)
+                .build();
+
+        waitForTableToBecomeActive(ddb, dbWaiter, ddb.createTable(table3Request), TEST_TABLE3);
+
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Col0", DDBTypeUtils.toAttributeValue("hashVal"));
+        item.put("Col1", DDBTypeUtils.toAttributeValue("20200227S091227"));
+        item.put("Col2", DDBTypeUtils.toAttributeValue("2020-02-27T09:12:27Z"));
+        item.put("Col3", DDBTypeUtils.toAttributeValue("27/02/2020"));
+        item.put("Col4", DDBTypeUtils.toAttributeValue("2020-02-27"));
+        item.put("Col5", DDBTypeUtils.toAttributeValue("2015-12-21T17:42:34-05:00"));
+        item.put("Col6", DDBTypeUtils.toAttributeValue("2015-12-21T17:42:34Z"));
+        item.put("Col7", DDBTypeUtils.toAttributeValue("2015-12-21T17:42:34"));
+
+        List<WriteRequest> table3WriteRequest = new ArrayList<>();
+        table3WriteRequest.add(WriteRequest.builder()
+                .putRequest(PutRequest.builder().item(item).build())
+                .build());
+
+        BatchWriteItemRequest table3BatchWriteItemRequest = BatchWriteItemRequest.builder()
+                .requestItems(Map.of(TEST_TABLE3, table3WriteRequest))
+                .build();
+        ddb.batchWriteItem(table3BatchWriteItemRequest);
+
+    }
+    private static void setUpTable4(
+            ProvisionedThroughput provisionedThroughput,
+            DynamoDbClient ddb, DynamoDbWaiter dbWaiter) {
+
+        List<AttributeDefinition> table4AttributeDefinitions = new ArrayList<>();
+        table4AttributeDefinitions.add(AttributeDefinition.builder()
+                .attributeName("Col0")
+                .attributeType(ScalarAttributeType.S)
+                .build());
+
+        // Define key schema for Table 4
+        List<KeySchemaElement> table4KeySchema = new ArrayList<>();
+        table4KeySchema.add(KeySchemaElement.builder()
+                .attributeName("Col0")
+                .keyType(KeyType.HASH)
+                .build());
+
+        // Create Table Request for Table 4
+        CreateTableRequest table4TableRequest = CreateTableRequest.builder()
+                .tableName(TEST_TABLE4)
+                .keySchema(table4KeySchema)
+                .attributeDefinitions(table4AttributeDefinitions)
+                .provisionedThroughput(ProvisionedThroughput.builder() // Assuming 'provisionedThroughput' is defined
+                        .readCapacityUnits(5L)  // Example capacity units
+                        .writeCapacityUnits(5L)
+                        .build())
+                .build();
+
+        waitForTableToBecomeActive(ddb, dbWaiter, ddb.createTable(table4TableRequest), TEST_TABLE4);
+    }
+
+    private static void setUpTable5(
+            ProvisionedThroughput provisionedThroughput,
+            DynamoDbClient ddb, DynamoDbWaiter dbWaiter) {
+
+        List<AttributeDefinition> table5AttributeDefinitions = new ArrayList<>();
+        table5AttributeDefinitions.add(AttributeDefinition.builder()
+                .attributeName("Col0")
+                .attributeType(ScalarAttributeType.S)
+                .build());
+
+        List<KeySchemaElement> table5KeySchema = new ArrayList<>();
+        table5KeySchema.add(KeySchemaElement.builder()
+                .attributeName("Col0")
+                .keyType(KeyType.HASH)
+                .build());
+
+        CreateTableRequest table5CreateTableRequest = CreateTableRequest.builder()
+                .tableName(TEST_TABLE5)
+                .keySchema(table5KeySchema)
+                .attributeDefinitions(table5AttributeDefinitions)
+                .provisionedThroughput(provisionedThroughput)
+                .build();
+
+        waitForTableToBecomeActive(ddb, dbWaiter, ddb.createTable(table5CreateTableRequest), TEST_TABLE5);
+    }
 
     private static void setUpTable6(
             ProvisionedThroughput provisionedThroughput,
-            DynamoDbClient ddb)
+            DynamoDbClient ddb, DynamoDbWaiter dbWaiter)
             throws InterruptedException {
 
         // Define attribute definitions for Table 6
@@ -450,8 +474,8 @@ public class TestBase
                 .provisionedThroughput(provisionedThroughput)
                 .build();
 
-        ddb.createTable(table6CreateTableRequest);
-        waitForTableToBecomeActive(ddb, TEST_TABLE6); // Use the same waitForTableToBecomeActive method
+
+        waitForTableToBecomeActive(ddb, dbWaiter, ddb.createTable(table6CreateTableRequest), TEST_TABLE6); // Use the same waitForTableToBecomeActive method
 
         // Prepare nested collections for batch write
         ArrayList<String> value = new ArrayList<>();
@@ -489,7 +513,7 @@ public class TestBase
 
     private static void setUpTable7(
             ProvisionedThroughput provisionedThroughput,
-            DynamoDbClient ddb)
+            DynamoDbClient ddb, DynamoDbWaiter dbWaiter)
             throws InterruptedException {
 
         List<AttributeDefinition> table7AttributeDefinitions = new ArrayList<>();
@@ -512,7 +536,7 @@ public class TestBase
                 .build();
 
         CreateTableResponse table7CreateTableResponse = ddb.createTable(table7CreateTableRequest);
-        waitForTableToBecomeActive(ddb, TEST_TABLE7);
+        waitForTableToBecomeActive(ddb, dbWaiter, table7CreateTableResponse, TEST_TABLE7);
 
         // Prepare data for batch write
         ArrayList<String> stringList = new ArrayList<>();
@@ -557,7 +581,7 @@ public class TestBase
 
     private static void setUpTable8(
             ProvisionedThroughput provisionedThroughput,
-            DynamoDbClient ddb)
+            DynamoDbClient ddb, DynamoDbWaiter dbWaiter)
             throws InterruptedException {
 
         List<AttributeDefinition> table8AttributeDefinitions = new ArrayList<>();
@@ -580,7 +604,7 @@ public class TestBase
                 .build();
 
         CreateTableResponse table8CreateTableResponse = ddb.createTable(table8CreateTableRequest);
-        waitForTableToBecomeActive(ddb, TEST_TABLE8);
+        waitForTableToBecomeActive(ddb, dbWaiter, table8CreateTableResponse, TEST_TABLE8);
 
         // Prepare data for batch write
         Map<String, Integer> numMap = new HashMap<>();
