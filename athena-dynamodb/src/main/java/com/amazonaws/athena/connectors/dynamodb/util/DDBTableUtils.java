@@ -23,7 +23,11 @@ import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
-
+import com.google.common.collect.ImmutableList;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -34,14 +38,10 @@ import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
 import software.amazon.awssdk.services.dynamodb.model.LocalSecondaryIndexDescription;
 import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
+import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughputDescription;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TableDescription;
-import com.google.common.collect.ImmutableList;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
@@ -98,19 +98,19 @@ public final class DDBTableUtils
         ImmutableList.Builder<DynamoDBIndex> indices = ImmutableList.builder();
 
         localSecondaryIndexes.forEach(i -> {
-            KeyNames indexKeys = getKeys(i.getKeySchema());
+            KeyNames indexKeys = getKeys(i.keySchema());
             // DynamoDB automatically fetches all attributes from the table for local secondary index, so ignore projected attributes
-            indices.add(new DynamoDBIndex(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), ProjectionType.ALL, ImmutableList.of()));
+            indices.add(new DynamoDBIndex(i.indexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), ProjectionType.ALL, ImmutableList.of()));
         });
         globalSecondaryIndexes.stream()
-              .filter(i -> IndexStatus.fromValue(i.getIndexStatus()).equals(IndexStatus.ACTIVE))
+              .filter(i -> i.indexStatus().equals(IndexStatus.ACTIVE))
               .forEach(i -> {
-                  KeyNames indexKeys = getKeys(i.getKeySchema());
-                  indices.add(new DynamoDBIndex(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), ProjectionType.fromValue(i.getProjection().getProjectionType()),
-                        i.getProjection().getNonKeyAttributes() == null ? ImmutableList.of() : i.getProjection().getNonKeyAttributes()));
+                  KeyNames indexKeys = getKeys(i.keySchema());
+                  indices.add(new DynamoDBIndex(i.indexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), i.projection().projectionType(),
+                        i.projection().nonKeyAttributes() == null ? ImmutableList.of() : i.projection().nonKeyAttributes()));
               });
 
-        return new DynamoDBTable(tableName, keys.getHashKey(), keys.getRangeKey(), table.getAttributeDefinitions(), indices.build(), approxTableSizeInBytes, approxItemCount, provisionedReadCapacity);
+        return new DynamoDBTable(tableName, keys.getHashKey(), keys.getRangeKey(), table.attributeDefinitions(), indices.build(), approxTableSizeInBytes, approxItemCount, provisionedReadCapacity);
     }
 
     /*
@@ -121,11 +121,11 @@ public final class DDBTableUtils
         String hashKey = null;
         String rangeKey = null;
         for (KeySchemaElement key : keys) {
-            if (key.getKeyType().equals(KeyType.HASH.toString())) {
-                hashKey = key.getAttributeName();
+            if (key.keyType().toString().equals(KeyType.HASH.toString())) {
+                hashKey = key.attributeName();
             }
-            else if (key.getKeyType().equals(KeyType.RANGE.toString())) {
-                rangeKey = key.getAttributeName();
+            else if (key.keyType().equals(KeyType.RANGE.toString())) {
+                rangeKey = key.attributeName();
             }
         }
         return new KeyNames(hashKey, rangeKey);
@@ -144,10 +144,10 @@ public final class DDBTableUtils
     public static Schema peekTableForSchema(String tableName, ThrottlingInvoker invoker, DynamoDbClient ddbClient)
             throws TimeoutException
     {
-        ScanRequest scanRequest = new ScanRequest().builder()
-                                                   .tableName(tableName)
-                                                   .limit(SCHEMA_INFERENCE_NUM_RECORDS);
-                                                   .build();
+        ScanRequest scanRequest = ScanRequest.builder()
+                .tableName(tableName)
+                .limit(SCHEMA_INFERENCE_NUM_RECORDS)
+                .build();
         SchemaBuilder schemaBuilder = new SchemaBuilder();
 
         try {
@@ -172,7 +172,7 @@ public final class DDBTableUtils
                 // there's no items, so use any attributes defined in the table metadata
                 DynamoDBTable table = getTable(tableName, invoker, ddbClient);
                 for (AttributeDefinition attributeDefinition : table.getKnownAttributeDefinitions()) {
-                    schemaBuilder.addField(DDBTypeUtils.getArrowFieldFromDDBType(attributeDefinition.attributeName(), attributeDefinition.attributeType()));
+                    schemaBuilder.addField(DDBTypeUtils.getArrowFieldFromDDBType(attributeDefinition.attributeName(), attributeDefinition.attributeType().toString()));
                 }
             }
         }

@@ -23,15 +23,15 @@ import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient; 
-import software.amazon.awssdk.services.dynamodb.model.ListTablesRequest;
-import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
-import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.ListTablesRequest;
+import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -86,12 +86,12 @@ public class DynamoDBTableResolver
         }
         do {
             ListTablesRequest ddbRequest = ListTablesRequest.builder()
-                                          .nextToken(token)
-                                          .maxResults(limit);
-
+                        .exclusiveStartTableName(nextToken)
+                        .limit(limit)
+                        .build();
             ListTablesResponse response = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
-            tables.addAll(response.tables().stream().map(table::tableName).collect(Collectors.toList());
-            nextToken = response.nextToken(); 
+            tables.addAll(response.tableNames());
+            nextToken = response.lastEvaluatedTableName();
         }
         while (nextToken != null && pageSize == UNLIMITED_PAGE_SIZE_VALUE);
         logger.info("{} tables returned with pagination", tables.size());

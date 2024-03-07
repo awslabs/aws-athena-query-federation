@@ -19,8 +19,8 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.model;
 
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.google.common.collect.ImmutableList;
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 
 import java.util.List;
 import java.util.Objects;
