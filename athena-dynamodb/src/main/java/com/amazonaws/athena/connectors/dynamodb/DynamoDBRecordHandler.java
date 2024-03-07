@@ -277,7 +277,7 @@ public class DynamoDBRecordHandler
         if (rangeKeyFilter != null || nonKeyFilter != null) {
             try {
                 expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
-                expressionAttributeValues.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_VALUES_METADATA), ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE));
+                expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {
                 throw new RuntimeException(e);
@@ -310,11 +310,9 @@ public class DynamoDBRecordHandler
             }
         }
         expressionAttributeNames.put(hashKeyAlias, hashKeyName);
-        //todo; need to convert the json to Attribute Value
-        // need to clean this up
-        Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class);
-        Map<String, AttributeValue> attributeValueMap = EnhancedDocument.fromJson(split.getProperty(hashKeyName)).toMap();
-        expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, attributeValueMap.get(attributeValueMap.keySet().iterator().next()));
+
+        AttributeValue hashKeyAttribute = DDBTypeUtils.jsonToAttributeValue(split.getProperty(hashKeyName), hashKeyName);
+        expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, hashKeyAttribute);
 
         QueryRequest.Builder queryRequestBuilder = QueryRequest.builder()
                 .tableName(tableName)
@@ -345,7 +343,7 @@ public class DynamoDBRecordHandler
         if (rangeKeyFilter != null || nonKeyFilter != null) {
             try {
                 expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
-                expressionAttributeValues.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_VALUES_METADATA), ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE));
+                expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {
                 throw new RuntimeException(e);
@@ -379,7 +377,8 @@ public class DynamoDBRecordHandler
             }
         }
         expressionAttributeNames.put(hashKeyAlias, hashKeyName);
-        expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class));
+
+        expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, DDBTypeUtils.jsonToAttributeValue(split.getProperty(hashKeyName), HASH_KEY_VALUE_ALIAS));
 
         int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
         int segmentCount = Integer.parseInt(split.getProperty(SEGMENT_COUNT_METADATA));

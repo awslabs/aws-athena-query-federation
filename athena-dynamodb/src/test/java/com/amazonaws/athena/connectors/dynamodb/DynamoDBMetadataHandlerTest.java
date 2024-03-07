@@ -230,7 +230,7 @@ public class DynamoDBMetadataHandlerTest
         List<TableName> expectedTables = tableNames.stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).collect(Collectors.toList());
         expectedTables.add(TEST_TABLE_NAME);
         expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table2"));
-//        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table3"));
+        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table3"));
 //        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table4"));
 //        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table5"));
 //        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table6"));

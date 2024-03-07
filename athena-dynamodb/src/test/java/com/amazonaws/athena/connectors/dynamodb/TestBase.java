@@ -195,7 +195,7 @@ public class TestBase
                     .build();
 
             setUpTable1And2(provisionedThroughput, ddbClient, dbWaiter);
-//            setUpTable3(provisionedThroughput, ddbClient, dbWaiter);
+            setUpTable3(provisionedThroughput, ddbClient, dbWaiter);
 //            setUpTable4(provisionedThroughput, ddbClient, dbWaiter);
 //            setUpTable5(provisionedThroughput, ddbClient, dbWaiter);
 //            setUpTable6(provisionedThroughput, ddbClient, dbWaiter);
