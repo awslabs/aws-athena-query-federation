@@ -636,7 +636,7 @@ public final class DDBTypeUtils
         if(!enhancedDocument.isPresent(key)) {
             throw new RuntimeException("Unknown attribute Key");
         }
-        return enhancedDocument.toMap().get(jsonString);
+        return enhancedDocument.toMap().get(key);
     }
 
     private static AttributeValue handleSetType(Set<?> value)
