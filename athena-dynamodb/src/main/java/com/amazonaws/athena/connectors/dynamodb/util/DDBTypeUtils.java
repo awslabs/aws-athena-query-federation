@@ -167,7 +167,7 @@ public final class DDBTypeUtils
                 }
                 else {
                     logger.warn("Automatic schema inference encountered List or Set {} containing multiple element types. Falling back to VARCHAR representation of elements", key);
-                    child = inferArrowField("", EnhancedAttributeValue.nullValue().toAttributeValue());
+                    child = inferArrowField("", AttributeValue.builder().s("").build());
                 }
             }
             return child == null

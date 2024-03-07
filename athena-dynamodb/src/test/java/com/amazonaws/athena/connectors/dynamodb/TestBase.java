@@ -246,7 +246,7 @@ public class TestBase
         String newTableName = waitForTableToBecomeActive(ddb, dbWaiter, table1CreateTableResponse, TEST_TABLE);
         System.out.println("New Table Name: " + newTableName);
 
-        int len = 25;
+        int len = 1000;
         LocalDateTime dateTime = LocalDateTime.of(2019, 9, 23, 11, 18, 37);
         for (int i = 0; i < len; i++) {
             Map<String, AttributeValue> item = new HashMap<>();
