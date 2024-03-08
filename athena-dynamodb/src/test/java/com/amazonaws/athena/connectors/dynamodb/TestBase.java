@@ -281,7 +281,7 @@ public class TestBase
 
             if (writeRequests.size() == 25) {
                 BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder()
-                        .requestItems(Map.of(TEST_TABLE, writeRequests))
+                        .requestItems(ImmutableMap.of(TEST_TABLE, writeRequests))
                         .build();
 
                 ddb.batchWriteItem(batchWriteItemRequest);
@@ -388,7 +388,7 @@ public class TestBase
                 .build());
 
         BatchWriteItemRequest table3BatchWriteItemRequest = BatchWriteItemRequest.builder()
-                .requestItems(Map.of(TEST_TABLE3, table3WriteRequest))
+                .requestItems(ImmutableMap.of(TEST_TABLE3, table3WriteRequest))
                 .build();
         ddb.batchWriteItem(table3BatchWriteItemRequest);
 
@@ -436,7 +436,7 @@ public class TestBase
                 .build();
 
         BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder()
-                .requestItems(Map.of(TEST_TABLE4, List.of(writeRequest)))
+                .requestItems(ImmutableMap.of(TEST_TABLE4, ImmutableList.of(writeRequest)))
                 .build();
 
         ddb.batchWriteItem(batchWriteItemRequest);
@@ -494,7 +494,7 @@ public class TestBase
                 .putRequest(PutRequest.builder().item(item).build())
                 .build();
         BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder()
-                .requestItems(Map.of(TEST_TABLE5, List.of(writeRequest)))
+                .requestItems(ImmutableMap.of(TEST_TABLE5, ImmutableList.of(writeRequest)))
                 .build();
 
         // Perform the batch write operation
@@ -559,7 +559,7 @@ public class TestBase
         table6WriteRequests.add(table6WriteRequest);
 
         BatchWriteItemRequest table6BatchWriteItemRequest = BatchWriteItemRequest.builder()
-                .requestItems(Map.of(TEST_TABLE6, table6WriteRequests))
+                .requestItems(ImmutableMap.of(TEST_TABLE6, table6WriteRequests))
                 .build();
 
         ddb.batchWriteItem(table6BatchWriteItemRequest);
@@ -627,7 +627,7 @@ public class TestBase
         table7WriteRequests.add(table7WriteRequest);
 
         BatchWriteItemRequest table7BatchWriteItemRequest = BatchWriteItemRequest.builder()
-                .requestItems(Map.of(TEST_TABLE7, table7WriteRequests))
+                .requestItems(ImmutableMap.of(TEST_TABLE7, table7WriteRequests))
                 .build();
 
         ddb.batchWriteItem(table7BatchWriteItemRequest);
@@ -678,7 +678,7 @@ public class TestBase
         table8WriteRequests.add(table8WriteRequest);
 
         BatchWriteItemRequest table8BatchWriteItemRequest = BatchWriteItemRequest.builder()
-                .requestItems(Map.of(TEST_TABLE8, table8WriteRequests))
+                .requestItems(ImmutableMap.of(TEST_TABLE8, table8WriteRequests))
                 .build();
 
         ddb.batchWriteItem(table8BatchWriteItemRequest);
