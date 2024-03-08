@@ -129,7 +129,7 @@ public class DocDBMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNames()
+    public void doListSchemaNames() throws Exception
     {
         List<String> schemaNames = new ArrayList<>();
         schemaNames.add("schema1");
@@ -146,7 +146,7 @@ public class DocDBMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
+    public void doListTables() throws Exception
     {
         List<String> tableNames = new ArrayList<>();
         tableNames.add("table1");
