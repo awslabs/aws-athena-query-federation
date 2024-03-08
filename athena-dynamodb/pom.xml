@@ -8,6 +8,17 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-dynamodb</artifactId>
     <version>2022.47.1</version>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>2.25.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -20,23 +31,30 @@
             <artifactId>athena-federation-integ-test</artifactId>
             <version>2022.47.1</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-dynamodb</artifactId>
-            <version>${aws-sdk.version}</version>
             <exclusions>
-                <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-sts</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>dynamodb</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>dynamodb-enhanced</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>DynamoDBLocal</artifactId>
-            <version>2.0.0</version>
+            <version>LATEST</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -92,6 +110,14 @@
             <version>2022.47.1</version>
             <type>test-jar</type>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sdk-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
         </dependency>
     </dependencies>
     <repositories>

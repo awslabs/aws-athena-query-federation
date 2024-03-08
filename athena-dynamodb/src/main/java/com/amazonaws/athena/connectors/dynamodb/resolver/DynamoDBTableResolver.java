@@ -23,15 +23,15 @@ import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.model.ListTablesRequest;
-import com.amazonaws.services.dynamodbv2.model.ListTablesResult;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.ListTablesRequest;
+import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -55,11 +55,11 @@ public class DynamoDBTableResolver
 {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBTableResolver.class);
 
-    private AmazonDynamoDB ddbClient;
+    private DynamoDbClient ddbClient;
     // used to handle Throttling events using an AIMD strategy for congestion control.
     private ThrottlingInvoker invoker;
 
-    public DynamoDBTableResolver(ThrottlingInvoker invoker, AmazonDynamoDB ddbClient)
+    public DynamoDBTableResolver(ThrottlingInvoker invoker, DynamoDbClient ddbClient)
     {
         this.invoker = invoker;
         this.ddbClient = ddbClient;
@@ -85,11 +85,13 @@ public class DynamoDBTableResolver
             limit = 100;
         }
         do {
-            ListTablesRequest ddbRequest = new ListTablesRequest()
-                    .withExclusiveStartTableName(nextToken).withLimit(limit);
-            ListTablesResult result = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
-            tables.addAll(result.getTableNames());
-            nextToken = result.getLastEvaluatedTableName();
+            ListTablesRequest ddbRequest = ListTablesRequest.builder()
+                        .exclusiveStartTableName(nextToken)
+                        .limit(limit)
+                        .build();
+            ListTablesResponse response = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
+            tables.addAll(response.tableNames());
+            nextToken = response.lastEvaluatedTableName();
         }
         while (nextToken != null && pageSize == UNLIMITED_PAGE_SIZE_VALUE);
         logger.info("{} tables returned with pagination", tables.size());

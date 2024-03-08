@@ -26,8 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.ProjectionType;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
@@ -35,6 +34,9 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
+import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
+import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 
 import java.util.Optional;
 
@@ -73,9 +75,9 @@ public class DDBPredicateUtilsTest
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
               ImmutableList.of(
-                    new AttributeDefinition("hashKey", "S"),
-                    new AttributeDefinition("sortKey", "S"),
-                    new AttributeDefinition("col0", "S")),
+                      AttributeDefinition.builder().attributeName("hashKey").attributeType(ScalarAttributeType.S).build(),
+                      AttributeDefinition.builder().attributeName("sortKey").attributeType(ScalarAttributeType.S).build(),
+                      AttributeDefinition.builder().attributeName("col0").attributeType(ScalarAttributeType.S).build()),
               ImmutableList.of(
                     new DynamoDBIndex("col0-gsi", "col0", Optional.empty(), ProjectionType.INCLUDE, ImmutableList.of("col1"))
               ), 1000, 10, 5);
@@ -93,9 +95,9 @@ public class DDBPredicateUtilsTest
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
               ImmutableList.of(
-                    new AttributeDefinition("hashKey", "S"),
-                    new AttributeDefinition("sortKey", "S"),
-                    new AttributeDefinition("col0", "S")),
+                    AttributeDefinition.builder().attributeName("hashKey").attributeType(ScalarAttributeType.S).build(),
+                    AttributeDefinition.builder().attributeName("sortKey").attributeType(ScalarAttributeType.S).build(),
+                     AttributeDefinition.builder().attributeName("col0").attributeType(ScalarAttributeType.S).build()),
               ImmutableList.of(
                     new DynamoDBIndex("col0-gsi", "col0", Optional.empty(), ProjectionType.KEYS_ONLY, ImmutableList.of())
               ), 1000, 10, 5);
@@ -112,9 +114,9 @@ public class DDBPredicateUtilsTest
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
               ImmutableList.of(
-                    new AttributeDefinition("hashKey", "S"),
-                    new AttributeDefinition("sortKey", "S"),
-                    new AttributeDefinition("col0", "S")),
+                    AttributeDefinition.builder().attributeName("hashKey").attributeType(ScalarAttributeType.S).build(),
+                    AttributeDefinition.builder().attributeName("sortKey").attributeType(ScalarAttributeType.S).build(),
+                     AttributeDefinition.builder().attributeName("col0").attributeType(ScalarAttributeType.S).build()),
               ImmutableList.of(
                     new DynamoDBIndex("col0-gsi", "col0", Optional.empty(), ProjectionType.KEYS_ONLY, ImmutableList.of())
               ), 1000, 10, 5);
@@ -129,9 +131,9 @@ public class DDBPredicateUtilsTest
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
               ImmutableList.of(
-                    new AttributeDefinition("hashKey", "S"),
-                    new AttributeDefinition("sortKey", "S"),
-                    new AttributeDefinition("col0", "S")),
+                    AttributeDefinition.builder().attributeName("hashKey").attributeType(ScalarAttributeType.S).build(),
+                    AttributeDefinition.builder().attributeName("sortKey").attributeType(ScalarAttributeType.S).build(),
+                     AttributeDefinition.builder().attributeName("col0").attributeType(ScalarAttributeType.S).build()),
               ImmutableList.of(
                     new DynamoDBIndex("col0-gsi", "col0", Optional.of("col1"), ProjectionType.ALL, ImmutableList.of())
               ), 1000, 10, 5);
@@ -154,9 +156,9 @@ public class DDBPredicateUtilsTest
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
               ImmutableList.of(
-                    new AttributeDefinition("hashKey", "S"),
-                    new AttributeDefinition("sortKey", "S"),
-                    new AttributeDefinition("col0", "S")),
+                    AttributeDefinition.builder().attributeName("hashKey").attributeType(ScalarAttributeType.S).build(),
+                    AttributeDefinition.builder().attributeName("sortKey").attributeType(ScalarAttributeType.S).build(),
+                     AttributeDefinition.builder().attributeName("col0").attributeType(ScalarAttributeType.S).build()),
               ImmutableList.of(
                     new DynamoDBIndex("col0-lsi", "hashKey", Optional.of("col0"), ProjectionType.ALL, ImmutableList.of())
               ), 1000, 10, 5);
@@ -174,10 +176,10 @@ public class DDBPredicateUtilsTest
         ValueSet singleValueSet = SortedRangeSet.of(Range.equal(new BlockAllocatorImpl(), VARCHAR.getType(), "value"));
         DynamoDBTable table = new DynamoDBTable("tableName", "hashKey", Optional.of("sortKey"),
               ImmutableList.of(
-                    new AttributeDefinition("hashKey", "S"),
-                    new AttributeDefinition("sortKey", "S"),
-                    new AttributeDefinition("col0", "S"),
-                    new AttributeDefinition("col1", "S")),
+                    AttributeDefinition.builder().attributeName("hashKey").attributeType(ScalarAttributeType.S).build(),
+                    AttributeDefinition.builder().attributeName("sortKey").attributeType(ScalarAttributeType.S).build(),
+                     AttributeDefinition.builder().attributeName("col0").attributeType(ScalarAttributeType.S).build(),
+                     AttributeDefinition.builder().attributeName("col1").attributeType(ScalarAttributeType.S).build()),
               ImmutableList.of(
                     new DynamoDBIndex("col0-gsi", "col0", Optional.empty(), ProjectionType.INCLUDE, ImmutableList.of("col1")),
                     new DynamoDBIndex("col1-gsi", "col1", Optional.empty(), ProjectionType.INCLUDE, ImmutableList.of("col2")),

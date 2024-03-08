@@ -21,3 +21,4 @@ package-lock.json
 cdk.out
 .env
 **/*.dylib
+*/dynamodb-local-metadata.json
