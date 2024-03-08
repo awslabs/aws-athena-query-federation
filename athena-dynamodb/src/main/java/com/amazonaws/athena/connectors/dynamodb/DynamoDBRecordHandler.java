@@ -413,7 +413,7 @@ public class DynamoDBRecordHandler
             {
                 return currentPageIterator.get() == null
                         || currentPageIterator.get().hasNext()
-                        || lastKeyEvaluated.get() != null;
+                        || ((lastKeyEvaluated.get() != null && !lastKeyEvaluated.get().isEmpty()));
             }
 
             @Override
