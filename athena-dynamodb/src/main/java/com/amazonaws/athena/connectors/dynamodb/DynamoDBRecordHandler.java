@@ -305,7 +305,8 @@ public class DynamoDBRecordHandler
                 for (String value : rangeKeyValues) {
                     expressionAttributeValues.remove(value);
                 }
-            } else {
+            }
+            else {
                 keyConditionExpression += " AND " + rangeKeyFilter;
             }
         }

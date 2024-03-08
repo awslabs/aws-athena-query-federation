@@ -48,8 +48,6 @@ import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.Big
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.BooleanAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.ByteArrayAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.EnhancedAttributeValue;
-import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.ListAttributeConverter;
-import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.MapAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.SetAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.StringAttributeConverter;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -560,28 +558,35 @@ public final class DDBTypeUtils
                 result = (T) SetAttributeConverter.builder(EnhancedType.setOf(byte.class)).build().transformTo(value);
                 break;
             case L:
-                List<AttributeValue> listValues = enhancedAttributeValue.asListOfAttributeValues();
-                if (!listValues.isEmpty()) {
-                    Object firstElement = toSimpleValue(listValues.get(0));
-                    result = (T) ListAttributeConverter.builder(EnhancedType.listOf(firstElement.getClass())).build().transformTo(value);
-                }
-                else {
-                    result = (T) Collections.emptyList();
-                }
+                result = handleListAttribute(enhancedAttributeValue);
                 break;
             case M:
-                Map<String, AttributeValue> mapValues = enhancedAttributeValue.asMap();
-                if (!mapValues.isEmpty()) {
-                    String key = mapValues.keySet().iterator().next();
-                    Object firstValue = toSimpleValue(mapValues.get(key));
-                    result = (T) MapAttributeConverter.builder(EnhancedType.mapOf(String.class, firstValue.getClass())).build().transformTo(value);
-                }
-                else {
-                    result = (T) Collections.emptyMap();
-                }
+                result = handleMapAttribute(enhancedAttributeValue);
                 break;
         }
         return result;
+    }
+
+    private static <T> T handleMapAttribute(EnhancedAttributeValue enhancedAttributeValue)
+    {
+        Map<String, AttributeValue> valueMap = enhancedAttributeValue.asMap();
+        if (valueMap.isEmpty()) {
+            return (T) Collections.emptyMap();
+        }
+        Map<String, Object> result = new HashMap<>(valueMap.size());
+        for (Map.Entry<String, AttributeValue> entry : valueMap.entrySet()) {
+            String key = entry.getKey();
+            AttributeValue attributeValue = entry.getValue();
+            result.put(key, toSimpleValue(attributeValue));
+        }
+        return (T) result;
+    }
+
+    private static <T> T handleListAttribute(EnhancedAttributeValue enhancedAttributeValue)
+    {
+        List<Object> result =
+                enhancedAttributeValue.asListOfAttributeValues().stream().map(attributeValue -> toSimpleValue(attributeValue)).collect(Collectors.toList());
+        return (T) result;
     }
 
     public static AttributeValue toAttributeValue(Object value)
@@ -629,11 +634,10 @@ public final class DDBTypeUtils
         return enhancedDocument.toJson();
     }
 
-
     public static AttributeValue jsonToAttributeValue(String jsonString, String key)
     {
         EnhancedDocument enhancedDocument = EnhancedDocument.fromJson(jsonString);
-        if(!enhancedDocument.isPresent(key)) {
+        if (!enhancedDocument.isPresent(key)) {
             throw new RuntimeException("Unknown attribute Key");
         }
         return enhancedDocument.toMap().get(key);
