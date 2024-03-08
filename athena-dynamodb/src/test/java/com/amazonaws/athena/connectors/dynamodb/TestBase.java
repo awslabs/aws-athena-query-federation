@@ -75,6 +75,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
 import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExceptionFilter.EXCEPTION_FILTER;
@@ -283,7 +284,7 @@ public class TestBase
                         .requestItems(Map.of(TEST_TABLE, writeRequests))
                         .build();
 
-                BatchWriteItemResponse response = ddb.batchWriteItem(batchWriteItemRequest);
+                ddb.batchWriteItem(batchWriteItemRequest);
                 // Handle response, check for unprocessed items, etc.
                 writeRequests.clear(); // Clear the list for the next batch
             }
@@ -421,6 +422,24 @@ public class TestBase
                 .build();
 
         waitForTableToBecomeActive(ddb, dbWaiter, ddb.createTable(table4TableRequest), TEST_TABLE4);
+
+        Map<String, AttributeValue> col1 = new HashMap<>();
+        col1.put("field1", AttributeValue.builder().s("someField1").build());
+        col1.put("field2", AttributeValue.builder().nul(true).build()); // Representing null
+
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Col0", AttributeValue.builder().s("hashVal").build());
+        item.put("Col1", AttributeValue.builder().m(col1).build());
+
+        WriteRequest writeRequest = WriteRequest.builder()
+                .putRequest(PutRequest.builder().item(item).build())
+                .build();
+
+        BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder()
+                .requestItems(Map.of(TEST_TABLE4, List.of(writeRequest)))
+                .build();
+
+        ddb.batchWriteItem(batchWriteItemRequest);
     }
 
     private static void setUpTable5(
@@ -447,6 +466,39 @@ public class TestBase
                 .build();
 
         waitForTableToBecomeActive(ddb, dbWaiter, ddb.createTable(table5CreateTableRequest), TEST_TABLE5);
+
+        // Nested collection
+        Map<String, AttributeValue> nestedCol = new HashMap<>();
+        ArrayList<String> value = new ArrayList<>();
+        value.add("list1");
+        value.add("list2");
+        nestedCol.put("list", AttributeValue.builder()
+                .l(value.stream().map(s -> AttributeValue.builder().s(s).build()).collect(Collectors.toList()))
+                .build());
+
+        // Structured collection
+        Map<String, AttributeValue> listStructCol = new HashMap<>();
+        Map<String, AttributeValue> structVal = new HashMap<>();
+        structVal.put("key1", AttributeValue.builder().s("str1").build());
+        structVal.put("key2", AttributeValue.builder().s("str2").build());
+        listStructCol.put("structKey", AttributeValue.builder().m(structVal).build());
+
+        // Item to write
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Col0", AttributeValue.builder().s("hashVal").build());
+        item.put("outermap", AttributeValue.builder().m(nestedCol).build());
+        item.put("structcol", AttributeValue.builder().m(listStructCol).build());
+
+        // Batch write request
+        WriteRequest writeRequest = WriteRequest.builder()
+                .putRequest(PutRequest.builder().item(item).build())
+                .build();
+        BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder()
+                .requestItems(Map.of(TEST_TABLE5, List.of(writeRequest)))
+                .build();
+
+        // Perform the batch write operation
+        ddb.batchWriteItem(batchWriteItemRequest);
     }
 
     private static void setUpTable6(

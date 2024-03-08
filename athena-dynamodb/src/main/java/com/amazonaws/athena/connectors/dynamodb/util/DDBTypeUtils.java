@@ -42,13 +42,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.enhanced.dynamodb.EnhancedType;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.BigDecimalAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.BooleanAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.ByteArrayAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.EnhancedAttributeValue;
-import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.SetAttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.StringAttributeConverter;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.utils.ImmutableMap;
@@ -555,7 +553,6 @@ public final class DDBTypeUtils
                 result = (T) value.ns().stream().map(BigDecimal::new).collect(Collectors.toList());
                 break;
             case BS:
-//                result = (T) SetAttributeConverter.builder(EnhancedType.setOf(byte.class)).build().transformTo(value);
                 result = (T) value.bs().stream().map(sdkBytes -> sdkBytes.asByteArray()).collect(Collectors.toList());
                 break;
             case L:
