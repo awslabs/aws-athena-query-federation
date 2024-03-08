@@ -32,6 +32,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -165,6 +168,7 @@ public class TestBase
     {
         DynamoDbWaiter dbWaiter;
         DynamoDbClient ddbClient;
+        Configurator.setAllLevels(LogManager.getRootLogger().getName(), Level.ERROR);
 
         try {
             String port = "8000";
@@ -248,6 +252,7 @@ public class TestBase
 
         int len = 1000;
         LocalDateTime dateTime = LocalDateTime.of(2019, 9, 23, 11, 18, 37);
+        List<WriteRequest> writeRequests = new ArrayList<>();
         for (int i = 0; i < len; i++) {
             Map<String, AttributeValue> item = new HashMap<>();
             // Populating the item map
@@ -269,13 +274,11 @@ public class TestBase
             item.put("col_10", DDBTypeUtils.toAttributeValue(ImmutableList.of(ImmutableList.of(1 * i, 2 * i, 3 * i),
                     ImmutableList.of(4 * i, 5 * i), ImmutableList.of(6 * i, 7 * i, 8 * i))));
 
-
-            List<WriteRequest> writeRequests = new ArrayList<>();
             writeRequests.add(WriteRequest.builder()
                     .putRequest(PutRequest.builder().item(item).build())
                     .build());
 
-            if (writeRequests.size() == 25 || i == len - 1) {
+            if (writeRequests.size() == 25) {
                 BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder()
                         .requestItems(Map.of(TEST_TABLE, writeRequests))
                         .build();
