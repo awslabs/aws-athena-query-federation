@@ -361,26 +361,6 @@ public class DynamoDBRecordHandler
                 })
                 .collect(Collectors.joining(","));
 
-        // prepare key condition expression
-        String indexName = split.getProperty(INDEX_METADATA);
-        String hashKeyName = split.getProperty(HASH_KEY_NAME_METADATA);
-        String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName);
-        String keyConditionExpression = hashKeyAlias + " = " + HASH_KEY_VALUE_ALIAS;
-        if (rangeKeyFilter != null) {
-            if (rangeFilterHasIn(rangeKeyFilter)) {
-                List<String> rangeKeyValues = getRangeValues(rangeKeyFilter);
-                for (String value : rangeKeyValues) {
-                    expressionAttributeValues.remove(value);
-                }
-            }
-            else {
-                keyConditionExpression += " AND " + rangeKeyFilter;
-            }
-        }
-        expressionAttributeNames.put(hashKeyAlias, hashKeyName);
-
-        expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, DDBTypeUtils.jsonToAttributeValue(split.getProperty(hashKeyName), HASH_KEY_VALUE_ALIAS));
-
         int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
         int segmentCount = Integer.parseInt(split.getProperty(SEGMENT_COUNT_METADATA));
 

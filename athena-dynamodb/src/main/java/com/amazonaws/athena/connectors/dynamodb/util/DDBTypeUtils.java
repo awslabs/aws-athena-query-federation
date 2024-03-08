@@ -552,10 +552,11 @@ public final class DDBTypeUtils
                 result = (T) enhancedAttributeValue.asSetOfStrings();
                 break;
             case NS:
-                result = (T) SetAttributeConverter.builder(EnhancedType.setOf(BigDecimal.class)).build().transformTo(value);
+                result = (T) value.ns().stream().map(BigDecimal::new).collect(Collectors.toList());
                 break;
             case BS:
-                result = (T) SetAttributeConverter.builder(EnhancedType.setOf(byte.class)).build().transformTo(value);
+//                result = (T) SetAttributeConverter.builder(EnhancedType.setOf(byte.class)).build().transformTo(value);
+                result = (T) value.bs().stream().map(sdkBytes -> sdkBytes.asByteArray()).collect(Collectors.toList());
                 break;
             case L:
                 result = handleListAttribute(enhancedAttributeValue);

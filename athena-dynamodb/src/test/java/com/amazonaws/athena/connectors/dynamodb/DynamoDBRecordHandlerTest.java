@@ -365,7 +365,7 @@ public class DynamoDBRecordHandlerTest
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(DDBTypeUtils.toAttributeValue("test_str_999999")))
+                .add("col_0", DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue("test_str_999999"), "col_0"))
                 .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
                 .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
                 .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
