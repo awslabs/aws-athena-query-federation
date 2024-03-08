@@ -40,6 +40,7 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.base.Strings;
@@ -54,7 +55,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -90,6 +93,8 @@ public class DocDBMetadataHandler
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(DOCDB_METADATA_FLAG);
     //The number of documents to scan when attempting to infer schema from an DocDB collection.
     private static final int SCHEMA_INFERRENCE_NUM_DOCS = 10;
+    // used to filter out Glue databases which lack the docdb-metadata-flag in the URI.
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DOCDB_METADATA_FLAG));
 
     private final AWSGlue glue;
     private final DocDBConnectionFactory connectionFactory;
@@ -144,8 +149,18 @@ public class DocDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request) throws Exception
     {
+        Set<String> combinedSchemas = new LinkedHashSet<>();
+        if (glue != null) {
+            try {
+                combinedSchemas.addAll(super.doListSchemaNames(blockAllocator, request, DB_FILTER).getSchemas());
+            }
+            catch (RuntimeException e) {
+                logger.warn("doListSchemaNames: Unable to retrieve schemas from AWSGlue.", e);
+            }
+        }  
+    
         List<String> schemas = new ArrayList<>();
         MongoClient client = getOrCreateConn(request);
         try (MongoCursor<String> itr = client.listDatabaseNames().iterator()) {
@@ -156,9 +171,9 @@ public class DocDBMetadataHandler
                     schemas.add(schema);
                 }
             }
-
-            return new ListSchemasResponse(request.getCatalogName(), schemas);
+            combinedSchemas.addAll(schemas);
         }
+        return new ListSchemasResponse(request.getCatalogName(), combinedSchemas);
     }
 
     /**
@@ -168,11 +183,23 @@ public class DocDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request) throws Exception
     {
+        logger.info("Getting tables in {}", request.getSchemaName());
+        Set<TableName> combinedTables = new LinkedHashSet<>();
+        String token = request.getNextToken();
+        if (token == null && glue != null) {
+            try {
+                combinedTables.addAll(super.doListTables(blockAllocator, new ListTablesRequest(request.getIdentity(), request.getQueryId(), 
+                    request.getCatalogName(), request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE), TABLE_FILTER).getTables());
+            }
+            catch (RuntimeException e) {
+                logger.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
+            }
+        }
+    
         MongoClient client = getOrCreateConn(request);
         Stream<String> tableNames = doListTablesWithCommand(client, request);
-
         int startToken = request.getNextToken() != null ? Integer.parseInt(request.getNextToken()) : 0;
         int pageSize = request.getPageSize();
         String nextToken = null;
@@ -184,8 +211,9 @@ public class DocDBMetadataHandler
         }
 
         List<TableName> paginatedTables = tableNames.map(tableName -> new TableName(request.getSchemaName(), tableName)).collect(Collectors.toList());
+        combinedTables.addAll(paginatedTables);
         logger.info("doListTables returned {} tables. Next token is {}", paginatedTables.size(), nextToken);
-        return new ListTablesResponse(request.getCatalogName(), paginatedTables, nextToken);
+        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), nextToken);
     }
 
     /**
