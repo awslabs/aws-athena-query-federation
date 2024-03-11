@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -53,7 +53,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.aws.cmdb.AwsCmdbCompositeHandler"
-      CodeUri: "./target/athena-aws-cmdb-2022.47.1.jar"
+      CodeUri: "./target/athena-aws-cmdb-2024.10.1.jar"
       Description: "Enables Amazon Athena to communicate with various AWS Services, making your resource inventories accessible via SQL."
       Runtime: java11
       Timeout: !Ref LambdaTimeout

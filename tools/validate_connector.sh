@@ -37,7 +37,7 @@ while true; do
     esac
 done
 
-VERSION=2022.47.1
+VERSION=2024.10.1
 
 dir=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 

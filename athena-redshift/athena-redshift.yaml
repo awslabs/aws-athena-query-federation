@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -80,7 +80,7 @@ Resources:
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.redshift.RedshiftMuxCompositeHandler"
-      CodeUri: "./target/athena-redshift-2022.47.1.jar"
+      CodeUri: "./target/athena-redshift-2024.10.1.jar"
       Description: "Enables Amazon Athena to communicate with Redshift using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

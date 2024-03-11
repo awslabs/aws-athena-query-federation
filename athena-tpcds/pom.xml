@@ -3,16 +3,16 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.47.1</version>
+        <version>2024.10.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-tpcds</artifactId>
-    <version>2022.47.1</version>
+    <version>2024.10.1</version>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2022.47.1</version>
+            <version>2024.10.1</version>
             <classifier>withdep</classifier>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->

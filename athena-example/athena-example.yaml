@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
@@ -55,7 +55,7 @@ Resources:
           data_bucket: !Ref DataBucket
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.example.ExampleCompositeHandler"
-      CodeUri: "./target/athena-example-2022.47.1.jar"
+      CodeUri: "./target/athena-example-2024.10.1.jar"
       Description: "A guided example for writing and deploying your own federated Amazon Athena connector for a custom source."
       Runtime: java11
       Timeout: !Ref LambdaTimeout

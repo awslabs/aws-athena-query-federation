@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -40,7 +40,7 @@ Resources:
     Properties:
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.udfs.AthenaUDFHandler"
-      CodeUri: "./target/athena-udfs-2022.47.1.jar"
+      CodeUri: "./target/athena-udfs-2024.10.1.jar"
       Description: "This connector enables Amazon Athena to leverage common UDFs made available via Lambda."
       Runtime: java11
       Timeout: !Ref LambdaTimeout

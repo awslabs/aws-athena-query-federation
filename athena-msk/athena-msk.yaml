@@ -11,7 +11,7 @@ Metadata:
       - msk
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AuthType:
@@ -97,7 +97,7 @@ Resources:
           auth_type: !Ref AuthType
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.msk.AmazonMskCompositeHandler"
-      CodeUri: "./target/athena-msk-2022.47.1.jar"
+      CodeUri: "./target/athena-msk-2024.10.1.jar"
       Description: "Enables Amazon Athena to communicate with MSK clusters"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

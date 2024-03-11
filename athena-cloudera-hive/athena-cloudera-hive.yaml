@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -66,7 +66,7 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.cloudera.HiveMuxCompositeHandler"
-      CodeUri: "./target/athena-cloudera-hive-2022.47.1.jar"
+      CodeUri: "./target/athena-cloudera-hive-2024.10.1.jar"
       Description: "Enables Amazon Athena to communicate with Coludera Hive using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

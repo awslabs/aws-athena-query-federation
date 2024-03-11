@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -53,7 +53,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.tpcds.TPCDSCompositeHandler"
-      CodeUri: "./target/athena-tpcds-2022.47.1.jar"
+      CodeUri: "./target/athena-tpcds-2024.10.1.jar"
       Description: "This connector enables Amazon Athena to communicate with a randomly generated TPC-DS data source."
       Runtime: java11
       Timeout: !Ref LambdaTimeout

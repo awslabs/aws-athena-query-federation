@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -82,7 +82,7 @@ Resources:
           default_scale: !Ref DefaultScale
       FunctionName: !Ref LambdaFunctionName
       Handler: !Sub "com.amazonaws.athena.connectors.postgresql.${CompositeHandler}"
-      CodeUri: "./target/athena-postgresql-2022.47.1.jar"
+      CodeUri: "./target/athena-postgresql-2024.10.1.jar"
       Description: "Enables Amazon Athena to communicate with PostgreSQL using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

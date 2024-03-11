@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation', 'GCS', 'Google-Cloud-Storage', 'parquet', 'csv']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:

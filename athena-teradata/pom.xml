@@ -3,27 +3,27 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.47.1</version>
+        <version>2024.10.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-teradata</artifactId>
-    <version>2022.47.1</version>
+    <version>2024.10.1</version>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2022.47.1</version>
+            <version>2024.10.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.47.1</version>
+            <version>2024.10.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.47.1</version>
+            <version>2024.10.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -75,7 +75,7 @@
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
                         <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
-                        </transformer>
+</transformer>
                     </transformers>
                 </configuration>
                 <dependencies>

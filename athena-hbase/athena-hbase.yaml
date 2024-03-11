@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -66,7 +66,7 @@ Resources:
           default_hbase: !Ref HBaseConnectionString
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.hbase.HbaseCompositeHandler"
-      CodeUri: "./target/athena-hbase-2022.47.1.jar"
+      CodeUri: "./target/athena-hbase-2024.10.1.jar"
       Description: "Enables Amazon Athena to communicate with HBase, making your HBase data accessible via SQL"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

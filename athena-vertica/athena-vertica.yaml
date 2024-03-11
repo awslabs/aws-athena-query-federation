@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.10.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
@@ -83,7 +83,7 @@ Resources:
 
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.vertica.VerticaCompositeHandler"
-      CodeUri: "./target/athena-vertica-2022.47.1.jar"
+      CodeUri: "./target/athena-vertica-2024.10.1.jar"
       Description: "Amazon Athena Vertica Connector"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
