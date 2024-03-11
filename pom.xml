@@ -29,7 +29,7 @@
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.12.6</fasterxml.jackson.version>
         <surefire.failsafe.version>3.2.5</surefire.failsafe.version>
-        <log4j2Version>2.23.0</log4j2Version>
+        <log4j2Version>2.23.1</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
         <guava.version>33.0.0-jre</guava.version>
         <protobuf3.version>3.25.3</protobuf3.version>
