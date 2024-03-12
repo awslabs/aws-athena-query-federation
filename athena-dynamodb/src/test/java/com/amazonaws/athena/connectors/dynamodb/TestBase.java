@@ -119,27 +119,6 @@ public class TestBase
         server.stop();
     }
 
-    private static void waitForActive(DynamoDbClient ddbClient, String tableName, String indexName)
-    {
-        boolean isIndexActive = false;
-        while (!isIndexActive) {
-            DescribeTableResponse tableDescription = ddbClient.describeTable(DescribeTableRequest.builder()
-                    .tableName(tableName)
-                    .build());
-            isIndexActive = tableDescription.table().globalSecondaryIndexes().stream()
-                    .anyMatch(index -> index.indexName().equals(indexName) && index.indexStatus().equals(IndexStatus.ACTIVE));
-
-            if (!isIndexActive) {
-                try {
-                    Thread.sleep(2000); // Wait for 20 seconds before the next check
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    // Handle interruption
-                }
-            }
-        }
-    }
-
     private static String waitForTableToBecomeActive(DynamoDbClient ddb, DynamoDbWaiter dbWaiter, CreateTableResponse createTableResponse, String tableName) {
         System.out.println("------------------------------------------------------------------------");
         System.out.println("Entered: waitForTableToBecomeActive: for: " + tableName);
@@ -152,7 +131,7 @@ public class TestBase
             // Wait until the Amazon DynamoDB table is created
             dbWaiter.waitUntilTableExists(tableRequest);
             String name = createTableResponse.tableDescription().tableName();
-            System.out.println("Table :[ " + name + "] is active");
+            System.out.println("Table :[ " + name + " ] is active");
             System.out.println("------------------------------------------------------------------------");
             return name;
 
