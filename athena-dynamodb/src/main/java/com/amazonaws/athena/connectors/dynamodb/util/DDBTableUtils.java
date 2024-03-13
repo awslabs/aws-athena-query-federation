@@ -63,7 +63,7 @@ public final class DDBTableUtils
     private static final int MIN_SCAN_SEGMENTS = 1;
     private static final long MAX_BYTES_PER_SEGMENT = 1024L * 1024L * 1024L;
     private static final double MIN_IO_PER_SEGMENT = 100.0;
-    private static final int SCHEMA_INFERENCE_NUM_RECORDS = 4;
+    public static final int SCHEMA_INFERENCE_NUM_RECORDS = 4;
 
     private DDBTableUtils() {}
 
@@ -154,19 +154,7 @@ public final class DDBTableUtils
             ScanResponse scanResponse = invoker.invoke(() -> ddbClient.scan(scanRequest));
             if (!scanResponse.items().isEmpty()) {
                 List<Map<String, AttributeValue>> items = scanResponse.items();
-                Set<String> discoveredColumns = new HashSet<>();
-
-                for (Map<String, AttributeValue> item : items) {
-                    for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
-                        if (!discoveredColumns.contains(column.getKey())) {
-                            Field field = DDBTypeUtils.inferArrowField(column.getKey(), column.getValue());
-                            if (field != null) {
-                                schemaBuilder.addField(field);
-                                discoveredColumns.add(column.getKey());
-                            }
-                        }
-                    }
-                }
+                schemaBuilder = buildSchemaFromItems(items);
             }
             else {
                 // there's no items, so use any attributes defined in the table metadata
@@ -185,6 +173,24 @@ public final class DDBTableUtils
             }
         }
         return schemaBuilder.build();
+    }
+
+    public static SchemaBuilder buildSchemaFromItems(List<Map<String, AttributeValue>> items)
+    {
+        SchemaBuilder schemaBuilder = new SchemaBuilder();
+        Set<String> discoveredColumns = new HashSet<>();
+        for (Map<String, AttributeValue> item : items) {
+            for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
+                if (!discoveredColumns.contains(column.getKey())) {
+                    Field field = DDBTypeUtils.inferArrowField(column.getKey(), column.getValue());
+                    if (field != null) {
+                        schemaBuilder.addField(field);
+                        discoveredColumns.add(column.getKey());
+                    }
+                }
+            }
+        }
+        return schemaBuilder;
     }
 
     /**
