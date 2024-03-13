@@ -26,6 +26,8 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -37,13 +39,16 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -98,6 +103,7 @@ public class DocDBMetadataHandler
 
     private final AWSGlue glue;
     private final DocDBConnectionFactory connectionFactory;
+    private final DocDBQueryPassthrough queryPassthrough = new DocDBQueryPassthrough();
 
     public DocDBMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -141,6 +147,15 @@ public class DocDBMetadataHandler
             conStr = configOptions.get(DEFAULT_DOCDB);
         }
         return conStr;
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     /**
@@ -241,7 +256,6 @@ public class DocDBMetadataHandler
     private Stream<String> doListTablesWithCommand(MongoClient client, ListTablesRequest request)
     {
         logger.debug("doListTablesWithCommand Start");
-        List<String> tables = new ArrayList<>();
         Document queryDocument = new Document("listCollections", 1).append("nameOnly", true).append("authorizedCollections", true);
         Document document = client.getDatabase(request.getSchemaName()).runCommand(queryDocument);
 
@@ -262,8 +276,19 @@ public class DocDBMetadataHandler
             throws Exception
     {
         logger.info("doGetTable: enter", request.getTableName());
-        String schemaNameInput = request.getTableName().getSchemaName();
-        String tableNameInput = request.getTableName().getTableName();
+        String schemaNameInput;
+        String tableNameInput;
+
+        if (request.isQueryPassthrough()) {
+            queryPassthrough.verify(request.getQueryPassthroughArguments());
+            schemaNameInput = request.getQueryPassthroughArguments().get(DocDBQueryPassthrough.DATABASE);
+            tableNameInput = request.getQueryPassthroughArguments().get(DocDBQueryPassthrough.COLLECTION);
+        }
+        else {
+            schemaNameInput = request.getTableName().getSchemaName();
+            tableNameInput = request.getTableName().getTableName();
+        }
+
         TableName tableName = new TableName(schemaNameInput, tableNameInput);
         Schema schema = null;
         try {
@@ -290,6 +315,12 @@ public class DocDBMetadataHandler
             schema = SchemaUtils.inferSchema(db, tableName, SCHEMA_INFERRENCE_NUM_DOCS);
         }
         return new GetTableResponse(request.getCatalogName(), tableName, schema);
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        return doGetTable(allocator, request);
     }
 
     /**
