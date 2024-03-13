@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -65,6 +66,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
@@ -87,6 +89,8 @@ public class BigQueryRecordHandler
     private final ThrottlingInvoker invoker;
     BufferAllocator allocator;
 
+    private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
+
     BigQueryRecordHandler(java.util.Map<String, String> configOptions, BufferAllocator allocator)
     {
         this(AmazonS3ClientBuilder.defaultClient(),
@@ -103,20 +107,33 @@ public class BigQueryRecordHandler
     }
 
     @Override
-    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws Exception
+    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker) throws Exception
     {
         List<QueryParameterValue> parameterValues = new ArrayList<>();
-
         invoker.setBlockSpiller(spiller);
-        final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID);
         BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions);
-        final String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
-        final String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(),
-                bigQueryClient);
+
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            handleQueryPassthrough(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient);
+        }
+        else {
+            handleStandardQuery(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient);
+        }
+    }
+
+    private void handleStandardQuery(BlockSpiller spiller,
+                                     ReadRecordsRequest recordsRequest,
+                                     QueryStatusChecker queryStatusChecker,
+                                     List<QueryParameterValue> parameterValues,
+                                     BigQuery bigQueryClient) throws Exception
+    {
+        String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID);
+        String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
+        String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(), bigQueryClient);
 
         TableId tableId = TableId.of(projectName, datasetName, tableName);
         TableDefinition.Type type = bigQueryClient.getTable(tableId).getDefinition().getType();
+
         if (type.equals(TableDefinition.Type.TABLE)) {
             getTableData(spiller, recordsRequest, parameterValues, projectName, datasetName, tableName);
         }
@@ -125,13 +142,40 @@ public class BigQueryRecordHandler
         }
     }
 
-    private void getData(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker, List<QueryParameterValue> parameterValues, BigQuery bigQueryClient, String datasetName, String tableName) throws TimeoutException
+    private void handleQueryPassthrough(BlockSpiller spiller,
+                         ReadRecordsRequest recordsRequest,
+                         QueryStatusChecker queryStatusChecker,
+                         List<QueryParameterValue> parameterValues,
+                         BigQuery bigQueryClient) throws TimeoutException
+    {
+        Map<String, String> queryPassthroughArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
+        queryPassthrough.verify(queryPassthroughArgs);
+        String query = queryPassthroughArgs.get(BigQueryQueryPassthrough.QUERY);
+        getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, query);
+    }
+
+    private void getData(BlockSpiller spiller,
+                         ReadRecordsRequest recordsRequest,
+                         QueryStatusChecker queryStatusChecker,
+                         List<QueryParameterValue> parameterValues,
+                         BigQuery bigQueryClient,
+                         String datasetName, String tableName) throws TimeoutException
+    {
+        String query = BigQuerySqlUtils.buildSql(new TableName(datasetName, tableName),
+                recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues);
+        getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, query);
+    }
+
+    private void getData(BlockSpiller spiller,
+                         ReadRecordsRequest recordsRequest,
+                         QueryStatusChecker queryStatusChecker,
+                         List<QueryParameterValue> parameterValues,
+                         BigQuery bigQueryClient,
+                         String query) throws TimeoutException
     {
         logger.debug("Got Request with constraints: {}", recordsRequest.getConstraints());
-        String sqlToExecute = BigQuerySqlUtils.buildSql(new TableName(datasetName, tableName),
-                recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues);
-        logger.debug("Executing SQL Query: {} for Split: {}", sqlToExecute, recordsRequest.getSplit());
-        QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(sqlToExecute).setUseLegacySql(false).setPositionalParameters(parameterValues).build();
+        logger.debug("Executing SQL Query: {} for Split: {}", query, recordsRequest.getSplit());
+        QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).setUseLegacySql(false).setPositionalParameters(parameterValues).build();
         Job queryJob;
         try {
             JobId jobId = JobId.of(UUID.randomUUID().toString());
