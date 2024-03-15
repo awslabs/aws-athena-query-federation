@@ -25,13 +25,29 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.*;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -41,17 +57,29 @@ import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import org.apache.commons.lang3.StringUtils;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 
-import java.sql.*;
-import java.util.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 
 public class VerticaMetadataHandler
@@ -77,7 +105,8 @@ public class VerticaMetadataHandler
     private final VerticaSchemaUtils verticaSchemaUtils;
     private AmazonS3 amazonS3;
 
-    public VerticaMetadataHandler(java.util.Map<String, String> configOptions)
+    private final VerticaQueryPassthrough queryPassthrough = new VerticaQueryPassthrough();
+    public VerticaMetadataHandler(Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
         amazonS3 = AmazonS3ClientBuilder.defaultClient();
@@ -87,15 +116,15 @@ public class VerticaMetadataHandler
 
     @VisibleForTesting
     protected VerticaMetadataHandler(
-        EncryptionKeyFactory keyFactory,
-        VerticaConnectionFactory connectionFactory,
-        AWSSecretsManager awsSecretsManager,
-        AmazonAthena athena,
-        String spillBucket,
-        String spillPrefix,
-        VerticaSchemaUtils verticaSchemaUtils,
-        AmazonS3 amazonS3,
-        java.util.Map<String, String> configOptions)
+            EncryptionKeyFactory keyFactory,
+            VerticaConnectionFactory connectionFactory,
+            AWSSecretsManager awsSecretsManager,
+            AmazonAthena athena,
+            String spillBucket,
+            String spillPrefix,
+            VerticaSchemaUtils verticaSchemaUtils,
+            AmazonS3 amazonS3,
+            Map<String, String> configOptions)
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.connectionFactory = connectionFactory;
@@ -174,6 +203,80 @@ public class VerticaMetadataHandler
         return new ListTablesResponse(request.getCatalogName(), tables, null);
 
     }
+    protected ArrowType getArrayArrowTypeFromTypeName(String typeName, int precision, int scale)
+    {
+        // Default ARRAY type is VARCHAR.
+        return new ArrowType.Utf8();
+    }
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
+    {
+        System.out.println("inside doGetQueryPassthroughSchema =========");
+        if (!getTableRequest.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + getTableRequest);
+        }
+
+        queryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
+        String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
+
+        try (Connection connection = getConnection(getTableRequest)) {
+            PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
+            ResultSetMetaData metadata = preparedStatement.getMetaData();
+            if (metadata == null) {
+                throw new UnsupportedOperationException("Query not supported: ResultSetMetaData not available for query: " + customerPassedQuery);
+            }
+            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+            for (int columnIndex = 1; columnIndex <= metadata.getColumnCount(); columnIndex++) {
+                String columnName = metadata.getColumnName(columnIndex);
+                String columnLabel = metadata.getColumnLabel(columnIndex);
+                //todo; is there a mechanism to pass both back to the engine?
+                columnName = columnName.equals(columnLabel) ? columnName : columnLabel;
+
+                int precision = metadata.getPrecision(columnIndex);
+                int scale = metadata.getScale(columnIndex);
+
+                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                        metadata.getColumnType(columnIndex),
+                        precision,
+                        scale,
+                        configOptions);
+
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    if (columnType instanceof ArrowType.List) {
+                        schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
+                                metadata.getTableName(columnIndex),
+                                metadata.getColumnDisplaySize(columnIndex),
+                                precision));
+                    }
+                    else {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    }
+                }
+                else {
+                    // Default to VARCHAR ArrowType
+                    logger.warn("getSchema: Unable to map type for column[" + columnName +
+                            "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
+                }
+            }
+
+            Schema schema = schemaBuilder.build();
+            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), schema, Collections.emptySet());
+        }
+    }
+
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
@@ -200,7 +303,7 @@ public class VerticaMetadataHandler
                 request.getTableName(),
                 schema,
                 partitionCols
-                );
+        );
     }
 
     /**
@@ -228,7 +331,7 @@ public class VerticaMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-        public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws SQLException {
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws SQLException {
         logger.info("in getPartitions: "+ request);
 
         Schema schemaName = request.getSchema();
@@ -243,20 +346,29 @@ public class VerticaMetadataHandler
 
         //Build the SQL query
         Connection connection = getConnection(request);
-        DatabaseMetaData dbMetadata = connection.getMetaData();
-        ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
+
+        // if  QPT get input query from Athena console
+        //else old logic
 
         VerticaExportQueryBuilder queryBuilder = queryFactory.createVerticaExportQueryBuilder();
+        String preparedSQLStmt;
 
-        String preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
-                .withQueryID(queryID)
-                .withColumns(definition, schemaName)
-                .fromTable(tableName.getSchemaName(), tableName.getTableName())
-                .withConstraints(constraints, schemaName)
-                .build();
+        if (!request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
+
+            DatabaseMetaData dbMetadata = connection.getMetaData();
+            ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
+
+            preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
+                    .withQueryID(queryID)
+                    .withColumns(definition, schemaName)
+                    .fromTable(tableName.getSchemaName(), tableName.getTableName())
+                    .withConstraints(constraints, schemaName)
+                    .build();
+        } else {
+            preparedSQLStmt = null;
+        }
 
         logger.info("Vertica Export Statement: {}", preparedSQLStmt);
-
         // Build the Set AWS Region SQL
         String awsRegionSql = queryBuilder.buildSetAwsRegionSql(amazonS3.getRegion().toString());
 
@@ -294,17 +406,29 @@ public class VerticaMetadataHandler
         Set<Split> splits = new HashSet<>();
         String exportBucket = getS3ExportBucket();
         String queryId = request.getQueryId().replace("-","");
-
+        Constraints constraints  = request.getConstraints();
+        String s3ExportBucket = getS3ExportBucket();
+        String sqlStatement;
         //testing if the user has access to the requested table
-        testAccess(connection, request.getTableName());
-
-        //get the SQL statement which was created in getPartitions
-        FieldReader fieldReaderPS = request.getPartitions().getFieldReader("preparedStmt");
-        String sqlStatement  = fieldReaderPS.readText().toString();
-        String catalogName = request.getCatalogName();
 
         FieldReader fieldReaderQid = request.getPartitions().getFieldReader("queryId");
         String queryID  = fieldReaderQid.readText().toString();
+
+        //get the SQL statement which was created in getPartitions
+        FieldReader fieldReaderPS = request.getPartitions().getFieldReader("preparedStmt");
+        if (constraints.isQueryPassThrough()) {
+            String preparedSQL = buildQueryPassthroughSql(constraints);
+            VerticaExportQueryBuilder queryBuilder = queryFactory.createQptVerticaExportQueryBuilder();
+            sqlStatement = queryBuilder.withS3ExportBucket(s3ExportBucket)
+                    .withQueryID(queryID)
+                    .withPreparedStatementSQL(preparedSQL).build();
+            logger.info("Vertica Export Statement: {}", sqlStatement);
+        }
+        else {
+            testAccess(connection, request.getTableName());
+            sqlStatement = fieldReaderPS.readText().toString();
+        }
+        String catalogName = request.getCatalogName();
 
         FieldReader fieldReaderAwsRegion = request.getPartitions().getFieldReader("awsRegionSql");
         String awsRegionSql  = fieldReaderAwsRegion.readText().toString();
@@ -313,9 +437,9 @@ public class VerticaMetadataHandler
         //execute the queries on Vertica
         executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
 
-         /*
-          * For each generated S3 object, create a split and add data to the split.
-          */
+        /*
+         * For each generated S3 object, create a split and add data to the split.
+         */
         Split split;
         List<S3ObjectSummary> s3ObjectSummaries = getlistExportedObjects(exportBucket, queryId);
 
@@ -336,19 +460,19 @@ public class VerticaMetadataHandler
             return new GetSplitsResponse(catalogName, splits);
         }
         else
-            {
-                //No records were exported by Vertica for the issued query, creating a "empty" split
-                logger.info("No records were exported by Vertica");
-                split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                        .add("query_id", queryID)
-                        .add(VERTICA_CONN_STR, getConnStr(request))
-                        .add("exportBucket", exportBucket)
-                        .add("s3ObjectKey", EMPTY_STRING)
-                        .build();
-                splits.add(split);
-                logger.info("doGetSplits: exit - " + splits.size());
-                return new GetSplitsResponse(catalogName,split);
-            }
+        {
+            //No records were exported by Vertica for the issued query, creating a "empty" split
+            logger.info("No records were exported by Vertica");
+            split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+                    .add("query_id", queryID)
+                    .add(VERTICA_CONN_STR, getConnStr(request))
+                    .add("exportBucket", exportBucket)
+                    .add("s3ObjectKey", EMPTY_STRING)
+                    .build();
+            splits.add(split);
+            logger.info("doGetSplits: exit - " + splits.size());
+            return new GetSplitsResponse(catalogName,split);
+        }
 
     }
 
@@ -409,7 +533,13 @@ public class VerticaMetadataHandler
 
     public String getS3ExportBucket()
     {
-       return configOptions.get(EXPORT_BUCKET_KEY);
+        return configOptions.get(EXPORT_BUCKET_KEY);
+    }
+
+    public String buildQueryPassthroughSql(Constraints constraints) throws SQLException
+    {
+        queryPassthrough.verify(constraints.getQueryPassthroughArguments());
+        return  constraints.getQueryPassthroughArguments().get(VerticaQueryPassthrough.QUERY);
     }
 
 }
