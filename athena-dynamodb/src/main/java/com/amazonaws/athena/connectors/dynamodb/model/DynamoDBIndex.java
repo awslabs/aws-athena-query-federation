@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.model;
 
-import com.amazonaws.services.dynamodbv2.model.ProjectionType;
+import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
 
 import java.util.List;
 import java.util.Objects;
