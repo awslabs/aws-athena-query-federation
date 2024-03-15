@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":9,"i1":9,"i2":9,"i3":9,"i4":9,"i5":9,"i6":9,"i7":9};
+var data = {"i0":9,"i1":9,"i2":9,"i3":9,"i4":9,"i5":9,"i6":9,"i7":9,"i8":9,"i9":9,"i10":9,"i11":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -156,6 +156,12 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#attributeToJson(software.amazon.awssdk.services.dynamodb.model.AttributeValue,java.lang.String)">attributeToJson</a></span>&#8203;(software.amazon.awssdk.services.dynamodb.model.AttributeValue&nbsp;attributeValue,
+               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;key)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#coerceListToExpectedType(java.lang.Object,org.apache.arrow.vector.types.pojo.Field,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata)">coerceListToExpectedType</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value,
                         org.apache.arrow.vector.types.pojo.Field&nbsp;field,
@@ -164,7 +170,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Converts a Set to a List, and coerces all list items into the correct type.</div>
 </td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#coerceValueToExpectedType(java.lang.Object,org.apache.arrow.vector.types.pojo.Field,org.apache.arrow.vector.types.Types.MinorType,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata)">coerceValueToExpectedType</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value,
                          org.apache.arrow.vector.types.pojo.Field&nbsp;field,
@@ -174,7 +180,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Coerces the raw value from DynamoDB to normalized type</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#convertArrowTypeIfNecessary(java.lang.String,java.lang.Object)">convertArrowTypeIfNecessary</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;columnName,
                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;object)</code></th>
@@ -182,7 +188,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#convertArrowTypeIfNecessary(java.lang.String,java.lang.Object,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata)">convertArrowTypeIfNecessary</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;columnName,
                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;object,
@@ -191,7 +197,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Field</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getArrowFieldFromDDBType(java.lang.String,java.lang.String)">getArrowFieldFromDDBType</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;attributeName,
                         <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;attributeType)</code></th>
@@ -199,15 +205,21 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Converts from DynamoDB Attribute Type to Arrow type.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Field</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#inferArrowField(java.lang.String,java.lang.Object)">inferArrowField</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;key,
-               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#inferArrowField(java.lang.String,software.amazon.awssdk.services.dynamodb.model.AttributeValue)">inferArrowField</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;key,
+               software.amazon.awssdk.services.dynamodb.model.AttributeValue&nbsp;value)</code></th>
 <td class="colLast">
 <div class="block">Infers an Arrow field from an object.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
+<td class="colFirst"><code>static software.amazon.awssdk.services.dynamodb.model.AttributeValue</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#jsonToAttributeValue(java.lang.String,java.lang.String)">jsonToAttributeValue</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;jsonString,
+                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;key)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Optional.html?is-external=true" title="class or interface in java.util" class="externalLink">Optional</a>&lt;<a href="../../../connector/lambda/data/writers/extractors/Extractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors">Extractor</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeExtractor(org.apache.arrow.vector.types.pojo.Field,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata,boolean)">makeExtractor</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field,
              <a href="DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata,
@@ -216,7 +228,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Create the appropriate field extractor used for extracting field values from a DDB based on the field type.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>static <a href="../../../connector/lambda/data/writers/fieldwriters/FieldWriterFactory.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">FieldWriterFactory</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeFactory(org.apache.arrow.vector.types.pojo.Field,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata,com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver,boolean)">makeFactory</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field,
            <a href="DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata,
@@ -226,6 +238,16 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Since GeneratedRowWriter doesn't yet support complex types (STRUCT, LIST..etc) we use this to create our own
  FieldWriters via a custom FieldWriterFactory.</div>
 </td>
+</tr>
+<tr id="i10" class="altColor">
+<td class="colFirst"><code>static software.amazon.awssdk.services.dynamodb.model.AttributeValue</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#toAttributeValue(java.lang.Object)">toAttributeValue</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i11" class="rowColor">
+<td class="colFirst"><code>static &lt;T&gt;&nbsp;T</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#toSimpleValue(software.amazon.awssdk.services.dynamodb.model.AttributeValue)">toSimpleValue</a></span>&#8203;(software.amazon.awssdk.services.dynamodb.model.AttributeValue&nbsp;value)</code></th>
+<td class="colLast">&nbsp;</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -251,14 +273,14 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="inferArrowField(java.lang.String,java.lang.Object)">
+<a id="inferArrowField(java.lang.String,software.amazon.awssdk.services.dynamodb.model.AttributeValue)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>inferArrowField</h4>
 <pre class="methodSignature">public static&nbsp;org.apache.arrow.vector.types.pojo.Field&nbsp;inferArrowField&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;key,
-                                                                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value)</pre>
+                                                                       software.amazon.awssdk.services.dynamodb.model.AttributeValue&nbsp;value)</pre>
 <div class="block">Infers an Arrow field from an object.  This has limitations when it comes to complex types such as Lists and Maps
  and will fallback to VARCHAR fields in those cases.</div>
 <dl>
@@ -396,7 +418,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <a id="makeFactory(org.apache.arrow.vector.types.pojo.Field,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata,com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver,boolean)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>makeFactory</h4>
 <pre class="methodSignature">public static&nbsp;<a href="../../../connector/lambda/data/writers/fieldwriters/FieldWriterFactory.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">FieldWriterFactory</a>&nbsp;makeFactory&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field,
@@ -412,6 +434,44 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <dd><code>resolver</code> - is used to resolve it to proper type</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
+</li>
+</ul>
+<a id="toSimpleValue(software.amazon.awssdk.services.dynamodb.model.AttributeValue)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>toSimpleValue</h4>
+<pre class="methodSignature">public static&nbsp;&lt;T&gt;&nbsp;T&nbsp;toSimpleValue&#8203;(software.amazon.awssdk.services.dynamodb.model.AttributeValue&nbsp;value)</pre>
+</li>
+</ul>
+<a id="toAttributeValue(java.lang.Object)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>toAttributeValue</h4>
+<pre class="methodSignature">public static&nbsp;software.amazon.awssdk.services.dynamodb.model.AttributeValue&nbsp;toAttributeValue&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;value)</pre>
+</li>
+</ul>
+<a id="attributeToJson(software.amazon.awssdk.services.dynamodb.model.AttributeValue,java.lang.String)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>attributeToJson</h4>
+<pre class="methodSignature">public static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;attributeToJson&#8203;(software.amazon.awssdk.services.dynamodb.model.AttributeValue&nbsp;attributeValue,
+                                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;key)</pre>
+</li>
+</ul>
+<a id="jsonToAttributeValue(java.lang.String,java.lang.String)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>jsonToAttributeValue</h4>
+<pre class="methodSignature">public static&nbsp;software.amazon.awssdk.services.dynamodb.model.AttributeValue&nbsp;jsonToAttributeValue&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;jsonString,
+                                                                                                 <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;key)</pre>
 </li>
 </ul>
 </li>

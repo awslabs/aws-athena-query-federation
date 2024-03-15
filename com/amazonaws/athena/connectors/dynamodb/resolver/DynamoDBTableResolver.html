@@ -161,8 +161,8 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,com.amazonaws.services.dynamodbv2.AmazonDynamoDB)">DynamoDBTableResolver</a></span>&#8203;(<a href="../../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-                     com.amazonaws.services.dynamodbv2.AmazonDynamoDB&nbsp;ddbClient)</code></th>
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient)">DynamoDBTableResolver</a></span>&#8203;(<a href="../../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
+                     software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -231,14 +231,14 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,com.amazonaws.services.dynamodbv2.AmazonDynamoDB)">
+<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>DynamoDBTableResolver</h4>
 <pre>public&nbsp;DynamoDBTableResolver&#8203;(<a href="../../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-                             com.amazonaws.services.dynamodbv2.AmazonDynamoDB&nbsp;ddbClient)</pre>
+                             software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient)</pre>
 </li>
 </ul>
 </li>
@@ -278,7 +278,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <pre class="methodSignature">public&nbsp;org.apache.arrow.vector.types.pojo.Schema&nbsp;getTableSchema&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName)
                                                          throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></pre>
 <div class="block">Fetches table schema by first doing a Scan on the given table name, falling back to case insensitive
- resolution if the table isn't found.  Delegates actual schema derivation to <a href="../util/DDBTableUtils.html#peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,com.amazonaws.services.dynamodbv2.AmazonDynamoDB)"><code>DDBTableUtils.peekTableForSchema(java.lang.String, com.amazonaws.athena.connector.lambda.ThrottlingInvoker, com.amazonaws.services.dynamodbv2.AmazonDynamoDB)</code></a>.</div>
+ resolution if the table isn't found.  Delegates actual schema derivation to <a href="../util/DDBTableUtils.html#peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient)"><code>DDBTableUtils.peekTableForSchema(java.lang.String, com.amazonaws.athena.connector.lambda.ThrottlingInvoker, software.amazon.awssdk.services.dynamodb.DynamoDbClient)</code></a>.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>tableName</code> - the case insensitive table name</dd>
