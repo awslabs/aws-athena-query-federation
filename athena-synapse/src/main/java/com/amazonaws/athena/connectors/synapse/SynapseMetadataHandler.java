@@ -141,8 +141,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
 
-        capabilities.put(jdbcQueryPassthrough.getFunctionSignature(), jdbcQueryPassthrough.getQueryPassthroughCapabilities());
-
+        jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
