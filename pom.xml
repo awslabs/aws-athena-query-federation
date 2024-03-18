@@ -23,7 +23,7 @@
         <slf4j-log4j.version>2.0.7</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.8.3</jqwik.version>
+        <jqwik.version>1.8.4</jqwik.version>
         <assertj.version>3.25.3</assertj.version>
         <testng.version>7.9.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
