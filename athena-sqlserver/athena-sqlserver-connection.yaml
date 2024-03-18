@@ -45,7 +45,6 @@ Parameters:
     Type: String
     Default: ""
 
-
 Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRoleArn, ""]
   HasKMSKeyId: !Not [!Equals [!Ref KmsKeyId, ""]]
