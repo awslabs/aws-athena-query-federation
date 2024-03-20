@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
-import com.amazonaws.athena.connector.credentials.CrossAccountCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -43,6 +42,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
+import com.amazonaws.athena.connectors.dynamodb.credentials.CrossAccountCredentialsProviderV2;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
@@ -53,10 +53,6 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
@@ -69,6 +65,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -131,15 +130,15 @@ public class DynamoDBMetadataHandler
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DYNAMO_DB_FLAG));
 
     private final ThrottlingInvoker invoker;
-    private final AmazonDynamoDB ddbClient;
+    private final DynamoDbClient ddbClient;
     private final AWSGlue glueClient;
     private final DynamoDBTableResolver tableResolver;
 
     public DynamoDBMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
-        this.ddbClient = AmazonDynamoDBClientBuilder.standard()
-                .withCredentials(CrossAccountCredentialsProvider.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
+        this.ddbClient = DynamoDbClient.builder() 
+                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
                 .build();
         this.glueClient = getAwsGlue();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
@@ -153,7 +152,7 @@ public class DynamoDBMetadataHandler
             AmazonAthena athena,
             String spillBucket,
             String spillPrefix,
-            AmazonDynamoDB ddbClient,
+            DynamoDbClient ddbClient,
             AWSGlue glueClient,
             java.util.Map<String, String> configOptions)
     {
@@ -400,8 +399,9 @@ public class DynamoDBMetadataHandler
             for (AttributeValue value : accumulator) {
                 expressionValueMapping.put(valueNameProducer2.getNext(), value);
             }
+
             partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, Jackson.toJsonString(aliasedColumns));
-            partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, Jackson.toJsonString(expressionValueMapping));
+            partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValueMapping).toJson());
         }
     }
 
@@ -436,8 +436,7 @@ public class DynamoDBMetadataHandler
                 Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
 
                 Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
-                String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
-                splitMetadata.put(hashKeyName, hashKeyValueJSON);
+                splitMetadata.put(hashKeyName, DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue(hashKeyValue), hashKeyName));
 
                 splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
 
