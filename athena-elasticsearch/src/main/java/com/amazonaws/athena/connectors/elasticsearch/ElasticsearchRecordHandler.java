@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.elasticsearch.ptf.ElasticsearchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -40,6 +41,8 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -48,6 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -84,7 +88,7 @@ public class ElasticsearchRecordHandler
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
 
-    public ElasticsearchRecordHandler(java.util.Map<String, String> configOptions)
+    public ElasticsearchRecordHandler(Map<String, String> configOptions)
     {
         super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE, configOptions);
@@ -103,7 +107,7 @@ public class ElasticsearchRecordHandler
         AwsRestHighLevelClientFactory clientFactory,
         long queryTimeout,
         long scrollTimeout,
-        java.util.Map<String, String> configOptions)
+        Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
 
@@ -136,8 +140,18 @@ public class ElasticsearchRecordHandler
         logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}",
                 recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
                 recordsRequest.getSchema());
+        String domain;
+        QueryBuilder query;
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            domain = qptArgs.get(ElasticsearchQueryPassthrough.SCHEMA);
+            query = QueryBuilders.wrapperQuery(qptArgs.get(ElasticsearchQueryPassthrough.QUERY));
+        }
+        else {
+            domain = recordsRequest.getTableName().getSchemaName();
+            query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
+        }
 
-        String domain = recordsRequest.getTableName().getSchemaName();
         String endpoint = recordsRequest.getSplit().getProperty(domain);
         String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
         String index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
@@ -154,7 +168,7 @@ public class ElasticsearchRecordHandler
                         .size(QUERY_BATCH_SIZE)
                         .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
-                        .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints()));
+                        .query(query);
 
                 //init scroll
                 Scroll scroll = new Scroll(TimeValue.timeValueSeconds(this.scrollTimeout));

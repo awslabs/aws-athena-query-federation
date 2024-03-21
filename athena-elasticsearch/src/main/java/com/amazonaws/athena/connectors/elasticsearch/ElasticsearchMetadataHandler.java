@@ -26,6 +26,8 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -36,7 +38,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.elasticsearch.ptf.ElasticsearchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -110,8 +114,9 @@ public class ElasticsearchMetadataHandler
     private final ElasticsearchDomainMapProvider domainMapProvider;
 
     private ElasticsearchGlueTypeMapper glueTypeMapper;
+    private final ElasticsearchQueryPassthrough queryPassthrough = new ElasticsearchQueryPassthrough();
 
-    public ElasticsearchMetadataHandler(java.util.Map<String, String> configOptions)
+    public ElasticsearchMetadataHandler(Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
@@ -134,7 +139,7 @@ public class ElasticsearchMetadataHandler
         ElasticsearchDomainMapProvider domainMapProvider,
         AwsRestHighLevelClientFactory clientFactory,
         long queryTimeout,
-        java.util.Map<String, String> configOptions)
+        Map<String, String> configOptions)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
@@ -285,9 +290,14 @@ public class ElasticsearchMetadataHandler
             throws IOException
     {
         logger.debug("doGetSplits: enter - " + request);
-
+        String domain;
         // Get domain
-        String domain = request.getTableName().getSchemaName();
+        if (request.getConstraints().isQueryPassThrough()) {
+            domain = request.getConstraints().getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA);
+        }
+        else {
+            domain = request.getTableName().getSchemaName();
+        }
 
         String endpoint = getDomainEndpoint(domain);
         AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
@@ -303,6 +313,31 @@ public class ElasticsearchMetadataHandler
                 .collect(Collectors.toSet());
 
         return new GetSplitsResponse(request.getCatalogName(), splits);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        logger.debug("doGetQueryPassthroughSchema: enter - " + request);
+        GetTableRequest qptRequest;
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+        }
+        else {
+            qptRequest = new GetTableRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
+                    new TableName(request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA), request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX)),
+                    request.getQueryPassthroughArguments());
+        }
+        return doGetTable(allocator, qptRequest);
     }
 
     /**

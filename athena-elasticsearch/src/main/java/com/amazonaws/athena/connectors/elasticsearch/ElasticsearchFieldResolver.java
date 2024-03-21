@@ -38,7 +38,7 @@ import java.util.Map;
 
 /**
  * Used to resolve Elasticsearch complex structures to Apache Arrow Types.
- * @see com.amazonaws.athena.connector.lambda.data.FieldResolver
+ * @see FieldResolver
  */
 public class ElasticsearchFieldResolver
         implements FieldResolver
