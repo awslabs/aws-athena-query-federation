@@ -63,7 +63,7 @@ public final class ClickHouseUtil
                 if (resultSet.next()) {
                     throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
                 }
-                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
+                LOGGER.debug("Resolved name from Case Insensitive look up : {}", resolvedName);
             }
             else {
                 throw new RuntimeException(String.format("During TABLE Case Insensitive look up could not find Table '%s' in Database '%s'", tableName, databaseName));
@@ -112,7 +112,7 @@ public final class ClickHouseUtil
             }
         }
         catch (SQLException ex) {
-            LOGGER.info("Unable to return list of {} from data source!", tableType);
+            LOGGER.warn("Unable to return list of {} from data source!", tableType);
         }
         return list.build();
     }

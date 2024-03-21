@@ -7,52 +7,18 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-clickhouse</artifactId>
-    <version>2022.47.1</version>
+    <version>2024.10.1</version>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.47.1</version>
+            <version>2024.10.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-mysql</artifactId>
-            <version>2022.47.1</version>
+            <version>2024.10.1</version>
         </dependency>
-        <!--
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>${protobuf3.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <version>8.3.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.google.protobuf</groupId>
-                    <artifactId>protobuf-java</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.clickhouse</groupId>
-            <artifactId>clickhouse-jdbc</artifactId>
-            <version>0.6.0</version>
-            <classifier>all</classifier>
-        </dependency>
-        <dependency>
-            <groupId>cc.blynk.clickhouse</groupId>
-            <artifactId>clickhouse4j</artifactId>
-            <version>1.4.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.housepower</groupId>
-            <artifactId>clickhouse-native-jdbc</artifactId>
-            <version>2.7.1</version>
-        </dependency>
-        -->
         <dependency>
             <groupId>com.clickhouse</groupId>
             <artifactId>clickhouse-jdbc</artifactId>
@@ -62,7 +28,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.47.1</version>
+            <version>2024.10.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -108,11 +74,5 @@
                 </executions>
             </plugin>
         </plugins>
-    </build>
-    <repositories>
-        <repository>
-            <id>redshift</id>
-            <url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
-        </repository>
-    </repositories>
+    </build>  
 </project>
