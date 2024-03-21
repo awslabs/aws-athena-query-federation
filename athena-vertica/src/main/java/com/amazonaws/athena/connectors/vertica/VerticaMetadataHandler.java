@@ -222,7 +222,6 @@ public class VerticaMetadataHandler
     public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
             throws Exception
     {
-        System.out.println("inside doGetQueryPassthroughSchema =========");
         if (!getTableRequest.isQueryPassthrough()) {
             throw new IllegalArgumentException("No Query passed through [{}]" + getTableRequest);
         }
