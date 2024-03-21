@@ -46,11 +46,17 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobStatistics;
+import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
@@ -71,12 +77,15 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.translateToArrowType;
+import static com.google.cloud.bigquery.JobStatistics.QueryStatistics.StatementType.SELECT;
 
 public class BigQueryMetadataHandler
     extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
     private final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID);
+
+    private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
 
     BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -103,6 +112,7 @@ public class BigQueryMetadataHandler
                 LimitPushdownSubType.INTEGER_CONSTANT
         ));
 
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
@@ -174,6 +184,32 @@ public class BigQueryMetadataHandler
         return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), tableSchema);
     }
 
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+        }
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String query = request.getQueryPassthroughArguments().get(BigQueryQueryPassthrough.QUERY);
+        BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+        QueryJobConfiguration queryConfig =
+                QueryJobConfiguration.newBuilder(query).setDryRun(true).setUseQueryCache(false).build();
+
+        Job job = bigquery.create(JobInfo.of(queryConfig));
+        JobStatistics.QueryStatistics statistics = job.getStatistics();
+        if (!statistics.getStatementType().equals(SELECT)) {
+            throw new IllegalArgumentException("Unsupported statement type: " + statistics.getStatementType());
+        }
+        com.google.cloud.bigquery.Schema bigQuerySchema = statistics.getSchema();
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        List<String> timeStampColsList = new ArrayList<>();
+
+        convertBigQuerySchema(bigQuerySchema, timeStampColsList, schemaBuilder);
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schemaBuilder.build());
+    }
+
     /**
      * Currently not supporting Partitions since Bigquery having quota limits with triggering concurrent queries and having bit complexity to extract and use the partitions
      * in the query instead we are using limit and offset for non constraints query with basic concurrency limit
@@ -222,7 +258,21 @@ public class BigQueryMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         List<String> timeStampColsList = new ArrayList<>();
 
-        for (Field field : tableDefinition.getSchema().getFields()) {
+        convertBigQuerySchema(tableDefinition.getSchema(), timeStampColsList, schemaBuilder);
+        schemaBuilder.addMetadata("timeStampCols", timeStampColsList.toString());
+        logger.debug("BigQuery table schema {}", schemaBuilder.toString());
+        return schemaBuilder.build();
+    }
+
+    /**
+     * Responsible for converting BigQuery Schema to schema builder
+     * @param bigQuerySchema
+     * @param timeStampColsList
+     * @param schemaBuilder
+     */
+    private void convertBigQuerySchema(com.google.cloud.bigquery.Schema bigQuerySchema, List<String> timeStampColsList, SchemaBuilder schemaBuilder)
+    {
+        for (Field field : bigQuerySchema.getFields()) {
             if (field.getType().getStandardType().toString().equals("TIMESTAMP")) {
                 timeStampColsList.add(field.getName());
             }
@@ -241,8 +291,5 @@ public class BigQueryMetadataHandler
                 schemaBuilder.addField(field.getName(), translateToArrowType(field.getType()));
             }
         }
-        schemaBuilder.addMetadata("timeStampCols", timeStampColsList.toString());
-        logger.debug("BigQuery table schema {}", schemaBuilder.toString());
-        return schemaBuilder.build();
     }
 }

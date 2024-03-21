@@ -44,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.bson.Document;
+import org.bson.json.JsonParseException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -212,6 +213,21 @@ public final class QueryUtils
         return orPredicate(disjuncts.stream()
                 .map(disjunct -> new Document(name, disjunct))
                 .collect(toList()));
+    }
+
+    /**
+     * Parses DocDB/MongoDB Json Filter/Projection to confirm its valid and convert it to Doc
+     * @param filter json's based filter
+     * @return Document
+     */
+    public static Document parseFilter(String filter)
+    {
+        try {
+            return Document.parse(filter);
+        }
+        catch (JsonParseException e) {
+            throw new IllegalArgumentException("Can't parse 'filter' argument as json", e);
+        }
     }
 
     private static Document documentOf(String key, Object value)

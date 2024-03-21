@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
-import com.amazonaws.AmazonWebServiceRequest;
-import com.amazonaws.athena.connector.credentials.CrossAccountCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -31,30 +29,31 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.dynamodb.credentials.CrossAccountCredentialsProviderV2;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.QueryRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryResult;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
+import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -103,14 +102,14 @@ public class DynamoDBRecordHandler
     private static final TypeReference<HashMap<String, AttributeValue>> ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, AttributeValue>>() {};
 
     private final LoadingCache<String, ThrottlingInvoker> invokerCache;
-    private final AmazonDynamoDB ddbClient;
+    private final DynamoDbClient ddbClient;
 
     public DynamoDBRecordHandler(java.util.Map<String, String> configOptions)
     {
         super(sourceType, configOptions);
-        this.ddbClient = AmazonDynamoDBClientBuilder.standard()
-            .withCredentials(CrossAccountCredentialsProvider.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBRecordHandler_CrossAccountRoleSession"))
-            .build();
+        this.ddbClient = DynamoDbClient.builder()
+                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
+                .build();
         this.invokerCache = CacheBuilder.newBuilder().build(
             new CacheLoader<String, ThrottlingInvoker>() {
                 @Override
@@ -124,7 +123,7 @@ public class DynamoDBRecordHandler
     }
 
     @VisibleForTesting
-    DynamoDBRecordHandler(AmazonDynamoDB ddbClient, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
+    DynamoDBRecordHandler(DynamoDbClient ddbClient, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, sourceType, configOptions);
         this.ddbClient = ddbClient;
@@ -259,10 +258,15 @@ public class DynamoDBRecordHandler
         return rangeValues;
     }
 
+    private boolean isQueryRequest(Split split)
+    {
+        return split.getProperty(SEGMENT_ID_PROPERTY) == null;
+    }
+
     /*
-    Converts a split into a Query or Scan request
+    Converts a split into a Query
      */
-    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing)
+    private QueryRequest buildQueryRequest(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing, Map<String, AttributeValue> exclusiveStartKey)
     {
         validateExpectedMetadata(split.getProperties());
         // prepare filters
@@ -273,7 +277,7 @@ public class DynamoDBRecordHandler
         if (rangeKeyFilter != null || nonKeyFilter != null) {
             try {
                 expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
-                expressionAttributeValues.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_VALUES_METADATA), ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE));
+                expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {
                 throw new RuntimeException(e);
@@ -290,58 +294,89 @@ public class DynamoDBRecordHandler
                 })
                 .collect(Collectors.joining(","));
 
-        boolean isQuery = split.getProperty(SEGMENT_ID_PROPERTY) == null;
-
-        if (isQuery) {
-            // prepare key condition expression
-            String indexName = split.getProperty(INDEX_METADATA);
-            String hashKeyName = split.getProperty(HASH_KEY_NAME_METADATA);
-            String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName);
-            String keyConditionExpression = hashKeyAlias + " = " + HASH_KEY_VALUE_ALIAS;
-            if (rangeKeyFilter != null) {
-                if (rangeFilterHasIn(rangeKeyFilter)) {
-                    List<String> rangeKeyValues = getRangeValues(rangeKeyFilter);
-                    for (String value : rangeKeyValues) {
-                        expressionAttributeValues.remove(value);
-                    }
-                }
-                else {            
-                    keyConditionExpression += " AND " + rangeKeyFilter;
+        // prepare key condition expression
+        String indexName = split.getProperty(INDEX_METADATA);
+        String hashKeyName = split.getProperty(HASH_KEY_NAME_METADATA);
+        String hashKeyAlias = DDBPredicateUtils.aliasColumn(hashKeyName);
+        String keyConditionExpression = hashKeyAlias + " = " + HASH_KEY_VALUE_ALIAS;
+        if (rangeKeyFilter != null) {
+            if (rangeFilterHasIn(rangeKeyFilter)) {
+                List<String> rangeKeyValues = getRangeValues(rangeKeyFilter);
+                for (String value : rangeKeyValues) {
+                    expressionAttributeValues.remove(value);
                 }
             }
-            expressionAttributeNames.put(hashKeyAlias, hashKeyName);
-            expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class));
-
-            QueryRequest queryRequest = new QueryRequest()
-                    .withTableName(tableName)
-                    .withIndexName(indexName)
-                    .withKeyConditionExpression(keyConditionExpression)
-                    .withFilterExpression(nonKeyFilter)
-                    .withExpressionAttributeNames(expressionAttributeNames)
-                    .withExpressionAttributeValues(expressionAttributeValues)
-                    .withProjectionExpression(projectionExpression);
-            if (canApplyLimit(constraints)) {
-                queryRequest.setLimit((int) constraints.getLimit());
+            else {
+                keyConditionExpression += " AND " + rangeKeyFilter;
             }
-            return queryRequest;
         }
-        else {
-            int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
-            int segmentCount = Integer.parseInt(split.getProperty(SEGMENT_COUNT_METADATA));
+        expressionAttributeNames.put(hashKeyAlias, hashKeyName);
 
-            ScanRequest scanRequest = new ScanRequest()
-                    .withTableName(tableName)
-                    .withSegment(segmentId)
-                    .withTotalSegments(segmentCount)
-                    .withFilterExpression(nonKeyFilter)
-                    .withExpressionAttributeNames(expressionAttributeNames.isEmpty() ? null : expressionAttributeNames)
-                    .withExpressionAttributeValues(expressionAttributeValues.isEmpty() ? null : expressionAttributeValues)
-                    .withProjectionExpression(projectionExpression);
-            if (canApplyLimit(constraints)) {
-                scanRequest.setLimit((int) constraints.getLimit());
-            }
-            return scanRequest;
+        AttributeValue hashKeyAttribute = DDBTypeUtils.jsonToAttributeValue(split.getProperty(hashKeyName), hashKeyName);
+        expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, hashKeyAttribute);
+
+        QueryRequest.Builder queryRequestBuilder = QueryRequest.builder()
+                .tableName(tableName)
+                .indexName(indexName)
+                .keyConditionExpression(keyConditionExpression)
+                .filterExpression(nonKeyFilter)
+                .expressionAttributeNames(expressionAttributeNames)
+                .expressionAttributeValues(expressionAttributeValues)
+                .projectionExpression(projectionExpression)
+                .exclusiveStartKey(exclusiveStartKey);
+        if (canApplyLimit(constraints)) {
+            queryRequestBuilder.limit((int) constraints.getLimit());
         }
+        return queryRequestBuilder.build();
+    }
+
+    /*
+    Converts a split into a Scan Request
+    */
+    private ScanRequest buildScanRequest(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing, Map<String, AttributeValue> exclusiveStartKey)
+    {
+        validateExpectedMetadata(split.getProperties());
+        // prepare filters
+        String rangeKeyFilter = split.getProperty(RANGE_KEY_FILTER_METADATA);
+        String nonKeyFilter = split.getProperty(NON_KEY_FILTER_METADATA);
+        Map<String, String> expressionAttributeNames = new HashMap<>();
+        Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
+        if (rangeKeyFilter != null || nonKeyFilter != null) {
+            try {
+                expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
+                expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        // Only read columns that are needed in the query
+        String projectionExpression = disableProjectionAndCasing ? null : schema.getFields()
+                .stream()
+                .map(field -> {
+                    String aliasedName = DDBPredicateUtils.aliasColumn(field.getName());
+                    expressionAttributeNames.put(aliasedName, field.getName());
+                    return aliasedName;
+                })
+                .collect(Collectors.joining(","));
+
+        int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
+        int segmentCount = Integer.parseInt(split.getProperty(SEGMENT_COUNT_METADATA));
+
+        ScanRequest.Builder scanRequestBuilder = ScanRequest.builder()
+                .tableName(tableName)
+                .segment(segmentId)
+                .totalSegments(segmentCount)
+                .filterExpression(nonKeyFilter)
+                .expressionAttributeNames(expressionAttributeNames.isEmpty() ? null : expressionAttributeNames)
+                .expressionAttributeValues(expressionAttributeValues.isEmpty() ? null : expressionAttributeValues)
+                .projectionExpression(projectionExpression)
+                .exclusiveStartKey(exclusiveStartKey);
+        if (canApplyLimit(constraints)) {
+            scanRequestBuilder.limit((int) constraints.getLimit());
+        }
+        return scanRequestBuilder.build();
     }
 
     /*
@@ -349,7 +384,6 @@ public class DynamoDBRecordHandler
      */
     private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing)
     {
-        AmazonWebServiceRequest request = buildReadRequest(split, tableName, schema, constraints, disableProjectionAndCasing);
         return new Iterator<Map<String, AttributeValue>>() {
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
             AtomicReference<Iterator<Map<String, AttributeValue>>> currentPageIterator = new AtomicReference<>();
@@ -359,7 +393,7 @@ public class DynamoDBRecordHandler
             {
                 return currentPageIterator.get() == null
                         || currentPageIterator.get().hasNext()
-                        || lastKeyEvaluated.get() != null;
+                        || ((lastKeyEvaluated.get() != null && !lastKeyEvaluated.get().isEmpty()));
             }
 
             @Override
@@ -370,19 +404,19 @@ public class DynamoDBRecordHandler
                 }
                 Iterator<Map<String, AttributeValue>> iterator;
                 try {
-                    if (request instanceof QueryRequest) {
-                        QueryRequest paginatedRequest = ((QueryRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
+                    if (isQueryRequest(split)) {
+                        QueryRequest request = buildQueryRequest(split, tableName, schema, constraints, disableProjectionAndCasing, lastKeyEvaluated.get());
                         logger.info("Invoking DDB with Query request: {}", request);
-                        QueryResult queryResult = invokerCache.get(tableName).invoke(() -> ddbClient.query(paginatedRequest));
-                        lastKeyEvaluated.set(queryResult.getLastEvaluatedKey());
-                        iterator = queryResult.getItems().iterator();
+                        QueryResponse response = invokerCache.get(tableName).invoke(() -> ddbClient.query(request));
+                        lastKeyEvaluated.set(response.lastEvaluatedKey());
+                        iterator = response.items().iterator();
                     }
                     else {
-                        ScanRequest paginatedRequest = ((ScanRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
+                        ScanRequest request = buildScanRequest(split, tableName, schema, constraints, disableProjectionAndCasing, lastKeyEvaluated.get());
                         logger.info("Invoking DDB with Scan request: {}", request);
-                        ScanResult scanResult = invokerCache.get(tableName).invoke(() -> ddbClient.scan(paginatedRequest));
-                        lastKeyEvaluated.set(scanResult.getLastEvaluatedKey());
-                        iterator = scanResult.getItems().iterator();
+                        ScanResponse response = invokerCache.get(tableName).invoke(() -> ddbClient.scan(request));
+                        lastKeyEvaluated.set(response.lastEvaluatedKey());
+                        iterator = response.items().iterator();
                     }
                 }
                 catch (TimeoutException | ExecutionException e) {
