@@ -105,6 +105,7 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExceptionFilter.EXCEPTION_FILTER;
+import static com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils.SCHEMA_INFERENCE_NUM_RECORDS;
 
 /**
  * Handles metadata requests for the Athena DynamoDB Connector.
@@ -262,7 +263,7 @@ public class DynamoDBMetadataHandler
         ExecuteStatementRequest executeStatementRequest =
                 ExecuteStatementRequest.builder()
                         .statement(partiQLStatement)
-                        .limit(4)
+                        .limit(SCHEMA_INFERENCE_NUM_RECORDS)
                         .build();
         //PartiQL on DynamoDB Doesn't allow a dry run; therefore, we look "Peek" over the first few records
         ExecuteStatementResponse response = ddbClient.executeStatement(executeStatementRequest);

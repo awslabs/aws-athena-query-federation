@@ -85,7 +85,7 @@ public class DDBQueryPassthrough implements QueryPassthroughSignature
 
         // Check if the statement contains any disallowed keywords
         for (String keyword : disallowedKeywords) {
-            if (upperCaseStatement.contains(" " + keyword + " ") || upperCaseStatement.startsWith(keyword + " ")) {
+            if (upperCaseStatement.contains(keyword)) {
                 throw new UnsupportedOperationException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword);
             }
         }
