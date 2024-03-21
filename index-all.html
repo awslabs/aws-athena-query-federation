@@ -1681,6 +1681,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Downloads the truststore and keystore certificates from S3 to temp directory.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html#copyConfigFilesFromS3ToTempFolder(java.util.Map)">copyConfigFilesFromS3ToTempFolder(Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseKerberosUtils</a></dt>
+<dd>
+<div class="block">Downloads the config files from S3 to temp directory.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.html#copyOf(org.apache.arrow.vector.types.pojo.ArrowType,java.util.List,boolean)">copyOf(ArrowType, List&lt;Range&gt;, boolean)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">SortedRangeSet</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html#copyRows(com.amazonaws.athena.connector.lambda.data.Block,com.amazonaws.athena.connector.lambda.data.Block,int,int)">copyRows(Block, Block, int, int)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockUtils</a></dt>
@@ -6237,6 +6241,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#HBASE_NATIVE_STORAGE_FLAG">HBASE_NATIVE_STORAGE_FLAG</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html#HBASE_RPC_PROTECTION">HBASE_RPC_PROTECTION</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseKerberosUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/HbaseCompositeHandler.html" title="class in com.amazonaws.athena.connectors.hbase"><span class="typeNameLink">HbaseCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a></dt>
 <dd>
 <div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -6281,6 +6287,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">This Lambda function handler is only used within the HBase integration tests.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html#%3Cinit%3E()">HbaseIntegTestHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseIntegTestHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html" title="class in com.amazonaws.athena.connectors.hbase"><span class="typeNameLink">HbaseKerberosUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase"><span class="typeNameLink">HbaseMetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a></dt>
 <dd>
@@ -6957,6 +6965,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/kafka/KafkaUtils.html" title="class in com.amazonaws.athena.connectors.kafka"><span class="typeNameLink">KafkaUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/kafka/package-summary.html">com.amazonaws.athena.connectors.kafka</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html#KERBEROS_AUTH_ENABLED">KERBEROS_AUTH_ENABLED</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseKerberosUtils</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html#KERBEROS_CONFIG_FILES_S3_REFERENCE">KERBEROS_CONFIG_FILES_S3_REFERENCE</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseKerberosUtils</a></dt>
+<dd>
+<div class="block">For Kerberos authentication, user need to give S3 bucket reference where the config
+ files are uploaded.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/AesGcmBlockCrypto.html#KEY_BYTES">KEY_BYTES</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/AesGcmBlockCrypto.html" title="class in com.amazonaws.athena.connector.lambda.security">AesGcmBlockCrypto</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#KEY_COLUMN_NAME">KEY_COLUMN_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
@@ -8102,6 +8117,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Encapsulates prepared statement string and parameters.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/PreparedStatementBuilder.html#%3Cinit%3E()">PreparedStatementBuilder()</a></span> - Constructor for class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/PreparedStatementBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">PreparedStatementBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html#PRINCIPAL_NAME">PRINCIPAL_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseKerberosUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/AWSRequestSigningApacheInterceptor.html#process(org.apache.http.HttpRequest,org.apache.http.protocol.HttpContext)">process(HttpRequest, HttpContext)</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/AWSRequestSigningApacheInterceptor.html" title="class in com.amazonaws.athena.connectors.elasticsearch">AWSRequestSigningApacheInterceptor</a></dt>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html#processQuery(java.lang.String)">processQuery(String)</a></span> - Method in class com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integ">IntegrationTestBase</a></dt>
@@ -9812,6 +9829,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#TABLES_AND_VIEWS">TABLES_AND_VIEWS</a></span> - Static variable in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html#TEMP_DIR">TEMP_DIR</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseKerberosUtils</a></dt>
+<dd>
+<div class="block">This is temp folder where the kerberos config files from S3 will be downloaded</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/KafkaConstants.html#TEMP_DIR">TEMP_DIR</a></span> - Static variable in class com.amazonaws.athena.connectors.kafka.<a href="com/amazonaws/athena/connectors/kafka/KafkaConstants.html" title="class in com.amazonaws.athena.connectors.kafka">KafkaConstants</a></dt>
 <dd>
 <div class="block">This is temp folder where the certificates from S3 will be downloaded</div>
