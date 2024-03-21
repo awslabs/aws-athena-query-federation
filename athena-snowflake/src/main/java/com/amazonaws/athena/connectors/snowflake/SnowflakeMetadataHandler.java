@@ -58,6 +58,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -78,6 +79,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -103,6 +105,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             "WHERE  table_type = 'BASE TABLE'\n" +
             "AND table_schema= ?\n" +
             "AND TABLE_NAME = ? ";
+    static final String SHOW_PRIMARY_KEYS_QUERY = "SHOW PRIMARY KEYS IN ";
+    static final String PRIMARY_KEY_COLUMN_NAME = "column_name";
+    static final String COUNTS_COLUMN_NAME = "COUNTS";
     private static final String CASE_UPPER = "upper";
     private static final String CASE_LOWER = "lower";
     /**
@@ -178,6 +183,48 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 .addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
         return schemaBuilder.build();
     }
+
+    private Optional<String> getPrimaryKey(TableName tableName) throws Exception 
+    {
+        String primaryKey = "";
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + tableName.getTableName());
+                ResultSet rs = preparedStatement.executeQuery()) {
+                while (rs.next()) {
+                    // Concatenate multiple primary keys if they exist
+                    primaryKey += rs.getString(PRIMARY_KEY_COLUMN_NAME) + ", ";
+                }
+            }
+        }
+        primaryKey = primaryKey.replaceAll(", $", "");
+        if (!Strings.isNullOrEmpty(primaryKey) && hasUniquePrimaryKey(tableName, primaryKey)) {
+            return Optional.of(primaryKey);
+        }
+        return Optional.empty(); 
+    }
+
+    /**
+    * Snowflake does not enforce primary key constraints, so we double-check user has unique primary key
+    * before partitioning.
+    */
+    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception 
+    {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + tableName.getTableName() + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC"); 
+                 ResultSet rs = preparedStatement.executeQuery()) {
+                while (rs.next()) {
+                    if (rs.getInt(COUNTS_COLUMN_NAME) == 1) {
+                        // Since it is in descending order and 1 is this first count seen, 
+                        // this table has a unique primary key 
+                        return true;
+                    }   
+                }
+            }
+        }
+        LOGGER.warn("Primary key ,{}, is not unique. Falling back to single partition...", primaryKey);
+        return false;
+    }
+
     /**
      * Snowflake manual partition logic based upon number of records
      * @param blockWriter
@@ -217,18 +264,19 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     totalRecordCount = rs.getLong(1);
                 }
                 if (totalRecordCount > 0) {
-                    long pageCount = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
-                    long partitionRecordCount = (totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT) ? (long) totalRecordCount : pageCount;
-                    LOGGER.info(" Total Page  Count" +  partitionRecordCount);
-                    double limit = (int) Math.ceil(totalRecordCount / partitionRecordCount);
+                    Optional<String> primaryKey = getPrimaryKey(getTableLayoutRequest.getTableName());
+                    long recordsInPartition = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
+                    long partitionRecordCount = (totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT || !primaryKey.isPresent()) ? (long) totalRecordCount : recordsInPartition;
+                    LOGGER.info(" Total Page Count: " +  partitionRecordCount);
+                    double numberOfPartitions = (int) Math.ceil(totalRecordCount / partitionRecordCount);
                     long offset = 0;
                     /**
                      * Custom pagination based partition logic will be applied with limit and offset clauses.
                      * It will have maximum 50 partitions and number of records in each partition is decided by dividing total number of records by 50
                      * the partition values we are setting the limit and offset values like p-limit-3000-offset-0
                      */
-                    for (int i = 1; i <= limit; i++) {
-                        final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + partitionRecordCount + "-offset-" + offset;
+                    for (int i = 1; i <= numberOfPartitions; i++) { 
+                        final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-primary-" + primaryKey.orElse("") + "-limit-" + partitionRecordCount + "-offset-" + offset;
                         LOGGER.info("partitionVal {} ", partitionVal);
                         blockWriter.writeRows((Block block, int rowNum) ->
                         {

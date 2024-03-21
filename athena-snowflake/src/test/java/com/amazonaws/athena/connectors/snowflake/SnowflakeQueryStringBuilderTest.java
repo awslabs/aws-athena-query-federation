@@ -41,7 +41,7 @@ public class SnowflakeQueryStringBuilderTest
         Split split = Mockito.mock(Split.class);
         SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
         Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p1-p2-p3-p4-p5");
+        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p1-p2-p3-p4-p5-p6-p7");
         builder.getFromClauseWithSplit("default", "", "table", split);
         builder.appendLimitOffset(split);
     }
