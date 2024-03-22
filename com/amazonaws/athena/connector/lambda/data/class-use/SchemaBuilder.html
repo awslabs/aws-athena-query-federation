@@ -131,10 +131,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
-<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.redis">com.amazonaws.athena.connectors.redis</a></th>
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.dynamodb.util">com.amazonaws.athena.connectors.dynamodb.util</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.redis">com.amazonaws.athena.connectors.redis</a></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -435,6 +439,30 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                       <a href="../../metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request)</code></th>
 <td class="colLast">
 <div class="block">Generates a partition schema with metadata derived from available predicates.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+</li>
+<li class="blockList">
+<section><a id="com.amazonaws.athena.connectors.dynamodb.util">
+<!--   -->
+</a>
+<h3>Uses of <a href="../SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a> in <a href="../../../../connectors/dynamodb/util/package-summary.html">com.amazonaws.athena.connectors.dynamodb.util</a></h3>
+<table class="useSummary">
+<caption><span>Methods in <a href="../../../../connectors/dynamodb/util/package-summary.html">com.amazonaws.athena.connectors.dynamodb.util</a> that return <a href="../SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Method</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>static <a href="../SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">DDBTableUtils.</span><code><span class="memberNameLink"><a href="../../../../connectors/dynamodb/util/DDBTableUtils.html#buildSchemaFromItems(java.util.List)">buildSchemaFromItems</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;software.amazon.awssdk.services.dynamodb.model.AttributeValue&gt;&gt;&nbsp;items)</code></th>
+<td class="colLast">
+<div class="block">A utility method that takes a list of items, and returns a schema builder</div>
 </td>
 </tr>
 </tbody>

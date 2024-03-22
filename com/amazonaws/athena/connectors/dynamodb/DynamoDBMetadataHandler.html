@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -250,6 +250,22 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 </td>
 </tr>
 <tr id="i1" class="rowColor">
+<td class="colFirst"><code><a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesResponse</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                           <a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesRequest</a>&nbsp;request)</code></th>
+<td class="colLast">
+<div class="block">Used to describe the types of capabilities supported by a data source.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code><a href="../../connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                           <a href="../../connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code></th>
+<td class="colLast">
+<div class="block">Used to get definition (field names, types, descriptions, etc...) of a Query PassThrough.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="../../connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
            <a href="../../connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code></th>
@@ -257,7 +273,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <div class="block">Copies data from partitions and creates splits, serializing as necessary for later calls to RecordHandler#readWithContraint.</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code><a href="../../connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
           <a href="../../connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code></th>
@@ -266,7 +282,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
  back to doing a small table scan derives a schema from that.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="../../connector/lambda/metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                  <a href="../../connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)</code></th>
@@ -275,7 +291,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
  disabled) that contain <a href="#DYNAMO_DB_FLAG">"dynamo-db-flag"</a> in their URIs .</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="../../connector/lambda/metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
             <a href="../../connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;request)</code></th>
@@ -283,7 +299,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <div class="block">Lists all Glue tables (if not disabled) in the schema specified that indicate use for DynamoDB metadata.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#enhancePartitionSchema(com.amazonaws.athena.connector.lambda.data.SchemaBuilder,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">enhancePartitionSchema</a></span>&#8203;(<a href="../../connector/lambda/data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a>&nbsp;partitionSchemaBuilder,
                       <a href="../../connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request)</code></th>
@@ -291,7 +307,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <div class="block">Generates a partition schema with metadata derived from available predicates.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a></span>&#8203;(<a href="../../connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../../connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
@@ -314,7 +330,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connector.lambda.handlers.<a href="../../connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></h3>
-<code><a href="../../connector/lambda/handlers/MetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#doGetTableLayout(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">doGetTableLayout</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#doHandleRequest(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.fasterxml.jackson.databind.ObjectMapper,com.amazonaws.athena.connector.lambda.metadata.MetadataRequest,java.io.OutputStream)">doHandleRequest</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#doPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">doPing</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#getSecret(java.lang.String)">getSecret</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#makeEncryptionKey()">makeEncryptionKey</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#makeSpillLocation(com.amazonaws.athena.connector.lambda.metadata.MetadataRequest)">makeSpillLocation</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#onPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">onPing</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#resolveSecrets(java.lang.String)">resolveSecrets</a></code></li>
+<code><a href="../../connector/lambda/handlers/MetadataHandler.html#doGetTableLayout(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">doGetTableLayout</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#doHandleRequest(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.fasterxml.jackson.databind.ObjectMapper,com.amazonaws.athena.connector.lambda.metadata.MetadataRequest,java.io.OutputStream)">doHandleRequest</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#doPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">doPing</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#getSecret(java.lang.String)">getSecret</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#makeEncryptionKey()">makeEncryptionKey</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#makeSpillLocation(com.amazonaws.athena.connector.lambda.metadata.MetadataRequest)">makeSpillLocation</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#onPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">onPing</a>, <a href="../../connector/lambda/handlers/MetadataHandler.html#resolveSecrets(java.lang.String)">resolveSecrets</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -358,6 +374,30 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <!--   -->
 </a>
 <h3>Method Detail</h3>
+<a id="doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>doGetDataSourceCapabilities</h4>
+<pre class="methodSignature">public&nbsp;<a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesResponse</a>&nbsp;doGetDataSourceCapabilities&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                                                                     <a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesRequest</a>&nbsp;request)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../../connector/lambda/handlers/MetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">MetadataHandler</a></code></span></div>
+<div class="block">Used to describe the types of capabilities supported by a data source. An engine can use this to determine what
+ portions of the query to push down. A connector that returns any optimization will guarantee that the associated
+ predicate will be pushed down.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="../../connector/lambda/handlers/MetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities</a></code>&nbsp;in class&nbsp;<code><a href="../../connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>allocator</code> - Tool for creating and managing Apache Arrow Blocks.</dd>
+<dd><code>request</code> - Provides details about the catalog being used.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>A GetDataSourceCapabilitiesResponse object which returns a map of supported optimizations that
+ the connector is advertising to the consumer. The connector assumes all responsibility for whatever is passed here.</dd>
+</dl>
+</li>
+</ul>
 <a id="doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">
 <!--   -->
 </a>
@@ -413,6 +453,32 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><code>GlueMetadataHandler</code></a></dd>
+</dl>
+</li>
+</ul>
+<a id="doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>doGetQueryPassthroughSchema</h4>
+<pre class="methodSignature">public&nbsp;<a href="../../connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a>&nbsp;doGetQueryPassthroughSchema&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                                                    <a href="../../connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)
+                                             throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../../connector/lambda/handlers/MetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">MetadataHandler</a></code></span></div>
+<div class="block">Used to get definition (field names, types, descriptions, etc...) of a Query PassThrough.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="../../connector/lambda/handlers/MetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema</a></code>&nbsp;in class&nbsp;<code><a href="../../connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>allocator</code> - Tool for creating and managing Apache Arrow Blocks.</dd>
+<dd><code>request</code> - Provides details on who made the request and which Athena catalog, database, and table they are querying.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>A GetTableResponse which primarily contains:
+ 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
+ 2. A Set<String> of partition column names (or empty if the table isn't partitioned).</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
 </dl>
 </li>
 </ul>

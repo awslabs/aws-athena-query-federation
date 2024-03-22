@@ -384,6 +384,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Apply a map of properties to the split</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#ARGUMENTS">ARGUMENTS</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#ARGUMENTS">ARGUMENTS</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#ARGUMENTS">ARGUMENTS</a></span> - Static variable in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
@@ -856,6 +858,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html#buildQueryPassthroughSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">buildQueryPassthroughSql(Connection, Constraints)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTableUtils.html#buildSchemaFromItems(java.util.List)">buildSchemaFromItems(List&lt;Map&lt;String, AttributeValue&gt;&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTableUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTableUtils</a></dt>
+<dd>
+<div class="block">A utility method that takes a list of items, and returns a schema builder</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#buildSetAwsRegionSql(java.lang.String)">buildSetAwsRegionSql(String)</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveRecordHandler.html#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql(Connection, String, TableName, Schema, Constraints, Split)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveRecordHandler.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveRecordHandler</a></dt>
@@ -1315,6 +1321,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/credentials/package-summary.html">com.amazonaws.athena.connectors.dynamodb.credentials</a> - package com.amazonaws.athena.connectors.dynamodb.credentials</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/model/package-summary.html">com.amazonaws.athena.connectors.dynamodb.model</a> - package com.amazonaws.athena.connectors.dynamodb.model</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/dynamodb/qpt/package-summary.html">com.amazonaws.athena.connectors.dynamodb.qpt</a> - package com.amazonaws.athena.connectors.dynamodb.qpt</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/resolver/package-summary.html">com.amazonaws.athena.connectors.dynamodb.resolver</a> - package com.amazonaws.athena.connectors.dynamodb.resolver</dt>
 <dd>&nbsp;</dd>
@@ -1813,10 +1821,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Give the last Token returned by next()</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#customConnectorVerifications()">customConnectorVerifications()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#customConnectorVerifications(java.util.Map)">customConnectorVerifications(Map&lt;String, String&gt;)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></dt>
 <dd>
 <div class="block">Provides a mechanism to perform custom connector verification logic.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#customConnectorVerifications(java.util.Map)">customConnectorVerifications(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/neptune/propertygraph/rowwriters/CustomSchemaRowWriter.html" title="class in com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters"><span class="typeNameLink">CustomSchemaRowWriter</span></a> - Class in <a href="com/amazonaws/athena/connectors/neptune/propertygraph/rowwriters/package-summary.html">com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters</a></dt>
 <dd>
 <div class="block">This class is a Utility class to create Extractors for each field type as per
@@ -2082,6 +2092,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Provides utility methods relating to predicate handling.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt"><span class="typeNameLink">DDBQueryPassthrough</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/qpt/package-summary.html">com.amazonaws.athena.connectors.dynamodb.qpt</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#%3Cinit%3E()">DDBQueryPassthrough()</a></span> - Constructor for class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util"><span class="typeNameLink">DDBRecordMetadata</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/util/package-summary.html">com.amazonaws.athena.connectors.dynamodb.util</a></dt>
 <dd>
 <div class="block">This is primarily used for passing any table metadata that applies to the records when normalizing the data</div>
@@ -2518,6 +2532,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBMetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities(BlockAllocator, GetDataSourceCapabilitiesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/DynamoDBMetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities(BlockAllocator, GetDataSourceCapabilitiesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.<a href="com/amazonaws/athena/connectors/dynamodb/DynamoDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.dynamodb">DynamoDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/example/ExampleMetadataHandler.html#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities(BlockAllocator, GetDataSourceCapabilitiesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.example.<a href="com/amazonaws/athena/connectors/example/ExampleMetadataHandler.html" title="class in com.amazonaws.athena.connectors.example">ExampleMetadataHandler</a></dt>
 <dd>
 <div class="block">Used to describe the types of capabilities supported by a data source.</div>
@@ -2557,6 +2573,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Used to get definition (field names, types, descriptions, etc...) of a Query PassThrough.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/DynamoDBMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.<a href="com/amazonaws/athena/connectors/dynamodb/DynamoDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.dynamodb">DynamoDBMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryMetadataHandler.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
@@ -4536,6 +4554,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html#getFunctionArguments()">getFunctionArguments()</a></span> - Method in class com.amazonaws.athena.connectors.docdb.qpt.<a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.docdb.qpt">DocDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#getFunctionArguments()">getFunctionArguments()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#getFunctionArguments()">getFunctionArguments()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#getFunctionArguments()">getFunctionArguments()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
@@ -4552,6 +4572,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html#getFunctionName()">getFunctionName()</a></span> - Method in class com.amazonaws.athena.connectors.docdb.qpt.<a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.docdb.qpt">DocDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#getFunctionName()">getFunctionName()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#getFunctionName()">getFunctionName()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#getFunctionName()">getFunctionName()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
@@ -4561,6 +4583,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#getFunctionSchema()">getFunctionSchema()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html#getFunctionSchema()">getFunctionSchema()</a></span> - Method in class com.amazonaws.athena.connectors.docdb.qpt.<a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.docdb.qpt">DocDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#getFunctionSchema()">getFunctionSchema()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#getFunctionSchema()">getFunctionSchema()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
@@ -4689,6 +4713,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">note: due to needing to stay compatible with JDK8; we can't use JDK9 private method</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html#getLogger()">getLogger()</a></span> - Method in class com.amazonaws.athena.connectors.docdb.qpt.<a href="com/amazonaws/athena/connectors/docdb/qpt/DocDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.docdb.qpt">DocDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#getLogger()">getLogger()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#getLogger()">getLogger()</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
@@ -7582,6 +7608,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2as400/Db2As400Constants.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.db2as400.<a href="com/amazonaws/athena/connectors/db2as400/Db2As400Constants.html" title="class in com.amazonaws.athena.connectors.db2as400">Db2As400Constants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.jdbc.qpt.<a href="com/amazonaws/athena/connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></dt>
@@ -8179,6 +8207,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2Constants.html#QRY_TO_LIST_TABLES_AND_VIEWS">QRY_TO_LIST_TABLES_AND_VIEWS</a></span> - Static variable in class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2Constants.html" title="class in com.amazonaws.athena.connectors.db2">Db2Constants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2as400/Db2As400Constants.html#QRY_TO_LIST_TABLES_AND_VIEWS">QRY_TO_LIST_TABLES_AND_VIEWS</a></span> - Static variable in class com.amazonaws.athena.connectors.db2as400.<a href="com/amazonaws/athena/connectors/db2as400/Db2As400Constants.html" title="class in com.amazonaws.athena.connectors.db2as400">Db2As400Constants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#QUERY">QUERY</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#QUERY">QUERY</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
@@ -8826,7 +8856,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/Constants.html#SCHEMA_GLABEL">SCHEMA_GLABEL</a></span> - Static variable in class com.amazonaws.athena.connectors.neptune.<a href="com/amazonaws/athena/connectors/neptune/Constants.html" title="class in com.amazonaws.athena.connectors.neptune">Constants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTableUtils.html#SCHEMA_INFERENCE_NUM_RECORDS">SCHEMA_INFERENCE_NUM_RECORDS</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTableUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTableUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricsMetadataHandler.html#SCHEMA_NAME">SCHEMA_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricsMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricsMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html#SCHEMA_NAME">SCHEMA_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.qpt.<a href="com/amazonaws/athena/connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html#SCHEMA_NAME">SCHEMA_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.google.bigquery.qpt.<a href="com/amazonaws/athena/connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>

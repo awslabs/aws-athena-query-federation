@@ -125,7 +125,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <li class="blockList">
 <dl>
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="../../../../../connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></code>, <code><a href="../../../../../connectors/docdb/qpt/DocDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.docdb.qpt">DocDBQueryPassthrough</a></code>, <code><a href="../../../../../connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></code></dd>
+<dd><code><a href="../../../../../connectors/google/bigquery/qpt/BigQueryQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.google.bigquery.qpt">BigQueryQueryPassthrough</a></code>, <code><a href="../../../../../connectors/dynamodb/qpt/DDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.dynamodb.qpt">DDBQueryPassthrough</a></code>, <code><a href="../../../../../connectors/docdb/qpt/DocDBQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.docdb.qpt">DocDBQueryPassthrough</a></code>, <code><a href="../../../../../connectors/jdbc/qpt/JdbcQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.jdbc.qpt">JdbcQueryPassthrough</a></code></dd>
 </dl>
 <hr>
 <pre>public interface <span class="typeNameLabel">QueryPassthroughSignature</span></pre>
@@ -199,7 +199,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>default void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#customConnectorVerifications()">customConnectorVerifications</a></span>()</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#customConnectorVerifications(java.util.Map)">customConnectorVerifications</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;engineQptArguments)</code></th>
 <td class="colLast">
 <div class="block">Provides a mechanism to perform custom connector verification logic.</div>
 </td>
@@ -405,13 +405,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dl>
 </li>
 </ul>
-<a id="customConnectorVerifications()">
+<a id="customConnectorVerifications(java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>customConnectorVerifications</h4>
-<pre class="methodSignature">default&nbsp;void&nbsp;customConnectorVerifications()</pre>
+<pre class="methodSignature">default&nbsp;void&nbsp;customConnectorVerifications&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;engineQptArguments)</pre>
 <div class="block">Provides a mechanism to perform custom connector verification logic.</div>
 </li>
 </ul>
