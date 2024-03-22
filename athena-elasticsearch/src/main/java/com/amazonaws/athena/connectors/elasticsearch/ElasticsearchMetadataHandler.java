@@ -120,7 +120,7 @@ public class ElasticsearchMetadataHandler
         this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(configOptions.getOrDefault(DOMAIN_MAPPING, "")));
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
-        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, ""));
+        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, "10"));
     }
 
     @VisibleForTesting
