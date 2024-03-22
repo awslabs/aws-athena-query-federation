@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.dynamodb.credentials.CrossAccountCredentialsProviderV2;
+import com.amazonaws.athena.connectors.dynamodb.qpt.DDBQueryPassthrough;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
@@ -50,6 +51,8 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementResponse;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
@@ -104,6 +107,8 @@ public class DynamoDBRecordHandler
     private final LoadingCache<String, ThrottlingInvoker> invokerCache;
     private final DynamoDbClient ddbClient;
 
+    private final DDBQueryPassthrough queryPassthrough = new DDBQueryPassthrough();
+
     public DynamoDBRecordHandler(java.util.Map<String, String> configOptions)
     {
         super(sourceType, configOptions);
@@ -149,6 +154,11 @@ public class DynamoDBRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws ExecutionException
     {
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            logger.info("readWithConstraint for QueryPassthrough PartiQL Query");
+            handleQueryPassthroughPartiQLQuery(spiller, recordsRequest, queryStatusChecker);
+            return;
+        }
         Split split = recordsRequest.getSplit();
         // use the property instead of the request table name because of case sensitivity
         String tableName = split.getProperty(TABLE_METADATA);
@@ -190,7 +200,42 @@ public class DynamoDBRecordHandler
         }
 
         Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema(), recordsRequest.getConstraints(), disableProjectionAndCasing);
+        writeItemsToBlock(spiller, recordsRequest, queryStatusChecker, recordMetadata, itemIterator, disableProjectionAndCasing);
+    }
+
+    private void handleQueryPassthroughPartiQLQuery(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    {
+        if (!recordsRequest.getConstraints().isQueryPassThrough()) {
+            throw new RuntimeException("Attempting to readConstraints with Query Passthrough without PartiQL Query");
+        }
+        queryPassthrough.verify(recordsRequest.getConstraints().getQueryPassthroughArguments());
+
+        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
+
+        String partiQLStatement = recordsRequest.getConstraints().getQueryPassthroughArguments().get(DDBQueryPassthrough.QUERY);
+        ExecuteStatementRequest executeStatementRequest =
+                ExecuteStatementRequest.builder()
+                        .statement(partiQLStatement)
+                        .build();
+
+        ExecuteStatementResponse response = ddbClient.executeStatement(executeStatementRequest);
+
+        Iterator<Map<String, AttributeValue>> itemIterator = response.items().iterator();
+        writeItemsToBlock(spiller, recordsRequest, queryStatusChecker, recordMetadata, itemIterator, false);
+    }
+
+    private void writeItemsToBlock(
+            BlockSpiller spiller,
+            ReadRecordsRequest recordsRequest,
+            QueryStatusChecker queryStatusChecker,
+            DDBRecordMetadata recordMetadata,
+            Iterator<Map<String, AttributeValue>> itemIterator,
+            boolean disableProjectionAndCasing)
+    {
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
+
+        String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "auto").toLowerCase();
+        logger.info(DISABLE_PROJECTION_AND_CASING_ENV + " environment variable set to: " + disableProjectionAndCasingEnvValue);
 
         GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
         //register extract and field writer factory for each field.
