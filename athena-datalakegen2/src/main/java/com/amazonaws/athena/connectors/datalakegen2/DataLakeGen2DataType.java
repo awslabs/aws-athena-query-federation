@@ -22,50 +22,39 @@ package com.amazonaws.athena.connectors.datalakegen2;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 
 public enum DataLakeGen2DataType {
-    BIT("bit", Types.MinorType.TINYINT.getType()),
-    TINYINT("tinyint", Types.MinorType.SMALLINT.getType()),
-    NUMERIC("numeric", Types.MinorType.FLOAT8.getType()),
-    SMALLMONEY("smallmoney", Types.MinorType.FLOAT8.getType()),
-    DATE("date", Types.MinorType.DATEDAY.getType()),
-    DATETIME("datetime", Types.MinorType.DATEMILLI.getType()),
-    DATETIME2("datetime2", Types.MinorType.DATEMILLI.getType()),
-    SMALLDATETIME("smalldatetime", Types.MinorType.DATEMILLI.getType()),
-    DATETIMEOFFSET("datetimeoffset", Types.MinorType.DATEMILLI.getType());
+    BIT(Types.MinorType.TINYINT.getType()),
+    TINYINT(Types.MinorType.SMALLINT.getType()),
+    NUMERIC(Types.MinorType.FLOAT8.getType()),
+    SMALLMONEY(Types.MinorType.FLOAT8.getType()),
+    DATE(Types.MinorType.DATEDAY.getType()),
+    DATETIME(Types.MinorType.DATEMILLI.getType()),
+    DATETIME2(Types.MinorType.DATEMILLI.getType()),
+    SMALLDATETIME(Types.MinorType.DATEMILLI.getType()),
+    DATETIMEOFFSET(Types.MinorType.DATEMILLI.getType());
 
-    private static final Map<String, DataLakeGen2DataType> DATALAKE_GEN2_DATA_TYPE_MAP = new HashMap<>();
-
-    static {
-        for (DataLakeGen2DataType next : values()) {
-            DATALAKE_GEN2_DATA_TYPE_MAP.put(next.gen2Type, next);
-        }
-    }
-
-    private String gen2Type;
     private ArrowType arrowType;
 
-    DataLakeGen2DataType(String gen2Type, ArrowType arrowType)
+    DataLakeGen2DataType(ArrowType arrowType)
     {
-        this.gen2Type = gen2Type;
         this.arrowType = arrowType;
     }
 
     public static ArrowType fromType(String gen2Type)
     {
-        DataLakeGen2DataType result = DATALAKE_GEN2_DATA_TYPE_MAP.get(gen2Type);
+        DataLakeGen2DataType result = DataLakeGen2DataType.valueOf(gen2Type.toUpperCase());
         return result.arrowType;
     }
 
     public static boolean isSupported(String dataType)
     {
-        for (DataLakeGen2DataType dataLakeGen2DataType : values()) {
-            if (dataLakeGen2DataType.name().equalsIgnoreCase(dataType)) {
-                return true;
-            }
-        }
-        return false;
+        return Arrays.stream(values()).anyMatch(value -> value.name().equalsIgnoreCase(dataType));
+    }
+
+    public ArrowType getArrowType()
+    {
+        return this.arrowType;
     }
 }
