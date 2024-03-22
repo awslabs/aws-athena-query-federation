@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.docdb;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class DocDBCompositeHandler
 {
     public DocDBCompositeHandler()
     {
-        super(new DocDBMetadataHandler(System.getenv()), new DocDBRecordHandler(System.getenv()));
+        super(new DocDBMetadataHandler(GlueConnectionUtils.getGlueConnection()), new DocDBRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

@@ -139,7 +139,7 @@ public class ElasticsearchMetadataHandler
         this.secretMap = new HashMap<>();
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
-        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, ""));
+        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, "10"));
     }
 
     @VisibleForTesting
