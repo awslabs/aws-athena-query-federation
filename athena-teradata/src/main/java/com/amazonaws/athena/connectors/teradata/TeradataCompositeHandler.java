@@ -20,6 +20,8 @@
  */
 
 package com.amazonaws.athena.connectors.teradata;
+
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -33,6 +35,6 @@ public class TeradataCompositeHandler
 {
     public TeradataCompositeHandler()
     {
-        super(new TeradataMetadataHandler(System.getenv()), new TeradataRecordHandler(System.getenv()));
+        super(new TeradataMetadataHandler(GlueConnectionUtils.getGlueConnection()), new TeradataRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

@@ -19,12 +19,13 @@
  */
 package com.amazonaws.athena.connectors.synapse;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 public class SynapseCompositeHandler extends CompositeHandler
 {
     public SynapseCompositeHandler()
     {
-        super(new SynapseMetadataHandler(System.getenv()), new SynapseRecordHandler(System.getenv()));
+        super(new SynapseMetadataHandler(GlueConnectionUtils.getGlueConnection()), new SynapseRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

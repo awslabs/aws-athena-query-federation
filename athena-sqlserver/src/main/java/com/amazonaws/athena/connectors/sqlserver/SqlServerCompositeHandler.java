@@ -19,12 +19,13 @@
  */
 package com.amazonaws.athena.connectors.sqlserver;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 public class SqlServerCompositeHandler extends CompositeHandler
 {
     public SqlServerCompositeHandler()
     {
-        super(new SqlServerMetadataHandler(System.getenv()), new SqlServerRecordHandler(System.getenv()));
+        super(new SqlServerMetadataHandler(GlueConnectionUtils.getGlueConnection()), new SqlServerRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

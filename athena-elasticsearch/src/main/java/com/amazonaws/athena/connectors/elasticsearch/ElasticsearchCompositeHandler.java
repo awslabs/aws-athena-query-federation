@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class ElasticsearchCompositeHandler
 {
     public ElasticsearchCompositeHandler()
     {
-        super(new ElasticsearchMetadataHandler(System.getenv()), new ElasticsearchRecordHandler(System.getenv()));
+        super(new ElasticsearchMetadataHandler(GlueConnectionUtils.getGlueConnection()), new ElasticsearchRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

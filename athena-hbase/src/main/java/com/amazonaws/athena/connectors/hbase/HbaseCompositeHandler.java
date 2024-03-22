@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.hbase;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class HbaseCompositeHandler
 {
     public HbaseCompositeHandler()
     {
-        super(new HbaseMetadataHandler(System.getenv()), new HbaseRecordHandler(System.getenv()));
+        super(new HbaseMetadataHandler(GlueConnectionUtils.getGlueConnection()), new HbaseRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }
