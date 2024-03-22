@@ -72,8 +72,8 @@ public class TimestreamQueryPassthrough implements QueryPassthroughSignature
     @Override
     public void customConnectorVerifications(Map<String, String> engineQptArguments)
     {
-        String partiQLStatement = engineQptArguments.get(QUERY);
-        String upperCaseStatement = partiQLStatement.trim().toUpperCase(Locale.ENGLISH);
+        String customerPassedQuery = engineQptArguments.get(QUERY);
+        String upperCaseStatement = customerPassedQuery.trim().toUpperCase(Locale.ENGLISH);
 
         // Immediately check if the statement starts with "SELECT"
         if (!upperCaseStatement.startsWith("SELECT")) {
@@ -85,7 +85,7 @@ public class TimestreamQueryPassthrough implements QueryPassthroughSignature
 
         // Check if the statement contains any disallowed keywords
         for (String keyword : disallowedKeywords) {
-            if (upperCaseStatement.contains(" " + keyword + " ") || upperCaseStatement.startsWith(keyword + " ")) {
+            if (upperCaseStatement.contains(keyword)) {
                 throw new UnsupportedOperationException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword);
             }
         }

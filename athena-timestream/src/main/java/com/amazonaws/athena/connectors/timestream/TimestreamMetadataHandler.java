@@ -320,6 +320,7 @@ public class TimestreamMetadataHandler
         queryPassthrough.verify(request.getQueryPassthroughArguments());
         String customerPassedQuery = request.getQueryPassthroughArguments().get(TimestreamQueryPassthrough.QUERY);
         QueryRequest queryRequest = new QueryRequest().withQueryString(customerPassedQuery).withMaxRows(1);
+        // Timestream Query does not provide a way to conduct a dry run or retrieve metadata results without execution. Therefore, we need to "seek" at least once before obtaining metadata.
         QueryResult queryResult = tsQuery.query(queryRequest);
         List<ColumnInfo> columnInfo = queryResult.getColumnInfo();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
