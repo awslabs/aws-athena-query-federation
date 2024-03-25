@@ -44,7 +44,7 @@ public class GlueConnectionUtils
     public static final String GLUE_CONNECTION_ATHENA_DRIVER_PROPERTIES = "driverProperties";
     public static final String[] propertySubsets = {GLUE_CONNECTION_ATHENA_CONNECTOR_PROPERTIES, GLUE_CONNECTION_ATHENA_DRIVER_PROPERTIES};
 
-    private static final int CONNECT_TIMEOUT = 500;
+    private static final int CONNECT_TIMEOUT = 250;
     private static final Logger logger = LoggerFactory.getLogger(GlueConnectionUtils.class);
     private static HashMap<String, HashMap<String, String>> connectionNameCache = new HashMap<>();
 
