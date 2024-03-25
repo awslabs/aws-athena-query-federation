@@ -103,7 +103,7 @@ Resources:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}*'
           - Action:
               - glue:GetTableVersions
               - glue:GetPartitions

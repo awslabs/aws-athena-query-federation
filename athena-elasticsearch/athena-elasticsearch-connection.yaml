@@ -47,7 +47,6 @@ Parameters:
     Type: String
     Default: ""
 
-
 Conditions:
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
@@ -75,7 +74,6 @@ Resources:
       VpcConfig:
         SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
         SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue" ]
-
 
 FunctionRole:
     Condition: NotHasLambdaRole
@@ -109,7 +107,7 @@ FunctionRole:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*'
           - Action:
               - es:List*
               - es:Describe*

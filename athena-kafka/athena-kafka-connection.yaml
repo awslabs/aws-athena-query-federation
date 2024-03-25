@@ -82,7 +82,7 @@ Resources:
       Runtime: java11
       Timeout: 900
       MemorySize: 3008
-      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn]
       VpcConfig:
         SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
         SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue"]
@@ -114,7 +114,7 @@ Resources:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretsManagerSecret}'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretsManagerSecret}*'
           - Action:
               - logs:CreateLogGroup
             Effect: Allow
@@ -148,6 +148,12 @@ Resources:
               - autoscaling:CompleteLifecycleAction
             Effect: Allow
             Resource: '*'
+          - Action:
+              - glue:GetConnection
+            Effect: Allow
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
+              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
       Roles:
         - !Ref FunctionRole
 

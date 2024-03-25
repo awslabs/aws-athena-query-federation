@@ -68,7 +68,6 @@ Resources:
         SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
         SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue" ]
 
-
   FunctionRole:
     Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
@@ -103,7 +102,7 @@ Resources:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}*'
           - Action:
               - glue:GetTableVersions
               - glue:GetPartitions

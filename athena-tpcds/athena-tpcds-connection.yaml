@@ -1,7 +1,7 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaTPCDSConnector
+    Name: AthenaTPCDSConnectorWithGlueConnection
     Description: 'This connector enables Amazon Athena to communicate with a randomly generated TPC-DS data source.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0

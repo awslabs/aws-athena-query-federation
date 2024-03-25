@@ -135,6 +135,12 @@ Resources:
               - autoscaling:CompleteLifecycleAction
             Effect: Allow
             Resource: '*'
+          - Action:
+              - glue:GetConnection
+            Effect: Allow
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
+              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
       Roles:
         - !Ref FunctionRole
 

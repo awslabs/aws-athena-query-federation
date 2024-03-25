@@ -104,14 +104,14 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-            - Action:
-                - secretsmanager:GetSecretValue
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}'
-            - Action:
-                - logs:CreateLogGroup
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+          - Action:
+              - secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*'
+          - Action:
+              - logs:CreateLogGroup
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
           - Action:
               - logs:CreateLogStream
               - logs:PutLogEvents
