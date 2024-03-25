@@ -137,24 +137,26 @@ public class ElasticsearchRecordHandler
                                       QueryStatusChecker queryStatusChecker)
             throws RuntimeException
     {
-        logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}",
-                recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
-                recordsRequest.getSchema());
         String domain;
         QueryBuilder query;
+        String index;
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
             domain = qptArgs.get(ElasticsearchQueryPassthrough.SCHEMA);
+            index = qptArgs.get(ElasticsearchQueryPassthrough.INDEX);
             query = QueryBuilders.wrapperQuery(qptArgs.get(ElasticsearchQueryPassthrough.QUERY));
         }
         else {
             domain = recordsRequest.getTableName().getSchemaName();
+            index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
             query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
         }
 
         String endpoint = recordsRequest.getSplit().getProperty(domain);
         String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
-        String index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
+        logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}, Query: {}",
+                domain, index,
+                recordsRequest.getSchema(), query);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
