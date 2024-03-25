@@ -22,40 +22,27 @@ package com.amazonaws.athena.connectors.sqlserver;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public enum SqlServerDataType {
-    BIT("bit", Types.MinorType.TINYINT.getType()),
-    TINYINT("tinyint", Types.MinorType.SMALLINT.getType()),
-    NUMERIC("numeric", Types.MinorType.FLOAT8.getType()),
-    SMALLMONEY("smallmoney", Types.MinorType.FLOAT8.getType()),
-    DATE("date", Types.MinorType.DATEDAY.getType()),
-    DATETIME("datetime", Types.MinorType.DATEMILLI.getType()),
-    DATETIME2("datetime2", Types.MinorType.DATEMILLI.getType()),
-    SMALLDATETIME("smalldatetime", Types.MinorType.DATEMILLI.getType()),
-    DATETIMEOFFSET("datetimeoffset", Types.MinorType.DATEMILLI.getType());
+    BIT(Types.MinorType.TINYINT.getType()),
+    TINYINT(Types.MinorType.SMALLINT.getType()),
+    NUMERIC(Types.MinorType.FLOAT8.getType()),
+    SMALLMONEY(Types.MinorType.FLOAT8.getType()),
+    DATE(Types.MinorType.DATEDAY.getType()),
+    DATETIME(Types.MinorType.DATEMILLI.getType()),
+    DATETIME2(Types.MinorType.DATEMILLI.getType()),
+    SMALLDATETIME(Types.MinorType.DATEMILLI.getType()),
+    DATETIMEOFFSET(Types.MinorType.DATEMILLI.getType());
 
-    private static final Map<String, SqlServerDataType> SQLSERVER_DATA_TYPE_MAP = new HashMap<>();
-
-    static {
-        for (SqlServerDataType next : values()) {
-            SQLSERVER_DATA_TYPE_MAP.put(next.sqlServerType, next);
-        }
-    }
-
-    private String sqlServerType;
     private ArrowType arrowType;
 
-    SqlServerDataType(String sqlServerType, ArrowType arrowType)
+    SqlServerDataType(ArrowType arrowType)
     {
-        this.sqlServerType = sqlServerType;
         this.arrowType = arrowType;
     }
 
     public static ArrowType fromType(String sqlServerType)
     {
-        SqlServerDataType result = SQLSERVER_DATA_TYPE_MAP.get(sqlServerType);
+        SqlServerDataType result = valueOf(sqlServerType.toUpperCase()); 
         return result.arrowType;
     }
 
