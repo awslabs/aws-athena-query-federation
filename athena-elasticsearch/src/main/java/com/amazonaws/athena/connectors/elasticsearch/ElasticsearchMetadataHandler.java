@@ -246,15 +246,7 @@ public class ElasticsearchMetadataHandler
         if (schema == null) {
             String index = request.getTableName().getTableName();
             String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
-            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
-            try {
-                Map<String, Object> mappings = client.getMapping(index);
-                schema = ElasticsearchSchemaUtils.parseMapping(mappings);
-            }
-            catch (IOException error) {
-                throw new RuntimeException("Error retrieving mapping information for index (" +
-                        index + "): " + error.getMessage(), error);
-            }
+            schema = getSchema(index, endpoint);
         }
 
         return new GetTableResponse(request.getCatalogName(), request.getTableName(),
@@ -291,19 +283,22 @@ public class ElasticsearchMetadataHandler
     {
         logger.debug("doGetSplits: enter - " + request);
         String domain;
+        String indx;
         // Get domain
         if (request.getConstraints().isQueryPassThrough()) {
             domain = request.getConstraints().getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA);
+            indx = request.getConstraints().getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
         }
         else {
             domain = request.getTableName().getSchemaName();
+            indx = request.getTableName().getTableName();
         }
 
         String endpoint = getDomainEndpoint(domain);
         AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
         // We send index request in case the table name is a data stream, a data stream can contains multiple indices which are created by ES
         // For non data stream, index name is same as table name
-        GetIndexResponse indexResponse = client.indices().get(new GetIndexRequest(request.getTableName().getTableName()), RequestOptions.DEFAULT);
+        GetIndexResponse indexResponse = client.indices().get(new GetIndexRequest(indx), RequestOptions.DEFAULT);
 
         Set<Split> splits = Arrays.stream(indexResponse.getIndices())
                 .flatMap(index -> getShardsIDsFromES(client, index) // get all shards for an index.
@@ -328,16 +323,31 @@ public class ElasticsearchMetadataHandler
     public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
         logger.debug("doGetQueryPassthroughSchema: enter - " + request);
-        GetTableRequest qptRequest;
         if (!request.isQueryPassthrough()) {
             throw new IllegalArgumentException("No Query passed through [{}]" + request);
         }
-        else {
-            qptRequest = new GetTableRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
-                    new TableName(request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA), request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX)),
-                    request.getQueryPassthroughArguments());
+
+        String index = request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
+        String endpoint = getDomainEndpoint(request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA));
+        Schema schema = getSchema(index, endpoint);
+
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(),
+                (schema == null) ? SchemaBuilder.newBuilder().build() : schema, Collections.emptySet());
+    }
+
+    private Schema getSchema(String index, String endpoint)
+    {
+        Schema schema;
+        AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+        try {
+            Map<String, Object> mappings = client.getMapping(index);
+            schema = ElasticsearchSchemaUtils.parseMapping(mappings);
         }
-        return doGetTable(allocator, qptRequest);
+        catch (IOException error) {
+            throw new RuntimeException("Error retrieving mapping information for index (" +
+                    index + "): " + error.getMessage(), error);
+        }
+        return schema;
     }
 
     /**
