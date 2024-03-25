@@ -1,7 +1,7 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaDataLakeGen2Connector
+    Name: AthenaDataLakeGen2ConnectorWithGlueConnection
     Description: 'This connector enables Amazon Athena to communicate with DataLake Gen2 using JDBC driver.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
@@ -108,7 +108,7 @@ Resources:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*'
           - Action:
               - logs:CreateLogGroup
             Effect: Allow

@@ -1,8 +1,8 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaMySQLConnectorWithGlueConnection
-    Description: 'This connector enables Amazon Athena to communicate with your MySQL instance(s) using JDBC driver.'
+    Name: AthenaHortonworksHiveConnectorWithGlueConnection
+    Description: 'This connector enables Amazon Athena to communicate with your Hortonworks Hive instance(s) using JDBC driver.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
@@ -18,37 +18,28 @@ Parameters:
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SecretName:
-    Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena MySQL Federation secret names can be prefixed with "AthenaMySQLFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaJdbcFederation*". Parameter value in this case should be "AthenaMySQLFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
-    Type: String
+      Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena JDBC Federation secret names can be prefixed with "AthenaJdbcFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaJdbcFederation*". Parameter value in this case should be "AthenaJdbcFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
+      Type: String
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
-  LambdaRoleArn:
-    Description: "(Optional) A custom role to be used by the Connector lambda"
-    Type: String
-    Default: ""
   SecurityGroupIds:
-    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
-    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+    Description: '(Optional) One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: CommaDelimitedList
+    Default: ""
   SubnetIds:
-    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
-    Type: 'List<AWS::EC2::Subnet::Id>'
-  GlueConnection:
-    Description: "Name of glue connection storing connection details for Federated Data source."
-    Type: String
-  KmsKeyId:
-    Description: "(Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys."
-    Type: String
+    Description: '(Optional) One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: CommaDelimitedList
     Default: ""
 
 Conditions:
-  HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
-  HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
   NotHasLambdaRole: !Equals [!Ref LambdaRoleArn, ""]
   HasKMSKeyId: !Not [!Equals [!Ref KmsKeyId, ""]]
   NotHasLambdaRoleAndHasKMSKeyId: !And
     - !Condition NotHasLambdaRole
-    - !Condition HasKMSKeyId
+    - !Condition HasKMSKeyId  
+  HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
+  HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -57,9 +48,9 @@ Resources:
         Variables:
           glue_connection: !Ref GlueConnection
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.mysql.MySqlCompositeHandler"
-      CodeUri: "./target/athena-mysql-2022.47.1.jar"
-      Description: "Enables Amazon Athena to communicate with MySQL using JDBC"
+      Handler: "com.amazonaws.athena.connectors.hortonworks.HiveMuxCompositeHandler"
+      CodeUri: "./target/athena-hortonworks-hive-2022.47.1.jar"
+      Description: "Enables Amazon Athena to communicate with Hortonworks Hive using JDBC"
       Runtime: java11
       Timeout: 900
       MemorySize: 3008
@@ -72,8 +63,6 @@ Resources:
     Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
-      ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -83,7 +72,14 @@ Resources:
                 - lambda.amazonaws.com
             Action:
                 - "sts:AssumeRole"
-
+      Policies:
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
+        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
+        - VPCAccessPolicy: {}
+                  
   FunctionExecutionPolicy:
     Condition: NotHasLambdaRole
     Type: "AWS::IAM::Policy"
@@ -103,42 +99,15 @@ Resources:
             Effect: Allow
             Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
           - Action:
-            - logs:CreateLogStream
-            - logs:PutLogEvents
+              - logs:CreateLogStream
+              - logs:PutLogEvents
             Effect: Allow
             Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
           - Action:
-            - athena:GetQueryExecution
-            - s3:ListAllMyBuckets
+              - athena:GetQueryExecution
+              - s3:ListAllMyBuckets
             Effect: Allow
             Resource: '*'
-          - Action:
-            - ec2:CreateNetworkInterface
-            - ec2:DeleteNetworkInterface
-            - ec2:DescribeNetworkInterfaces
-            - ec2:DetachNetworkInterface
-            Effect: Allow
-            Resource: '*'
-          - Action:
-             - s3:GetObject
-             - s3:ListBucket
-             - s3:GetBucketLocation
-             - s3:GetObjectVersion
-             - s3:PutObject
-             - s3:PutObjectAcl
-             - s3:GetLifecycleConfiguration
-             - s3:PutLifecycleConfiguration
-             - s3:DeleteObject
-            Effect: Allow
-            Resource:
-              - Fn::Sub:
-                - arn:${AWS::Partition}:s3:::${bucketName}
-                - bucketName:
-                    Ref: SpillBucket
-              - Fn::Sub:
-                - arn:${AWS::Partition}:s3:::${bucketName}/*
-                - bucketName:
-                    Ref: SpillBucket
           - Action:
             - glue:GetConnection
             Effect: Allow

@@ -1,7 +1,7 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaAwsCmdbConnector
+    Name: AthenaAwsCmdbConnectorWithGlueConnection
     Description: 'This connector enables Amazon Athena to communicate with various AWS Services, making your resource inventories accessible via SQL.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
