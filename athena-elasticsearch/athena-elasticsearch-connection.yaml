@@ -1,5 +1,4 @@
 Transform: 'AWS::Serverless-2016-10-31'
-
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: AthenaElasticsearchConnectorWithGlueConnection
@@ -77,7 +76,7 @@ Resources:
         SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue" ]
 
 
-FunctionRole:
+  FunctionRole:
     Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
@@ -109,7 +108,7 @@ FunctionRole:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*'
           - Action:
               - es:List*
               - es:Describe*

@@ -1,7 +1,7 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaTPCDSConnector
+    Name: AthenaTPCDSConnectorWithGlueConnection
     Description: 'This connector enables Amazon Athena to communicate with a randomly generated TPC-DS data source.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
@@ -74,42 +74,42 @@ Resources:
             BucketName: !Ref SpillBucket
                   
   FunctionExecutionPolicy:
-    Condition: NotHasLambdaRole
-    Type: "AWS::IAM::Policy"
-    Properties:
-      Roles:
-        - !Ref FunctionRole
-      PolicyName: FunctionExecutionPolicy
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
+      Condition: NotHasLambdaRole
+      Type: "AWS::IAM::Policy"
+      Properties:
+        Roles:
+          - !Ref FunctionRole
+        PolicyName: FunctionExecutionPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
             - Action:
                 - athena:GetQueryExecution
                 - s3:ListAllMyBuckets
               Effect: Allow
               Resource: '*'
-          - Action:
-            - glue:GetConnection
-            Effect: Allow
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
-              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+            - Action:
+              - glue:GetConnection
+              Effect: Allow
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
+                - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
 
   FunctionKMSPolicy:
-    Condition: NotHasLambdaRoleAndHasKMSKeyId
-    Type: "AWS::IAM::Policy"
-    Properties:
-      PolicyName: FunctionKMSPolicy
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-             - kms:GenerateRandom
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - kms:GenerateDataKey
-            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
-      Roles:
-        - !Ref FunctionRole
+      Condition: NotHasLambdaRoleAndHasKMSKeyId
+      Type: "AWS::IAM::Policy"
+      Properties:
+        PolicyName: FunctionKMSPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+               - kms:GenerateRandom
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - kms:GenerateDataKey
+              Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
+        Roles:
+          - !Ref FunctionRole

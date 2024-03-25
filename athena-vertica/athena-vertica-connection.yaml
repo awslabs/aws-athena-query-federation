@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: AthenaVerticaConnector
+    Name: AthenaVerticaConnectorWithGlueConnection
     Description: 'This connector enables Amazon Athena to communicate with Vertica'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
@@ -127,7 +127,7 @@ Resources:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}*'
           - Action:
             - glue:GetConnection
             Effect: Allow

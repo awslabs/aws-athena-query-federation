@@ -1,7 +1,7 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaDynamoDBConnector
+    Name: AthenaDynamoDBConnectorWithGlueConnection
     Description: 'This connector enables Amazon Athena to communicate with DynamoDB, making your tables accessible via SQL.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
@@ -44,7 +44,7 @@ Resources:
     Properties:
       Environment:
         Variables:
-          glue_connection: !Ref GlueConnectionName
+          glue_connection: !Ref GlueConnection
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.dynamodb.DynamoDBCompositeHandler"
       CodeUri: "./target/athena-dynamodb-2022.47.1.jar"
