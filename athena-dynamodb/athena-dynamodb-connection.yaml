@@ -50,7 +50,6 @@ Resources:
         Variables:
           glue_connection: !Ref GlueConnection
           gamma_glue_region: !If [ HasGlueGammaRegion, !Ref GlueGammaRegion, !Ref "AWS::NoValue" ]
-
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.dynamodb.DynamoDBCompositeHandler"
       CodeUri: "./target/athena-dynamodb-2022.47.1.jar"

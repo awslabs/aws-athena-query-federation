@@ -50,7 +50,6 @@ Parameters:
     Type: String
     Default: ""
 
-
 Conditions:
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
@@ -80,7 +79,6 @@ Resources:
       VpcConfig:
         SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
         SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue" ]
-
 
   FunctionRole:
     Condition: NotHasLambdaRole

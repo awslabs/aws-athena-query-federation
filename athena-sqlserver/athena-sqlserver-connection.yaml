@@ -106,6 +106,12 @@ Resources:
         Version: 2012-10-17
         Statement:
           - Action:
+              - glue:GetConnection
+            Effect: Allow
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
+              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+          - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
             Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*'
