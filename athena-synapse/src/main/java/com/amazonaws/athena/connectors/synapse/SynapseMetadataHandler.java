@@ -48,7 +48,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
-import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
@@ -73,7 +72,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -329,79 +327,15 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     }
 
     @Override
-    public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
-            throws Exception
+    protected ArrowType convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
     {
-        if (!getTableRequest.isQueryPassthrough()) {
-            throw new IllegalArgumentException("No Query passed through [{}]" + getTableRequest);
+        String dataType = metadata.getColumnTypeName(columnIndex);
+        LOGGER.info("In convertDatasourceTypeToArrow: converting {}", dataType);
+        if (dataType != null && SynapseDataType.isSupported(dataType)) {
+            LOGGER.debug("Synapse  Datatype is support: {}", dataType);
+            return SynapseDataType.fromType(dataType); 
         }
-
-        jdbcQueryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
-        String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
-
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
-            ResultSetMetaData metadata = preparedStatement.getMetaData();
-            if (metadata == null) {
-                throw new UnsupportedOperationException("Query not supported: ResultSetMetaData not available for query: " + customerPassedQuery);
-            }
-            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            if (SynapseConstants.SQL_POOL.equals(SynapseUtil.checkEnvironment(connection.getMetaData().getURL()))) {
-                HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
-                for (int columnIndex = 1; columnIndex <= metadata.getColumnCount(); columnIndex++) {
-                    List<String> columnDetails = com.google.common.collect.ImmutableList.of(
-                            metadata.getColumnTypeName(columnIndex),
-                            String.valueOf(metadata.getPrecision(columnIndex)),
-                            String.valueOf(metadata.getScale(columnIndex)));
-                    columnNameAndDataTypeMap.put(metadata.getColumnName(columnIndex), columnDetails);
-                }
-                schemaBuilder = doDataTypeConversion(columnNameAndDataTypeMap);
-            }
-
-            else {
-                for (int columnIndex = 1; columnIndex <= metadata.getColumnCount(); columnIndex++) {
-                    String columnName = metadata.getColumnName(columnIndex);
-                    String columnLabel = metadata.getColumnLabel(columnIndex);
-                    //todo; is there a mechanism to pass both back to the engine?
-                    columnName = columnName.equals(columnLabel) ? columnName : columnLabel;
-
-                    int precision = metadata.getPrecision(columnIndex);
-                    int scale = metadata.getScale(columnIndex);
-
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                            metadata.getColumnType(columnIndex),
-                            precision,
-                            scale,
-                            configOptions);
-                    String dataType = metadata.getColumnTypeName(columnIndex);
-
-                    if (dataType != null && SynapseDataType.isSupported(dataType)) {
-                        columnType = SynapseDataType.fromType(dataType);
-                    }
-
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        if (columnType instanceof ArrowType.List) {
-                            schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
-                                    metadata.getTableName(columnIndex),
-                                    metadata.getColumnDisplaySize(columnIndex),
-                                    precision));
-                        }
-                        else {
-                            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        }
-                    }
-                    else {
-                        // Default to VARCHAR ArrowType
-                        LOGGER.warn("getSchema: Unable to map type for column[" + columnName +
-                                "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
-                    }
-                }
-            }
-
-            Schema schema = schemaBuilder.build();
-            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), schema, Collections.emptySet());
-        }
+        return super.convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
     }
 
     /**

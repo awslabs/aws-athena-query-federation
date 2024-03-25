@@ -22,40 +22,27 @@ package com.amazonaws.athena.connectors.synapse;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public enum SynapseDataType {
-    BIT("bit", Types.MinorType.TINYINT.getType()),
-    TINYINT("tinyint", Types.MinorType.SMALLINT.getType()),
-    NUMERIC("numeric", Types.MinorType.FLOAT8.getType()),
-    SMALLMONEY("smallmoney", Types.MinorType.FLOAT8.getType()),
-    DATE("date", Types.MinorType.DATEDAY.getType()),
-    DATETIME("datetime", Types.MinorType.DATEMILLI.getType()),
-    DATETIME2("datetime2", Types.MinorType.DATEMILLI.getType()),
-    SMALLDATETIME("smalldatetime", Types.MinorType.DATEMILLI.getType()),
-    DATETIMEOFFSET("datetimeoffset", Types.MinorType.DATEMILLI.getType());
+    BIT(Types.MinorType.TINYINT.getType()),
+    TINYINT(Types.MinorType.SMALLINT.getType()),
+    NUMERIC(Types.MinorType.FLOAT8.getType()),
+    SMALLMONEY(Types.MinorType.FLOAT8.getType()),
+    DATE(Types.MinorType.DATEDAY.getType()),
+    DATETIME(Types.MinorType.DATEMILLI.getType()),
+    DATETIME2(Types.MinorType.DATEMILLI.getType()),
+    SMALLDATETIME(Types.MinorType.DATEMILLI.getType()),
+    DATETIMEOFFSET(Types.MinorType.DATEMILLI.getType());
 
-    private static final Map<String, SynapseDataType> SYNAPSE_DATA_TYPE_MAP = new HashMap<>();
-
-    static {
-        for (SynapseDataType next : values()) {
-            SYNAPSE_DATA_TYPE_MAP.put(next.synapseType, next);
-        }
-    }
-
-    private String synapseType;
     private ArrowType arrowType;
 
-    SynapseDataType(String synapseType, ArrowType arrowType)
+    SynapseDataType(ArrowType arrowType)
     {
-        this.synapseType = synapseType;
         this.arrowType = arrowType;
     }
 
     public static ArrowType fromType(String synapseType)
     {
-        SynapseDataType result = SYNAPSE_DATA_TYPE_MAP.get(synapseType);
+        SynapseDataType result = valueOf(synapseType.toUpperCase()); 
         return result.arrowType;
     }
 
