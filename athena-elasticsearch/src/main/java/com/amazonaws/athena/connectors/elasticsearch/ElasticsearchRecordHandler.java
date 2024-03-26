@@ -144,7 +144,7 @@ public class ElasticsearchRecordHandler
             Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
             domain = qptArgs.get(ElasticsearchQueryPassthrough.SCHEMA);
             index = qptArgs.get(ElasticsearchQueryPassthrough.INDEX);
-            query = QueryBuilders.wrapperQuery(qptArgs.get(ElasticsearchQueryPassthrough.QUERY));
+            query = qptArgs.get(ElasticsearchQueryPassthrough.QUERY).isEmpty() ? QueryBuilders.matchAllQuery() : QueryBuilders.wrapperQuery(qptArgs.get(ElasticsearchQueryPassthrough.QUERY));
         }
         else {
             domain = recordsRequest.getTableName().getSchemaName();
