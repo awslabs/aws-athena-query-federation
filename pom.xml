@@ -12,7 +12,7 @@
         <!-- Uncomment to target java 8 -->
         <!--<maven.compiler.release>8</maven.compiler.release>-->
         <maven.compiler.release>11</maven.compiler.release>
-        <maven.compiler.plugin.version>3.12.1</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
         <aws-sdk.version>1.12.686</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
