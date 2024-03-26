@@ -26,6 +26,8 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -35,14 +37,17 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
+import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
+import com.amazonaws.services.timestreamquery.model.ColumnInfo;
 import com.amazonaws.services.timestreamquery.model.Datum;
 import com.amazonaws.services.timestreamquery.model.QueryRequest;
 import com.amazonaws.services.timestreamquery.model.QueryResult;
@@ -51,13 +56,16 @@ import com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite;
 import com.amazonaws.services.timestreamwrite.model.ListDatabasesRequest;
 import com.amazonaws.services.timestreamwrite.model.ListDatabasesResult;
 import com.amazonaws.services.timestreamwrite.model.ListTablesResult;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -85,12 +93,15 @@ public class TimestreamMetadataHandler
     private final AmazonTimestreamQuery tsQuery;
     private final AmazonTimestreamWrite tsMeta;
 
+    private final TimestreamQueryPassthrough queryPassthrough;
+
     public TimestreamMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
         glue = getAwsGlue();
         tsQuery = TimestreamClientBuilder.buildQueryClient(SOURCE_TYPE);
         tsMeta = TimestreamClientBuilder.buildWriteClient(SOURCE_TYPE);
+        queryPassthrough = new TimestreamQueryPassthrough();
     }
 
     @VisibleForTesting
@@ -109,6 +120,16 @@ public class TimestreamMetadataHandler
         this.glue = glue;
         this.tsQuery = tsQuery;
         this.tsMeta = tsMeta;
+        queryPassthrough = new TimestreamQueryPassthrough();
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        this.queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, this.configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     @Override
@@ -289,6 +310,28 @@ public class TimestreamMetadataHandler
         }
     }
 
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+        }
+
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String customerPassedQuery = request.getQueryPassthroughArguments().get(TimestreamQueryPassthrough.QUERY);
+        QueryRequest queryRequest = new QueryRequest().withQueryString(customerPassedQuery).withMaxRows(1);
+        // Timestream Query does not provide a way to conduct a dry run or retrieve metadata results without execution. Therefore, we need to "seek" at least once before obtaining metadata.
+        QueryResult queryResult = tsQuery.query(queryRequest);
+        List<ColumnInfo> columnInfo = queryResult.getColumnInfo();
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        for (ColumnInfo column : columnInfo) {
+            Field nextField = TimestreamSchemaUtils.makeField(column.getName(), column.getType().getScalarType().toLowerCase());
+            schemaBuilder.addField(nextField);
+        }
+
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schemaBuilder.build(), Collections.emptySet());
+    }
+
     /**
      * Our table doesn't support complex layouts or partitioning so we simply make this method a NoOp.
      *
@@ -308,7 +351,16 @@ public class TimestreamMetadataHandler
     {
         //Since we do not support connector level parallelism for this source at the moment, we generate a single
         //basic split.
-        Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey()).build();
+        Split split;
+        if (request.getConstraints().isQueryPassThrough()) {
+            logger.info("QPT Split Requested");
+            Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+            split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey()).applyProperties(qptArguments).build();
+        }
+        else {
+            split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey()).build();
+        }
+
         return new GetSplitsResponse(request.getCatalogName(), split);
     }
 }
