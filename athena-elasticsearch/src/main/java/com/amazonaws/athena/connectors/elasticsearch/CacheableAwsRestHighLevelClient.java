@@ -98,10 +98,10 @@ public class CacheableAwsRestHighLevelClient
      */
     private void evictCache(boolean force)
     {
-        Iterator<Map.Entry<String, CacheableAwsRestHighLevelClient.CacheEntry>> itr = clientCache.entrySet().iterator();
+        Iterator<Map.Entry<String, CacheEntry>> itr = clientCache.entrySet().iterator();
         int removed = 0;
         while (itr.hasNext()) {
-            CacheableAwsRestHighLevelClient.CacheEntry entry = itr.next().getValue();
+            CacheEntry entry = itr.next().getValue();
             // If age of client is greater than the maximum allowed, remove it.
             if (entry.getAge() > MAX_CACHE_AGE_MS) {
                 closeClient(entry.getClient());
