@@ -42,6 +42,7 @@ import java.util.Map;
 public class VerticaExportQueryBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(VerticaExportQueryBuilder.class);
     private static final String TEMPLATE_NAME = "templateVerticaExportQuery";
+    private static final String QPT_TEMPLATE_NAME = "templateVerticaExportQPTQuery";
     private static final String TEMPLATE_FIELD = "builder";
     private static final String QUOTE_CHARS = "\"";
     private final ST query;
@@ -50,7 +51,7 @@ public class VerticaExportQueryBuilder {
     private String queryID;
     private String colNames;
     private String constraintValues;
-
+    private String preparedStatementSQL;
 
     public VerticaExportQueryBuilder(ST template)
     {
@@ -62,6 +63,11 @@ public class VerticaExportQueryBuilder {
         return TEMPLATE_NAME;
     }
 
+    static String getQptTemplateName()
+    {
+        return QPT_TEMPLATE_NAME;
+    }
+
     public String getTable(){return table;}
 
     public VerticaExportQueryBuilder fromTable(String schemaName, String tableName)
@@ -71,6 +77,17 @@ public class VerticaExportQueryBuilder {
     }
 
     public String getColNames() {return colNames;}
+
+    public VerticaExportQueryBuilder withPreparedStatementSQL(String preparedStatementSQL)
+    {
+        this.preparedStatementSQL = preparedStatementSQL;
+        return this;
+    }
+
+    public String getPreparedStatementSQL()
+    {
+        return preparedStatementSQL;
+    }
 
     // get the column names from user issued query in Athena
     public VerticaExportQueryBuilder withColumns(ResultSet definition, Schema tableSchema) throws SQLException {
@@ -221,7 +238,7 @@ public class VerticaExportQueryBuilder {
     public String build()
     {
         Validate.notNull(s3ExportBucket, "s3ExportBucket can not be null.");
-        Validate.notNull(table, "table can not be null.");
+        Validate.notNull(table != null ? table : preparedStatementSQL, "table can not be null.");
         Validate.notNull(queryID, "queryID can not be null.");
 
         query.add(TEMPLATE_FIELD, this);
