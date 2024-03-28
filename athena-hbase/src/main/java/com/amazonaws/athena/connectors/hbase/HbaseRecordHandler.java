@@ -136,6 +136,8 @@ public class HbaseRecordHandler
             tableName = qptArguments.get(HbaseQueryPassthrough.COLLECTION);
             String filter = qptArguments.get(HbaseQueryPassthrough.FILTER);
             scan = new Scan();
+            //Empty filter is allowed in HBase scan operation, so we don't have else condition.
+            //If filter is empty then we are scanning all the records from table.
             if (!StringUtils.isEmpty(filter)) {
                 try {
                     scan.setFilter(new ParseFilter().parseFilterString(filter));
