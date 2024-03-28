@@ -134,6 +134,15 @@ public class HbaseMetadataHandler
         this.connectionFactory = connectionFactory;
     }
 
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
     private HBaseConnection getOrCreateConn(MetadataRequest request)
     {
         String endpoint = resolveSecrets(getConnStr(request));
@@ -203,6 +212,12 @@ public class HbaseMetadataHandler
      */
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
+            throws Exception
+    {
+        return getTableResponse(blockAllocator, request);
+    }
+
+    private GetTableResponse getTableResponse(BlockAllocator blockAllocator, GetTableRequest request)
             throws Exception
     {
         logger.info("doGetTable: enter", request.getTableName());
@@ -308,18 +323,9 @@ public class HbaseMetadataHandler
     }
 
     @Override
-    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
-    {
-        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
-        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
-
-        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
-    }
-
-    @Override
     public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
-        return doGetTable(allocator, request);
+        return getTableResponse(allocator, request);
     }
 
     /**

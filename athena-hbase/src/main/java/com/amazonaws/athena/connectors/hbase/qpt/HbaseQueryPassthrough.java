@@ -65,7 +65,10 @@ public final class HbaseQueryPassthrough implements QueryPassthroughSignature
         return LOGGER;
     }
     /**
-     * verify that the arguments returned by the engine are the same that the connector defined
+     * verify that the arguments returned by the engine are the same that the connector defined.
+     * In the parent class verify function, all argument values are mandatory. However, in the overridden function,
+     * we've removed the condition that checks whether the HBase FILTER argument value is empty. This modification
+     * allows for the possibility of an empty FILTER argument value without triggering an exception.
      * @param engineQptArguments
      * @throws IllegalArgumentException
      */
