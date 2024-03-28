@@ -40,7 +40,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connectors.elasticsearch.ptf.ElasticsearchQueryPassthrough;
+import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -326,7 +326,7 @@ public class ElasticsearchMetadataHandler
         if (!request.isQueryPassthrough()) {
             throw new IllegalArgumentException("No Query passed through [{}]" + request);
         }
-
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
         String index = request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
         String endpoint = getDomainEndpoint(request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA));
         Schema schema = getSchema(index, endpoint);
@@ -345,7 +345,7 @@ public class ElasticsearchMetadataHandler
         }
         catch (IOException error) {
             throw new RuntimeException("Error retrieving mapping information for index (" +
-                    index + "): " + error.getMessage(), error);
+                    index + ") ", error);
         }
         return schema;
     }
