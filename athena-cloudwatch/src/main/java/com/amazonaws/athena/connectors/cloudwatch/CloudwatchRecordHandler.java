@@ -48,6 +48,9 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,13 +122,27 @@ public class CloudwatchRecordHandler
             GetQueryResultsResult getQueryResultsResult;
             do {
                 getQueryResultsResult = invoker.invoke(() -> awsLogs.getQueryResults(new GetQueryResultsRequest().withQueryId(startQueryResult.getQueryId())));
-                logger.info("GetQueryResultsResult {}", getQueryResultsResult);
                 status = getQueryResultsResult.getStatus();
                 Thread.sleep(3000);
             } while (!status.equalsIgnoreCase("Complete"));
+            logger.info("GetQueryResultsResult {}", getQueryResultsResult);
             for (List<ResultField> resultList : getQueryResultsResult.getResults()) {
                 for (ResultField resultField : resultList) {
-                    logger.info("field {} , value {}", resultField.getField(), resultField.getValue());
+                    if (resultField.getField().equalsIgnoreCase("@logSamples")) {
+                        logger.info("field {} , value {}", resultField.getField(), resultField.getValue());
+                        // Parse JSON string
+                        JsonArray jsonArray = JsonParser.parseString(resultField.getValue()).getAsJsonArray();
+                        // Extract logEvent value
+                        if (jsonArray.size() > 0) {
+                            JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+                            spiller.writeRows((Block block, int rowNum) -> {
+                                boolean matched = true;
+                                matched &= block.offerValue(LOG_TIME_FIELD, rowNum, jsonObject.get("eventTimestamp").getAsBigInteger());
+                                matched &= block.offerValue(LOG_MSG_FIELD, rowNum, jsonObject.get("logEvent").getAsString());
+                                return matched ? 1 : 0;
+                            });
+                        }
+                    }
                 }
             }
         }
