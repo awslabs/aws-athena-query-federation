@@ -89,7 +89,6 @@ public class ElasticsearchRecordHandler
     private final ElasticsearchTypeUtils typeUtils;
     private final ElasticsearchQueryPassthrough queryPassthrough = new ElasticsearchQueryPassthrough();
 
-
     public ElasticsearchRecordHandler(Map<String, String> configOptions)
     {
         super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
