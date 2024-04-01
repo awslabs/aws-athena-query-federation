@@ -160,7 +160,6 @@ public class ElasticsearchRecordHandler
         logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}, Query: {}",
                 domain, index,
                 recordsRequest.getSchema(), query);
-        String index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
         String username = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_USERNAME);
         String password = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_PASSWORD);
         boolean useSecret = StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
