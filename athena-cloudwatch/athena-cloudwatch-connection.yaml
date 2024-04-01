@@ -35,6 +35,10 @@ Parameters:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Type: String
     Default: ""
+  GlueGammaRegion:
+    Description: "(Optional) Region for testing connections in Glue Gamma farm. Required to be all lower case, ex: 'us-east-1', 'ap-south-1'."
+    Type: String
+    Default: ""
 
 
 Conditions:
@@ -43,6 +47,7 @@ Conditions:
   NotHasLambdaRoleAndHasKMSKeyId: !And
     - !Condition NotHasLambdaRole
     - !Condition HasKMSKeyId
+  HasGlueGammaRegion: !Not [ !Equals [!Ref GlueGammaRegion, ""] ]
 
 Resources:
   ConnectorConfig:
@@ -51,6 +56,7 @@ Resources:
       Environment:
         Variables:
           glue_connection: GlueConnection
+          gamma_glue_region: !If [ HasGlueGammaRegion, !Ref GlueGammaRegion, !Ref "AWS::NoValue" ]
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.cloudwatch.CloudwatchCompositeHandler"
       CodeUri: "./target/athena-cloudwatch-2022.47.1.jar"
@@ -116,6 +122,16 @@ Resources:
                 - arn:${AWS::Partition}:s3:::${bucketName}/*
                 - bucketName:
                     Ref: SpillBucket
+          - Action:
+              - glue:GetConnection
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                - 'arn:${AWS::Partition}:glue:${Region}:${AWS::AccountId}:connection/${GlueConnection}'
+                - Region: !If [ HasGlueGammaRegion, !Ref GlueGammaRegion, !Ref "AWS::Region" ]
+              - Fn::Sub:
+                - 'arn:${AWS::Partition}:glue:${Region}:${AWS::AccountId}:catalog'
+                - Region: !If [ HasGlueGammaRegion, !Ref GlueGammaRegion, !Ref "AWS::Region" ]
       Roles:
         - !Ref FunctionRole
 
