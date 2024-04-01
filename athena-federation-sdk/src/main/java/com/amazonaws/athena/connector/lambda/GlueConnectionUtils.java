@@ -39,6 +39,7 @@ public class GlueConnectionUtils
 {
     // config property to store glue connection reference
     public static final String DEFAULT_GLUE_CONNECTION = "glue_connection";
+    public static final String GLUE_GAMMA_REGION = "gamma_glue_region";
     // Connection properties storing athena specific connection details
     public static final String GLUE_CONNECTION_ATHENA_PROPERTIES = "AthenaProperties";
     public static final String GLUE_CONNECTION_ATHENA_CONNECTOR_PROPERTIES = "connectorProperties";
@@ -63,8 +64,16 @@ public class GlueConnectionUtils
             if (cachedConfig == null) {
                 try {
                     HashMap<String, HashMap<String, String>> athenaPropertiesToMap = new HashMap<String, HashMap<String, String>>();
+                    AWSGlue awsGlue;
+                    if (envConfig.containsKey(GLUE_GAMMA_REGION)) {
+                        String gammaRegion = envConfig.get(GLUE_GAMMA_REGION);
+                        String gammaEndpoint = "https://glue-gamma." + gammaRegion.toLowerCase() + ".amazonaws.com";
+                        awsGlue = AWSGlueClientBuilder.standard().withEndpointConfiguration(new AWSGlueClientBuilder.EndpointConfiguration(gammaEndpoint, gammaRegion.toLowerCase())).withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT)).build();
+                    }
+                    else {
+                        awsGlue = AWSGlueClientBuilder.standard().withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT)).build();
+                    }
 
-                    AWSGlue awsGlue = AWSGlueClientBuilder.standard().withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT)).build();
                     GetConnectionResult glueConnection = awsGlue.getConnection(new GetConnectionRequest().withName(glueConnectionName));
                     logger.debug("Successfully retrieved connection {}", glueConnectionName);
                     Connection connection = glueConnection.getConnection();
