@@ -86,8 +86,15 @@ public class SaphanaRecordHandler extends JdbcRecordHandler
     {
         LOGGER.debug("SaphanaQueryStringBuilder::buildSplitSql SplitQueryBuilder class {}",
                 jdbcSplitQueryBuilder.getClass().getName());
-        PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null,
-                tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        PreparedStatement preparedStatement;
+
+        if (constraints.isQueryPassThrough()) {
+            preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+        }
+        else {
+            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null,
+                    tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        }
 
         LOGGER.debug("SaphanaQueryStringBuilder::buildSplitSql clearing field children from schema");
         clearChildren(schema);
