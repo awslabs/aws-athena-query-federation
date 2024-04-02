@@ -214,12 +214,6 @@ public class HbaseMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
             throws Exception
     {
-        return getTableResponse(blockAllocator, request);
-    }
-
-    private GetTableResponse getTableResponse(BlockAllocator blockAllocator, GetTableRequest request)
-            throws Exception
-    {
         logger.info("doGetTable: enter", request.getTableName());
         Schema origSchema = null;
         try {
@@ -233,24 +227,18 @@ public class HbaseMetadataHandler
                     request.getTableName().getTableName(),
                     ex);
         }
-
-        String schemaName;
-        String tableName;
-
-        if (request.isQueryPassthrough()) {
-            queryPassthrough.verify(request.getQueryPassthroughArguments());
-            schemaName = request.getQueryPassthroughArguments().get(HbaseQueryPassthrough.DATABASE);
-            tableName = request.getQueryPassthroughArguments().get(HbaseQueryPassthrough.COLLECTION);
-        }
-        else {
-            schemaName = request.getTableName().getSchemaName();
-            tableName = request.getTableName().getTableName();
-        }
-
+        String schemaName = request.getTableName().getSchemaName();
+        String tableName = request.getTableName().getTableName();
         com.amazonaws.athena.connector.lambda.domain.TableName tableNameObj = new com.amazonaws.athena.connector.lambda.domain.TableName(schemaName, tableName);
 
+        return getTableResponse(request, origSchema, tableNameObj);
+    }
+
+    private GetTableResponse getTableResponse(GetTableRequest request, Schema origSchema,
+                                              com.amazonaws.athena.connector.lambda.domain.TableName tableName)
+    {
         if (origSchema == null) {
-            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), tableNameObj, NUM_ROWS_TO_SCAN);
+            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), tableName, NUM_ROWS_TO_SCAN);
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -325,7 +313,13 @@ public class HbaseMetadataHandler
     @Override
     public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
-        return getTableResponse(allocator, request);
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String schemaName = request.getQueryPassthroughArguments().get(HbaseQueryPassthrough.DATABASE);
+        String tableName = request.getQueryPassthroughArguments().get(HbaseQueryPassthrough.COLLECTION);
+
+        com.amazonaws.athena.connector.lambda.domain.TableName tableNameObj = new com.amazonaws.athena.connector.lambda.domain.TableName(schemaName, tableName);
+
+        return getTableResponse(request, null, tableNameObj);
     }
 
     /**
