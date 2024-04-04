@@ -21,6 +21,8 @@ package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.google.common.base.Splitter;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -259,6 +261,38 @@ public class AwsRestHighLevelClient
 
             clientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
                     .setDefaultCredentialsProvider(credentialsProvider));
+
+            return this;
+        }
+
+        public Builder withAssumedRoleCredentials(String localArn, String remoteArn, String sessionName)
+        {
+            // Assume the local role
+            AWSSecurityTokenServiceClientBuilder stsBuilder = AWSSecurityTokenServiceClientBuilder.standard();
+            STSAssumeRoleSessionCredentialsProvider localCredentialsProvider =
+                    new STSAssumeRoleSessionCredentialsProvider.Builder(localArn, sessionName + "Local")
+                            .withStsClient(stsBuilder.build())
+                            .build();
+
+            // Use the local role credentials to assume the remote role
+            stsBuilder.setCredentials(localCredentialsProvider);
+            STSAssumeRoleSessionCredentialsProvider remoteCredentialsProvider =
+                    new STSAssumeRoleSessionCredentialsProvider.Builder(remoteArn, sessionName + "Remote")
+                            .withStsClient(stsBuilder.build())
+                            .build();
+
+            List<String> domainSplits = domainSplitter.splitToList(endpoint);
+
+            if (domainSplits.size() > 1) {
+                signer.setRegionName(domainSplits.get(1));
+                signer.setServiceName("es");
+            }
+
+            HttpRequestInterceptor interceptor =
+                    new AWSRequestSigningApacheInterceptor(signer.getServiceName(), signer, remoteCredentialsProvider);
+
+            clientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                    .addInterceptorLast(interceptor));
 
             return this;
         }
