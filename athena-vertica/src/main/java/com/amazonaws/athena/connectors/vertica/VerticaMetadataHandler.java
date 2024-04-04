@@ -25,9 +25,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -46,7 +44,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
@@ -80,6 +77,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import static com.amazonaws.athena.connectors.vertica.VerticaSchemaUtils.convertToArrowType;
 
 
 public class VerticaMetadataHandler
@@ -240,42 +239,14 @@ public class VerticaMetadataHandler
             for (int columnIndex = 1; columnIndex <= metadata.getColumnCount(); columnIndex++) {
                 String columnName = metadata.getColumnName(columnIndex);
                 String columnLabel = metadata.getColumnLabel(columnIndex);
-                //todo; is there a mechanism to pass both back to the engine?
                 columnName = columnName.equals(columnLabel) ? columnName : columnLabel;
-
-                int precision = metadata.getPrecision(columnIndex);
-                int scale = metadata.getScale(columnIndex);
-
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                        metadata.getColumnType(columnIndex),
-                        precision,
-                        scale,
-                        configOptions);
-
-                if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    if (columnType instanceof ArrowType.List) {
-                        schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
-                                metadata.getTableName(columnIndex),
-                                metadata.getColumnDisplaySize(columnIndex),
-                                precision));
-                    }
-                    else {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                    }
-                }
-                else {
-                    // Default to VARCHAR ArrowType
-                    logger.warn("getSchema: Unable to map type for column[" + columnName +
-                            "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
-                }
+                convertToArrowType(schemaBuilder, columnName, metadata.getColumnTypeName(columnIndex));
             }
 
             Schema schema = schemaBuilder.build();
             return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), schema, Collections.emptySet());
         }
     }
-
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
