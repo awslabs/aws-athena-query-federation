@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjecto
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.athena.connectors.timestream.query.SelectQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -88,6 +89,7 @@ public class TimestreamRecordHandler
 
     private final QueryFactory queryFactory = new QueryFactory();
     private final AmazonTimestreamQuery tsQuery;
+    private final TimestreamQueryPassthrough queryPassthrough = new TimestreamQueryPassthrough();
 
     public TimestreamRecordHandler(java.util.Map<String, String> configOptions)
     {
@@ -115,14 +117,19 @@ public class TimestreamRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         TableName tableName = recordsRequest.getTableName();
-
-        SelectQueryBuilder queryBuilder = queryFactory.createSelectQueryBuilder(GlueMetadataHandler.VIEW_METADATA_FIELD);
-
-        String query = queryBuilder.withDatabaseName(tableName.getSchemaName())
-                .withTableName(tableName.getTableName())
-                .withProjection(recordsRequest.getSchema())
-                .withConjucts(recordsRequest.getConstraints())
-                .build();
+        String query;
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            queryPassthrough.verify(recordsRequest.getConstraints().getQueryPassthroughArguments());
+            query = recordsRequest.getConstraints().getQueryPassthroughArguments().get(TimestreamQueryPassthrough.QUERY);
+        }
+        else {
+            SelectQueryBuilder queryBuilder = queryFactory.createSelectQueryBuilder(GlueMetadataHandler.VIEW_METADATA_FIELD);
+            query = queryBuilder.withDatabaseName(tableName.getSchemaName())
+                    .withTableName(tableName.getTableName())
+                    .withProjection(recordsRequest.getSchema())
+                    .withConjucts(recordsRequest.getConstraints())
+                    .build();
+        }
 
         logger.info("readWithConstraint: query[{}]", query);
 

@@ -105,6 +105,7 @@ Resources:
              - dynamodb:ListTables
              - dynamodb:Query
              - dynamodb:Scan
+             - dynamodb:PartiQLSelect
              - glue:GetTableVersions
              - glue:GetPartitions
              - glue:GetTables

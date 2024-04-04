@@ -26,6 +26,8 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -36,7 +38,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -110,8 +114,9 @@ public class ElasticsearchMetadataHandler
     private final ElasticsearchDomainMapProvider domainMapProvider;
 
     private ElasticsearchGlueTypeMapper glueTypeMapper;
+    private final ElasticsearchQueryPassthrough queryPassthrough = new ElasticsearchQueryPassthrough();
 
-    public ElasticsearchMetadataHandler(java.util.Map<String, String> configOptions)
+    public ElasticsearchMetadataHandler(Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
@@ -134,7 +139,7 @@ public class ElasticsearchMetadataHandler
         ElasticsearchDomainMapProvider domainMapProvider,
         AwsRestHighLevelClientFactory clientFactory,
         long queryTimeout,
-        java.util.Map<String, String> configOptions)
+        Map<String, String> configOptions)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
@@ -241,15 +246,7 @@ public class ElasticsearchMetadataHandler
         if (schema == null) {
             String index = request.getTableName().getTableName();
             String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
-            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
-            try {
-                Map<String, Object> mappings = client.getMapping(index);
-                schema = ElasticsearchSchemaUtils.parseMapping(mappings);
-            }
-            catch (IOException error) {
-                throw new RuntimeException("Error retrieving mapping information for index (" +
-                        index + "): " + error.getMessage(), error);
-            }
+            schema = getSchema(index, endpoint);
         }
 
         return new GetTableResponse(request.getCatalogName(), request.getTableName(),
@@ -285,15 +282,23 @@ public class ElasticsearchMetadataHandler
             throws IOException
     {
         logger.debug("doGetSplits: enter - " + request);
-
+        String domain;
+        String indx;
         // Get domain
-        String domain = request.getTableName().getSchemaName();
+        if (request.getConstraints().isQueryPassThrough()) {
+            domain = request.getConstraints().getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA);
+            indx = request.getConstraints().getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
+        }
+        else {
+            domain = request.getTableName().getSchemaName();
+            indx = request.getTableName().getTableName();
+        }
 
         String endpoint = getDomainEndpoint(domain);
         AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
         // We send index request in case the table name is a data stream, a data stream can contains multiple indices which are created by ES
         // For non data stream, index name is same as table name
-        GetIndexResponse indexResponse = client.indices().get(new GetIndexRequest(request.getTableName().getTableName()), RequestOptions.DEFAULT);
+        GetIndexResponse indexResponse = client.indices().get(new GetIndexRequest(indx), RequestOptions.DEFAULT);
 
         Set<Split> splits = Arrays.stream(indexResponse.getIndices())
                 .flatMap(index -> getShardsIDsFromES(client, index) // get all shards for an index.
@@ -303,6 +308,46 @@ public class ElasticsearchMetadataHandler
                 .collect(Collectors.toSet());
 
         return new GetSplitsResponse(request.getCatalogName(), splits);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        logger.debug("doGetQueryPassthroughSchema: enter - " + request);
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+        }
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String index = request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
+        String endpoint = getDomainEndpoint(request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA));
+        Schema schema = getSchema(index, endpoint);
+
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(),
+                (schema == null) ? SchemaBuilder.newBuilder().build() : schema, Collections.emptySet());
+    }
+
+    private Schema getSchema(String index, String endpoint)
+    {
+        Schema schema;
+        AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+        try {
+            Map<String, Object> mappings = client.getMapping(index);
+            schema = ElasticsearchSchemaUtils.parseMapping(mappings);
+        }
+        catch (IOException error) {
+            throw new RuntimeException("Error retrieving mapping information for index (" +
+                    index + ") ", error);
+        }
+        return schema;
     }
 
     /**

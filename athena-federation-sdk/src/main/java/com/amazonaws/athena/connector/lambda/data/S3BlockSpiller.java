@@ -35,6 +35,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -499,8 +500,10 @@ public class S3BlockSpiller
     private ThreadPoolExecutor makeAsyncSpillPool(SpillConfig config)
     {
         int spillQueueCapacity = config.getNumSpillThreads();
-        if (configOptions.get(SPILL_QUEUE_CAPACITY) != null) {
-            spillQueueCapacity = Integer.parseInt(configOptions.get(SPILL_QUEUE_CAPACITY));
+
+        String capacity = StringUtils.isNotBlank(configOptions.get(SPILL_QUEUE_CAPACITY)) ? configOptions.get(SPILL_QUEUE_CAPACITY) : configOptions.get(SPILL_QUEUE_CAPACITY.toLowerCase());
+        if (capacity != null) {
+            spillQueueCapacity = Integer.parseInt(capacity);
             logger.debug("Setting Spill Queue Capacity to {}", spillQueueCapacity);
         }
 

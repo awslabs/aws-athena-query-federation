@@ -12,13 +12,13 @@
         <!-- Uncomment to target java 8 -->
         <!--<maven.compiler.release>8</maven.compiler.release>-->
         <maven.compiler.release>11</maven.compiler.release>
-        <maven.compiler.plugin.version>3.12.1</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk.version>1.12.681</aws-sdk.version>
+        <aws-sdk.version>1.12.691</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.95.0</jsii.version>
+        <jsii.version>1.96.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.7</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
@@ -404,7 +404,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>3.2.2</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
