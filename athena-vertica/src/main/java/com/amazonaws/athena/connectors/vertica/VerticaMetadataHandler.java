@@ -44,7 +44,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -226,7 +225,7 @@ public class VerticaMetadataHandler
         }
 
         queryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
-        String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
+        String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(VerticaQueryPassthrough.QUERY);
 
         try (Connection connection = getConnection(getTableRequest)) {
             PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
