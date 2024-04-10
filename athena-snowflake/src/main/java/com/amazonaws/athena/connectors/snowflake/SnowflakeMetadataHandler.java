@@ -152,12 +152,14 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
                 LimitPushdownSubType.INTEGER_CONSTANT
         ));
-        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
-                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
-                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
-                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
-                                .toArray(String[]::new))
-        ));
+        if (!this.configOptions.getOrDefault("supports_complex_expression_pushdown", "ENABLED").equals("DISABLED")) { 
+            capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                    ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                            .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                    .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                    .toArray(String[]::new))
+            ));
+        }
         capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
