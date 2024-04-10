@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 public final class CloudwatchQueryPassthrough implements QueryPassthroughSignature
 {
@@ -34,10 +33,8 @@ public final class CloudwatchQueryPassthrough implements QueryPassthroughSignatu
 
     // List of arguments for the query, statically initialized as it always contains the same value.
     public static final String ENDTIME = "ENDTIME";
-//    public static final String LIMIT = "LIMIT";
-//    public static final String LOGGROUPIDENTIFIERS = "LOGGROUPIDENTIFIERS";
-    public static final String LOGGROUPNAME = "LOGGROUPNAME";
-//    public static final String LOGGROUPNAMES = "LOGGROUPNAMES";
+    public static final String LIMIT = "LIMIT";
+    public static final String LOGGROUPNAMES = "LOGGROUPNAMES";
     public static final String QUERYSTRING = "QUERYSTRING";
     public static final String STARTTIME = "STARTTIME";
 
@@ -59,35 +56,12 @@ public final class CloudwatchQueryPassthrough implements QueryPassthroughSignatu
     @Override
     public List<String> getFunctionArguments()
     {
-        return Arrays.asList(ENDTIME, QUERYSTRING, STARTTIME, LOGGROUPNAME);
-//        return Arrays.asList(ENDTIME, LIMIT, LOGGROUPIDENTIFIERS, LOGGROUPNAME, LOGGROUPNAMES, QUERYSTRING, STARTTIME);
+        return Arrays.asList(ENDTIME, QUERYSTRING, STARTTIME, LOGGROUPNAMES, LIMIT);
     }
 
     @Override
     public Logger getLogger()
     {
         return LOGGER;
-    }
-
-    @Override
-    public void verify(Map<String, String> engineQptArguments)
-            throws IllegalArgumentException
-    {
-        //High-level Query Passthrough Function Argument verification
-        //First verifies that these arguments belong to this specific function
-        if (!verifyFunctionSignature(engineQptArguments)) {
-            throw new IllegalArgumentException("Function Signature doesn't match implementation's");
-        }
-        //Ensuring the arguments received from the engine are the one defined by the connector
-        for (String argument : this.getFunctionArguments()) {
-//            if (!engineQptArguments.containsKey(argument)) {
-//                throw new IllegalArgumentException("Missing Query Passthrough Argument: " + argument);
-//            }
-//            if (StringUtils.isEmpty(engineQptArguments.get(argument))) {
-//                throw new IllegalArgumentException("Missing Query Passthrough Value for Argument: " + argument);
-//            }
-        }
-        //Finally, perform any connector-specific verification;
-        customConnectorVerifications(engineQptArguments);
     }
 }

@@ -50,7 +50,9 @@ import com.amazonaws.services.logs.model.DescribeLogGroupsRequest;
 import com.amazonaws.services.logs.model.DescribeLogGroupsResult;
 import com.amazonaws.services.logs.model.DescribeLogStreamsRequest;
 import com.amazonaws.services.logs.model.DescribeLogStreamsResult;
+import com.amazonaws.services.logs.model.GetQueryResultsResult;
 import com.amazonaws.services.logs.model.LogStream;
+import com.amazonaws.services.logs.model.ResultField;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
@@ -71,6 +73,7 @@ import java.util.concurrent.TimeoutException;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchExceptionFilter.EXCEPTION_FILTER;
+import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchUtils.getResult;
 
 /**
  * Handles metadata requests for the Athena Cloudwatch Connector.
@@ -363,13 +366,26 @@ public class CloudwatchMetadataHandler
     @Override
     public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
-        logger.debug("doGetQueryPassthroughSchema: enter - " + request);
+        logger.debug("doGetQueryPassthroughSchema: enter - {}", request);
         if (!request.isQueryPassthrough()) {
             throw new IllegalArgumentException("No Query passed through [{}]" + request);
         }
+        GetQueryResultsResult getQueryResultsResult = getResult(invoker, awsLogs, request.getQueryPassthroughArguments(), 1);
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        if (!getQueryResultsResult.getResults().isEmpty()) {
+            for (ResultField field : getQueryResultsResult.getResults().get(0)) {
+                schemaBuilder.addField(field.getField(), Types.MinorType.VARCHAR.getType());
+            }
+        }
+        else {
+            return new GetTableResponse(request.getCatalogName(),
+                    request.getTableName(),
+                    CLOUDWATCH_SCHEMA);
+        }
+
         return new GetTableResponse(request.getCatalogName(),
                 request.getTableName(),
-                CLOUDWATCH_SCHEMA);
+                schemaBuilder.build());
     }
 
     /**
