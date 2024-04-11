@@ -370,6 +370,7 @@ public class CloudwatchMetadataHandler
         if (!request.isQueryPassthrough()) {
             throw new IllegalArgumentException("No Query passed through [{}]" + request);
         }
+        // to get column names with limit 1
         GetQueryResultsResult getQueryResultsResult = getResult(invoker, awsLogs, request.getQueryPassthroughArguments(), 1);
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         if (!getQueryResultsResult.getResults().isEmpty()) {

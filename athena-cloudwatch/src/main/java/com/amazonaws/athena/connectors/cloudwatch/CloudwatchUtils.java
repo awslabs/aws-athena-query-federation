@@ -42,7 +42,17 @@ public final class CloudwatchUtils
     public static StartQueryRequest startQueryRequest(Map<String, String> qptArguments)
     {
         return new StartQueryRequest().withEndTime(Long.valueOf(qptArguments.get(CloudwatchQueryPassthrough.ENDTIME))).withStartTime(Long.valueOf(qptArguments.get(CloudwatchQueryPassthrough.STARTTIME)))
-                .withQueryString(qptArguments.get(CloudwatchQueryPassthrough.QUERYSTRING)).withLogGroupNames(qptArguments.get(CloudwatchQueryPassthrough.LOGGROUPNAMES));
+                .withQueryString(qptArguments.get(CloudwatchQueryPassthrough.QUERYSTRING)).withLogGroupNames(getLogGroupNames(qptArguments));
+    }
+
+    private static String[] getLogGroupNames(Map<String, String> qptArguments)
+    {
+        String[] logGroupNames = qptArguments.get(CloudwatchQueryPassthrough.LOGGROUPNAMES).split(", ");
+        logger.info("log group names {}", logGroupNames);
+        for (int i = 0; i < logGroupNames.length; i++) {
+            logGroupNames[i] = logGroupNames[i].replaceAll("^\"|\"$", "");
+        }
+        return logGroupNames;
     }
 
     public static StartQueryResult getQueryResult(AWSLogs awsLogs, StartQueryRequest startQueryRequest)
@@ -70,7 +80,7 @@ public final class CloudwatchUtils
             Instant currentTime = Instant.now();
             long elapsedMinutes = ChronoUnit.MINUTES.between(startTime, currentTime);
             if (elapsedMinutes >= RESULT_TIMEOUT) {
-                throw new RuntimeException("Query execution exceeded.");
+                throw new RuntimeException("Query execution timeout exceeded.");
             }
         } while (!status.equalsIgnoreCase("Complete"));
 
