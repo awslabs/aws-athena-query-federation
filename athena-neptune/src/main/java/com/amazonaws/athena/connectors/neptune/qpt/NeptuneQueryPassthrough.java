@@ -28,6 +28,8 @@ import java.util.List;
 
 public final class NeptuneQueryPassthrough implements QueryPassthroughSignature
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NeptuneQueryPassthrough.class);
+
     // Constant value representing the name of the query.
     public static final String NAME = "query";
 
@@ -38,7 +40,6 @@ public final class NeptuneQueryPassthrough implements QueryPassthroughSignature
     public static final String DATABASE = "DATABASE";
     public static final String COLLECTION = "COLLECTION";
     public static final String QUERY = "QUERY";
-    private static final Logger LOGGER = LoggerFactory.getLogger(NeptuneQueryPassthrough.class);
 
     @Override
     public String getFunctionSchema()
