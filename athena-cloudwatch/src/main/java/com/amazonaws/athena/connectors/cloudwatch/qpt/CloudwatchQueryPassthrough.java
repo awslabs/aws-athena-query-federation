@@ -30,15 +30,12 @@ public final class CloudwatchQueryPassthrough implements QueryPassthroughSignatu
 {
     private static final String SCHEMA_NAME = "system";
     private static final String NAME = "query";
-
     // List of arguments for the query, statically initialized as it always contains the same value.
     public static final String ENDTIME = "ENDTIME";
     public static final String LIMIT = "LIMIT";
     public static final String LOGGROUPNAMES = "LOGGROUPNAMES";
     public static final String QUERYSTRING = "QUERYSTRING";
     public static final String STARTTIME = "STARTTIME";
-
-
     private static final Logger LOGGER = LoggerFactory.getLogger(CloudwatchQueryPassthrough.class);
 
     @Override
