@@ -14,7 +14,7 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk.version>1.12.686</aws-sdk.version>
+        <aws-sdk.version>1.12.696</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
@@ -25,7 +25,7 @@
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.8.4</jqwik.version>
         <assertj.version>3.25.3</assertj.version>
-        <testng.version>7.9.0</testng.version>
+        <testng.version>7.10.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.17.0</fasterxml.jackson.version>
         <surefire.failsafe.version>3.2.5</surefire.failsafe.version>
@@ -36,14 +36,14 @@
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
-        <mssql.jdbc.version>12.6.1.jre11</mssql.jdbc.version>
+        <mssql.jdbc.version>12.7.0.jre11-preview</mssql.jdbc.version>
         <commons.cli.version>1.6.0</commons.cli.version>
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
         <mvn.checkstyle.version>3.3.1</mvn.checkstyle.version>
         <mvn.shade.plugin.version>3.5.2</mvn.shade.plugin.version>
-        <mvn.source.plugin.version>3.3.0</mvn.source.plugin.version>
+        <mvn.source.plugin.version>3.3.1</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.6.3</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.3.0</mvn.jar.plugin.version>
         <doclint>none</doclint>
@@ -249,7 +249,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.11</version>
+                <version>0.8.12</version>
                 <executions>
                     <execution>
                         <goals>

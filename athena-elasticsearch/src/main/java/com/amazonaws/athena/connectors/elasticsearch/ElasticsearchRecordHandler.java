@@ -26,7 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connectors.elasticsearch.ptf.ElasticsearchQueryPassthrough;
+import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -87,6 +87,7 @@ public class ElasticsearchRecordHandler
 
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
+    private final ElasticsearchQueryPassthrough queryPassthrough = new ElasticsearchQueryPassthrough();
 
     public ElasticsearchRecordHandler(Map<String, String> configOptions)
     {
@@ -142,9 +143,10 @@ public class ElasticsearchRecordHandler
         String index;
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            queryPassthrough.verify(qptArgs);
             domain = qptArgs.get(ElasticsearchQueryPassthrough.SCHEMA);
             index = qptArgs.get(ElasticsearchQueryPassthrough.INDEX);
-            query = qptArgs.get(ElasticsearchQueryPassthrough.QUERY).isEmpty() ? QueryBuilders.matchAllQuery() : QueryBuilders.wrapperQuery(qptArgs.get(ElasticsearchQueryPassthrough.QUERY));
+            query = QueryBuilders.wrapperQuery(qptArgs.get(ElasticsearchQueryPassthrough.QUERY));
         }
         else {
             domain = recordsRequest.getTableName().getSchemaName();
