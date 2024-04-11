@@ -24,6 +24,7 @@ import io.lettuce.core.Range;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.ScoredValueScanCursor;
+import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 import org.apache.arrow.util.VisibleForTesting;
@@ -110,6 +111,16 @@ public class RedisCommandsWrapper<K, V>
     }
     else {
       return standaloneCommands.zscan(var1, var2);
+    }
+  }
+
+  public <T> T evalReadOnly(byte[] script, ScriptOutputType type, K[] keys, V... values)
+  {
+    if (isCluster) {
+      return clusterCommands.evalReadOnly(script, type, keys, values);
+    }
+    else {
+      return standaloneCommands.evalReadOnly(script, type, keys, values);
     }
   }
 
