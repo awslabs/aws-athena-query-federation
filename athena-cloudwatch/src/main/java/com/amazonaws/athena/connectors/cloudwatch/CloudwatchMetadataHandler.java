@@ -251,7 +251,6 @@ public class CloudwatchMetadataHandler
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
-        logger.info("in enhancePartitionSchema");
         if (request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
             return;
         }
@@ -271,7 +270,6 @@ public class CloudwatchMetadataHandler
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        logger.info("in partition");
         if (request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
             return;
         }
@@ -310,7 +308,6 @@ public class CloudwatchMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
         if (request.getConstraints().isQueryPassThrough()) {
-            logger.info("QPT Split Requested");
             //Since this is QPT query we return a fixed split.
             Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
             return new GetSplitsResponse(request.getCatalogName(),
@@ -366,7 +363,6 @@ public class CloudwatchMetadataHandler
     @Override
     public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
-        logger.debug("doGetQueryPassthroughSchema: enter - {}", request);
         if (!request.isQueryPassthrough()) {
             throw new IllegalArgumentException("No Query passed through [{}]" + request);
         }

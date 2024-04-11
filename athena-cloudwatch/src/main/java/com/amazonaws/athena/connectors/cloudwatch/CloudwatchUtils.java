@@ -84,7 +84,6 @@ public final class CloudwatchUtils
             }
         } while (!status.equalsIgnoreCase("Complete"));
 
-        logger.info("GetQueryResultsResult {}", getQueryResultsResult);
         return getQueryResultsResult;
     }
 }

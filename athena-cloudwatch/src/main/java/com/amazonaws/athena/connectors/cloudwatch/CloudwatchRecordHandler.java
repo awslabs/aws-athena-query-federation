@@ -117,7 +117,6 @@ public class CloudwatchRecordHandler
                 spiller.writeRows((Block block, int rowNum) -> {
                     for (ResultField resultField : resultList) {
                         boolean matched = true;
-                        logger.info("field {} , value {}", resultField.getField(), resultField.getValue());
                         matched &= block.offerValue(resultField.getField(), rowNum, resultField.getValue());
                         if (!matched) {
                             return 0;
