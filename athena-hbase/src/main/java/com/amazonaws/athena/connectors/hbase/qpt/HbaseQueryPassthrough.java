@@ -29,6 +29,8 @@ import java.util.Map;
 
 public final class HbaseQueryPassthrough implements QueryPassthroughSignature
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HbaseQueryPassthrough.class);
+
     // Constant value representing the name of the query.
     public static final String NAME = "query";
 
@@ -39,7 +41,6 @@ public final class HbaseQueryPassthrough implements QueryPassthroughSignature
     public static final String DATABASE = "DATABASE";
     public static final String COLLECTION = "COLLECTION";
     public static final String FILTER = "FILTER";
-    private static final Logger LOGGER = LoggerFactory.getLogger(HbaseQueryPassthrough.class);
 
     @Override
     public String getFunctionSchema()
