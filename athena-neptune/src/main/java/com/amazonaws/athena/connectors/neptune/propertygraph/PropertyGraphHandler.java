@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
+import javax.script.ScriptException;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -119,10 +120,7 @@ public class PropertyGraphHandler
             labelName = qptArguments.get(NeptuneQueryPassthrough.COLLECTION);
             gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
 
-            ScriptEngine engine = new GremlinGroovyScriptEngine();
-            Bindings bindings = engine.createBindings();
-            bindings.put("g", graphTraversalSource);
-            Object object = engine.eval(gremlinQuery, bindings);
+            Object object = getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
             graphTraversal = (GraphTraversal) object;
         }
         else {
@@ -197,6 +195,14 @@ public class PropertyGraphHandler
                     break;
             }
         }
+    }
+
+    public Object getResponseFromGremlinQuery(GraphTraversalSource graphTraversalSource, String gremlinQuery) throws ScriptException
+    {
+        ScriptEngine engine = new GremlinGroovyScriptEngine();
+        Bindings bindings = engine.createBindings();
+        bindings.put("g", graphTraversalSource);
+        return engine.eval(gremlinQuery, bindings);
     }
 
     private void parseNodeOrEdge(final QueryStatusChecker queryStatusChecker, final BlockSpiller spiller, long numRows,

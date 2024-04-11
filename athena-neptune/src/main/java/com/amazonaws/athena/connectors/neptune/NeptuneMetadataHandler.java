@@ -41,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
 import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -53,14 +54,10 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.driver.Client;
-import org.apache.tinkerpop.gremlin.groovy.jsr223.GremlinGroovyScriptEngine;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.script.Bindings;
-import javax.script.ScriptEngine;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -95,7 +92,6 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     private final String glueDBName;
 
     private NeptuneConnection neptuneConnection = null;
-    SchemaBuilder schemaBuilder = null;
     private final NeptuneQueryPassthrough queryPassthrough = new NeptuneQueryPassthrough();
 
     public NeptuneMetadataHandler(java.util.Map<String, String> configOptions)
@@ -290,10 +286,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         String gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
         gremlinQuery = gremlinQuery.concat(".limit(1)");
         logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with limit: " + gremlinQuery);
-        ScriptEngine engine = new GremlinGroovyScriptEngine();
-        Bindings bindings = engine.createBindings();
-        bindings.put("g", graphTraversalSource);
-        Object object = engine.eval(gremlinQuery, bindings);
+        Object object = new PropertyGraphHandler(neptuneConnection).getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
         GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
         Map graphTraversalObj = null;
         Schema schema;
@@ -307,10 +300,10 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
             schema = getTableResponse.getSchema();
         }
         else {
-            schemaBuilder = SchemaBuilder.newBuilder();
+            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
             //Building schema from gremlin query results and list of fields from glue response.
             //It's require only when we are selecting limited columns.
-            graphTraversalObj.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), fields));
+            graphTraversalObj.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), fields, schemaBuilder));
             Map<String, String> metaData = getTableResponse.getSchema().getCustomMetadata();
             for (Map.Entry<String, String> map : metaData.entrySet()) {
                 schemaBuilder.addMetadata(map.getKey(), map.getValue());
@@ -321,7 +314,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
     }
 
-    private void buildSchema(String columnName, List<Field> fields)
+    private void buildSchema(String columnName, List<Field> fields, SchemaBuilder schemaBuilder)
     {
         for (Field field : fields) {
             if (field.getName().equals(columnName)) {

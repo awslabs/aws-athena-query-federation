@@ -62,7 +62,7 @@ public class NeptuneConnection
             graphType = Enums.GraphType.valueOf(configOptions.get(Constants.CFG_GRAPH_TYPE).toUpperCase());
         }
 
-        switch(graphType){
+        switch (graphType){
             case PROPERTYGRAPH:
                 return new NeptuneGremlinConnection(configOptions.get(Constants.CFG_ENDPOINT),
                         configOptions.get(Constants.CFG_PORT), Boolean.parseBoolean(configOptions.get(Constants.CFG_IAM)),
@@ -72,8 +72,10 @@ public class NeptuneConnection
                 return new NeptuneSparqlConnection(configOptions.get(Constants.CFG_ENDPOINT),
                         configOptions.get(Constants.CFG_PORT), Boolean.parseBoolean(configOptions.get(Constants.CFG_IAM)),
                         configOptions.get(Constants.CFG_REGION));
+
+            default:
+                throw new IllegalArgumentException("Unsupported graphType: " + graphType);
         }
-        return null;
     }
     
     public String getNeptuneEndpoint()
