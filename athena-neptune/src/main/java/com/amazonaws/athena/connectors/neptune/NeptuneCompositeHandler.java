@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class NeptuneCompositeHandler
 {
     public NeptuneCompositeHandler()
     {
-        super(new NeptuneMetadataHandler(System.getenv()), new NeptuneRecordHandler(System.getenv()));
+        super(new NeptuneMetadataHandler(GlueConnectionUtils.getGlueConnection()), new NeptuneRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }
