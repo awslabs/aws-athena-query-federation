@@ -29,6 +29,8 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -38,7 +40,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.logs.AWSLogs;
 import com.amazonaws.services.logs.AWSLogsClientBuilder;
@@ -46,8 +50,11 @@ import com.amazonaws.services.logs.model.DescribeLogGroupsRequest;
 import com.amazonaws.services.logs.model.DescribeLogGroupsResult;
 import com.amazonaws.services.logs.model.DescribeLogStreamsRequest;
 import com.amazonaws.services.logs.model.DescribeLogStreamsResult;
+import com.amazonaws.services.logs.model.GetQueryResultsResult;
 import com.amazonaws.services.logs.model.LogStream;
+import com.amazonaws.services.logs.model.ResultField;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
@@ -60,11 +67,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchExceptionFilter.EXCEPTION_FILTER;
+import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchUtils.getResult;
 
 /**
  * Handles metadata requests for the Athena Cloudwatch Connector.
@@ -117,6 +126,7 @@ public class CloudwatchMetadataHandler
     private final AWSLogs awsLogs;
     private final ThrottlingInvoker invoker;
     private final CloudwatchTableResolver tableResolver;
+    private final CloudwatchQueryPassthrough queryPassthrough = new CloudwatchQueryPassthrough();
 
     public CloudwatchMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -241,6 +251,9 @@ public class CloudwatchMetadataHandler
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
+        if (request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
+            return;
+        }
         partitionSchemaBuilder.addField(LOG_STREAM_SIZE_FIELD, new ArrowType.Int(64, true));
         partitionSchemaBuilder.addField(LOG_GROUP_FIELD, Types.MinorType.VARCHAR.getType());
     }
@@ -257,6 +270,10 @@ public class CloudwatchMetadataHandler
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
+        if (request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
+            return;
+        }
+
         CloudwatchTableName cwTableName = tableResolver.validateTable(request.getTableName());
 
         DescribeLogStreamsRequest cwRequest = new DescribeLogStreamsRequest(cwTableName.getLogGroupName());
@@ -290,6 +307,15 @@ public class CloudwatchMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
+        if (request.getConstraints().isQueryPassThrough()) {
+            //Since this is QPT query we return a fixed split.
+            Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+            return new GetSplitsResponse(request.getCatalogName(),
+                    Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+                            .applyProperties(qptArguments)
+                            .build());
+        }
+
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();
         Block partitions = request.getPartitions();
@@ -323,6 +349,35 @@ public class CloudwatchMetadataHandler
         }
 
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+        }
+        // to get column names with limit 1
+        GetQueryResultsResult getQueryResultsResult = getResult(invoker, awsLogs, request.getQueryPassthroughArguments(), 1);
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        if (!getQueryResultsResult.getResults().isEmpty()) {
+            for (ResultField field : getQueryResultsResult.getResults().get(0)) {
+                schemaBuilder.addField(field.getField(), Types.MinorType.VARCHAR.getType());
+            }
+        }
+
+        return new GetTableResponse(request.getCatalogName(),
+                request.getTableName(),
+                schemaBuilder.build());
     }
 
     /**
