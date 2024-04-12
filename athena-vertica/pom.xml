@@ -66,6 +66,12 @@
             <artifactId>ST4</artifactId>
             <version>${antlr.st4.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>athena-jdbc</artifactId>
+            <version>2022.47.1</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
