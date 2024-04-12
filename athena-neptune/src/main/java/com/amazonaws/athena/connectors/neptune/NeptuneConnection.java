@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
+import com.amazonaws.athena.connectors.neptune.propertygraph.NeptuneGremlinConnection;
+import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.SigV4WebSocketChannelizer;
@@ -51,6 +53,29 @@ public class NeptuneConnection
         this.neptunePort = neptunePort;
         this.enabledIAM = enabledIAM;
         this.region = region;
+    }
+
+    public static NeptuneConnection createConnection(java.util.Map<String, String> configOptions)
+    {
+        Enums.GraphType graphType = Enums.GraphType.PROPERTYGRAPH;
+        if (configOptions.get(Constants.CFG_GRAPH_TYPE) != null) {
+            graphType = Enums.GraphType.valueOf(configOptions.get(Constants.CFG_GRAPH_TYPE).toUpperCase());
+        }
+
+        switch (graphType){
+            case PROPERTYGRAPH:
+                return new NeptuneGremlinConnection(configOptions.get(Constants.CFG_ENDPOINT),
+                        configOptions.get(Constants.CFG_PORT), Boolean.parseBoolean(configOptions.get(Constants.CFG_IAM)),
+                        configOptions.get(Constants.CFG_REGION));
+
+            case RDF:
+                return new NeptuneSparqlConnection(configOptions.get(Constants.CFG_ENDPOINT),
+                        configOptions.get(Constants.CFG_PORT), Boolean.parseBoolean(configOptions.get(Constants.CFG_IAM)),
+                        configOptions.get(Constants.CFG_REGION));
+
+            default:
+                throw new IllegalArgumentException("Unsupported graphType: " + graphType);
+        }
     }
     
     public String getNeptuneEndpoint()
