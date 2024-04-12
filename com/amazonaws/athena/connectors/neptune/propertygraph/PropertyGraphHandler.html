@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10};
+var data = {"i0":10,"i1":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -197,6 +197,12 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="block">Used to read the row data associated with the provided Split.</div>
 </td>
 </tr>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getResponseFromGremlinQuery(org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource,java.lang.String)">getResponseFromGremlinQuery</a></span>&#8203;(org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource&nbsp;graphTraversalSource,
+                           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;gremlinQuery)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -243,7 +249,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <a id="executeQuery(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker,com.amazonaws.athena.connector.lambda.data.BlockSpiller,java.util.Map)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>executeQuery</h4>
 <pre class="methodSignature">public&nbsp;void&nbsp;executeQuery&#8203;(<a href="../../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;recordsRequest,
@@ -266,6 +272,21 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
                            work for a query that has already terminated</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
+</dl>
+</li>
+</ul>
+<a id="getResponseFromGremlinQuery(org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource,java.lang.String)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getResponseFromGremlinQuery</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>&nbsp;getResponseFromGremlinQuery&#8203;(org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource&nbsp;graphTraversalSource,
+                                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;gremlinQuery)
+                                   throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.scripting/javax/script/ScriptException.html?is-external=true" title="class or interface in javax.script" class="externalLink">ScriptException</a></pre>
+<dl>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.scripting/javax/script/ScriptException.html?is-external=true" title="class or interface in javax.script" class="externalLink">ScriptException</a></code></dd>
 </dl>
 </li>
 </ul>
