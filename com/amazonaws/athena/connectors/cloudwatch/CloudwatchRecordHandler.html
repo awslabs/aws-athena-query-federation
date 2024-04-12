@@ -299,7 +299,8 @@ extends <a href="../../connector/lambda/handlers/RecordHandler.html" title="clas
 <pre class="methodSignature">protected&nbsp;void&nbsp;readWithConstraint&#8203;(<a href="../../connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
                                   <a href="../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;recordsRequest,
                                   <a href="../../connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)
-                           throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></pre>
+                           throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a>,
+                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/InterruptedException.html?is-external=true" title="class or interface in java.lang" class="externalLink">InterruptedException</a></pre>
 <div class="block">Scans Cloudwatch Logs using the LogStream and optional Time stamp filters.</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
@@ -315,6 +316,7 @@ extends <a href="../../connector/lambda/handlers/RecordHandler.html" title="clas
 <dd><code>queryStatusChecker</code> - A QueryStatusChecker that you can use to stop doing work for a query that has already terminated</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/InterruptedException.html?is-external=true" title="class or interface in java.lang" class="externalLink">InterruptedException</a></code></dd>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../connector/lambda/handlers/RecordHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><code>RecordHandler</code></a></dd>
 </dl>
