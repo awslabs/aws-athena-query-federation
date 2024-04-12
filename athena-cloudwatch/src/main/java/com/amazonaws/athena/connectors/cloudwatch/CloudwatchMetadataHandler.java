@@ -374,11 +374,6 @@ public class CloudwatchMetadataHandler
                 schemaBuilder.addField(field.getField(), Types.MinorType.VARCHAR.getType());
             }
         }
-        else {
-            return new GetTableResponse(request.getCatalogName(),
-                    request.getTableName(),
-                    CLOUDWATCH_SCHEMA);
-        }
 
         return new GetTableResponse(request.getCatalogName(),
                 request.getTableName(),

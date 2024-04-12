@@ -109,22 +109,7 @@ public class CloudwatchRecordHandler
             throws TimeoutException, InterruptedException
     {
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
-            Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
-            queryPassthrough.verify(qptArguments);
-            GetQueryResultsResult getQueryResultsResult = getResult(invoker, awsLogs, qptArguments, Integer.parseInt(qptArguments.get(CloudwatchQueryPassthrough.LIMIT)));
-
-            for (List<ResultField> resultList : getQueryResultsResult.getResults()) {
-                spiller.writeRows((Block block, int rowNum) -> {
-                    for (ResultField resultField : resultList) {
-                        boolean matched = true;
-                        matched &= block.offerValue(resultField.getField(), rowNum, resultField.getValue());
-                        if (!matched) {
-                            return 0;
-                        }
-                    }
-                    return 1;
-                });
-            }
+            getQueryPassthreoughResults(spiller, recordsRequest);
         }
         else {
             String continuationToken = null;
@@ -166,6 +151,26 @@ public class CloudwatchRecordHandler
                         logEventsResult.getEvents().size());
             }
             while (continuationToken != null && queryStatusChecker.isQueryRunning());
+        }
+    }
+
+    private void getQueryPassthreoughResults(BlockSpiller spiller, ReadRecordsRequest recordsRequest) throws TimeoutException, InterruptedException
+    {
+        Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+        queryPassthrough.verify(qptArguments);
+        GetQueryResultsResult getQueryResultsResult = getResult(invoker, awsLogs, qptArguments, Integer.parseInt(qptArguments.get(CloudwatchQueryPassthrough.LIMIT)));
+
+        for (List<ResultField> resultList : getQueryResultsResult.getResults()) {
+            spiller.writeRows((Block block, int rowNum) -> {
+                for (ResultField resultField : resultList) {
+                    boolean matched = true;
+                    matched &= block.offerValue(resultField.getField(), rowNum, resultField.getValue());
+                    if (!matched) {
+                        return 0;
+                    }
+                }
+                return 1;
+            });
         }
     }
 
