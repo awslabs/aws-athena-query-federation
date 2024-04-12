@@ -24,7 +24,10 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -36,13 +39,16 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
+import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -103,6 +109,8 @@ public class HbaseMetadataHandler
     private final AWSGlue awsGlue;
     private final HbaseConnectionFactory connectionFactory;
 
+    private final HbaseQueryPassthrough queryPassthrough = new HbaseQueryPassthrough();
+
     public HbaseMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
@@ -124,6 +132,15 @@ public class HbaseMetadataHandler
         super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
         this.connectionFactory = connectionFactory;
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     private HBaseConnection getOrCreateConn(MetadataRequest request)
@@ -210,9 +227,18 @@ public class HbaseMetadataHandler
                     request.getTableName().getTableName(),
                     ex);
         }
+        String schemaName = request.getTableName().getSchemaName();
+        String tableName = request.getTableName().getTableName();
+        com.amazonaws.athena.connector.lambda.domain.TableName tableNameObj = new com.amazonaws.athena.connector.lambda.domain.TableName(schemaName, tableName);
 
+        return getTableResponse(request, origSchema, tableNameObj);
+    }
+
+    private GetTableResponse getTableResponse(GetTableRequest request, Schema origSchema,
+                                              com.amazonaws.athena.connector.lambda.domain.TableName tableName)
+    {
         if (origSchema == null) {
-            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), request.getTableName(), NUM_ROWS_TO_SCAN);
+            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), tableName, NUM_ROWS_TO_SCAN);
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -253,6 +279,11 @@ public class HbaseMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
             throws IOException
     {
+        if (request.getConstraints().isQueryPassThrough()) {
+            logger.info("doGetSplits: QPT enabled");
+            return setupQueryPassthroughSplit(request);
+        }
+
         Set<Split> splits = new HashSet<>();
 
         //We can read each region in parallel
@@ -277,5 +308,35 @@ public class HbaseMetadataHandler
     protected Field convertField(String name, String glueType)
     {
         return GlueFieldLexer.lex(name, glueType);
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String schemaName = request.getQueryPassthroughArguments().get(HbaseQueryPassthrough.DATABASE);
+        String tableName = request.getQueryPassthroughArguments().get(HbaseQueryPassthrough.COLLECTION);
+
+        com.amazonaws.athena.connector.lambda.domain.TableName tableNameObj = new com.amazonaws.athena.connector.lambda.domain.TableName(schemaName, tableName);
+
+        return getTableResponse(request, null, tableNameObj);
+    }
+
+    /**
+     * Helper function that provides a single partition for Query Pass-Through
+     *
+     */
+    protected GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
+    {
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
+
+        //Since this is QPT query we return a fixed split.
+        Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+        return new GetSplitsResponse(request.getCatalogName(),
+                Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .add(HBASE_CONN_STR, getConnStr(request))
+                        .applyProperties(qptArguments)
+                        .build());
     }
 }
