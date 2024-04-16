@@ -50,6 +50,7 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-emr</artifactId>
             <version>${aws-sdk.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.directory.server</groupId>
