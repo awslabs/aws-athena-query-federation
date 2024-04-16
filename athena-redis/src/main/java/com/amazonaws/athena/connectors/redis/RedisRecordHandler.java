@@ -174,8 +174,6 @@ public class RedisRecordHandler
         Map<String, String> queryPassthroughArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
         queryPassthrough.verify(queryPassthroughArgs);
 
-        logger.debug("handleQueryPassthrough we have QPT");
-
         RedisCommandsWrapper<String, String> syncCommands = getSyncCommands(recordsRequest);
 
         String script = queryPassthroughArgs.get(RedisQueryPassthrough.SCRIPT);
@@ -193,11 +191,7 @@ public class RedisRecordHandler
             argvArray = argv.substring(1, argv.length() - 1).split(",\\s*");
         }
 
-        logger.debug("Query Passthrough Script: " + script);
         List<Object> result = syncCommands.evalReadOnly(scriptBytes, ScriptOutputType.MULTI, keysArray, argvArray);
-        logger.debug("evalReadOnly multi result: " + result.toString());
-        logger.debug("evalReadOnly multi result index 0: " + result.get(0).toString());
-        logger.debug("evalReadOnly multi result index 0 type: " + result.get(0).getClass().toString());
         loadSingleColumn(result, spiller, queryStatusChecker);
     }
 
@@ -285,7 +279,6 @@ public class RedisRecordHandler
             }
             spiller.writeRows((Block block, int row) -> {
                 boolean literalMatched = block.offerValue(QPT_COLUMN_NAME, row, builder.toString());
-                logger.debug("Attempted to write " + builder.toString() + " to row. Success: " + literalMatched);
                 return literalMatched ? 1 : 0;
             });
         });
@@ -297,9 +290,7 @@ public class RedisRecordHandler
      */
     private void flattenRow(Object value, StringBuilder builder)
     {
-        logger.debug("flattenRow on: " + value.toString() + value.getClass().toString());
         if (value instanceof String) {
-            logger.debug("inside instanceof with " + value.toString());
             if (builder.length() != 0) {
                 builder.append(", ");
             }

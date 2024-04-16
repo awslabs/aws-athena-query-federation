@@ -242,8 +242,6 @@ public class RedisMetadataHandler
         Map<String, String> queryPassthroughArgs = request.getQueryPassthroughArguments();
         queryPassthrough.verify(queryPassthroughArgs);
 
-        logger.debug("doGetQueryPassthroughSchema configOptions: " + configOptions.toString());
-
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         schemaBuilder.addField(QPT_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
         schemaBuilder.addMetadata(VALUE_TYPE_TABLE_PROP, "literal");
