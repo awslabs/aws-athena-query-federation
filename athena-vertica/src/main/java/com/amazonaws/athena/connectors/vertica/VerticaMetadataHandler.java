@@ -300,7 +300,7 @@ public class VerticaMetadataHandler
         try {
             connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
         } catch (Exception e) {
-            throw new RuntimeException("connection failed :" + e.getMessage());
+            throw new RuntimeException("connection failed ", e);
         }
         Set<Split> splits = new HashSet<>();
         String exportBucket = getS3ExportBucket();
