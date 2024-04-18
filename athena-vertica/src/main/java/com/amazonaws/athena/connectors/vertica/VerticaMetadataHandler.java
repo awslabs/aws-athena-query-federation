@@ -36,6 +36,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
@@ -68,6 +70,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -94,6 +97,8 @@ public class VerticaMetadataHandler
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     private static final String EXPORT_BUCKET_KEY = "export_bucket";
     private static final String EMPTY_STRING = StringUtils.EMPTY;
+    private static final String TABLE_SCHEMA = "TABLE_SCHEM";
+    private static final String[] TABLE_TYPES = {"TABLE"};
     private final QueryFactory queryFactory = new QueryFactory();
     private final VerticaSchemaUtils verticaSchemaUtils;
     private AmazonS3 amazonS3;
@@ -122,6 +127,35 @@ public class VerticaMetadataHandler
         super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.amazonS3 = amazonS3;
         this.verticaSchemaUtils = verticaSchemaUtils;
+    }
+
+    /**
+     * Used to get the list of schemas (aka databases) that this source contains.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog they are querying.
+     * @return A ListSchemasResponse which primarily contains a Set<String> of schema names and a catalog name
+     * corresponding the Athena catalog that was queried.
+     */
+    @Override
+    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
+            throws Exception
+    {
+        logger.info("doListSchemaNames: {}", request.getCatalogName());
+        List<String> schemas = new ArrayList<>();
+        try (Connection client = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            DatabaseMetaData dbMetadata = client.getMetaData();
+            ResultSet rs  = dbMetadata.getTables(null, null, null, TABLE_TYPES);
+
+            while (rs.next())
+            {
+                if(!schemas.contains(rs.getString(TABLE_SCHEMA)))
+                {
+                    schemas.add(rs.getString(TABLE_SCHEMA));
+                }
+            }
+        }
+        return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
 
     protected ArrowType getArrayArrowTypeFromTypeName(String typeName, int precision, int scale)
