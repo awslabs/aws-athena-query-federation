@@ -182,12 +182,14 @@ public class RedisRecordHandler
         String keys = queryPassthroughArgs.get(RedisQueryPassthrough.KEYS);
         String[] keysArray = new String[0];
         if (!keys.isEmpty()) {
+            // to convert string formatted as "[value1, value2, ...]" to array of strings
             keysArray = keys.substring(1, keys.length() - 1).split(",\\s*");
         }
 
         String argv = queryPassthroughArgs.get(RedisQueryPassthrough.ARGV);
         String[] argvArray = new String[0];
         if (!argv.isEmpty()) {
+            // to convert string formatted as "[value1, value2, ...]" to array of strings
             argvArray = argv.substring(1, argv.length() - 1).split(",\\s*");
         }
 
@@ -290,6 +292,9 @@ public class RedisRecordHandler
      */
     private void flattenRow(Object value, StringBuilder builder)
     {
+        if (value == null) {
+            return;
+        }
         if (value instanceof String) {
             if (builder.length() != 0) {
                 builder.append(", ");
