@@ -65,10 +65,15 @@ Parameters:
     Description: "(Optional) Default value for scale of type Numeric, representing the decimal digits in the fractional part, to the right of the decimal point."
     Default: 0
     Type: Number
+  ReservedConcurrentExecutions:
+    Description: "(Optional) Maximum concurrency of the Lambda function."
+    Default: -1
 
 Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
   NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
+  HasReservedConcurrentExecutions: !Not [ !Equals [!Ref ReservedConcurrentExecutions, -1] ]
+  
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -92,6 +97,7 @@ Resources:
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
         SubnetIds: !Ref SubnetIds
+      ReservedConcurrentExecutions: !If [ HasReservedConcurrentExecutions, !Ref ReservedConcurrentExecutions, !Ref "AWS::NoValue" ]
         
   FunctionRole:
     Condition: NotHasLambdaRole
