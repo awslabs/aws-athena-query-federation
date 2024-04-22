@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.neptune;
 
 import com.amazonaws.athena.connectors.neptune.propertygraph.NeptuneGremlinConnection;
 import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.neptune.auth.NeptuneNettyHttpSigV4Signer;
 import com.amazonaws.neptune.auth.NeptuneSigV4SignerException;
@@ -29,11 +30,14 @@ import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NeptuneConnection
 {
     private static Cluster cluster = null;
-    
+    private static final Logger logger = LoggerFactory.getLogger(NeptuneConnection.class);
+
     private String neptuneEndpoint;
     private String neptunePort;
     private boolean enabledIAM;
@@ -47,14 +51,17 @@ public class NeptuneConnection
                .enableSsl(true);
                
         if (enabledIAM) {
+            logger.info("Connecting with IAM auth to https://" + neptuneEndpoint + ":" + neptunePort + " in " + region);
+            final AWSCredentialsProvider awsCredentialsProvider = new DefaultAWSCredentialsProviderChain();
             builder.handshakeInterceptor(r ->
                     {
                         try {
                             NeptuneNettyHttpSigV4Signer sigV4Signer =
-                                    new NeptuneNettyHttpSigV4Signer(region, new DefaultAWSCredentialsProviderChain());
+                                    new NeptuneNettyHttpSigV4Signer(region, awsCredentialsProvider);
                             sigV4Signer.signRequest(r);
                         }
                         catch (NeptuneSigV4SignerException e) {
+                            logger.error("SIGV4 exception", e);
                             throw new RuntimeException("Exception occurred while signing the request", e);
                         }
                         return r;
