@@ -288,7 +288,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
                  <a href="../../connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)</code></th>
 <td class="colLast">
 <div class="block">Since DynamoDB does not have "schemas" or "databases", this lists all the Glue databases (if not
- disabled) that contain <a href="#DYNAMO_DB_FLAG">"dynamo-db-flag"</a> in their URIs .</div>
+ disabled) that contain "dynamo-db-flag" in their URIs .</div>
 </td>
 </tr>
 <tr id="i6" class="altColor">
@@ -408,7 +408,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
                                              <a href="../../connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)
                                       throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></pre>
 <div class="block">Since DynamoDB does not have "schemas" or "databases", this lists all the Glue databases (if not
- disabled) that contain <a href="#DYNAMO_DB_FLAG">"dynamo-db-flag"</a> in their URIs . Otherwise returns just a "default" schema.</div>
+ disabled) that contain "dynamo-db-flag" in their URIs . Otherwise returns just a "default" schema.</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
 <dd><code><a href="../../connector/lambda/handlers/GlueMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames</a></code>&nbsp;in class&nbsp;<code><a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></code></dd>
@@ -435,9 +435,9 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
                                 throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></pre>
 <div class="block">Lists all Glue tables (if not disabled) in the schema specified that indicate use for DynamoDB metadata.
  Indications for DynamoDB use in Glue are:<br>
- 1. The top level table properties/parameters contains a key called "classification" with value <a href="#DYNAMODB">"dynamodb"</a>.<br>
- 2. Or the storage descriptor's location field contains <a href="#DYNAMODB">"dynamodb"</a>.<br>
- 3. Or the storage descriptor has a parameter called "classification" with value <a href="#DYNAMODB">"dynamodb"</a>.
+ 1. The top level table properties/parameters contains a key called "classification" with value "dynamodb".<br>
+ 2. Or the storage descriptor's location field contains "dynamodb".<br>
+ 3. Or the storage descriptor has a parameter called "classification" with value "dynamodb".
  <p>
  If the specified schema is "default", this also returns an intersection with actual tables in DynamoDB.
  Pagination only implemented for DynamoDBTableResolver.listTables()</div>
