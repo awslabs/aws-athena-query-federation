@@ -16,7 +16,7 @@ Parameters:
   LambdaFunctionName:
     Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
-    AllowedPattern: ^[a-z0-9-_]{1,64}$
+    AllowedPattern: ^[A-Za-z0-9-_]{1,64}$
   DefaultConnectionString:
     Description: 'The default connection string is used when catalog is "lambda:${LambdaFunctionName}". Catalog specific Connection Strings can be added later. Format: ${DatabaseType}://${NativeJdbcConnectionString}.'
     Type: String
