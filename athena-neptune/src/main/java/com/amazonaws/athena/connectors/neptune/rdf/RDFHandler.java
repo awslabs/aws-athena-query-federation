@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.neptune.Constants;
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
+import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +59,7 @@ public class RDFHandler
      */
 
     private final NeptuneSparqlConnection neptuneConnection;
+    private final NeptuneQueryPassthrough queryPassthrough = new NeptuneQueryPassthrough();
 
     // @VisibleForTesting
     public RDFHandler(NeptuneConnection neptuneConnection) throws Exception
@@ -97,63 +99,71 @@ public class RDFHandler
     public void executeQuery(ReadRecordsRequest recordsRequest, final QueryStatusChecker queryStatusChecker,
             final BlockSpiller spiller, java.util.Map<String, String> configOptions)  throws Exception 
     {
-        // 1. Get the specified prefixes
-        Map<String, String> prefixMap = new HashMap<>();
-        StringBuilder prefixBlock = new StringBuilder("");
-        for (String k : recordsRequest.getSchema().getCustomMetadata().keySet()) {
-            if (k.startsWith(Constants.PREFIX_KEY)) {
-                String pfx = k.substring(Constants.PREFIX_LEN);
-                String val = recordsRequest.getSchema().getCustomMetadata().get(k);
-                prefixMap.put(pfx, val);
-                prefixBlock.append("PREFIX " + pfx + ": <" + val + ">\n");
-            }
+        StringBuilder sparql;
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            queryPassthrough.verify(qptArguments);
+            sparql = new StringBuilder(qptArguments.get(NeptuneQueryPassthrough.QUERY));
         }
-        
-        // 2. Build the SPARQL query
-        String queryMode = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_QUERY_MODE);
-        if (queryMode == null) {
-            throw new RuntimeException("Mandatory: querymode");
-        }
-        queryMode = queryMode.toLowerCase();
-        StringBuilder sparql = new StringBuilder(prefixBlock + "\n");
-        if (queryMode.equals(Constants.QUERY_MODE_SPARQL)) {
-            String sparqlParam = recordsRequest.getSchema().getCustomMetadata().get(Constants.QUERY_MODE_SPARQL);
-            if (sparqlParam == null) {
-                throw new RuntimeException("Mandatory: sparql when querympde=sparql");
-            }
-            sparql.append("\n" + sparqlParam);
-        } 
-        else if (queryMode.equals(Constants.QUERY_MODE_CLASS)) {
-            String classURI = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_CLASS_URI);
-            String predsPrefix = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_PREDS_PREFIX);
-            String subject = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_SUBJECT);
-            if (classURI == null) {
-                throw new RuntimeException("Mandatory: classuri when querymode=class");
-            }
-            if (predsPrefix == null) {
-                throw new RuntimeException("Mandatory: predsPrefix when querymode=class");
-            }
-            if (subject == null) {
-                throw new RuntimeException("Mandatory:subject when querymode=class");
-            }
-            sparql.append("\nselect ");
-            for (Field prop : recordsRequest.getSchema().getFields()) {
-                sparql.append("?" + prop.getName() + " ");
-            }
-            sparql.append(" WHERE {");
-            sparql.append("\n?" + subject + " a " + classURI + " . ");
-            for (Field prop : recordsRequest.getSchema().getFields()) {
-                if (!prop.getName().equals(subject)) {
-                    sparql.append("\n?" + subject + " " + predsPrefix + ":" + prop.getName() + " ?" + prop.getName()
-                            + " .");
+        else {
+            // 1. Get the specified prefixes
+            Map<String, String> prefixMap = new HashMap<>();
+            StringBuilder prefixBlock = new StringBuilder("");
+            for (String k : recordsRequest.getSchema().getCustomMetadata().keySet()) {
+                if (k.startsWith(Constants.PREFIX_KEY)) {
+                    String pfx = k.substring(Constants.PREFIX_LEN);
+                    String val = recordsRequest.getSchema().getCustomMetadata().get(k);
+                    prefixMap.put(pfx, val);
+                    prefixBlock.append("PREFIX " + pfx + ": <" + val + ">\n");
                 }
             }
-            sparql.append(" }");
-        } 
-        else {
-            throw new RuntimeException("Illegal RDF params");
+
+            // 2. Build the SPARQL query
+            String queryMode = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_QUERY_MODE);
+            if (queryMode == null) {
+                throw new RuntimeException("Mandatory: querymode");
+            }
+            queryMode = queryMode.toLowerCase();
+            sparql = new StringBuilder(prefixBlock + "\n");
+            if (queryMode.equals(Constants.QUERY_MODE_SPARQL)) {
+                String sparqlParam = recordsRequest.getSchema().getCustomMetadata().get(Constants.QUERY_MODE_SPARQL);
+                if (sparqlParam == null) {
+                    throw new RuntimeException("Mandatory: sparql when querympde=sparql");
+                }
+                sparql.append("\n" + sparqlParam);
+            }
+            else if (queryMode.equals(Constants.QUERY_MODE_CLASS)) {
+                String classURI = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_CLASS_URI);
+                String predsPrefix = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_PREDS_PREFIX);
+                String subject = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_SUBJECT);
+                if (classURI == null) {
+                    throw new RuntimeException("Mandatory: classuri when querymode=class");
+                }
+                if (predsPrefix == null) {
+                    throw new RuntimeException("Mandatory: predsPrefix when querymode=class");
+                }
+                if (subject == null) {
+                    throw new RuntimeException("Mandatory:subject when querymode=class");
+                }
+                sparql.append("\nselect ");
+                for (Field prop : recordsRequest.getSchema().getFields()) {
+                    sparql.append("?" + prop.getName() + " ");
+                }
+                sparql.append(" WHERE {");
+                sparql.append("\n?" + subject + " a " + classURI + " . ");
+                for (Field prop : recordsRequest.getSchema().getFields()) {
+                    if (!prop.getName().equals(subject)) {
+                        sparql.append("\n?" + subject + " " + predsPrefix + ":" + prop.getName() + " ?" + prop.getName()
+                                + " .");
+                    }
+                }
+                sparql.append(" }");
+            }
+            else {
+                throw new RuntimeException("Illegal RDF params");
+            }
         }
-        
+
         // 3. Create the builder and add row writer exttractors for each field
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter
                 .newBuilder(recordsRequest.getConstraints());
