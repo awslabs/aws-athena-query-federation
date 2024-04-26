@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -178,54 +178,62 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code>&lt;T&gt;&nbsp;T</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#evalReadOnly(byte%5B%5D,io.lettuce.core.ScriptOutputType,K%5B%5D,V...)">evalReadOnly</a></span>&#8203;(byte[]&nbsp;script,
+            io.lettuce.core.ScriptOutputType&nbsp;type,
+            <a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>[]&nbsp;keys,
+            <a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>...&nbsp;values)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code><a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#get(K)">get</a></span>&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>,&#8203;<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#hgetall(K)">hgetall</a></span>&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#hmset(K,java.util.Map)">hmset</a></span>&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>,&#8203;<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;&nbsp;var2)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>io.lettuce.core.KeyScanCursor&lt;<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#scan(io.lettuce.core.ScanCursor,io.lettuce.core.ScanArgs)">scan</a></span>&#8203;(io.lettuce.core.ScanCursor&nbsp;var1,
     io.lettuce.core.ScanArgs&nbsp;var2)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#set(K,V)">set</a></span>&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
    <a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&nbsp;var2)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Long.html?is-external=true" title="class or interface in java.lang" class="externalLink">Long</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#zadd(K,double,V)">zadd</a></span>&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
     double&nbsp;var2,
     <a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&nbsp;var3)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Long.html?is-external=true" title="class or interface in java.lang" class="externalLink">Long</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#zcount(K,io.lettuce.core.Range)">zcount</a></span>&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
       io.lettuce.core.Range&lt;? extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Number.html?is-external=true" title="class or interface in java.lang" class="externalLink">Number</a>&gt;&nbsp;var2)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#zrange(K,long,long)">zrange</a></span>&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
       long&nbsp;var2,
       long&nbsp;var3)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>io.lettuce.core.ScoredValueScanCursor&lt;<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#zscan(K,io.lettuce.core.ScanCursor)">zscan</a></span>&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
      io.lettuce.core.ScanCursor&nbsp;var2)</code></th>
@@ -343,6 +351,20 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <h4>zscan</h4>
 <pre class="methodSignature">public&nbsp;io.lettuce.core.ScoredValueScanCursor&lt;<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;&nbsp;zscan&#8203;(<a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
                                                       io.lettuce.core.ScanCursor&nbsp;var2)</pre>
+</li>
+</ul>
+<a id="evalReadOnly(byte[],io.lettuce.core.ScriptOutputType,java.lang.Object[],java.lang.Object[])">
+<!--   -->
+</a><a id="evalReadOnly(byte[],io.lettuce.core.ScriptOutputType,K[],V...)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>evalReadOnly</h4>
+<pre class="methodSignature">public&nbsp;&lt;T&gt;&nbsp;T&nbsp;evalReadOnly&#8203;(byte[]&nbsp;script,
+                          io.lettuce.core.ScriptOutputType&nbsp;type,
+                          <a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>[]&nbsp;keys,
+                          <a href="RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>...&nbsp;values)</pre>
 </li>
 </ul>
 <a id="hmset(java.lang.Object,java.util.Map)">
