@@ -31,13 +31,16 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.logs.AWSLogs;
 import com.amazonaws.services.logs.AWSLogsClientBuilder;
 import com.amazonaws.services.logs.model.GetLogEventsRequest;
 import com.amazonaws.services.logs.model.GetLogEventsResult;
+import com.amazonaws.services.logs.model.GetQueryResultsResult;
 import com.amazonaws.services.logs.model.OutputLogEvent;
+import com.amazonaws.services.logs.model.ResultField;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -46,6 +49,8 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -54,6 +59,7 @@ import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchMetadataHandl
 import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchMetadataHandler.LOG_MSG_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchMetadataHandler.LOG_STREAM_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchMetadataHandler.LOG_TIME_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchUtils.getResult;
 
 /**
  * Handles data read record requests for the Athena Cloudwatch Connector.
@@ -73,15 +79,16 @@ public class CloudwatchRecordHandler
     private final ThrottlingInvoker invoker;
     private final AtomicLong count = new AtomicLong(0);
     private final AWSLogs awsLogs;
+    private final CloudwatchQueryPassthrough queryPassthrough = new CloudwatchQueryPassthrough();
 
     public CloudwatchRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(
-            AmazonS3ClientBuilder.defaultClient(),
-            AWSSecretsManagerClientBuilder.defaultClient(),
-            AmazonAthenaClientBuilder.defaultClient(),
-            AWSLogsClientBuilder.defaultClient(),
-            configOptions);
+                AmazonS3ClientBuilder.defaultClient(),
+                AWSSecretsManagerClientBuilder.defaultClient(),
+                AmazonAthenaClientBuilder.defaultClient(),
+                AWSLogsClientBuilder.defaultClient(),
+                configOptions);
     }
 
     @VisibleForTesting
@@ -99,54 +106,79 @@ public class CloudwatchRecordHandler
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws TimeoutException
+            throws TimeoutException, InterruptedException
     {
-        String continuationToken = null;
-        TableName tableName = recordsRequest.getTableName();
-        Split split = recordsRequest.getSplit();
-        invoker.setBlockSpiller(spiller);
-        do {
-            final String actualContinuationToken = continuationToken;
-            GetLogEventsResult logEventsResult = invoker.invoke(() -> awsLogs.getLogEvents(
-                    pushDownConstraints(recordsRequest.getConstraints(),
-                            new GetLogEventsRequest()
-                                    .withLogGroupName(split.getProperty(LOG_GROUP_FIELD))
-                                    //We use the property instead of the table name because of the special all_streams table
-                                    .withLogStreamName(split.getProperty(LOG_STREAM_FIELD))
-                                    .withNextToken(actualContinuationToken)
-                                    // must be set to use nextToken correctly
-                                    .withStartFromHead(true)
-                    )));
-
-            if (continuationToken == null || !continuationToken.equals(logEventsResult.getNextForwardToken())) {
-                continuationToken = logEventsResult.getNextForwardToken();
-            }
-            else {
-                continuationToken = null;
-            }
-
-            for (OutputLogEvent ole : logEventsResult.getEvents()) {
-                spiller.writeRows((Block block, int rowNum) -> {
-                    boolean matched = true;
-                    matched &= block.offerValue(LOG_STREAM_FIELD, rowNum, split.getProperty(LOG_STREAM_FIELD));
-                    matched &= block.offerValue(LOG_TIME_FIELD, rowNum, ole.getTimestamp());
-                    matched &= block.offerValue(LOG_MSG_FIELD, rowNum, ole.getMessage());
-                    return matched ? 1 : 0;
-                });
-            }
-
-            logger.info("readWithConstraint: LogGroup[{}] LogStream[{}] Continuation[{}] rows[{}]",
-                    tableName.getSchemaName(), tableName.getTableName(), continuationToken,
-                    logEventsResult.getEvents().size());
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            getQueryPassthreoughResults(spiller, recordsRequest);
         }
-        while (continuationToken != null && queryStatusChecker.isQueryRunning());
+        else {
+            String continuationToken = null;
+            TableName tableName = recordsRequest.getTableName();
+            Split split = recordsRequest.getSplit();
+            invoker.setBlockSpiller(spiller);
+            do {
+                final String actualContinuationToken = continuationToken;
+                GetLogEventsResult logEventsResult = invoker.invoke(() -> awsLogs.getLogEvents(
+                        pushDownConstraints(recordsRequest.getConstraints(),
+                                new GetLogEventsRequest()
+                                        .withLogGroupName(split.getProperty(LOG_GROUP_FIELD))
+                                        //We use the property instead of the table name because of the special all_streams table
+                                        .withLogStreamName(split.getProperty(LOG_STREAM_FIELD))
+                                        .withNextToken(actualContinuationToken)
+                                        // must be set to use nextToken correctly
+                                        .withStartFromHead(true)
+                        )));
+
+                if (continuationToken == null || !continuationToken.equals(logEventsResult.getNextForwardToken())) {
+                    continuationToken = logEventsResult.getNextForwardToken();
+                }
+                else {
+                    continuationToken = null;
+                }
+
+                for (OutputLogEvent ole : logEventsResult.getEvents()) {
+                    spiller.writeRows((Block block, int rowNum) -> {
+                        boolean matched = true;
+                        matched &= block.offerValue(LOG_STREAM_FIELD, rowNum, split.getProperty(LOG_STREAM_FIELD));
+                        matched &= block.offerValue(LOG_TIME_FIELD, rowNum, ole.getTimestamp());
+                        matched &= block.offerValue(LOG_MSG_FIELD, rowNum, ole.getMessage());
+                        return matched ? 1 : 0;
+                    });
+                }
+
+                logger.info("readWithConstraint: LogGroup[{}] LogStream[{}] Continuation[{}] rows[{}]",
+                        tableName.getSchemaName(), tableName.getTableName(), continuationToken,
+                        logEventsResult.getEvents().size());
+            }
+            while (continuationToken != null && queryStatusChecker.isQueryRunning());
+        }
+    }
+
+    private void getQueryPassthreoughResults(BlockSpiller spiller, ReadRecordsRequest recordsRequest) throws TimeoutException, InterruptedException
+    {
+        Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+        queryPassthrough.verify(qptArguments);
+        GetQueryResultsResult getQueryResultsResult = getResult(invoker, awsLogs, qptArguments, Integer.parseInt(qptArguments.get(CloudwatchQueryPassthrough.LIMIT)));
+
+        for (List<ResultField> resultList : getQueryResultsResult.getResults()) {
+            spiller.writeRows((Block block, int rowNum) -> {
+                for (ResultField resultField : resultList) {
+                    boolean matched = true;
+                    matched &= block.offerValue(resultField.getField(), rowNum, resultField.getValue());
+                    if (!matched) {
+                        return 0;
+                    }
+                }
+                return 1;
+            });
+        }
     }
 
     /**
      * Attempts to push down predicates into Cloudwatch Logs by decorating the Cloudwatch Logs request.
      *
      * @param constraints The constraints for the read as provided by Athena based on the customer's query.
-     * @param request The Cloudwatch Logs request to inject predicates to.
+     * @param request     The Cloudwatch Logs request to inject predicates to.
      * @return The decorated Cloudwatch Logs request.
      * @note This impl currently only pushing down SortedRangeSet filters (>=, =<, between) on the log time column.
      */

@@ -47,69 +47,7 @@ public class VerticaSchemaUtils
             while(definition.next())
             {
                 String colType = definition.getString("TYPE_NAME").toUpperCase();
-                switch (colType)
-                {
-                    //If Bit
-                    case "BIT":
-                    {
-                        tableSchemaBuilder.addBitField(definition.getString("COLUMN_NAME"));
-                        break;
-                    }
-                    //If TinyInt
-                    case "TINYINT":
-                    {
-                        tableSchemaBuilder.addTinyIntField(definition.getString("COLUMN_NAME"));
-                        break;
-                    }
-                    //If SmallInt
-                    case "SMALLINT":
-                    {
-                        tableSchemaBuilder.addSmallIntField(definition.getString("COLUMN_NAME"));
-                        break;
-                    }
-                    //If Int
-                    case "INTEGER":
-                        //If BIGINT
-                    case "BIGINT": {
-                        tableSchemaBuilder.addBigIntField(definition.getString("COLUMN_NAME"));
-                        break;
-                    }
-                    //If FLOAT4
-                    case "FLOAT4":
-                    {
-                        tableSchemaBuilder.addFloat4Field(definition.getString("COLUMN_NAME"));
-                        break;
-                    }
-                    //If FLOAT8
-                    case "FLOAT8":
-                    {
-                        tableSchemaBuilder.addFloat8Field(definition.getString("COLUMN_NAME"));
-                        break;
-                    }
-                    //If DECIMAL/NUMERIC
-                    case "NUMERIC":
-                    {
-                        tableSchemaBuilder.addDecimalField(definition.getString("COLUMN_NAME"), 10, 2);
-                        break;
-                    }
-                    //If VARCHAR
-                    case "BOOLEAN":
-                    case "VARCHAR":
-                    case "TIMESTAMPTZ":
-                    case "TIMESTAMP": {
-                        tableSchemaBuilder.addStringField(definition.getString("COLUMN_NAME"));
-                        break;
-                    }
-                    //If DATETIME
-                    case "DATETIME":
-                    {
-                        tableSchemaBuilder.addDateDayField(definition.getString("COLUMN_NAME"));
-                        break;
-                    }
-
-                    default:
-                        tableSchemaBuilder.addStringField(definition.getString("COLUMN_NAME"));
-                }
+                convertToArrowType(tableSchemaBuilder, definition.getString("COLUMN_NAME"), colType);
             }
             return tableSchemaBuilder.build();
 
@@ -119,5 +57,72 @@ public class VerticaSchemaUtils
             throw new RuntimeException("Error in building the table schema: " + e.getMessage(), e);
         }
 
+    }
+
+    public static void convertToArrowType(SchemaBuilder tableSchemaBuilder, String colName, String colType) throws SQLException
+    {
+        switch (colType)
+        {
+            //If Bit
+            case "BIT":
+            {
+                tableSchemaBuilder.addBitField(colName);
+                break;
+            }
+            //If TinyInt
+            case "TINYINT":
+            {
+                tableSchemaBuilder.addTinyIntField(colName);
+                break;
+            }
+            //If SmallInt
+            case "SMALLINT":
+            {
+                tableSchemaBuilder.addSmallIntField(colName);
+                break;
+            }
+            //If Int
+            case "INTEGER":
+                //If BIGINT
+            case "BIGINT": {
+                tableSchemaBuilder.addBigIntField(colName);
+                break;
+            }
+            //If FLOAT4
+            case "FLOAT4":
+            {
+                tableSchemaBuilder.addFloat4Field(colName);
+                break;
+            }
+            //If FLOAT8
+            case "FLOAT8":
+            {
+                tableSchemaBuilder.addFloat8Field(colName);
+                break;
+            }
+            //If DECIMAL/NUMERIC
+            case "NUMERIC":
+            {
+                tableSchemaBuilder.addDecimalField(colName, 10, 2);
+                break;
+            }
+            //If VARCHAR
+            case "BOOLEAN":
+            case "VARCHAR":
+            case "TIMESTAMPTZ":
+            case "TIMESTAMP": {
+                tableSchemaBuilder.addStringField(colName);
+                break;
+            }
+            //If DATETIME
+            case "DATETIME":
+            {
+                tableSchemaBuilder.addDateDayField(colName);
+                break;
+            }
+
+            default:
+                tableSchemaBuilder.addStringField(colName);
+        }
     }
 }

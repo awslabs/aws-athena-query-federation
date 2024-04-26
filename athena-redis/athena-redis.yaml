@@ -49,6 +49,22 @@ Parameters:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
+  QPTConnectionEndpoint:
+    Description: "(Optional) The hostname:port:password of the Redis server that contains data for this table optionally using SecretsManager (e.g. ${secret_name}). Used for Query Pass Through queries only."
+    Default: ''
+    Type: String
+  QPTConnectionSSL:
+    Description: "(Optional) When True, creates a Redis connection that uses SSL/TLS. Used for Query Pass Through queries only."
+    Default: 'false'
+    Type: String
+  QPTConnectionCluster:
+    Description: "(Optional) When True, enables support for clustered Redis instances. Used for Query Pass Through queries only."
+    Default: 'false'
+    Type: String
+  QPTConnectionDBNumber:
+    Description: "(Optional) Set this number (for example 1, 2, or 3) to read from a non-default Redis database. Used for Query Pass Through queries only."
+    Default: 0
+    Type: Number
 Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 Resources:
@@ -60,6 +76,10 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
+          qpt_endpoint: !Ref QPTConnectionEndpoint
+          qpt_ssl: !Ref QPTConnectionSSL
+          qpt_cluster: !Ref QPTConnectionCluster
+          qpt_db_number: !Ref QPTConnectionDBNumber
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.redis.RedisCompositeHandler"
       CodeUri: "./target/athena-redis-2022.47.1.jar"

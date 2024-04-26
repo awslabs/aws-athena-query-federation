@@ -14,18 +14,18 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk.version>1.12.696</aws-sdk.version>
+        <aws-sdk.version>1.12.705</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.96.0</jsii.version>
+        <jsii.version>1.97.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
-        <slf4j-log4j.version>2.0.7</slf4j-log4j.version>
+        <slf4j-log4j.version>2.0.13</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.8.4</jqwik.version>
         <assertj.version>3.25.3</assertj.version>
-        <testng.version>7.10.0</testng.version>
+        <testng.version>7.10.1</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.17.0</fasterxml.jackson.version>
         <surefire.failsafe.version>3.2.5</surefire.failsafe.version>
@@ -37,7 +37,7 @@
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <mssql.jdbc.version>12.7.0.jre11-preview</mssql.jdbc.version>
-        <commons.cli.version>1.6.0</commons.cli.version>
+        <commons.cli.version>1.7.0</commons.cli.version>
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
@@ -45,7 +45,7 @@
         <mvn.shade.plugin.version>3.5.2</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.3.1</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.6.3</mvn.javadoc.plugin.version>
-        <mvn.jar.plugin.version>3.3.0</mvn.jar.plugin.version>
+        <mvn.jar.plugin.version>3.4.1</mvn.jar.plugin.version>
         <doclint>none</doclint>
     </properties>
     <dependencyManagement>
@@ -405,7 +405,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.2</version>
+                        <version>3.2.4</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
