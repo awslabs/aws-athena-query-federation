@@ -38,6 +38,11 @@
             <artifactId>aws-java-sdk-redshift</artifactId>
             <version>${aws-sdk.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-redshiftserverless</artifactId>
+            <version>${aws-sdk.version}</version>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/redshift -->
         <dependency>
             <groupId>software.amazon.awscdk</groupId>
