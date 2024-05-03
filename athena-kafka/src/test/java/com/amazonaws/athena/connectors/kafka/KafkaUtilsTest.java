@@ -196,7 +196,7 @@ public class KafkaUtilsTest {
         assertEquals(Types.MinorType.INT.getType(), toArrowType("INT"));
         assertEquals(Types.MinorType.INT.getType(), toArrowType("INTEGER"));
         assertEquals(Types.MinorType.BIGINT.getType(), toArrowType("BIGINT"));
-        assertEquals(Types.MinorType.FLOAT8.getType(), toArrowType("FLOAT"));
+        assertEquals(Types.MinorType.FLOAT4.getType(), toArrowType("FLOAT"));
         assertEquals(Types.MinorType.FLOAT8.getType(), toArrowType("DOUBLE"));
         assertEquals(Types.MinorType.FLOAT8.getType(), toArrowType("DECIMAL"));
         assertEquals(Types.MinorType.DATEDAY.getType(), toArrowType("DATE"));

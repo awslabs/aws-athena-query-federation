@@ -44,6 +44,10 @@ public class KafkaConstants
      */
     public static final String ENV_KAFKA_ENDPOINT = "kafka_endpoint";
     /**
+     * This is schema registry url
+     */
+    public static final String KAFKA_SCHEMA_REGISTRY_URL = "schema_registry_url";
+    /**
      * This is the type of authentication client has set for the cluster
      */
     public static final String AUTH_TYPE = "auth_type";
@@ -63,6 +67,8 @@ public class KafkaConstants
     public static final String AWS_SECRET_PWD = "password";
 
     public static final int MAX_RECORDS_IN_SPLIT = 10_000;
+
+    public static final String AVRO_DATA_FORMAT = "avro";
 
     private KafkaConstants()
     {
