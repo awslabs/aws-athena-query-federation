@@ -46,7 +46,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
-import com.amazonaws.athena.connectors.vertica.qpt.VerticaQueryPassthrough;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -103,7 +102,7 @@ public class VerticaMetadataHandler
     private final VerticaSchemaUtils verticaSchemaUtils;
     private AmazonS3 amazonS3;
 
-    private final VerticaQueryPassthrough queryPassthrough = new VerticaQueryPassthrough();
+    private final JdbcQueryPassthrough queryPassthrough = new JdbcQueryPassthrough();
 
     public VerticaMetadataHandler(Map<String, String> configOptions)
     {
@@ -389,7 +388,6 @@ public class VerticaMetadataHandler
                 splits.add(split);
 
             }
-            logger.info("doGetSplits: exit - {} ", splits.size());
             return new GetSplitsResponse(catalogName, splits);
         }
         else
@@ -402,7 +400,6 @@ public class VerticaMetadataHandler
                     .add("s3ObjectKey", EMPTY_STRING)
                     .build();
             splits.add(split);
-            logger.info("doGetSplits: exit - {}",  splits.size());
             return new GetSplitsResponse(catalogName,split);
         }
 
@@ -474,7 +471,7 @@ public class VerticaMetadataHandler
     public String buildQueryPassthroughSql(Constraints constraints)
     {
         queryPassthrough.verify(constraints.getQueryPassthroughArguments());
-        return  constraints.getQueryPassthroughArguments().get(VerticaQueryPassthrough.QUERY);
+        return  constraints.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
     }
 
 }

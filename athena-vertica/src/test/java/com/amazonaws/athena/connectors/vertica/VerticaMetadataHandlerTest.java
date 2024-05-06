@@ -37,6 +37,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
@@ -71,7 +73,6 @@ import org.stringtemplate.v4.ST;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -83,6 +84,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -94,7 +96,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 public class VerticaMetadataHandlerTest extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(VerticaMetadataHandlerTest.class);
-    private static final String[] TABLE_TYPES = {"TABLE"};
+    private static final String[] TABLE_TYPES = new String[]{"TABLE"};
     private QueryFactory queryFactory;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private VerticaMetadataHandler verticaMetadataHandler;
@@ -169,7 +171,32 @@ public class VerticaMetadataHandlerTest extends TestBase
     }
 
     @Test
-    public void doListSchemaNames() throws SQLException
+    public void doListTables() throws Exception
+    {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME",};
+        Object[][] values = {{"testSchema", "testTable1"}};
+        List<TableName> expectedTables = new ArrayList<>();
+        expectedTables.add(new TableName("testSchema", "testTable1"));
+
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(databaseMetaData.getTables(null, tableName.getSchemaName(), null, new String[]{"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+        Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
+
+        ListTablesResponse listTablesResponse = this.verticaMetadataHandler.doListTables(this.allocator,
+                new ListTablesRequest(this.federatedIdentity,
+                        "testQueryId",
+                        "testCatalog",
+                        tableName.getSchemaName(),
+                        null, UNLIMITED_PAGE_SIZE_VALUE));
+
+        Assert.assertArrayEquals(expectedTables.toArray(), listTablesResponse.getTables().toArray());
+
+    }
+
+    @Test
+    public void doListSchemaNames() throws Exception
     {
 
         String[] schema = {"TABLE_SCHEM"};
@@ -181,14 +208,10 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(databaseMetaData.getTables(null, null, null, TABLE_TYPES)).thenReturn(resultSet);
         Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
 
-        ListSchemasResponse listSchemasResponse = null;
-        try {
-            listSchemasResponse = this.verticaMetadataHandler.doListSchemaNames(this.allocator,
-                    new ListSchemasRequest(this.federatedIdentity,
-                            "testQueryId", "testCatalog"));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        ListSchemasResponse listSchemasResponse = this.verticaMetadataHandler.doListSchemaNames(this.allocator,
+                new ListSchemasRequest(this.federatedIdentity,
+                        "testQueryId", "testCatalog"));
+
         Assert.assertArrayEquals(expected, listSchemasResponse.getSchemas().toArray());
     }
 
@@ -240,11 +263,6 @@ public class VerticaMetadataHandlerTest extends TestBase
         constraintsMap.put("year", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 2000)), false));
 
-
-        GetTableLayoutRequest req = null;
-        GetTableLayoutResponse res = null;
-
-
         String testSql = "Select * from schema1.table1";
         String[] test = new String[]{"Select * from schema1.table1", "Select * from schema1.table1"};
 
@@ -265,15 +283,13 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
         Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
 
-        try {
-            req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
-                    new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                    tableSchema,
-                    partitionCols);
+        try (GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("schema1", "table1"),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                tableSchema,
+                partitionCols);
 
-            res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req);
-
+             GetTableLayoutResponse res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
             Block partitions = res.getPartitions();
 
             String actualQueryID = partitions.getFieldReader("queryId").readText().toString();
@@ -293,26 +309,13 @@ public class VerticaMetadataHandlerTest extends TestBase
             assertTrue(partitions.getRowCount() > 0);
             logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
 
-        } finally {
-            try {
-                req.close();
-                res.close();
-            } catch (Exception ex) {
-                logger.error("doGetTableLayout: ", ex);
-            }
         }
-
-        logger.info("doGetTableLayout - exit");
-
     }
 
 
     @Test
     public void doGetSplits() throws Exception
     {
-
-        logger.info("doGetSplits: enter");
-
         Schema schema = SchemaBuilder.newBuilder()
                 .addIntField("day")
                 .addIntField("month")
@@ -382,9 +385,6 @@ public class VerticaMetadataHandlerTest extends TestBase
         }
 
         assertTrue(!response.getSplits().isEmpty());
-
-        logger.info("doGetSplits: exit");
     }
-
 
 }
