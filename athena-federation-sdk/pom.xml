@@ -4,11 +4,11 @@
     <parent>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-athena-query-federation</artifactId>
-        <version>2022.47.1</version>
+        <version>2024.18.1</version>
     </parent>
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-federation-sdk</artifactId>
-    <version>2022.47.1</version>
+    <version>2024.18.1</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK</name>
     <description>The Athena Query Federation SDK defines a set of interfaces and wire protocols that you can implement to enable Athena to delegate portions of it's query execution plan to code that you deploy/write.</description>
@@ -287,7 +287,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-             <!--- to meet engine version 3.14.0 -->
+            <!--- to meet engine version 3.14.0 -->
             <version>3.14.0</version>
         </dependency>
         <dependency>
@@ -382,7 +382,7 @@
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
                         <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
-                        </transformer>
+</transformer>
                     </transformers>
                     <relocations>
                         <relocation>
@@ -459,7 +459,7 @@
                 </executions>
             </plugin>
             <plugin>
-                 <!--- Allow to Add *-source.jar;  -->
+                <!--- Allow to Add *-source.jar;  -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <version>${mvn.source.plugin.version}</version>
