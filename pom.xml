@@ -14,11 +14,11 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk.version>1.12.710</aws-sdk.version>
+        <aws-sdk.version>1.12.715</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.97.0</jsii.version>
+        <jsii.version>1.98.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.13</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
@@ -27,11 +27,11 @@
         <assertj.version>3.25.3</assertj.version>
         <testng.version>7.10.2</testng.version>
          <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.17.0</fasterxml.jackson.version>
+        <fasterxml.jackson.version>2.17.1</fasterxml.jackson.version>
         <surefire.failsafe.version>3.2.5</surefire.failsafe.version>
         <log4j2Version>2.23.1</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
-        <guava.version>33.1.0-jre</guava.version>
+        <guava.version>33.2.0-jre</guava.version>
         <protobuf3.version>3.25.3</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
