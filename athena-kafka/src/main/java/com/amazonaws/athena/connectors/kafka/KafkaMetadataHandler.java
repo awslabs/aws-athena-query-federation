@@ -328,8 +328,8 @@ public class KafkaMetadataHandler extends MetadataHandler
         String topic;
         GlueRegistryReader registryReader = new GlueRegistryReader();
         if (registryReader.getGlueSchemaType(glueRegistryName, glueSchemaName).equalsIgnoreCase(AVRO_DATA_FORMAT)) {
-            AvroTopicSchema avroTopicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, AvroTopicSchema.class);
-            topic = avroTopicSchema.getName();
+            //if schema type is avro, then topic name should be glue schema name
+            topic = glueSchemaName;
         }
         else {
             TopicSchema topicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, TopicSchema.class);

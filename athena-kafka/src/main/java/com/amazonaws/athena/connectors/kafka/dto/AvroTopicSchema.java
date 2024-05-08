@@ -24,7 +24,7 @@ import java.util.List;
 
 public class AvroTopicSchema
 {
-    // Kafka Topic Name
+    // schema Name
     String name;
     // Schema Type
     String type;
