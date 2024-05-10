@@ -127,6 +127,14 @@ public class MultiplexingJdbcMetadataHandler
     }
 
     @Override
+    public GetTableResponse doGetQueryPassthroughSchema(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+          throws Exception
+    {
+      validateMultiplexer(getTableRequest.getCatalogName());
+      return this.metadataHandlerMap.get(getTableRequest.getCatalogName()).doGetQueryPassthroughSchema(blockAllocator, getTableRequest);
+    }
+
+    @Override
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {

@@ -43,6 +43,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.Optimization
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
 import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
+import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTablesRequest;
@@ -281,37 +282,69 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
 
         GetTableResponse getTableResponse = doGetTable(allocator, request);
         List<Field> fields = getTableResponse.getSchema().getFields();
-        Client client = neptuneConnection.getNeptuneClientConnection();
-        GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
-        String gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
-        gremlinQuery = gremlinQuery.concat(".limit(1)");
-        logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with limit: " + gremlinQuery);
-        Object object = new PropertyGraphHandler(neptuneConnection).getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
-        GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
-        Map graphTraversalObj = null;
         Schema schema;
-        while (graphTraversalForSchema.hasNext()) {
-            graphTraversalObj = (Map) graphTraversalForSchema.next();
+        Enums.GraphType graphType = Enums.GraphType.PROPERTYGRAPH;
+
+        if (configOptions.get(Constants.CFG_GRAPH_TYPE) != null) {
+            graphType = Enums.GraphType.valueOf(configOptions.get(Constants.CFG_GRAPH_TYPE).toUpperCase());
         }
 
-        //In case of gremlin query is fetching all columns then we can use same schema from glue
-        //otherwise we will build schema from gremlin query result column names.
-        if (graphTraversalObj != null && graphTraversalObj.size() == fields.size()) {
+        switch (graphType){
+            case PROPERTYGRAPH:
+                Client client = neptuneConnection.getNeptuneClientConnection();
+                GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
+                String gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
+                gremlinQuery = gremlinQuery.concat(".limit(1)");
+                logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with limit: " + gremlinQuery);
+                Object object = new PropertyGraphHandler(neptuneConnection).getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
+                GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
+                Map graphTraversalObj = null;
+                if (graphTraversalForSchema.hasNext()) {
+                    graphTraversalObj = (Map) graphTraversalForSchema.next();
+                }
+                schema = getSchemaFromResults(getTableResponse, graphTraversalObj, fields);
+                return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
+
+            case RDF:
+                String sparqlQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
+                sparqlQuery = sparqlQuery.contains("limit") ? sparqlQuery : sparqlQuery.concat("\nlimit 1");
+                logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema sparql query with limit: " + sparqlQuery);
+                NeptuneSparqlConnection neptuneSparqlConnection = (NeptuneSparqlConnection) neptuneConnection;
+                neptuneSparqlConnection.runQuery(sparqlQuery);
+                String strim = getTableResponse.getSchema().getCustomMetadata().get(Constants.SCHEMA_STRIP_URI);
+                boolean trimURI = strim == null ? false : Boolean.parseBoolean(strim);
+                Map<String, Object> resultsMap = null;
+                if (neptuneSparqlConnection.hasNext()) {
+                    resultsMap = neptuneSparqlConnection.next(trimURI);
+                }
+                schema = getSchemaFromResults(getTableResponse, resultsMap, fields);
+                return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
+
+            default:
+                throw new IllegalArgumentException("Unsupported graphType: " + graphType);
+        }
+    }
+
+    private Schema getSchemaFromResults(GetTableResponse getTableResponse, Map resultsMap, List<Field> fields)
+    {
+        Schema schema;
+        //In case of 'gremlin/sparql query' is fetching all columns then we can use same schema from glue
+        //otherwise we will build schema from gremlin/sparql query result column names.
+        if (resultsMap != null && resultsMap.size() == fields.size()) {
             schema = getTableResponse.getSchema();
         }
         else {
             SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            //Building schema from gremlin query results and list of fields from glue response.
+            //Building schema from gremlin/sparql query results and list of fields from glue response.
             //It's require only when we are selecting limited columns.
-            graphTraversalObj.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), fields, schemaBuilder));
+            resultsMap.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), fields, schemaBuilder));
             Map<String, String> metaData = getTableResponse.getSchema().getCustomMetadata();
             for (Map.Entry<String, String> map : metaData.entrySet()) {
                 schemaBuilder.addMetadata(map.getKey(), map.getValue());
             }
             schema = schemaBuilder.build();
         }
-
-        return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
+        return schema;
     }
 
     private void buildSchema(String columnName, List<Field> fields, SchemaBuilder schemaBuilder)

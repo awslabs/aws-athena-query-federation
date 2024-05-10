@@ -20,15 +20,21 @@
 package com.amazonaws.athena.connectors.neptune.propertygraph;
 
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.neptune.auth.NeptuneNettyHttpSigV4Signer;
+import com.amazonaws.neptune.auth.NeptuneSigV4SignerException;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
-import org.apache.tinkerpop.gremlin.driver.SigV4WebSocketChannelizer;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NeptuneGremlinConnection extends NeptuneConnection 
 {
+    private static final Logger logger = LoggerFactory.getLogger(NeptuneGremlinConnection.class);
     private static Cluster cluster = null;
 
     public NeptuneGremlinConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM, String region)
@@ -40,7 +46,22 @@ public class NeptuneGremlinConnection extends NeptuneConnection
                .enableSsl(true);
                
         if (enabledIAM) {
-            builder = builder.channelizer(SigV4WebSocketChannelizer.class);
+            logger.info("Connecting with IAM auth to https://" + neptuneEndpoint + ":" + neptunePort + " in " + region);
+            final AWSCredentialsProvider awsCredentialsProvider = new DefaultAWSCredentialsProviderChain();
+            builder.handshakeInterceptor(r ->
+                    {
+                        try {
+                            NeptuneNettyHttpSigV4Signer sigV4Signer =
+                                    new NeptuneNettyHttpSigV4Signer(region, awsCredentialsProvider);
+                            sigV4Signer.signRequest(r);
+                        }
+                        catch (NeptuneSigV4SignerException e) {
+                            logger.error("SIGV4 exception", e);
+                            throw new RuntimeException("Exception occurred while signing the request", e);
+                        }
+                        return r;
+                    }
+            );
         }
         
         cluster = builder.create();
