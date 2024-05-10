@@ -23,6 +23,13 @@ Parameters:
   SecretNamePrefix:
     Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena JDBC Federation secret names can be prefixed with "AthenaJdbcFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaJdbcFederation*". Parameter value in this case should be "AthenaJdbcFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
     Type: String
+  IsFIPSEnabled:
+    AllowedValues:
+      - true
+      - false
+    Default: false
+    Description: "If oracle rds is FIPS compliance select true, [true, false] (default is false)"
+    Type: String
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
@@ -68,6 +75,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
+          is_FIPS_Enabled: !Ref IsFIPSEnabled
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.oracle.OracleMuxCompositeHandler"
       CodeUri: "./target/athena-oracle-2022.47.1.jar"
