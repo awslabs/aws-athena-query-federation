@@ -74,6 +74,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -186,17 +187,17 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
     private Optional<String> getPrimaryKey(TableName tableName) throws Exception 
     {
-        String primaryKey = "";
+        List<String> primaryKeys = new ArrayList<String>();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + tableName.getTableName());
                 ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
                     // Concatenate multiple primary keys if they exist
-                    primaryKey += rs.getString(PRIMARY_KEY_COLUMN_NAME) + ", ";
+                    primaryKeys.add(rs.getString(PRIMARY_KEY_COLUMN_NAME));
                 }
             }
         }
-        primaryKey = primaryKey.replaceAll(", $", "");
+        String primaryKey = String.join(", ", primaryKeys);
         if (!Strings.isNullOrEmpty(primaryKey) && hasUniquePrimaryKey(tableName, primaryKey)) {
             return Optional.of(primaryKey);
         }
