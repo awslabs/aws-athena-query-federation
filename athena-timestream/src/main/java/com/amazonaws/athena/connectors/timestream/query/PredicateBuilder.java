@@ -30,12 +30,23 @@ import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class PredicateBuilder
 {
+    // We use a specific format to use the full precision provided by Timestream.
+    // Additionally, it prevents generating invalid format like `2024-12-31 00:11:22.`.
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd HH:mm:ss.nnnnnnnnn")
+            .toFormatter()
+            .withZone(ZoneId.of("UTC"));
+
     private PredicateBuilder() {}
 
     public static List<String> buildConjucts(
@@ -157,6 +168,8 @@ public class PredicateBuilder
         switch (Types.getMinorTypeForArrowType(type)) {
             case VARCHAR:
                 return "\'" + value + "\'";
+            case DATEMILLI:
+                return "\'" + ((LocalDateTime) value).format(TIMESTAMP_FORMATTER) + "\'";
             default:
                 return String.valueOf(value);
         }
