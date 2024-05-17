@@ -213,7 +213,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + tableName.getTableName() + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC"); 
                  ResultSet rs = preparedStatement.executeQuery()) {
-                while (rs.next()) {
+                if (rs.next()) {
                     if (rs.getInt(COUNTS_COLUMN_NAME) == 1) {
                         // Since it is in descending order and 1 is this first count seen, 
                         // this table has a unique primary key 
