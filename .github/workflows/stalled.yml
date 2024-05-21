@@ -2,27 +2,23 @@ name: Label Stalled PRs
 on:
   schedule:
     - cron: '15 15 * * *' # Run every day at 15:15 UTC / 7:15 PST / 8:15 PDT
-permissions:
-  pull-requests: write
 jobs:
-  stale:
-    if: github.repository == 'awslabs/aws-athena-query-federation'
+  cleanup:
     runs-on: ubuntu-latest
+    name: Stale PRs
     steps:
-      - name: GitHub App token
-        id: github_app_token
-        uses: tibdex/github-app-token@v2.1.0
-        with:
-          app_id: ${{ secrets.APP_ID }}
-          private_key: ${{ secrets.APP_PRIVATE_KEY }}
-          installation_id: 22958780
-      - name: Stale PRs
-        uses: actions/stale@v9
-        with:
-          repo-token: ${{ steps.github_app_token.outputs.token }}
-          stale-pr-label: 'stalled'
-          stale-pr-message: 'This PR is stalled because it has been open for 30 days with no activity.'
-          days-before-pr-stale: 30
-          days-before-issue-stale: -1
-          days-before-pr-close: -1
-          days-before-issue-close: -1
+    - uses: aws-actions/stale-issue-cleanup@v3
+      with:
+	stale-pr-message: This PR has been open without activity for more than 30 days. Labeling this issue stalled. Please close the PR if it is no longer necessary.
+	stale-issue-label: stalled
+        exempt-issue-labels: awaiting-approval
+        stale-pr-label: no-pr-activity
+        exempt-pr-labels: awaiting-approval
+        response-requested-label: response-requested
+
+	closed-for-staleness-label: closed-for-staleness
+	  
+        stale-pr-label: 'stalled'
+        stale-pr-message: 'This PR is stalled because it has been open for 30 days with no activity.'
+        days-before-stale: 30
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
