@@ -33,15 +33,22 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.FieldValue;
+import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobStatus;
+import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableResult;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,8 +60,10 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
@@ -219,10 +228,26 @@ public class BigQueryMetadataHandlerTest
     @Test
     public void testDoGetSplits() throws Exception
     {
+
+//        mockedStatic.when(() -> BigQueryUtils.fixCaseForDatasetName(any(String.class), any(String.class), any(BigQuery.class))).thenReturn("testDataset");
+//        mockedStatic.when(() -> BigQueryUtils.fixCaseForTableName(any(String.class), any(String.class), any(String.class), any(BigQuery.class))).thenReturn("testTable");
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
                 mock(Block.class), Collections.<String>emptyList(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), null);
+        // added schema with integer column countCol
+        List<Field> testSchemaFields = Arrays.asList(Field.of("countCol", LegacySQLTypeName.INTEGER));
+        Schema tableSchema = Schema.of(testSchemaFields);
+
+        // mocked table row count as 15
+        List<FieldValue> bigQueryRowValue = Arrays.asList(FieldValue.of(FieldValue.Attribute.PRIMITIVE, "15"));
+        FieldValueList fieldValueList = FieldValueList.of(bigQueryRowValue,
+                FieldList.of(testSchemaFields));
+        List<FieldValueList> tableRows = Arrays.asList(fieldValueList);
+
+        Page<FieldValueList> pageNoSchema = new BigQueryPage<>(tableRows);
+        TableResult result = new TableResult(tableSchema, tableRows.size(), pageNoSchema);
+//        when(job.getQueryResults()).thenReturn(result);
 
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
