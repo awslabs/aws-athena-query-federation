@@ -36,7 +36,6 @@ import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 
 import org.junit.After;
 import org.junit.Before;
@@ -45,6 +44,8 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,7 +87,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         logger.info("setUpBefore - enter");
         allocator = new BlockAllocatorImpl();
         handler = new NeptuneMetadataHandler(glue,neptuneConnection,
-                new LocalKeyFactory(), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "spill-bucket",
+                new LocalKeyFactory(), mock(SecretsManagerClient.class), mock(AmazonAthena.class), "spill-bucket",
                 "spill-prefix", com.google.common.collect.ImmutableMap.of());
         logger.info("setUpBefore - exit");
     }

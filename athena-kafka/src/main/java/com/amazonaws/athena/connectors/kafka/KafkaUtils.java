@@ -33,10 +33,6 @@ import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
@@ -49,6 +45,9 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -356,11 +355,12 @@ public class KafkaUtils
      */
     private static Map<String, Object> getCredentialsAsKeyValue(java.util.Map<String, String> configOptions) throws Exception
     {
-        AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
-        GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
-        getSecretValueRequest.setSecretId(getRequiredConfig(KafkaConstants.SECRET_MANAGER_KAFKA_CREDS_NAME, configOptions));
-        GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
-        return objectMapper.readValue(response.getSecretString(), new TypeReference<Map<String, Object>>()
+        SecretsManagerClient secretsManager = SecretsManagerClient.create();
+        GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder()
+                .secretId(getRequiredConfig(KafkaConstants.SECRET_MANAGER_KAFKA_CREDS_NAME, configOptions))
+                .build();
+        GetSecretValueResponse response = secretsManager.getSecretValue(getSecretValueRequest);
+        return objectMapper.readValue(response.secretString(), new TypeReference<Map<String, Object>>()
         {
         });
     }

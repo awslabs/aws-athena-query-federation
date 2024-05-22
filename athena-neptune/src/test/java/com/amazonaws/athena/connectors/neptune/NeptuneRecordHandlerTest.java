@@ -52,7 +52,6 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -77,6 +76,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -98,7 +98,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
         private Schema schemaPGEdgeForRead;
         private Schema schemaPGQueryForRead;
         private AmazonS3 amazonS3;
-        private AWSSecretsManager awsSecretsManager;
+        private SecretsManagerClient awsSecretsManager;
         private AmazonAthena athena;
         private S3BlockSpillReader spillReader;
         private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
@@ -165,7 +165,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
                 allocator = new BlockAllocatorImpl();
                 amazonS3 = mock(AmazonS3.class);
-                awsSecretsManager = mock(AWSSecretsManager.class);
+                awsSecretsManager = mock(SecretsManagerClient.class);
                 athena = mock(AmazonAthena.class);
 
                 when(amazonS3.putObject(any()))

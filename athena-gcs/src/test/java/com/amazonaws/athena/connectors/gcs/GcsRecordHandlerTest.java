@@ -38,8 +38,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.auth.oauth2.GoogleCredentials;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -52,6 +50,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.File;
 import java.util.Collections;
@@ -73,7 +72,7 @@ public class GcsRecordHandlerTest extends GenericGcsTest
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsRecordHandlerTest.class);
 
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
 
     @Mock
     private AmazonAthena athena;
@@ -126,8 +125,8 @@ public class GcsRecordHandlerTest extends GenericGcsTest
                 .build();
         // To mock AmazonS3 via AmazonS3ClientBuilder
         mockedS3Builder.when(AmazonS3ClientBuilder::defaultClient).thenReturn(amazonS3);
-        // To mock AWSSecretsManager via AWSSecretsManagerClientBuilder
-        mockedSecretManagerBuilder.when(AWSSecretsManagerClientBuilder::defaultClient).thenReturn(secretsManager);
+        // To mock SecretsManagerClient via SecretsManagerClient
+        mockedSecretManagerBuilder.when(SecretsManagerClient::create).thenReturn(secretsManager);
         // To mock AmazonAthena via AmazonAthenaClientBuilder
         mockedAthenaClientBuilder.when(AmazonAthenaClientBuilder::defaultClient).thenReturn(athena);
         mockedGoogleCredentials.when(() -> GoogleCredentials.fromStream(any())).thenReturn(credentials);
