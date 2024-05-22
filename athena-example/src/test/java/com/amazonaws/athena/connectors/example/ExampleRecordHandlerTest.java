@@ -37,7 +37,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -49,6 +48,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
@@ -73,7 +73,7 @@ public class ExampleRecordHandlerTest
     private BlockAllocatorImpl allocator;
     private Schema schemaForRead;
     private AmazonS3 amazonS3;
-    private AWSSecretsManager awsSecretsManager;
+    private SecretsManagerClient awsSecretsManager;
     private AmazonAthena athena;
     private S3BlockSpillReader spillReader;
 
@@ -106,7 +106,7 @@ public class ExampleRecordHandlerTest
         allocator = new BlockAllocatorImpl();
 
         amazonS3 = mock(AmazonS3.class);
-        awsSecretsManager = mock(AWSSecretsManager.class);
+        awsSecretsManager = mock(SecretsManagerClient.class);
         athena = mock(AmazonAthena.class);
 
         when(amazonS3.doesObjectExist(nullable(String.class), nullable(String.class))).thenReturn(true);

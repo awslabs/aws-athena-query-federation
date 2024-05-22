@@ -38,9 +38,6 @@ import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.athena.connectors.redis.util.MockKeyScanCursor;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
@@ -57,6 +54,9 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -106,7 +106,7 @@ public class RedisMetadataHandlerTest
     private AWSGlue mockGlue;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
     private AmazonAthena mockAthena;
@@ -129,10 +129,10 @@ public class RedisMetadataHandlerTest
         when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
-                    if ("endpoint".equalsIgnoreCase(request.getSecretId())) {
-                        return new GetSecretValueResult().withSecretString(decodedEndpoint);
+                    if ("endpoint".equalsIgnoreCase(request.secretId())) {
+                        return GetSecretValueResponse.builder().secretString(decodedEndpoint).build();
                     }
-                    throw new RuntimeException("Unknown secret " + request.getSecretId());
+                    throw new RuntimeException("Unknown secret " + request.secretId());
                 });
     }
 

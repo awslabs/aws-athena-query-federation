@@ -47,7 +47,6 @@ import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
@@ -58,6 +57,7 @@ import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -122,7 +122,7 @@ public class HbaseMetadataHandler
     protected HbaseMetadataHandler(
         AWSGlue awsGlue,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
+        SecretsManagerClient secretsManager,
         AmazonAthena athena,
         HbaseConnectionFactory connectionFactory,
         String spillBucket,
