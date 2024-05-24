@@ -60,7 +60,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -75,6 +74,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementResponse;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -159,7 +159,7 @@ public class DynamoDBMetadataHandler
     @VisibleForTesting
     DynamoDBMetadataHandler(
             EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
+            SecretsManagerClient secretsManager,
             AmazonAthena athena,
             String spillBucket,
             String spillPrefix,
