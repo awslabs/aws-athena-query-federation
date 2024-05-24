@@ -53,7 +53,6 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.io.ByteStreams;
 import org.junit.After;
 import org.junit.Before;

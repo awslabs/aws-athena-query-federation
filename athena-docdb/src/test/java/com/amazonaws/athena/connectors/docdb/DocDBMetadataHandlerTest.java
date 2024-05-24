@@ -41,7 +41,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
