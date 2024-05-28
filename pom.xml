@@ -14,7 +14,7 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk.version>1.12.715</aws-sdk.version>
+        <aws-sdk.version>1.12.730</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
@@ -23,8 +23,8 @@
         <slf4j-log4j.version>2.0.13</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.8.4</jqwik.version>
-        <assertj.version>3.25.3</assertj.version>
+        <jqwik.version>1.8.5</jqwik.version>
+        <assertj.version>3.26.0</assertj.version>
         <testng.version>7.10.2</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.17.1</fasterxml.jackson.version>
@@ -37,7 +37,7 @@
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <mssql.jdbc.version>12.7.0.jre11-preview</mssql.jdbc.version>
-        <commons.cli.version>1.7.0</commons.cli.version>
+        <commons.cli.version>1.8.0</commons.cli.version>
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
