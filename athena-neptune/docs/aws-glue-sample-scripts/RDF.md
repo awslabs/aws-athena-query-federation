@@ -111,18 +111,7 @@ The **route_rdf_nopfx** table is similar to **route_rdf** except the prefixes ar
 
 ![](./assets/routerdf_nopfx.png)
 
-### Step 5: Deploy the Athena Connector
-Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
-
-In this example, use the following settings:
-
-- ApplicationName: AthenaNeptuneConnectorRDF
-- AthenaCatalogName: athena-catalog-neptune-rdf
-- GlueDatabaseName: graph-database-rdf
-- NeptuneGraphType: RDF
-
-### Step 6: Query
-Once connector is deployed, you can run SQL queries against the Athena service to retrieve this RDF data. 
+Run SQL queries against the Athena service to retrieve this RDF data. 
 
 The following query accesses the class-based table to retrieve 100 airports.
 
