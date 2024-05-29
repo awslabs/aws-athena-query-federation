@@ -21,13 +21,13 @@ Advanced properties for the table are:
 
 ## Examples
 
-The next screenshot shows columns and advanced properties for the sample `airport` table that maps to airport vertices in Neptune. It is a vertex table, indicated the `componenttype` of `vertex`. Its columns include `id` (the airport vertex ID) plus `icao`, `type`, and `desc` (vertex properties).
-
-
+The next screenshot shows columns and advanced properties for the sample `airport` table that maps to airport vertices in Neptune. It is a vertex table, indicated the `componenttype` of `vertex`. Its columns include `id` (the airport vertex ID) plus `type`, `code`, `icao`, and `desc` (vertex properties).
 
 ![](./assets/table.png)
 
+Here is an edge table for `route`. Columns include built-in `id`, `out`, and `in`. The `dist` column maps to an edge property of the `route` edge.
 
+![](./assets/table_route.png)
 
 ### Query examples
 
