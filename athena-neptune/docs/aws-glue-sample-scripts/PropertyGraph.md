@@ -6,17 +6,13 @@ To query property graph data using this connector, create a table in the Glue da
 - *Edge-based*: The table represents an edge with a specified label in the graph. Each row represents a specific edge. Its column include the edge ID, source and target vertex IDs, and edge property values. An example is the `route` table.
 - *Query-based*: The table represents the resultset of a Gremlin query. Each row is one result. An example is the `customairport` table.
 
+Advanced properties for the table are:
+
 |Property|Values|Description|
 |--------|------|-----------|
-|componenttype|rdf||
-|querymode|class, sparql||
-|sparql|SPARQL query to use to find resultset.|Only if querymode='sparql'. Omit prefixes. Define prefixes as table properties.|
-|classuri|Class of resources to find|In curie form prefix:classname. Only if querymode='class'. Connector will query for resources whose RDF type is this classuri.|
-|subject|Name of column that is the subject in triples.|Only if querymode='class'. Connector will query for resources whose RDF type is this classuri. In that query. THiS IS THE SUBJECT.|
-|preds_prefix|Prefix for predicates to find|Only if querymode='class'. If that prefix is P, you must define property prefix_P. For each resource, the connector finds column values as objects of predicates preds_prefix:colname|
-|prefix_|Default prefix for query| URI prefix without angled brackets|
-|prefix_X|Prefix known by shortform X| URI prefix without angled brackets|
-|strip_uri|true, false|Only only localname of URIs in resultset|
+|componenttype|vertex, edge, or view||
+|glabel|vertex label or edge type. If not specified, this is assumed to be the table name||
+|query|Gremlin query if componenttype is view|
 
 ### Sample table post setup
 
