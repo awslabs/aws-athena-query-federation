@@ -2,9 +2,14 @@
 
 To query property graph data using this connector, create a table in the Glue data catalog that maps to property graph data in the Neptune database. There are three styles of mapping available:
 
-- *Vertex-based*: The table represents a vertex with a specified label in the graph. Each row represents a specific vertex. Its column include the vertex ID and vertex property values. Examples include `airport`, `country`, and `continent` tables.
+- *Vertex-based*: The table represents a vertex with a specified label in the graph. Each row represents a specific vertex. Its columns include the vertex ID and vertex property values. Examples tables include `airport`, `country`, and `continent` tables.
 - *Edge-based*: The table represents an edge with a specified label in the graph. Each row represents a specific edge. Its column include the edge ID, source and target vertex IDs, and edge property values. An example is the `route` table.
 - *Query-based*: The table represents the resultset of a Gremlin query. Each row is one result. An example is the `customairport` table.
+
+Columns are named the same as their properties. Reserved column names are:
+- `id`: vertex ID if `componenttype` is 'vertex`. edge ID if `componenttype` is 'edge`.
+- `out`: If `componenttype` is edge, this is the vertex ID of the *from* vertex.
+- `in`: If `componenttype` is edge, this is the vertex ID of the *to* vertex.
 
 Advanced properties for the table are:
 
