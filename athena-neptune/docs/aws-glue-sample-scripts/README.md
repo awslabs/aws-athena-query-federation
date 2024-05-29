@@ -2,6 +2,20 @@
 
 Although Neptune is a graph database, the Neptune Athena Connector presents results of SQL queries through Athena in tabular form. You must define the tabular structure using the Glue Data Catalog. Each table defines the columns of the table and how to map graph data to that structure.
 
+We support the following datatypes for table columns:
+        
+|Glue DataType|Apache Arrow Type|
+|-------------|-----------------|
+|int|INT|
+|bigint|BIGINT|
+|double|FLOAT8|
+|float|FLOAT4|
+|boolean|BIT|
+|binary|VARBINARY|
+|string|VARCHAR|
+|timestamp|DATEMILLI|
+
+
 ## CloudFormation Template for Air Routes
 
 To use the `air routes` dataset example, download the CloudFormation template [cfn/cfn_nac_glue.yaml](cfn/cfn_nac_glue.yaml). In the CloudFormation console, create a stack based on this template. Accept defaults and wait for stack to complete. It creates two Glue databases with several tables. 
