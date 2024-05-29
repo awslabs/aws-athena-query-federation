@@ -1,42 +1,6 @@
-
 # Setup AWS Glue Catalog
 
-> **NOTE**
->
-> Create the Glue database and the corresponding tables within the same AWS Region as your Neptune cluster and where you intend to run this connector Lambda funciton.
 
-<br/>
-
-> **Case sensitive graph labels**
->
-> When creating a Glue Table for Neptune, users should specify the following Glue Table parameter if their table name has casing (since Glue only supports lowercased table names):
-    "glabel" = &lt;GraphLabelName&gt;
-<br/>
-
-
-> **New feature support - Custom Schema/Gremlin Query**
->
-> You can now create a custom schema and specify a gremlin query to fetch the data for the schema from the graph databases. This enhancement allows users to specify a gremlin query instead of doing table join operations to retrieve data. You can also put a limit on number of records you want to retrieve.  Go to custom query example section for details
-
-
-<br/>
-
-
-<br/>
-Each table within the AWS Glue Catalog based database maps to one node/vertex or edge/relationship type within your Amazon Neptune Property Graph model. Each Column for a Table maps to one property of the graph node or edge with the corresponding datatypes.
-
-
-> **New feature support - Custom Schema/Gremlin Query**
->
-> You can now create a custom schema and specify a gremlin query to fetch the data for the schema from the graph databases. This enhancement allows users to specify a gremlin query instead of doing table join operations to retrieve data. You can also put a limit on number of records you want to retrieve.  Go to custom query example section for details
-
-> **New feature support - RDF support**
->
-> You can now query RDF data using the connector
-
-
-
-<br/>
 Each table within the AWS Glue Catalog based database maps to:
 
 - One node/vertex or edge/relationship type within your Amazon Neptune Property Graph model
@@ -63,24 +27,6 @@ For more on creating tables for RDF data, see [RDF.md](RDF.md).
 
 
 
-=======
-If you're planning to use your own data set instead of the Air Routes sample dataset, then you need to modify the script according to your data structure. 
-
-Ensure to have the right executable permissions on the script once you download it.
-
-```
-chmod 755 sample-cli-script.sh
-```
-Ensure to setup credentials for your AWS CLI to work.
-
-Replace &lt;aws-profile> with the AWS profile name that carries your credentials and replace &lt;aws-region> with AWS region where you are creating the AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
-
-```
-./sample-cli-script.sh  <aws-profile> <aws-region>
-```
-
-
-If all goes well you now have the Glue Database and Tables that are required for your Athena Neptune Connector setup and you can move on to those steps mentioned [here](../neptune-connector-setup/).
 
 ### Sample table post setup
 
