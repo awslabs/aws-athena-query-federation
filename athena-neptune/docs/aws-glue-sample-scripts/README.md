@@ -1,113 +1,18 @@
 # Setup AWS Glue Catalog
 
-To use the `air routes` dataset example, download the Cloudformation template [cfn/cfn_nac_glue.yaml](cfn/cfn_nac_glue.yaml). In the CloudFormation console, create a stack based on this template. Accept defaults and wait for stack to complete. It creates two Glue databases with the following tables:
+Although Neptune is a graph database, the Neptune Athena Connector presents results of SQL queries through Athena in tabular form. You must define the tabular structure using the Glue Data Catalog. Each table defines the columns of the table and how to map graph data to that structure.
 
-TODO ...
+## CloudFormation Template for Air Routes
 
+To use the `air routes` dataset example, download the CloudFormation template [cfn/cfn_nac_glue.yaml](cfn/cfn_nac_glue.yaml). In the CloudFormation console, create a stack based on this template. Accept defaults and wait for stack to complete. It creates two Glue databases with several tables. 
 
-Each table within the AWS Glue Catalog based database maps to:
+The `graph-database` Glue database has tables `airport`, `country`, `continent`, `route`, and `customairport`. These tables put structure around the property graph representation of the `air routes` dataset.
 
-- One node/vertex or edge/relationship type within your Amazon Neptune Property Graph model
-- One resource or one SPARQL query result within your Amazon Neptune RDF model
+The `graph-database-rdf` Glue database has tables `airport_rdf`, `route_rdf`, and `route_rdf_nopfx`. These tables put structure around the RDF representation of the `air routes` dataset.
 
-We support the following datatypes for table columns:
-        
-|Glue DataType|Apache Arrow Type|
-|-------------|-----------------|
-|int|INT|
-|bigint|BIGINT|
-|double|FLOAT8|
-|float|FLOAT4|
-|boolean|BIT|
-|binary|VARBINARY|
-|string|VARCHAR|
-|timestamp|DATEMILLI|
+## Understanding Graph-Table Mapping Through Glue Catalog
 
-<br/>
+See [PropertyGraph.md](PropertyGraph.md) for more on how to map property graph to tables.
 
-For more on creating tables for property graph data, see [PropertyGraph.md](PropertyGraph.md).
-
-For more on creating tables for RDF data, see [RDF.md](RDF.md).
-
-
-
-
-### Sample table post setup
-
-![](./assets/table.png)
-
-### Query examples
-
-##### Graph Query
-
-```
-g.V().hasLabel("airport").as("source").out("route").as("destination").select("source","destination").by(id()).limit(10)
-```
-
-#####  Equivalent Athena Query
-```
-SELECT 
-a.id as "source",b.id as "destination" FROM "graph-database"."airport" as a 
-inner join "graph-database"."route" as b 
-on a.id = b.out
-inner join "graph-database"."airport" as c 
-on c.id = b."in"
-limit 10;
-```
-
-## Custom query
-
-Neptune connector custom query feature allows you to specify a custom Glue table, which matches response of a Gremlin Query. For example a gremlin query like 
-
-```
-g.V().hasLabel("airport").as("source").out("route").as("destination").select("source","destination").by(id()).limit(10)
-
-```
-
-matches to a Glue table 
-
-![](./assets/customquery-exampletable.png)
-
-Refer example scripts on how to create a table [here](./manual/sample-cli-script.sh)
-
-> **NOTE**
->
-> Custom query feature allows simple type (example int,long,string,dateime) projections as query output
-
-
-### Example query patterns 
-
-##### project node properties
-
-```
-g.V().hasLabel("airport").valueMap("code","city","country").limit(10000)
-```
-
-##### project edge properties
-
-```
-g.E().hasLabel("route").valueMap("dist").limit(10000)
-```
-
-##### n hop query with select clause
-
-```
-g.V().hasLabel("airport").as("source").out("route").as("destination").select("source","destination").by("code").limit(10)
-
-```
-
-##### n hop query with project clause
-```
-g.V().hasLabel("airport").as("s").out("route").as("d").project("source","destination").by(select("s").id()).by(select("d").id()).limit(10)
-
-```
-
-### Sample table post setup
-
-![](./assets/customtable.png)
-
-###  Benefits
-
-Using custom query feature you can project output of a gremlin query directly. This helps to avoid the effort to write a lengthly sql query on the graph model. It also allows more control on how the table schema should be designed for analysis purpose. You can limit the number of records to retrieve in the gremlin query itself.
-
+See [RDF.md](RDF.md) for more on how to map property graph to tables.
 
