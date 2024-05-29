@@ -2,8 +2,8 @@
 
 To query RDF data using this connector, create a table in the Glue data catalog that maps to RDF data in the Neptune database. There are two styles of mapping available:
 
-- **Class-based**: The table represents an RDFS class. Each row represents an RDF resource whose type of that class. Columns represent datatype or object properties. See the airport_rdf example below.
-- **Query-based**: The table represents the resultset of a SPARQL query. Each row is one result. See the route_rdf example below.
+- **Class-based**: The table represents an RDFS class. Each row represents an RDF resource whose type of that class. Columns represent datatype or object properties. See the `airport_rdf` example below.
+- **Query-based**: The table represents the resultset of a SPARQL query. Each row is one result. See the `route_rdf` example below.
 
 In each case, you define columns and use table properties to map RDF to that column structure. Here is a summary of table properties to indicate RDF mapping:
 
