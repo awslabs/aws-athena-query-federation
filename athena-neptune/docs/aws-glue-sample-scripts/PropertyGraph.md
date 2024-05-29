@@ -19,9 +19,15 @@ Advanced properties for the table are:
 |glabel|vertex label or edge type. If not specified, this is assumed to be the table name||
 |query|Gremlin query if `componenttype` is `view`|
 
-The next screenshot shows columns and advanced properties for the sample `airport` table that maps to airport vertices in Neptune.
+## Examples
+
+The next screenshot shows columns and advanced properties for the sample `airport` table that maps to airport vertices in Neptune. It is a vertex table, indicated the `componenttype` of `vertex`. 
+
+
 
 ![](./assets/table.png)
+
+
 
 ### Query examples
 
