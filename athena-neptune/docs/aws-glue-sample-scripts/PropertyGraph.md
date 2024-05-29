@@ -39,3 +39,26 @@ g.V().hasLabel("airport").as("source").out("route").as("destination").select("so
 ```
 
 Columns are `source` and `destination`, which are the values returned by the Gremlin query above.
+
+Run SQL queries against the Athena service to retrieve this property graph data. 
+
+The following query retrieves 100 airports.
+
+```
+select * from "graph-database"."airport"
+LIMIT 100
+```
+
+The following query retrieves 100 routes.
+
+```
+select * from "graph-database"."route"
+LIMIT 100
+```
+
+The following query uses the custom view to get source-destination routes:
+
+```
+select * from "graph-database"."customairport"
+LIMIT 100
+```
