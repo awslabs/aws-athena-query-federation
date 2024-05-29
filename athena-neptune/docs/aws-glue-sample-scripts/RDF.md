@@ -22,30 +22,6 @@ In each case, you define columns and use table properties to map RDF to that col
 ## Examples
 We provide examples of both class-based and query-based tables. The examples use the Air Routes dataset. 
 
-### Step 1: Create Neptune Cluster and Seed Air Routes Data in Neptune
-In your Neptune cluster, seed the Air Routes dataset as RDF using the instructions in [../neptune-cluster-setup/README.md](../neptune-cluster-setup/README.md). 
-
-### Step 2: Create Glue Tables
-Create the Glue tables. We provide a shell script [manual/sample-cli-script.sh](manual/sample-cli-script.sh). 
-
-Ensure to have the right executable permissions on the script once you download it.
-
-```
-chmod 755 sample-cli-script.sh
-```
-Ensure to setup credentials for your AWS CLI to work.
-
-Replace &lt;aws-profile> with the AWS profile name that carries your credentials and replace &lt;aws-region> with AWS region where you are creating the 
-AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
-
-```
-./sample-cli-script.sh  <aws-profile> <aws-region>
-
-```
-
-Next we study the structure of each of the tables created.
-
-### Step 3: Understanding Class-Based Tables
 The **airport_rdf** table is a class-based table. Its rows represent individual RDF resources that have a specified RDFS class. The column names represent predicates. The column values represent objects. 
 
 The next figure shows the column structure of the table:
@@ -102,7 +78,6 @@ To apply this approach to your own dataset, we recommend running a SPARQL query 
 ```
 select distinct ?p where { ?s rdf:type #MYCLASS . ?s ?p ?o } LIMIT 1000
 ```
-### Step 4: Understanding Query-Based Tables
 The **route_rdf** table is a query-based table. Its rows represent results from a SPARQL select query.
 
 ![](./assets/routerdf.png)
