@@ -1,5 +1,9 @@
 # Setup AWS Glue Catalog
 
+To use the `air routes` dataset example, download the Cloudformation template [cfn/cfn_nac_glue.yaml](cfn/cfn_nac_glue.yaml). In the CloudFormation console, create a stack based on this template. Accept defaults and wait for stack to complete. It creates two Glue databases with the following tables:
+
+TODO ...
+
 
 Each table within the AWS Glue Catalog based database maps to:
 
