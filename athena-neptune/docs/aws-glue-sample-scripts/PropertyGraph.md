@@ -15,9 +15,9 @@ Advanced properties for the table are:
 
 |Property|Values|Description|
 |--------|------|-----------|
-|componenttype|vertex, edge, or view||
+|componenttype|`vertex`, `edge`, or `view`||
 |glabel|vertex label or edge type. If not specified, this is assumed to be the table name||
-|query|Gremlin query if componenttype is view|
+|query|Gremlin query if `componenttype` is `view`|
 
 ### Sample table post setup
 
