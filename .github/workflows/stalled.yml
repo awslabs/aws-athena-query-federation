@@ -11,9 +11,9 @@ jobs:
     - uses: aws-actions/stale-issue-cleanup@v6
       with:
         issue-types: pull_requests
-        stale-pr-label: stalled
-        stale-pr-message: This PR is stalled because it has been open for 1 days with no activity.
-        days-before-stale: 1
+        stale-pr-label: 'stalled'
+        stale-pr-message: 'This PR is stalled because it has been open for 1 days with no activity.'
+        days-before-stale: 0
         repo-token: ${{ secrets.GITHUB_TOKEN }}
 
         loglevel: DEBUG
