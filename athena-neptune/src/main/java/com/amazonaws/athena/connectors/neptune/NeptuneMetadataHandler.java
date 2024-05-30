@@ -45,10 +45,6 @@ import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandle
 import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
 import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.GetTablesRequest;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.Table;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -58,6 +54,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResponse;
+import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
@@ -89,7 +89,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     private final Logger logger = LoggerFactory.getLogger(NeptuneMetadataHandler.class);
     private static final String SOURCE_TYPE = "neptune"; // Used to denote the 'type' of this connector for diagnostic
                                                          // purposes.
-    private final AWSGlue glue;
+    private final GlueClient glue;
     private final String glueDBName;
 
     private NeptuneConnection neptuneConnection = null;
@@ -108,7 +108,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
 
     @VisibleForTesting
     protected NeptuneMetadataHandler(
-        AWSGlue glue,
+        GlueClient glue,
         NeptuneConnection neptuneConnection,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient awsSecretsManager,
@@ -173,14 +173,15 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         logger.info("doListTables: enter - " + request);
 
         List<TableName> tables = new ArrayList<>();
-        GetTablesRequest getTablesRequest = new GetTablesRequest();
-        getTablesRequest.setDatabaseName(request.getSchemaName());
+        GetTablesRequest getTablesRequest = GetTablesRequest.builder()
+                .databaseName(request.getSchemaName())
+                .build();
 
-        GetTablesResult getTablesResult = glue.getTables(getTablesRequest);
-        List<Table> glueTableList = getTablesResult.getTableList();
+        GetTablesResponse getTablesResponse = glue.getTables(getTablesRequest);
+        List<Table> glueTableList = getTablesResponse.tableList();
         String schemaName = request.getSchemaName();
         glueTableList.forEach(e -> {
-            tables.add(new TableName(schemaName, e.getName()));
+            tables.add(new TableName(schemaName, e.name()));
         });
 
         return new ListTablesResponse(request.getCatalogName(), tables, null);
