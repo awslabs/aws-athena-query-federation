@@ -22,10 +22,13 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -36,22 +39,31 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
+import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
+import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.tinkerpop.gremlin.driver.Client;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
@@ -80,6 +92,9 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     private final AWSGlue glue;
     private final String glueDBName;
 
+    private NeptuneConnection neptuneConnection = null;
+    private final NeptuneQueryPassthrough queryPassthrough = new NeptuneQueryPassthrough();
+
     public NeptuneMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
@@ -88,6 +103,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         // check is enforcing this connector's contract.
         requireNonNull(this.glue);
         this.glueDBName = configOptions.get("glue_database_name");
+        this.neptuneConnection = NeptuneConnection.createConnection(configOptions);
     }
 
     @VisibleForTesting
@@ -104,6 +120,15 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         super(glue, keyFactory, awsSecretsManager, athena, Constants.SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.glue = glue;
         this.glueDBName = configOptions.get("glue_database_name");
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
     
     /**
@@ -242,5 +267,93 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     protected Field convertField(String name, String glueType) 
     {
         return GlueFieldLexer.lex(name, glueType);
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        Map<String, String> qptArguments = request.getQueryPassthroughArguments();
+        queryPassthrough.verify(qptArguments);
+        String schemaName = qptArguments.get(NeptuneQueryPassthrough.DATABASE);
+        String tableName = qptArguments.get(NeptuneQueryPassthrough.COLLECTION);
+        TableName tableNameObj = new TableName(schemaName, tableName);
+        request = new GetTableRequest(request.getIdentity(), request.getQueryId(),
+                request.getCatalogName(), tableNameObj, request.getQueryPassthroughArguments());
+
+        GetTableResponse getTableResponse = doGetTable(allocator, request);
+        List<Field> fields = getTableResponse.getSchema().getFields();
+        Schema schema;
+        Enums.GraphType graphType = Enums.GraphType.PROPERTYGRAPH;
+
+        if (configOptions.get(Constants.CFG_GRAPH_TYPE) != null) {
+            graphType = Enums.GraphType.valueOf(configOptions.get(Constants.CFG_GRAPH_TYPE).toUpperCase());
+        }
+
+        switch (graphType){
+            case PROPERTYGRAPH:
+                Client client = neptuneConnection.getNeptuneClientConnection();
+                GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
+                String gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
+                gremlinQuery = gremlinQuery.concat(".limit(1)");
+                logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with limit: " + gremlinQuery);
+                Object object = new PropertyGraphHandler(neptuneConnection).getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
+                GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
+                Map graphTraversalObj = null;
+                if (graphTraversalForSchema.hasNext()) {
+                    graphTraversalObj = (Map) graphTraversalForSchema.next();
+                }
+                schema = getSchemaFromResults(getTableResponse, graphTraversalObj, fields);
+                return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
+
+            case RDF:
+                String sparqlQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
+                sparqlQuery = sparqlQuery.contains("limit") ? sparqlQuery : sparqlQuery.concat("\nlimit 1");
+                logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema sparql query with limit: " + sparqlQuery);
+                NeptuneSparqlConnection neptuneSparqlConnection = (NeptuneSparqlConnection) neptuneConnection;
+                neptuneSparqlConnection.runQuery(sparqlQuery);
+                String strim = getTableResponse.getSchema().getCustomMetadata().get(Constants.SCHEMA_STRIP_URI);
+                boolean trimURI = strim == null ? false : Boolean.parseBoolean(strim);
+                Map<String, Object> resultsMap = null;
+                if (neptuneSparqlConnection.hasNext()) {
+                    resultsMap = neptuneSparqlConnection.next(trimURI);
+                }
+                schema = getSchemaFromResults(getTableResponse, resultsMap, fields);
+                return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
+
+            default:
+                throw new IllegalArgumentException("Unsupported graphType: " + graphType);
+        }
+    }
+
+    private Schema getSchemaFromResults(GetTableResponse getTableResponse, Map resultsMap, List<Field> fields)
+    {
+        Schema schema;
+        //In case of 'gremlin/sparql query' is fetching all columns then we can use same schema from glue
+        //otherwise we will build schema from gremlin/sparql query result column names.
+        if (resultsMap != null && resultsMap.size() == fields.size()) {
+            schema = getTableResponse.getSchema();
+        }
+        else {
+            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+            //Building schema from gremlin/sparql query results and list of fields from glue response.
+            //It's require only when we are selecting limited columns.
+            resultsMap.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), fields, schemaBuilder));
+            Map<String, String> metaData = getTableResponse.getSchema().getCustomMetadata();
+            for (Map.Entry<String, String> map : metaData.entrySet()) {
+                schemaBuilder.addMetadata(map.getKey(), map.getValue());
+            }
+            schema = schemaBuilder.build();
+        }
+        return schema;
+    }
+
+    private void buildSchema(String columnName, List<Field> fields, SchemaBuilder schemaBuilder)
+    {
+        for (Field field : fields) {
+            if (field.getName().equals(columnName)) {
+                schemaBuilder.addField(field);
+                break;
+            }
+        }
     }
 }

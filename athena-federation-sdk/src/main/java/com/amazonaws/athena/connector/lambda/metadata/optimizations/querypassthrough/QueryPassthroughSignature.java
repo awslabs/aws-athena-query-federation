@@ -90,13 +90,13 @@ public interface QueryPassthroughSignature
             }
         }
         //Finally, perform any connector-specific verification;
-        customConnectorVerifications();
+        customConnectorVerifications(engineQptArguments);
     }
 
     /**
      * Provides a mechanism to perform custom connector verification logic.
      */
-    default void customConnectorVerifications()
+    default void customConnectorVerifications(Map<String, String> engineQptArguments)
     {
         //No Op
     }

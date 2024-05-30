@@ -20,15 +20,25 @@
 package com.amazonaws.athena.connectors.hbase.connection;
 
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.HBASE_RPC_PROTECTION;
+import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.KERBEROS_AUTH_ENABLED;
+import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.KERBEROS_CONFIG_FILES_S3_REFERENCE;
+import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.PRINCIPAL_NAME;
+import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.copyConfigFilesFromS3ToTempFolder;
 
 /**
  * Creates and Caches HBase Connection Instances, using the connection string as the cache key.
@@ -116,6 +126,37 @@ public class HbaseConnectionFactory
             config.set(nextConfig.getKey(), nextConfig.getValue());
         }
 
+        Map<String, String> configOptions = System.getenv();
+        boolean kerberosAuthEnabled = configOptions.get(KERBEROS_AUTH_ENABLED) != null && "true".equalsIgnoreCase(configOptions.get(KERBEROS_AUTH_ENABLED));
+        logger.info("Kerberos Authentication Enabled: " + kerberosAuthEnabled);
+        if (kerberosAuthEnabled) {
+            String keytabLocation = null;
+            config.set("hbase.rpc.protection", configOptions.get(HBASE_RPC_PROTECTION));
+            logger.info("hbase.rpc.protection: " + config.get("hbase.rpc.protection"));
+            String s3uri = configOptions.get(KERBEROS_CONFIG_FILES_S3_REFERENCE);
+            if (StringUtils.isNotBlank(s3uri)) {
+                try {
+                    Path tempDir = copyConfigFilesFromS3ToTempFolder(configOptions);
+                    logger.debug("tempDir: " + tempDir);
+                    keytabLocation = tempDir + File.separator + "hbase.keytab";
+                    System.setProperty("java.security.krb5.conf", tempDir + File.separator + "krb5.conf");
+                    logger.debug("keytabLocation: " + keytabLocation);
+                }
+                catch (Exception e) {
+                    throw new RuntimeException("Error Copying Config files from S3 to temp folder: ", e);
+                }
+            }
+
+            UserGroupInformation.setConfiguration(config);
+            try {
+                String principalName = configOptions.get(PRINCIPAL_NAME);
+                UserGroupInformation.loginUserFromKeytab(principalName, keytabLocation);
+            }
+            catch (IOException ex) {
+                throw new RuntimeException("Exception in UserGroupInformation.loginUserFromKeytab: ", ex);
+            }
+            logger.debug("UserGroupInformation.loginUserFromKeytab Success.");
+        }
         return new HBaseConnection(config, maxRetries);
     }
 

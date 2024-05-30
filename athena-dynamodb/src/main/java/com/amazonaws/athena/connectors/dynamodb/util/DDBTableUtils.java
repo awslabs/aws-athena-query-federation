@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.google.common.collect.ImmutableList;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,11 +42,10 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TableDescription;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -63,7 +61,7 @@ public final class DDBTableUtils
     private static final int MIN_SCAN_SEGMENTS = 1;
     private static final long MAX_BYTES_PER_SEGMENT = 1024L * 1024L * 1024L;
     private static final double MIN_IO_PER_SEGMENT = 100.0;
-    private static final int SCHEMA_INFERENCE_NUM_RECORDS = 4;
+    public static final int SCHEMA_INFERENCE_NUM_RECORDS = 4;
 
     private DDBTableUtils() {}
 
@@ -154,19 +152,7 @@ public final class DDBTableUtils
             ScanResponse scanResponse = invoker.invoke(() -> ddbClient.scan(scanRequest));
             if (!scanResponse.items().isEmpty()) {
                 List<Map<String, AttributeValue>> items = scanResponse.items();
-                Set<String> discoveredColumns = new HashSet<>();
-
-                for (Map<String, AttributeValue> item : items) {
-                    for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
-                        if (!discoveredColumns.contains(column.getKey())) {
-                            Field field = DDBTypeUtils.inferArrowField(column.getKey(), column.getValue());
-                            if (field != null) {
-                                schemaBuilder.addField(field);
-                                discoveredColumns.add(column.getKey());
-                            }
-                        }
-                    }
-                }
+                schemaBuilder = buildSchemaFromItems(items);
             }
             else {
                 // there's no items, so use any attributes defined in the table metadata
@@ -185,6 +171,23 @@ public final class DDBTableUtils
             }
         }
         return schemaBuilder.build();
+    }
+
+    /**
+     * A utility method that takes a list of items, and returns a schema builder
+     * @param items a list of a map of DynamoDB elements
+     * @return schema builder
+     */
+    public static SchemaBuilder buildSchemaFromItems(List<Map<String, AttributeValue>> items)
+    {
+        SchemaBuilder schemaBuilder = new SchemaBuilder();
+        items.stream()
+                .flatMap(item -> item.entrySet().stream())
+                .map(column -> DDBTypeUtils.inferArrowField(column.getKey(), column.getValue()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .forEach(schemaBuilder::addField);
+        return schemaBuilder;
     }
 
     /**

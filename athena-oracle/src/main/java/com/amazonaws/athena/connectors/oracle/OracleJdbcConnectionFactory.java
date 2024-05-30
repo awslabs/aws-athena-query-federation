@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 
 public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
 {
+    public static final String IS_FIPS_ENABLED = "is_FIPS_Enabled";
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleJdbcConnectionFactory.class);
@@ -70,6 +71,9 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     properties.put("javax.net.ssl.trustStoreType", "JKS");
                     properties.put("javax.net.ssl.trustStorePassword", "changeit");
                     properties.put("oracle.net.ssl_server_dn_match", "true");
+                    if (System.getenv().getOrDefault(IS_FIPS_ENABLED, "false").equalsIgnoreCase("true")) {
+                        properties.put("oracle.net.ssl_cipher_suites", "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)");
+                    }
                 }
                 else {
                     LOGGER.info("Establishing normal connection..");

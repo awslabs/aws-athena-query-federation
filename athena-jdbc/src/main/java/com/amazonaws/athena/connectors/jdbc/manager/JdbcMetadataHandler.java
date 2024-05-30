@@ -275,13 +275,7 @@ public abstract class JdbcMetadataHandler
                 columnName = columnName.equals(columnLabel) ? columnName : columnLabel;
 
                 int precision = metadata.getPrecision(columnIndex);
-                int scale = metadata.getScale(columnIndex);
-
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                        metadata.getColumnType(columnIndex),
-                        precision,
-                        scale,
-                        configOptions);
+                ArrowType columnType = convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
 
                 if (columnType != null && SupportedTypes.isSupported(columnType)) {
                     if (columnType instanceof ArrowType.List) {
@@ -305,6 +299,28 @@ public abstract class JdbcMetadataHandler
             Schema schema = schemaBuilder.build();
             return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), schema, Collections.emptySet());
         }
+    }
+
+    /**
+     * A method that takes in a JDBC type; and converts it to Arrow Type
+     * This can be overriden by other Metadata Handlers extending JDBC
+     *
+     * @param columnIndex
+     * @param precision
+     * @param configOptions
+     * @param metadata
+     * @return Arrow Type
+     */
+    protected ArrowType convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
+    {
+        int scale = metadata.getScale(columnIndex);
+        int columnType = metadata.getColumnType(columnIndex);
+
+        return JdbcArrowTypeConverter.toArrowType(
+                columnType,
+                precision,
+                scale,
+                configOptions);
     }
 
     /**

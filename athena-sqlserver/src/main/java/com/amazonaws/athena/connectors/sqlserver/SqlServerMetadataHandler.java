@@ -71,6 +71,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -203,6 +204,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
 
+        jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
@@ -300,6 +302,10 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+        if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
+            LOGGER.info("QPT Split Requested");
+            return setupQueryPassthroughSplit(getSplitsRequest);
+        }
 
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         LOGGER.info("partitionContd: {}", partitionContd);
@@ -388,6 +394,18 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         }
     }
 
+    @Override
+    protected ArrowType convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
+    {
+        String dataType = metadata.getColumnTypeName(columnIndex);
+        LOGGER.info("In convertDatasourceTypeToArrow: converting {}", dataType);
+        if (dataType != null && SqlServerDataType.isSupported(dataType)) {
+            LOGGER.debug("Sql Server  Datatype is support: {}", dataType);
+            return SqlServerDataType.fromType(dataType); 
+        }
+        return super.convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
+    }
+
     /**
      * Appropriate datatype to arrow type conversions will be done by fetching data types of columns
      * @param jdbcConnection
@@ -436,48 +454,13 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
 
-                /**
-                 * Converting date data type into DATEDAY since framework is unable to do it by default
-                 */
-                if ("date".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.DATEDAY.getType();
-                }
-                /**
-                 * Converting bit data type into TINYINT because BIT type is showing 0 as false and 1 as true.
-                 * we can avoid it by changing to TINYINT.
-                 */
-                if ("bit".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.TINYINT.getType();
-                }
-                /**
-                 * Converting tinyint data type into SMALLINT.
-                 * TINYINT range is 0 to 255 in SQL Server, usage of TINYINT(ArrowType) leads to data loss
-                 * as its using 1 bit as signed flag.
-                 */
-                if ("tinyint".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.SMALLINT.getType();
-                }
-                /**
-                 * Converting numeric, smallmoney data types into FLOAT8 to avoid data loss
-                 * (ex: 123.45 is shown as 123 (loosing its scale))
-                 */
-                if ("numeric".equalsIgnoreCase(dataType) || "smallmoney".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.FLOAT8.getType();
-                }
-                /**
-                 * Converting time data type(s) into DATEMILLI since framework is unable to map it by default
-                 */
-                if ("datetime".equalsIgnoreCase(dataType) || "datetime2".equalsIgnoreCase(dataType)
-                        || "smalldatetime".equalsIgnoreCase(dataType) || "datetimeoffset".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.DATEMILLI.getType();
+                if (dataType != null && SqlServerDataType.isSupported(dataType)) {
+                    columnType = SqlServerDataType.fromType(dataType);
                 }
                 /**
                  * converting into VARCHAR for non supported data types.
                  */
-                if (columnType == null) {
-                    columnType = Types.MinorType.VARCHAR.getType();
-                }
-                if (columnType != null && !SupportedTypes.isSupported(columnType)) {
+                if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
                     columnType = Types.MinorType.VARCHAR.getType();
                 }
 

@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
+import com.amazonaws.athena.connectors.redis.qpt.RedisQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -39,6 +40,7 @@ import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.ScoredValueScanCursor;
+import io.lettuce.core.ScriptOutputType;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
@@ -54,6 +56,7 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_PREFIX_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_TYPE;
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.QPT_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_CLUSTER_FLAG;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_DB_NUMBER;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_ENDPOINT_PROP;
@@ -86,6 +89,8 @@ public class RedisRecordHandler
 
     private final RedisConnectionFactory redisConnectionFactory;
     private final AmazonS3 amazonS3;
+
+    private final RedisQueryPassthrough queryPassthrough = new RedisQueryPassthrough();
 
     public RedisRecordHandler(java.util.Map<String, String> configOptions)
     {
@@ -132,19 +137,80 @@ public class RedisRecordHandler
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            handleQueryPassthrough(spiller, recordsRequest, queryStatusChecker);
+        }
+        else {
+            handleStandardQuery(spiller, recordsRequest, queryStatusChecker);
+        }
+    }
+
+    /**
+     * Given a recordsRequest, creates the Redis connection
+     * @param recordsRequest the recordsRequest to create a connection from
+     * @return the resulting connection object
+     */
+    private RedisCommandsWrapper<String, String> getSyncCommands(ReadRecordsRequest recordsRequest)
+    {
         Split split = recordsRequest.getSplit();
-        ScanCursor keyCursor = null;
         boolean sslEnabled = Boolean.parseBoolean(split.getProperty(REDIS_SSL_FLAG));
         boolean isCluster = Boolean.parseBoolean(split.getProperty(REDIS_CLUSTER_FLAG));
         String dbNumber = split.getProperty(REDIS_DB_NUMBER);
-        ValueType valueType = ValueType.fromId(split.getProperty(VALUE_TYPE_TABLE_PROP));
-        List<Field> fieldList = recordsRequest.getSchema().getFields().stream()
-                .filter((Field next) -> !KEY_COLUMN_NAME.equals(next.getName())).collect(Collectors.toList());
 
         RedisConnectionWrapper<String, String> connection = getOrCreateClient(split.getProperty(REDIS_ENDPOINT_PROP),
                                                                               sslEnabled, isCluster, dbNumber);
         RedisCommandsWrapper<String, String> syncCommands = connection.sync();
+        return syncCommands;
+    }
 
+    /**
+     * readWithConstraint case for when the query involves Query Passthrough
+     * @see RecordHandler
+     */
+    private void handleQueryPassthrough(BlockSpiller spiller,
+                                        ReadRecordsRequest recordsRequest,
+                                        QueryStatusChecker queryStatusChecker)
+    {
+        Map<String, String> queryPassthroughArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
+        queryPassthrough.verify(queryPassthroughArgs);
+
+        RedisCommandsWrapper<String, String> syncCommands = getSyncCommands(recordsRequest);
+
+        String script = queryPassthroughArgs.get(RedisQueryPassthrough.SCRIPT);
+        byte[] scriptBytes = script.getBytes();
+
+        String keys = queryPassthroughArgs.get(RedisQueryPassthrough.KEYS);
+        String[] keysArray = new String[0];
+        if (!keys.isEmpty()) {
+            // to convert string formatted as "[value1, value2, ...]" to array of strings
+            keysArray = keys.substring(1, keys.length() - 1).split(",\\s*");
+        }
+
+        String argv = queryPassthroughArgs.get(RedisQueryPassthrough.ARGV);
+        String[] argvArray = new String[0];
+        if (!argv.isEmpty()) {
+            // to convert string formatted as "[value1, value2, ...]" to array of strings
+            argvArray = argv.substring(1, argv.length() - 1).split(",\\s*");
+        }
+
+        List<Object> result = syncCommands.evalReadOnly(scriptBytes, ScriptOutputType.MULTI, keysArray, argvArray);
+        loadSingleColumn(result, spiller, queryStatusChecker);
+    }
+
+    /**
+     * readWithConstraint case for when the query does not involve Query Passthrough
+     * @see RecordHandler
+     */
+    private void handleStandardQuery(BlockSpiller spiller,
+                                     ReadRecordsRequest recordsRequest,
+                                     QueryStatusChecker queryStatusChecker)
+    {
+        Split split = recordsRequest.getSplit();
+        ScanCursor keyCursor = null;
+        ValueType valueType = ValueType.fromId(split.getProperty(VALUE_TYPE_TABLE_PROP));
+        List<Field> fieldList = recordsRequest.getSchema().getFields().stream()
+                .filter((Field next) -> !KEY_COLUMN_NAME.equals(next.getName())).collect(Collectors.toList());
+        RedisCommandsWrapper<String, String> syncCommands = getSyncCommands(recordsRequest);
         do {
             Set<String> keys = new HashSet<>();
             //Load all the keys associated with this split
@@ -202,6 +268,41 @@ public class RedisRecordHandler
             KeyScanCursor<String> newCursor = syncCommands.scan(cursor, scanArgs);
             keys.addAll(newCursor.getKeys());
             return newCursor;
+        }
+    }
+
+    private void loadSingleColumn(List<Object> values, BlockSpiller spiller, QueryStatusChecker queryStatusChecker)
+    {
+        values.stream().forEach((Object value) -> {
+            StringBuilder builder = new StringBuilder();
+            flattenRow(value, builder);
+            if (!queryStatusChecker.isQueryRunning()) {
+                return;
+            }
+            spiller.writeRows((Block block, int row) -> {
+                boolean literalMatched = block.offerValue(QPT_COLUMN_NAME, row, builder.toString());
+                return literalMatched ? 1 : 0;
+            });
+        });
+    }
+
+    /**
+     * Redis eval calls return an object of type T, which is either a String or List<T>.
+     * This flattens it into a String using a StringBuilder.
+     */
+    private void flattenRow(Object value, StringBuilder builder)
+    {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof String) {
+            if (builder.length() != 0) {
+                builder.append(", ");
+            }
+            builder.append(value);
+        }
+        else {
+            ((List<Object>) value).forEach((Object subValue) -> flattenRow(subValue, builder));
         }
     }
 

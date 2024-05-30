@@ -38,11 +38,11 @@ while true; do
 done
 
 set -e
-sudo wget https://archive.apache.org/dist/maven/maven-3/3.5.4/binaries/apache-maven-3.5.4-bin.tar.gz -O /tmp/apache-maven-3.5.4-bin.tar.gz
-sudo tar xf /tmp/apache-maven-3.5.4-bin.tar.gz -C /opt
-echo "export M2_HOME=/opt/apache-maven-3.5.4" >> ~/.profile
+sudo wget https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz -O /tmp/apache-maven-3.9.6-bin.tar.gz
+sudo tar xf /tmp/apache-maven-3.9.6-bin.tar.gz -C /opt
+echo "export M2_HOME=/opt/apache-maven-3.9.6" >> ~/.profile
 echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.profile
-echo "export M2_HOME=/opt/apache-maven-3.5.4" >> ~/.bash_profile
+echo "export M2_HOME=/opt/apache-maven-3.9.6" >> ~/.bash_profile
 echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.bash_profile
 
 echo "Set the default to the Java 11 installation"
@@ -53,8 +53,9 @@ else
     sudo yum -y install java-11-openjdk-devel
     sudo update-alternatives --config java
 fi
-# If using amazon linux and the above doesn't work, you can try this line instead
 # sudo amazon-linux-extras install -y java-openjdk11
+# For amazon linux 2023, use the following line instead
+# sudo dnf install java-11-amazon-corretto
 
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"

@@ -23,7 +23,7 @@
         <dependency>
             <groupId>com.amazon.redshift</groupId>
             <artifactId>redshift-jdbc42</artifactId>
-            <version>2.1.0.26</version>
+            <version>2.1.0.28</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -36,6 +36,11 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-redshift</artifactId>
+            <version>${aws-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-redshiftserverless</artifactId>
             <version>${aws-sdk.version}</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/redshift -->
