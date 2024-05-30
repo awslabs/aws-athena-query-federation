@@ -42,7 +42,6 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.Optimization
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -53,6 +52,7 @@ import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
@@ -109,7 +109,7 @@ public class ElasticsearchMetadataHandler
 
     protected static final String INDEX_KEY = "index";
 
-    private final AWSGlue awsGlue;
+    private final GlueClient awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchDomainMapProvider domainMapProvider;
 
@@ -130,7 +130,7 @@ public class ElasticsearchMetadataHandler
 
     @VisibleForTesting
     protected ElasticsearchMetadataHandler(
-        AWSGlue awsGlue,
+        GlueClient awsGlue,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient awsSecretsManager,
         AmazonAthena athena,
