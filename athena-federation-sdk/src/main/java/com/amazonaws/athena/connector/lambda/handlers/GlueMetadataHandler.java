@@ -42,7 +42,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.http.crt.AwsCrtHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Database;
@@ -156,7 +156,7 @@ public abstract class GlueMetadataHandler
 
         // null if the current instance does not want to leverage Glue for metadata
         awsGlue = disabled ? null : (GlueClient.builder()
-                .httpClientBuilder(AwsCrtHttpClient
+                .httpClientBuilder(ApacheHttpClient
                         .builder()
                         .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
                 .build());

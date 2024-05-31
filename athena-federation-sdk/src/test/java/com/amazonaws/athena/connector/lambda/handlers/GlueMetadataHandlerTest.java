@@ -231,6 +231,7 @@ public class GlueMetadataHandlerTest
             throws Exception
     {
         allocator.close();
+        mockGlue.close();
         logger.info("{}: exit ", testName.getMethodName());
     }
 

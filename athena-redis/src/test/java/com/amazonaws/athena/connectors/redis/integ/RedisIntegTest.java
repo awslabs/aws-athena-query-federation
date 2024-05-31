@@ -59,7 +59,7 @@ import software.amazon.awscdk.services.glue.Table;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
-import software.amazon.awssdk.http.crt.AwsCrtHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 import software.amazon.awssdk.services.glue.model.TableInput;
@@ -120,7 +120,7 @@ public class RedisIntegTest extends IntegrationTestBase
         redisTableNamePrefix = (String) userSettings.get("redis_table_name_prefix");
         lambdaFunctionName = getLambdaFunctionName();
         glue = GlueClient.builder()
-                .httpClientBuilder(AwsCrtHttpClient.builder()
+                .httpClientBuilder(ApacheHttpClient.builder()
                         .connectionTimeout(Duration.ofMillis(GLUE_TIMEOUT)))
                 .build();
         redisStackName = "integ-redis-instance-" + UUID.randomUUID();
