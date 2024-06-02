@@ -45,7 +45,7 @@ echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.profile
 echo "export M2_HOME=/opt/apache-maven-3.9.6" >> ~/.bash_profile
 echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.bash_profile
 
-echo "Set the default to the Java 11 installation"
+echo "Default to the Java 11 installation"
 if [[ "$OSTYPE" == "darwin"* ]]; then
     brew install openjdk@11
     export JAVA_HOME=`/usr/libexec/java_home -v 11`
