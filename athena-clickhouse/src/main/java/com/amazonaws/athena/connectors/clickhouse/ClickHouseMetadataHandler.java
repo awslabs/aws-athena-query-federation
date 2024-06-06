@@ -43,7 +43,6 @@ import com.amazonaws.athena.connectors.mysql.MySqlMetadataHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
@@ -57,10 +56,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-
-import static com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler.TABLES_AND_VIEWS;
 
 /**
  * Class handles metadata for ClickHouse and reuses code from Athena MySQL module for compatibility. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in INFORMATION_SCHEMA.
@@ -68,7 +64,6 @@ import static com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler.T
 public class ClickHouseMetadataHandler
         extends MySqlMetadataHandler
 {
-    static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String GET_PARTITIONS_QUERY = "SELECT DISTINCT partition_name FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = ? AND TABLE_SCHEMA = ? " +
             "AND partition_name IS NOT NULL";
     static final String BLOCK_PARTITION_COLUMN_NAME = "partition_name";
@@ -95,7 +90,7 @@ public class ClickHouseMetadataHandler
      */
     public ClickHouseMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(ClickHouseConstants.DRIVER_CLASS, ClickHouseConstants.DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, ClickHouseConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ClickHouseConstants.DRIVER_CLASS, ClickHouseConstants.DEFAULT_PORT)), configOptions);
     }
 
     public ClickHouseMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)

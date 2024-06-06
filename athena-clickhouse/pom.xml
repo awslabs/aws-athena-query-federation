@@ -7,17 +7,17 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-clickhouse</artifactId>
-    <version>2024.10.1</version>
+    <version>2022.47.1</version>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2024.10.1</version>
+            <version>2022.47.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-mysql</artifactId>
-            <version>2024.10.1</version>
+            <version>2022.47.1</version>
         </dependency>
         <dependency>
             <groupId>com.clickhouse</groupId>
@@ -28,7 +28,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2024.10.1</version>
+            <version>2022.47.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
