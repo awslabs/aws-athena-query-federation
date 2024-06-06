@@ -55,7 +55,7 @@ Parameters:
   VerticaConnectionString:
     Description: 'The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
-    Default: "jdbc:vertica://<host_name>:<port>/<database>?user=${vertica-username}&password=${vertica-password}"
+    Default: "vertica://jdbc:vertica://<host_name>:<port>/<database>?user=${vertica-username}&password=${vertica-password}"
   PermissionsBoundaryARN:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
@@ -79,7 +79,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           export_bucket: !Ref VerticaExportBucket
-          default_vertica: !Ref VerticaConnectionString
+          default: !Ref VerticaConnectionString
 
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.vertica.VerticaCompositeHandler"
