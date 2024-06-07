@@ -165,7 +165,7 @@ public class KafkaRecordHandler
     {
         LOGGER.info("[kafka] {} Polling for data", splitParameters);
         int emptyResultFoundCount = 0;
-        try {
+        try (Consumer<String, TopicResultSet> consumer = kafkaConsumer) {
             while (true) {
                 if (!queryStatusChecker.isQueryRunning()) {
                     LOGGER.debug("[kafka]{}  Stopping and closing consumer due to query execution terminated by athena", splitParameters);
@@ -175,7 +175,7 @@ public class KafkaRecordHandler
 
                 // Call the poll on consumer to fetch data from kafka server
                 // poll returns data as batch which can be configured.
-                ConsumerRecords<String, TopicResultSet> records = kafkaConsumer.poll(Duration.ofSeconds(1L));
+                ConsumerRecords<String, TopicResultSet> records = consumer.poll(Duration.ofSeconds(1L));
                 LOGGER.debug("[kafka] {} polled records size {}", splitParameters, records.count());
 
                 // For debug insight
@@ -215,9 +215,6 @@ public class KafkaRecordHandler
                     }
                 }
             }
-        }
-        finally {
-            kafkaConsumer.close();
         }
     }
 
@@ -261,7 +258,7 @@ public class KafkaRecordHandler
     {
         LOGGER.info("[kafka] {} Polling for data", splitParameters);
         int emptyResultFoundCount = 0;
-        try {
+        try (Consumer<String, GenericRecord> avroConsumer = kafkaAvroConsumer) {
             while (true) {
                 if (!queryStatusChecker.isQueryRunning()) {
                     LOGGER.debug("[kafka]{}  Stopping and closing consumer due to query execution terminated by athena", splitParameters);
@@ -271,7 +268,7 @@ public class KafkaRecordHandler
 
                 // Call the poll on consumer to fetch data from kafka server
                 // poll returns data as batch which can be configured.
-                ConsumerRecords<String, GenericRecord> records = kafkaAvroConsumer.poll(Duration.ofSeconds(1L));
+                ConsumerRecords<String, GenericRecord> records = avroConsumer.poll(Duration.ofSeconds(1L));
                 LOGGER.debug("[kafka] {} polled records size {}", splitParameters, records.count());
 
                 // For debug insight
@@ -311,9 +308,6 @@ public class KafkaRecordHandler
                     }
                 }
             }
-        }
-        finally {
-            kafkaAvroConsumer.close();
         }
     }
 
