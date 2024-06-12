@@ -193,6 +193,7 @@ public class HbaseRecordHandlerTest
             ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
             return processor.scan(mockScanner);
         });
+        when(mockClient.tableExists(any())).thenReturn(true);
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("family1:col3", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
@@ -246,6 +247,7 @@ public class HbaseRecordHandlerTest
             ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
             return processor.scan(mockScanner);
         });
+        when(mockClient.tableExists(any())).thenReturn(true);
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("family1:col3", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),

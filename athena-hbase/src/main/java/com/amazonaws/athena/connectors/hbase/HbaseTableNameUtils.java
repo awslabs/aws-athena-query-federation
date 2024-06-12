@@ -1,22 +1,36 @@
+/*-
+ * #%L
+ * athena-hbase
+ * %%
+ * Copyright (C) 2019 Amazon Web Services
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
 package com.amazonaws.athena.connectors.hbase;
-
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-
-import org.apache.hadoop.hbase.NamespaceDescriptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
-import com.amazonaws.services.glue.model.Table;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import org.apache.arrow.util.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Locale;
+import java.util.Optional;
 
 /**
  * This class helps with resolving the differences in casing between HBase and Presto. Presto expects all
@@ -113,21 +127,22 @@ public final class HbaseTableNameUtils
      * @return The HBase TableName containing the found HBase table and the Athena Schema (namespace)
      * @throws IOException 
      */
-    private static Optional<org.apache.hadoop.hbase.TableName> tryCaseInsensitiveSearch(HBaseConnection conn, TableName tableName)
+    @VisibleForTesting
+    protected static Optional<org.apache.hadoop.hbase.TableName> tryCaseInsensitiveSearch(HBaseConnection conn, TableName tableName)
             throws IOException
     {
         logger.info("Table {} not found.  Falling back to case insensitive search.", tableName.getTableName());
         Multimap<String, String> lowerCaseNameMapping = ArrayListMultimap.create();
         org.apache.hadoop.hbase.TableName[] tableNames = conn.listTableNamesByNamespace(tableName.getSchemaName());
         for (org.apache.hadoop.hbase.TableName nextTableName : tableNames) {
-            lowerCaseNameMapping.put(nextTableName.getNameAsString().toLowerCase(Locale.ENGLISH), nextTableName.getNameAsString());
+            lowerCaseNameMapping.put(nextTableName.getQualifierAsString().toLowerCase(Locale.ENGLISH), nextTableName.getNameAsString());
         }
         Collection<String> mappedNames = lowerCaseNameMapping.get(tableName.getTableName());
         if (mappedNames.size() > 1) {
             throw new IllegalStateException(String.format("Multiple tables resolved from case insensitive name %s: %s", tableName, mappedNames));
         }
         else if (mappedNames.size() == 1) {
-            return Optional.of(getQualifiedTable(tableName.getSchemaName(), mappedNames.iterator().next()));
+            return Optional.of(org.apache.hadoop.hbase.TableName.valueOf(mappedNames.iterator().next()));
         }
         else {
             return Optional.empty();
