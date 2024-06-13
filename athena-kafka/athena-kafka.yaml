@@ -28,6 +28,10 @@ Parameters:
   KafkaEndpoint:
     Description: 'Kafka cluster endpoint'
     Type: String
+  SchemaRegistryUrl:
+    Description: 'Schema Registry URL. Applicable for Avro Data Formatted Topics. (syntax. http://<endpoint>:<port>)'
+    Type: String
+    Default: ""
   LambdaFunctionName:
     Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
@@ -94,6 +98,7 @@ Resources:
           secrets_manager_secret: !Ref SecretNamePrefix
           certificates_s3_reference: !Ref CertificatesS3Reference
           kafka_endpoint: !Ref KafkaEndpoint
+          schema_registry_url: !Ref SchemaRegistryUrl
           auth_type: !Ref AuthType
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.kafka.KafkaCompositeHandler"
