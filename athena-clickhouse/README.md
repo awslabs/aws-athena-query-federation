@@ -14,8 +14,7 @@ git clone https://github.com/awslabs/aws-athena-query-federation
 cd athena-clickhouse
 ```
 
-Download latest Athena Clickhouse JAR binary file
-Browse to https://github.com/awslabs/aws-athena-query-federation/releases then choose latest release.  Note the version of the file may change over time.
+Download latest Athena Clickhouse JAR binary file. Browse to https://github.com/awslabs/aws-athena-query-federation/releases then choose latest release.  Note the version of the file may change over time.
 ```
 wget https://github.com/awslabs/aws-athena-query-federation/releases/download/v2024.19.1/athena-clickhouse-2024.19.1.jar
 ```
