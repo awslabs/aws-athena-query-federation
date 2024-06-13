@@ -50,4 +50,6 @@ public class Constants
     
    public static final String PREFIX_KEY = "prefix_";
    public static final int PREFIX_LEN = PREFIX_KEY.length();
+
+   public static final String GREMLIN_QUERY_SUPPORT_TYPE = "valueMap";
 }
