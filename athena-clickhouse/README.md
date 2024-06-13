@@ -14,13 +14,13 @@ git clone https://github.com/awslabs/aws-athena-query-federation
 cd athena-clickhouse
 ```
 
-Download latest Athena Clickhouse JAR binary
-Browse to https://github.com/awslabs/aws-athena-query-federation/releases then choose latest release
+Download latest Athena Clickhouse JAR binary file
+Browse to https://github.com/awslabs/aws-athena-query-federation/releases then choose latest release.  Note the version of the file may change over time.
 ```
-curl -O https://github.com/awslabs/aws-athena-query-federation/releases/download/v2024.19.1/athena-clickhouse-2024.19.1.jar
+wget https://github.com/awslabs/aws-athena-query-federation/releases/download/v2024.19.1/athena-clickhouse-2024.19.1.jar
 ```
 
-### 2. Copy Athena Clickhouse Connector JAR binary since it is >= 50 MB local file upload limit
+## 2. Copy Athena Clickhouse Connector JAR file to Amazon S3 bucket since it is >= 50 MB local file upload limit
 
 You **MUST** change the S3 bucket and prefix folder where the Connector JAR file will be stored for the subsequent SAM deployment step (4).
 
@@ -28,13 +28,13 @@ You **MUST** change the S3 bucket and prefix folder where the Connector JAR file
 aws s3 cp --region us-east-2 athena-clickhouse-2024.19.1.jar  s3://my-athena-demo/code/
 ```
 
-### 3. Validate Athena Clickhouse Connector as Serverless Cloudformation stack
+## 3. Validate Athena Clickhouse Connector as Serverless Cloudformation stack
 
 ```
 sam validate --region us-east-2 --template-file athena-clickhouse.yaml
 ```
 
-### 4. Deploy Athena Clickhouse Connector as Serverless Cloudformation stack
+## 4. Deploy Athena Clickhouse Connector as Serverless Cloudformation stack
 
 You can change the Lambda function configuration at deployment time and also once the stack has been deployed.  Parameters that **MUST** change are listed in section below.
 
