@@ -239,7 +239,7 @@ public class HbaseMetadataHandler
             throws IOException
     {
         if (origSchema == null) {
-            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), tableName, NUM_ROWS_TO_SCAN);
+            origSchema = HbaseSchemaUtils.inferSchema(configOptions, getOrCreateConn(request), tableName, NUM_ROWS_TO_SCAN);
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();

@@ -61,11 +61,11 @@ public class HbaseSchemaUtils
      * @param numToScan The number of records to scan as part of producing the Schema.
      * @return An Apache Arrow Schema representing the schema of the HBase table.
      */
-    public static Schema inferSchema(HBaseConnection client, TableName tableName, int numToScan)
+    public static Schema inferSchema(Map<String, String> configOptions, HBaseConnection client, TableName tableName, int numToScan)
             throws IOException
     {
         Scan scan = new Scan().setMaxResultSize(numToScan).setFilter(new PageFilter(numToScan));
-        org.apache.hadoop.hbase.TableName hbaseTableName = HbaseTableNameUtils.getHbaseTableName(client, tableName);
+        org.apache.hadoop.hbase.TableName hbaseTableName = HbaseTableNameUtils.getHbaseTableName(configOptions, client, tableName);
         return client.scanTable(hbaseTableName, scan, (ResultScanner scanner) -> {
             try {
                 return scanAndInferSchema(scanner);

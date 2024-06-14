@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Locale;
-import java.util.Optional;
+import java.util.Map;
 
 /**
  * This class helps with resolving the differences in casing between HBase and Presto. Presto expects all
@@ -47,6 +47,7 @@ public final class HbaseTableNameUtils
 {
     //The HBase namespce qualifier character which commonly separates namespaces and column families from tables and columns.
     protected static final String NAMESPACE_QUALIFIER = ":";
+    protected static final String ENABLE_CASE_INSENSITIVE_MATCH = "enable_case_insensitive_match";
     private static final Logger logger = LoggerFactory.getLogger(HbaseTableNameUtils.class);
 
     private HbaseTableNameUtils() {}
@@ -103,19 +104,13 @@ public final class HbaseTableNameUtils
      * @param tableName the case insensitive table name
      * @return the hbase table name
      */
-    public static org.apache.hadoop.hbase.TableName getHbaseTableName(HBaseConnection conn, TableName athTableName)
+    public static org.apache.hadoop.hbase.TableName getHbaseTableName(Map<String, String> configOptions, HBaseConnection conn, TableName athTableName)
             throws IOException
     {
-        if (conn.tableExists(getQualifiedTable(athTableName))) {
+        if (!isCaseInsensitiveMatchEnable(configOptions) || conn.tableExists(getQualifiedTable(athTableName))) {
             return getQualifiedTable(athTableName);
         }
-        Optional<org.apache.hadoop.hbase.TableName> caseInsensitiveMatch = tryCaseInsensitiveSearch(conn, athTableName);
-        if (caseInsensitiveMatch.isPresent()) {
-            return caseInsensitiveMatch.get();
-        }
-        else {
-            return null;
-        }
+        return tryCaseInsensitiveSearch(conn, athTableName);
     }
 
     /**
@@ -128,7 +123,7 @@ public final class HbaseTableNameUtils
      * @throws IOException 
      */
     @VisibleForTesting
-    protected static Optional<org.apache.hadoop.hbase.TableName> tryCaseInsensitiveSearch(HBaseConnection conn, TableName tableName)
+    protected static org.apache.hadoop.hbase.TableName tryCaseInsensitiveSearch(HBaseConnection conn, TableName tableName)
             throws IOException
     {
         logger.info("Table {} not found.  Falling back to case insensitive search.", tableName.getTableName());
@@ -138,15 +133,22 @@ public final class HbaseTableNameUtils
             lowerCaseNameMapping.put(nextTableName.getQualifierAsString().toLowerCase(Locale.ENGLISH), nextTableName.getNameAsString());
         }
         Collection<String> mappedNames = lowerCaseNameMapping.get(tableName.getTableName());
-        if (mappedNames.size() > 1) {
-            throw new IllegalStateException(String.format("Multiple tables resolved from case insensitive name %s: %s", tableName, mappedNames));
+        if (mappedNames.size() != 1) {
+            throw new IllegalStateException(String.format("Either no tables or multiple tables resolved from case insensitive name %s: %s", tableName.getTableName(), mappedNames));
         }
-        else if (mappedNames.size() == 1) {
-            return Optional.of(org.apache.hadoop.hbase.TableName.valueOf(mappedNames.iterator().next()));
-        }
-        else {
-            return Optional.empty();
-        }
+        org.apache.hadoop.hbase.TableName result = org.apache.hadoop.hbase.TableName.valueOf(mappedNames.iterator().next());
+        logger.info("CaseInsensitiveMatch, TableName resolved to: {}", result.getNameAsString());
+        return result;
+    }
+
+    private static boolean isCaseInsensitiveMatchEnable(Map<String, String> configOptions)
+    {
+        String enableCaseInsensitiveMatchEnvValue = configOptions.getOrDefault(ENABLE_CASE_INSENSITIVE_MATCH, "false").toLowerCase();
+        boolean enableCaseInsensitiveMatch = enableCaseInsensitiveMatchEnvValue.equals("true");
+        logger.info("{} environment variable set to: {}. Resolved to: {}",
+                ENABLE_CASE_INSENSITIVE_MATCH, enableCaseInsensitiveMatchEnvValue, enableCaseInsensitiveMatch);
+
+        return enableCaseInsensitiveMatch;
     }
     
 }
