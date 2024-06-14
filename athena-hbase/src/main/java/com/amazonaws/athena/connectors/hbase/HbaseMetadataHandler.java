@@ -198,7 +198,7 @@ public class HbaseMetadataHandler
         for (int i = 0; i < tables.length; i++) {
             TableName tableName = tables[i];
             tableNames.add(new com.amazonaws.athena.connector.lambda.domain.TableName(request.getSchemaName(),
-                    tableName.getNameAsString().toLowerCase(Locale.ENGLISH).replace(request.getSchemaName() + ":", "")));
+                    tableName.getNameAsString().replace(request.getSchemaName() + ":", "")));
         }
         return new ListTablesResponse(request.getCatalogName(), tableNames, null);
     }
@@ -289,7 +289,7 @@ public class HbaseMetadataHandler
         Set<Split> splits = new HashSet<>();
 
         //We can read each region in parallel
-        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseTableNameUtils.getHbaseTableName(getOrCreateConn(request), request.getTableName()))) {
+        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseTableNameUtils.getQualifiedTable(request.getTableName()))) {
             Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
                     .add(HBASE_CONN_STR, getConnStr(request))
                     .add(START_KEY_FIELD, new String(info.getStartKey()))
