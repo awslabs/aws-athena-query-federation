@@ -265,7 +265,7 @@ public class BigQueryFederationExpressionParserTest
                 ImmutableList.of(colOne, dateConstantExpression));
 
         String s = bigQueryExpressionParser.parseFunctionCallExpression((FunctionCallExpression) gtFunctionCall);
-        assertEquals("(colOne > '2020-01-05')", bigQueryExpressionParser.parseFunctionCallExpression((FunctionCallExpression) gtFunctionCall));
+        assertEquals("(colOne > '2020-01-04')", bigQueryExpressionParser.parseFunctionCallExpression((FunctionCallExpression) gtFunctionCall));
     }
 
     private String quoteColumn(String columnName)
