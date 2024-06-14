@@ -252,7 +252,6 @@ public class HbaseMetadataHandlerTest
         regionServers.add(TestUtils.makeRegion(4, "schema1", "table1"));
 
         when(mockClient.getTableRegions(any())).thenReturn(regionServers);
-        when(mockClient.tableExists(any())).thenReturn(true);
         List<String> partitionCols = new ArrayList<>();
 
         Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);
