@@ -29,7 +29,7 @@ Parameters:
     Description: 'Kafka cluster endpoint'
     Type: String
   SchemaRegistryUrl:
-    Description: 'Schema Registry URL. Applicable for Avro Data Formatted Topics. (syntax. http://<endpoint>:<port>)'
+    Description: 'Schema Registry URL. Applicable for Avro/Protobuf Formatted Topics. (syntax. http://<endpoint>:<port>)'
     Type: String
     Default: ""
   LambdaFunctionName:
