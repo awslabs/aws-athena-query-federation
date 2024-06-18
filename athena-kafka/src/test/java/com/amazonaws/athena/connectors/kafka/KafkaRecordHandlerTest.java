@@ -33,6 +33,10 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.kafka.dto.*;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.AWSGlueClientBuilder;
+import com.amazonaws.services.glue.model.GetSchemaResult;
+import com.amazonaws.services.glue.model.GetSchemaVersionResult;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -40,6 +44,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -50,7 +56,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -62,6 +67,8 @@ import java.util.UUID;
 
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static com.amazonaws.athena.connectors.kafka.KafkaConstants.AVRO_DATA_FORMAT;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyMap;
 
 import static org.mockito.Mockito.*;
@@ -70,6 +77,10 @@ import static org.mockito.Mockito.*;
 public class KafkaRecordHandlerTest {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private MockedStatic<AWSGlueClientBuilder> awsGlueClientBuilder;
+
+    @Mock
+    AWSGlue awsGlue;
 
     @Mock
     AmazonS3 amazonS3;
@@ -90,6 +101,7 @@ public class KafkaRecordHandlerTest {
     BlockAllocatorImpl allocator;
 
     MockConsumer<String, TopicResultSet> consumer;
+    MockConsumer<String, GenericRecord> avroConsumer;
     KafkaRecordHandler kafkaRecordHandler;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private EncryptionKey encryptionKey = keyFactory.create();
@@ -112,7 +124,11 @@ public class KafkaRecordHandlerTest {
             consumer.addRecord(record1);
             consumer.addRecord(record2);
         });
-
+        avroConsumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
+        ConsumerRecord<String, GenericRecord> avroRecord = createAvroConsumerRecord("greetings", 0 , "k1", createGenericRecord("greetings"));
+        avroConsumer.schedulePollTask(() -> {
+            avroConsumer.addRecord(avroRecord);
+        });
         spillConfig = SpillConfig.newBuilder()
                 .withEncryptionKey(encryptionKey)
                 //This will be enough for a single block
@@ -127,11 +143,14 @@ public class KafkaRecordHandlerTest {
         allocator = new BlockAllocatorImpl();
         mockedKafkaUtils = Mockito.mockStatic(KafkaUtils.class, Mockito.CALLS_REAL_METHODS);
         kafkaRecordHandler = new KafkaRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
+        awsGlueClientBuilder = Mockito.mockStatic(AWSGlueClientBuilder.class);
+        awsGlueClientBuilder.when(()-> AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
     }
 
     @After
     public void close(){
         mockedKafkaUtils.close();
+        awsGlueClientBuilder.close();
     }
 
     @Test
@@ -151,12 +170,44 @@ public class KafkaRecordHandlerTest {
         mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
+        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
+        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getJsonSchemaVersionResult());
+
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
         kafkaRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
+    }
+
+    @Test
+    public void testForConsumeAvroDataFromTopic() throws Exception {
+        HashMap<TopicPartition, Long> offsets;
+        offsets = new HashMap<>();
+        offsets.put(new TopicPartition("greetings", 0), 0L);
+        avroConsumer.updateBeginningOffsets(offsets);
+
+        offsets = new HashMap<>();
+        offsets.put(new TopicPartition("greetings", 0), 1L);
+        avroConsumer.updateEndOffsets(offsets);
+
+        SplitParameters splitParameters = new SplitParameters("greetings", 0, 0, 1);
+        Schema schema = createAvroSchema(createAvroTopicSchema());
+
+        mockedKafkaUtils.when(() -> KafkaUtils.getAvroKafkaConsumer(com.google.common.collect.ImmutableMap.of())).thenReturn(avroConsumer);
+        mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+
+        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
+        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getAvroSchemaVersionResult());
+
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        ReadRecordsRequest request = createReadRecordsRequest(schema);
+        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+        kafkaRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
+        assertEquals(1, spiller.getBlock().getRowCount());
     }
 
     @Test
@@ -175,6 +226,10 @@ public class KafkaRecordHandlerTest {
 
         mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+
+        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
+        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getJsonSchemaVersionResult());
+
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(false);
 
@@ -201,6 +256,10 @@ public class KafkaRecordHandlerTest {
 
         mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+
+        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
+        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getJsonSchemaVersionResult());
+
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         kafkaRecordHandler.readWithConstraint(null, request, null);
     }
@@ -223,6 +282,10 @@ public class KafkaRecordHandlerTest {
 
         mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+
+        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
+        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getJsonSchemaVersionResult());
+
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
@@ -254,6 +317,10 @@ public class KafkaRecordHandlerTest {
         return new ConsumerRecord<>(topic, partition, 0, key, data);
     }
 
+    private ConsumerRecord<String, GenericRecord> createAvroConsumerRecord(String topic, int partition, String key, GenericRecord data) throws Exception {
+        return new ConsumerRecord<>(topic, partition, 0, key, data);
+    }
+
     private TopicResultSet createTopicResultSet(String topic) {
         TopicResultSet resultSet = new TopicResultSet();
         resultSet.setTopicName(topic);
@@ -263,6 +330,19 @@ public class KafkaRecordHandlerTest {
         resultSet.getFields().add(new KafkaField("isActive", "2", "BOOLEAN", "", Boolean.valueOf("true")));
         resultSet.getFields().add(new KafkaField("code", "3", "TINYINT", "", Byte.parseByte("101")));
         return resultSet;
+    }
+
+    private GenericRecord createGenericRecord(String topic) {
+        org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
+        String schemaString = "{\"type\": \"record\",\"name\":\"" + topic + "\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}";
+        org.apache.avro.Schema schema = parser.parse(schemaString);
+        GenericRecord record = new GenericData.Record(schema);
+
+        record.put("id", 1);
+        record.put("name", "John");
+        record.put("greeting", "Hello");
+
+        return record;
     }
 
     private Schema createSchema(TopicSchema topicSchema) throws Exception {
@@ -286,6 +366,26 @@ public class KafkaRecordHandlerTest {
         return schemaBuilder.build();
     }
 
+    private Schema createAvroSchema(AvroTopicSchema avroTopicSchema) throws Exception {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        avroTopicSchema.getFields().forEach(it -> {
+            FieldType fieldType = new FieldType(
+                    true,
+                    KafkaUtils.toArrowType(it.getType()),
+                    null,
+                    com.google.common.collect.ImmutableMap.of(
+                            "name", it.getName(),
+                            "formatHint", it.getFormatHint(),
+                            "type", it.getType()
+                    )
+            );
+            Field field = new Field(it.getName(), fieldType, null);
+            schemaBuilder.addField(field);
+        });
+        schemaBuilder.addMetadata("dataFormat", AVRO_DATA_FORMAT);
+        return schemaBuilder.build();
+    }
+
     private TopicSchema createCsvTopicSchema() throws JsonProcessingException {
         String csv = "{" +
                 "\"topicName\":\"test\"," +
@@ -298,5 +398,41 @@ public class KafkaRecordHandlerTest {
                 "{\"name\":\"code\",\"type\":\"TINYINT\",\"mapping\":\"3\",\"formatHint\": \"\"}" +
                 "]}}";
         return objectMapper.readValue(csv, TopicSchema.class);
+    }
+
+    private AvroTopicSchema createAvroTopicSchema() throws JsonProcessingException {
+        String avro = "{\"type\": \"record\",\"name\":\"greetings\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}";
+        return objectMapper.readValue(avro, AvroTopicSchema.class);
+    }
+
+    private GetSchemaResult getSchemaResult() {
+
+        String arn = "defaultArn", schemaName = "defaultSchemaName";
+        Long latestSchemaVersion = 123L;
+        GetSchemaResult getSchemaResult = new GetSchemaResult();
+        getSchemaResult.setSchemaArn(arn);
+        getSchemaResult.setSchemaName(schemaName);
+        getSchemaResult.setLatestSchemaVersion(latestSchemaVersion);
+        return getSchemaResult;
+    }
+
+    private GetSchemaVersionResult getJsonSchemaVersionResult() {
+        String arn = "defaultArn", schemaVersionId = "defaultVersionId";
+        GetSchemaVersionResult getJsonSchemaVersionResult = new GetSchemaVersionResult();
+        getJsonSchemaVersionResult.setSchemaArn(arn);
+        getJsonSchemaVersionResult.setSchemaVersionId(schemaVersionId);
+        getJsonSchemaVersionResult.setDataFormat("json");
+        getJsonSchemaVersionResult.setSchemaDefinition("{\"topicName\": \"testtable\", \"\"message\": {\"dataFormat\": \"json\", \"fields\": [{\"name\": \"intcol\", \"mapping\": \"intcol\", \"type\": \"INTEGER\"}]}\"}");
+        return getJsonSchemaVersionResult;
+    }
+
+    private GetSchemaVersionResult getAvroSchemaVersionResult() {
+        String arn = "defaultArn", schemaVersionId = "defaultVersionId";
+        GetSchemaVersionResult getAvroSchemaVersionResult = new GetSchemaVersionResult();
+        getAvroSchemaVersionResult.setSchemaArn(arn);
+        getAvroSchemaVersionResult.setSchemaVersionId(schemaVersionId);
+        getAvroSchemaVersionResult.setDataFormat("avro");
+        getAvroSchemaVersionResult.setSchemaDefinition("{\"type\": \"record\",\"name\":\"greetings\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}");
+        return getAvroSchemaVersionResult;
     }
 }
