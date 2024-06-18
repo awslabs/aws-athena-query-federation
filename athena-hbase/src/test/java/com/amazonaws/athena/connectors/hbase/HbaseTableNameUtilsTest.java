@@ -19,9 +19,6 @@
  */
 package com.amazonaws.athena.connectors.hbase;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -31,7 +28,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Optional;
 
 import org.junit.Test;
 
@@ -110,20 +106,6 @@ public class HbaseTableNameUtilsTest
 
         TableName input = new TableName("schema", "table");
         HbaseTableNameUtils.getHbaseTableName(config, mockConnection, input);
-    }
-
-    @Test
-    public void getHbaseTableNameExists()
-            throws IOException
-    {
-        HBaseConnection mockConnection = mock(HBaseConnection.class);
-        when(mockConnection.tableExists(any())).thenReturn(true);
-
-        TableName input = new TableName("schema", "test");
-        org.apache.hadoop.hbase.TableName expected = HbaseTableNameUtils.getQualifiedTable("schema", "test");
-        org.apache.hadoop.hbase.TableName result = HbaseTableNameUtils.getHbaseTableName(config, mockConnection, input);
-        assertEquals(expected, result);
-        verify(mockConnection, times(0)).listTableNamesByNamespace(any());
     }
     
     @Test

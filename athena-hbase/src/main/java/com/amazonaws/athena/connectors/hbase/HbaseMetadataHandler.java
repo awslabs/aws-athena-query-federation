@@ -288,7 +288,7 @@ public class HbaseMetadataHandler
         Set<Split> splits = new HashSet<>();
 
         //We can read each region in parallel
-        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseTableNameUtils.getQualifiedTable(request.getTableName()))) {
+        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseTableNameUtils.getHbaseTableName(configOptions, getOrCreateConn(request), request.getTableName()))) {
             Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
                     .add(HBASE_CONN_STR, getConnStr(request))
                     .add(START_KEY_FIELD, new String(info.getStartKey()))

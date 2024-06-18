@@ -107,7 +107,7 @@ public final class HbaseTableNameUtils
     public static org.apache.hadoop.hbase.TableName getHbaseTableName(Map<String, String> configOptions, HBaseConnection conn, TableName athTableName)
             throws IOException
     {
-        if (!isCaseInsensitiveMatchEnable(configOptions) || conn.tableExists(getQualifiedTable(athTableName))) {
+        if (!isCaseInsensitiveMatchEnable(configOptions)) {
             return getQualifiedTable(athTableName);
         }
         return tryCaseInsensitiveSearch(conn, athTableName);
@@ -126,7 +126,7 @@ public final class HbaseTableNameUtils
     protected static org.apache.hadoop.hbase.TableName tryCaseInsensitiveSearch(HBaseConnection conn, TableName tableName)
             throws IOException
     {
-        logger.info("Table {} not found.  Falling back to case insensitive search.", tableName.getTableName());
+        logger.info("Case Insensitive Match enabled. Searching for Table {}.", tableName.getTableName());
         Multimap<String, String> lowerCaseNameMapping = ArrayListMultimap.create();
         org.apache.hadoop.hbase.TableName[] tableNames = conn.listTableNamesByNamespace(tableName.getSchemaName());
         for (org.apache.hadoop.hbase.TableName nextTableName : tableNames) {

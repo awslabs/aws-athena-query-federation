@@ -162,7 +162,7 @@ public class HbaseRecordHandler
             addToProjection(scan, next);
         }
 
-        getOrCreateConn(conStr).scanTable(HbaseTableNameUtils.getQualifiedTable(tableNameObj),
+        getOrCreateConn(conStr).scanTable(HbaseTableNameUtils.getHbaseTableName(configOptions, getOrCreateConn(conStr), tableNameObj),
                 scan,
                 (ResultScanner scanner) -> scanFilterProject(scanner, request, blockSpiller, queryStatusChecker));
     }
