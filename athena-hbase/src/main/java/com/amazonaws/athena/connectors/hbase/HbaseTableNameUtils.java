@@ -107,7 +107,7 @@ public final class HbaseTableNameUtils
     public static org.apache.hadoop.hbase.TableName getHbaseTableName(Map<String, String> configOptions, HBaseConnection conn, TableName athTableName)
             throws IOException
     {
-        if (!isCaseInsensitiveMatchEnable(configOptions)) {
+        if (!isCaseInsensitiveMatchEnable(configOptions) || !athTableName.getTableName().equals(athTableName.getTableName().toLowerCase())) {
             return getQualifiedTable(athTableName);
         }
         return tryCaseInsensitiveSearch(conn, athTableName);
