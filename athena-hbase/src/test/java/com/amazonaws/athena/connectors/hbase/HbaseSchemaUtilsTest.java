@@ -73,7 +73,7 @@ public class HbaseSchemaUtilsTest
         });
         when(mockConnection.tableExists(any())).thenReturn(true);
 
-        Schema schema = HbaseSchemaUtils.inferSchema(com.google.common.collect.ImmutableMap.of(), mockConnection, tableName, numToScan);
+        Schema schema = HbaseSchemaUtils.inferSchema(mockConnection, HbaseTableNameUtils.getQualifiedTable(tableName), numToScan);
 
         Map<String, Types.MinorType> actualFields = new HashMap<>();
         schema.getFields().stream().forEach(next -> actualFields.put(next.getName(), Types.getMinorTypeForArrowType(next.getType())));

@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.hbase;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -61,12 +60,11 @@ public class HbaseSchemaUtils
      * @param numToScan The number of records to scan as part of producing the Schema.
      * @return An Apache Arrow Schema representing the schema of the HBase table.
      */
-    public static Schema inferSchema(Map<String, String> configOptions, HBaseConnection client, TableName tableName, int numToScan)
+    public static Schema inferSchema(HBaseConnection client, org.apache.hadoop.hbase.TableName tableName, int numToScan)
             throws IOException
     {
         Scan scan = new Scan().setMaxResultSize(numToScan).setFilter(new PageFilter(numToScan));
-        org.apache.hadoop.hbase.TableName hbaseTableName = HbaseTableNameUtils.getHbaseTableName(configOptions, client, tableName);
-        return client.scanTable(hbaseTableName, scan, (ResultScanner scanner) -> {
+        return client.scanTable(tableName, scan, (ResultScanner scanner) -> {
             try {
                 return scanAndInferSchema(scanner);
             }
