@@ -41,6 +41,9 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -68,6 +71,7 @@ import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.kafka.KafkaConstants.AVRO_DATA_FORMAT;
+import static com.amazonaws.athena.connectors.kafka.KafkaConstants.PROTOBUF_DATA_FORMAT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyMap;
 
@@ -102,6 +106,7 @@ public class KafkaRecordHandlerTest {
 
     MockConsumer<String, TopicResultSet> consumer;
     MockConsumer<String, GenericRecord> avroConsumer;
+    MockConsumer<String, DynamicMessage> protobufConsumer;
     KafkaRecordHandler kafkaRecordHandler;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private EncryptionKey encryptionKey = keyFactory.create();
@@ -128,6 +133,11 @@ public class KafkaRecordHandlerTest {
         ConsumerRecord<String, GenericRecord> avroRecord = createAvroConsumerRecord("greetings", 0 , "k1", createGenericRecord("greetings"));
         avroConsumer.schedulePollTask(() -> {
             avroConsumer.addRecord(avroRecord);
+        });
+        protobufConsumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
+        ConsumerRecord<String, DynamicMessage> protobufRecord = createProtobufConsumerRecord("protobuftest", 0, "k1", createDynamicRecord());
+        protobufConsumer.schedulePollTask(() -> {
+            protobufConsumer.addRecord(protobufRecord);
         });
         spillConfig = SpillConfig.newBuilder()
                 .withEncryptionKey(encryptionKey)
@@ -200,6 +210,35 @@ public class KafkaRecordHandlerTest {
 
         Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
         Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getAvroSchemaVersionResult());
+
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        ReadRecordsRequest request = createReadRecordsRequest(schema);
+        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
+        kafkaRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
+        assertEquals(1, spiller.getBlock().getRowCount());
+    }
+
+    @Test
+    public void testForConsumeProtobufDataFromTopic() throws Exception {
+        HashMap<TopicPartition, Long> offsets;
+        offsets = new HashMap<>();
+        offsets.put(new TopicPartition("protobuftest", 0), 0L);
+        protobufConsumer.updateBeginningOffsets(offsets);
+
+        offsets = new HashMap<>();
+        offsets.put(new TopicPartition("protobuftest", 0), 1L);
+        protobufConsumer.updateEndOffsets(offsets);
+
+        SplitParameters splitParameters = new SplitParameters("protobuftest", 0, 0, 1);
+        Schema schema = createProtobufSchema(createProtobufTopicSchema());
+
+        mockedKafkaUtils.when(() -> KafkaUtils.getProtobufKafkaConsumer(com.google.common.collect.ImmutableMap.of())).thenReturn(protobufConsumer);
+        mockedKafkaUtils.when(() -> KafkaUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
+
+        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
+        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getProtobufSchemaVersionResult());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -321,6 +360,10 @@ public class KafkaRecordHandlerTest {
         return new ConsumerRecord<>(topic, partition, 0, key, data);
     }
 
+    private ConsumerRecord<String, DynamicMessage> createProtobufConsumerRecord(String topic, int partition, String key, DynamicMessage data) throws Exception {
+        return new ConsumerRecord<>(topic, partition, 0, key, data);
+    }
+
     private TopicResultSet createTopicResultSet(String topic) {
         TopicResultSet resultSet = new TopicResultSet();
         resultSet.setTopicName(topic);
@@ -343,6 +386,25 @@ public class KafkaRecordHandlerTest {
         record.put("greeting", "Hello");
 
         return record;
+    }
+
+    private DynamicMessage createDynamicRecord() {
+        String schema = "syntax = \"proto3\";\n" +
+                "message protobuftest {\n" +
+                "string name = 1;\n" +
+                "int32 calories = 2;\n" +
+                "string colour = 3; \n" +
+                "}";
+        ProtobufSchema protobufSchema = new ProtobufSchema(schema);
+        Descriptors.Descriptor descriptor = protobufSchema.toDescriptor();
+
+        // Build the dynamic message
+        DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+        builder.setField(descriptor.findFieldByName("name"), "cake");
+        builder.setField(descriptor.findFieldByName("calories"), 260);
+        builder.setField(descriptor.findFieldByName("colour"), "white");
+
+        return builder.build();
     }
 
     private Schema createSchema(TopicSchema topicSchema) throws Exception {
@@ -386,6 +448,22 @@ public class KafkaRecordHandlerTest {
         return schemaBuilder.build();
     }
 
+    private Schema createProtobufSchema(ProtobufSchema protobufTopicSchema) throws Exception {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        Descriptors.Descriptor descriptor = protobufTopicSchema.toDescriptor();
+        for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
+            FieldType fieldType = new FieldType(
+                    true,
+                    KafkaUtils.toArrowType(fieldDescriptor.getType().toString()),
+                    null
+            );
+            Field field = new Field(fieldDescriptor.getName(), fieldType, null);
+            schemaBuilder.addField(field);
+        }
+        schemaBuilder.addMetadata("dataFormat", PROTOBUF_DATA_FORMAT);
+        return schemaBuilder.build();
+    }
+
     private TopicSchema createCsvTopicSchema() throws JsonProcessingException {
         String csv = "{" +
                 "\"topicName\":\"test\"," +
@@ -403,6 +481,17 @@ public class KafkaRecordHandlerTest {
     private AvroTopicSchema createAvroTopicSchema() throws JsonProcessingException {
         String avro = "{\"type\": \"record\",\"name\":\"greetings\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}";
         return objectMapper.readValue(avro, AvroTopicSchema.class);
+    }
+
+    private ProtobufSchema createProtobufTopicSchema() {
+        String protobuf = "syntax = \"proto3\";\n" +
+                "message protobuftest {\n" +
+                "string name = 1;\n" +
+                "int32 calories = 2;\n" +
+                "string colour = 3; \n" +
+                "}";
+        ProtobufSchema protobufSchema = new ProtobufSchema(protobuf);
+        return protobufSchema;
     }
 
     private GetSchemaResult getSchemaResult() {
@@ -434,5 +523,20 @@ public class KafkaRecordHandlerTest {
         getAvroSchemaVersionResult.setDataFormat("avro");
         getAvroSchemaVersionResult.setSchemaDefinition("{\"type\": \"record\",\"name\":\"greetings\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}");
         return getAvroSchemaVersionResult;
+    }
+
+    private GetSchemaVersionResult getProtobufSchemaVersionResult() {
+        String arn = "defaultArn", schemaVersionId = "defaultVersionId";
+        GetSchemaVersionResult getProtobufSchemaVersionResult = new GetSchemaVersionResult();
+        getProtobufSchemaVersionResult.setSchemaArn(arn);
+        getProtobufSchemaVersionResult.setSchemaVersionId(schemaVersionId);
+        getProtobufSchemaVersionResult.setDataFormat("protobuf");
+        getProtobufSchemaVersionResult.setSchemaDefinition("syntax = \"proto3\";\n" +
+                "message protobuftest {\n" +
+                "string name = 1;\n" +
+                "int32 calories = 2;\n" +
+                "string colour = 3; \n" +
+                "}");
+        return getProtobufSchemaVersionResult;
     }
 }

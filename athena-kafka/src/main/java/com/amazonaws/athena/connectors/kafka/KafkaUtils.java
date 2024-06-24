@@ -39,6 +39,7 @@ import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.DynamicMessage;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -160,6 +161,14 @@ public class KafkaUtils
     {
         Properties properties = getKafkaProperties(configOptions);
         properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, io.confluent.kafka.serializers.KafkaAvroDeserializer.class.getName());
+        properties.setProperty(KAFKA_SCHEMA_REGISTRY_URL, getRequiredConfig(KafkaConstants.KAFKA_SCHEMA_REGISTRY_URL, configOptions));
+        return new KafkaConsumer<>(properties);
+    }
+
+    public static Consumer<String, DynamicMessage> getProtobufKafkaConsumer(java.util.Map<String, String> configOptions) throws Exception
+    {
+        Properties properties = getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer.class.getName());
         properties.setProperty(KAFKA_SCHEMA_REGISTRY_URL, getRequiredConfig(KafkaConstants.KAFKA_SCHEMA_REGISTRY_URL, configOptions));
         return new KafkaConsumer<>(properties);
     }
@@ -417,16 +426,19 @@ public class KafkaUtils
     {
         switch (dataType.trim().toUpperCase()) {
             case "BOOLEAN":
+            case "BOOL":
                 return new ArrowType.Bool();
             case "TINYINT":
                 return Types.MinorType.TINYINT.getType();
             case "SMALLINT":
                 return Types.MinorType.SMALLINT.getType();
             case "INT":
+            case "INT32":
             case "INTEGER":
                 return Types.MinorType.INT.getType();
             case "LONG":
             case "BIGINT":
+            case "INT64":
                 return Types.MinorType.BIGINT.getType();
             case "FLOAT":
                 return Types.MinorType.FLOAT4.getType();
