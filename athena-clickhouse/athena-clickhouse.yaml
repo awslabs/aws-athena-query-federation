@@ -56,12 +56,6 @@ Parameters:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
-  LambdaS3CodeUriBucket:
-    Description: This must be set to a S3 mybucket because the JAR is greater than the local SAM 50MB limit and must be referenced based on prior s3 cp deploy step.
-    Type: String
-  LambdaS3CodeUriKey: 
-    Description: This must be set to a S3 folder/file (e.g. code/athena-clickhouse-2022.47.1.jar) because the JAR is greater than the local SAM 50MB limit and must be referenced based on prior s3 cp deploy step.
-    Type: String
 Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
   NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
@@ -77,9 +71,7 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.clickhouse.ClickHouseMuxCompositeHandler"
-      CodeUri: 
-        Bucket: !Ref LambdaS3CodeUriBucket
-        Key: !Ref LambdaS3CodeUriKey
+      CodeUri: "./target/athena-clickhouse-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with ClickHouse using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
