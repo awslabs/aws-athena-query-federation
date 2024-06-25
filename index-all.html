@@ -882,6 +882,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#buildSetAwsRegionSql(java.lang.String)">buildSetAwsRegionSql(String)</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql(Connection, String, TableName, Schema, Constraints, Split)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseRecordHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveRecordHandler.html#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql(Connection, String, TableName, Schema, Constraints, Split)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveRecordHandler.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveRecordHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/ImpalaRecordHandler.html#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql(Connection, String, TableName, Schema, Constraints, Split)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/ImpalaRecordHandler.html" title="class in com.amazonaws.athena.connectors.cloudera">ImpalaRecordHandler</a></dt>
@@ -974,6 +976,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html#caseInsensitiveTableMaterialViewMatch(java.sql.Connection,java.lang.String,java.lang.String)">caseInsensitiveTableMaterialViewMatch(Connection, String, String)</a></span> - Method in class com.amazonaws.athena.connectors.postgresql.<a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#caseInsensitiveTableSearch(java.sql.Connection,java.lang.String,java.lang.String)">caseInsensitiveTableSearch(Connection, String, String)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#caseInsensitiveTableSearch(java.sql.Connection,java.lang.String,java.lang.String)">caseInsensitiveTableSearch(Connection, String, String)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>
 <div class="block">While being a no-op by default, this function will be overriden by subclasses that support this search.</div>
@@ -1027,6 +1031,68 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html#cleanUp()">cleanUp()</a></span> - Method in class com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integ">IntegrationTestBase</a></dt>
 <dd>
 <div class="block">Deletes a CloudFormation stack, and the lambda function registered with Athena.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseCompositeHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse"><span class="typeNameLink">ClickHouseCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a></dt>
+<dd>
+<div class="block">Boilerplate composite handler that allows one to use a single Lambda function for both Metadata and Data.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseCompositeHandler.html#%3Cinit%3E()">ClickHouseCompositeHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseCompositeHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseCompositeHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html" title="class in com.amazonaws.athena.connectors.clickhouse"><span class="typeNameLink">ClickHouseConstants</span></a> - Class in <a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a></dt>
+<dd>
+<div class="block">Clickhouse Module Constants including name, driver, and default port.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse"><span class="typeNameLink">ClickHouseMetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a></dt>
+<dd>
+<div class="block">Class handles metadata for ClickHouse and reuses code from Athena MySQL module for compatibility.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">ClickHouseMetadataHandler(DatabaseConnectionConfig, JdbcConnectionFactory, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">ClickHouseMetadataHandler(DatabaseConnectionConfig, AWSSecretsManager, AmazonAthena, JdbcConnectionFactory, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map)">ClickHouseMetadataHandler(DatabaseConnectionConfig, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>
+<div class="block">Used by Mux.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#%3Cinit%3E(java.util.Map)">ClickHouseMetadataHandler(Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>
+<div class="block">Instantiates handler to be used by Lambda function directly.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxCompositeHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse"><span class="typeNameLink">ClickHouseMuxCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a></dt>
+<dd>
+<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both Metadata and Data.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxCompositeHandler.html#%3Cinit%3E()">ClickHouseMuxCompositeHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxCompositeHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMuxCompositeHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse"><span class="typeNameLink">ClickHouseMuxMetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a></dt>
+<dd>
+<div class="block">Metadata handler facade that integrates with AWS Secrets, Amazon Athena, and S3.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map)">ClickHouseMuxMetadataHandler(AWSSecretsManager, AmazonAthena, JdbcConnectionFactory, Map&lt;String, JdbcMetadataHandler&gt;, DatabaseConnectionConfig, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMuxMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxMetadataHandler.html#%3Cinit%3E(java.util.Map)">ClickHouseMuxMetadataHandler(Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMuxMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxRecordHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse"><span class="typeNameLink">ClickHouseMuxRecordHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a></dt>
+<dd>
+<div class="block">Data handler facade that integrates with S3, Athena, and Secrets.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxRecordHandler.html#%3Cinit%3E(java.util.Map)">ClickHouseMuxRecordHandler(Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMuxRecordHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMuxRecordHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse"><span class="typeNameLink">ClickHouseRecordHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a></dt>
+<dd>
+<div class="block">Data handler that reuses <a href="com/amazonaws/athena/connectors/mysql/MySqlQueryStringBuilder.html" title="class in com.amazonaws.athena.connectors.mysql"><code>MySqlQueryStringBuilder</code></a> and <a href="com/amazonaws/athena/connectors/mysql/MySqlFederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.mysql"><code>MySqlFederationExpressionParser</code></a>.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">ClickHouseRecordHandler(DatabaseConnectionConfig, JdbcConnectionFactory, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseRecordHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map)">ClickHouseRecordHandler(DatabaseConnectionConfig, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseRecordHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html#%3Cinit%3E(java.util.Map)">ClickHouseRecordHandler(Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseRecordHandler</a></dt>
+<dd>
+<div class="block">Instantiates handler to be used by Lambda function directly.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html" title="class in com.amazonaws.athena.connectors.clickhouse"><span class="typeNameLink">ClickHouseUtil</span></a> - Class in <a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a></dt>
+<dd>
+<div class="block">Clickhouse utilities adapted and ported from <code>JDBCUtil</code>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#close()">close()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>
@@ -1321,6 +1387,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/package-summary.html">com.amazonaws.athena.connectors.aws.cmdb.tables.ec2</a> - package com.amazonaws.athena.connectors.aws.cmdb.tables.ec2</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/s3/package-summary.html">com.amazonaws.athena.connectors.aws.cmdb.tables.s3</a> - package com.amazonaws.athena.connectors.aws.cmdb.tables.s3</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/clickhouse/package-summary.html">com.amazonaws.athena.connectors.clickhouse</a> - package com.amazonaws.athena.connectors.clickhouse</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/cloudera/package-summary.html">com.amazonaws.athena.connectors.cloudera</a> - package com.amazonaws.athena.connectors.cloudera</dt>
 <dd>&nbsp;</dd>
@@ -2270,6 +2338,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#DEFAULT_NO_LIMIT">DEFAULT_NO_LIMIT</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html#DEFAULT_PORT">DEFAULT_PORT</a></span> - Static variable in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html#DEFAULT_PORT">DEFAULT_PORT</a></span> - Static variable in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2Constants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2Constants.html#DEFAULT_PORT">DEFAULT_PORT</a></span> - Static variable in class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2Constants.html" title="class in com.amazonaws.athena.connectors.db2">Db2Constants</a></dt>
@@ -2709,6 +2779,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Delegates to the TableProvider that is registered for the requested table.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveMetadataHandler.html#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveMetadataHandler</a></dt>
 <dd>
 <div class="block">Used to split-up the reads required to scan the requested batch of partition(s).</div>
@@ -2964,6 +3036,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns the list of supported schemas discovered from the loaded TableProvider scan.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames(BlockAllocator, ListSchemasRequest)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames(BlockAllocator, ListSchemasRequest)</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchMetadataHandler</a></dt>
 <dd>
 <div class="block">List LogGroups in your Cloudwatch account treating each as a 'schema' (aka database)</div>
@@ -3311,6 +3385,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html#doTypedSerialize(T,com.fasterxml.jackson.core.JsonGenerator,com.fasterxml.jackson.databind.SerializerProvider)">doTypedSerialize(T, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/TimestreamType.html#DOUBLE">DOUBLE</a></span> - com.amazonaws.athena.connectors.timestream.<a href="com/amazonaws/athena/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.athena.connectors.timestream">TimestreamType</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html#DRIVER_CLASS">DRIVER_CLASS</a></span> - Static variable in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html#DRIVER_CLASS">DRIVER_CLASS</a></span> - Static variable in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2Constants</a></dt>
 <dd>&nbsp;</dd>
@@ -5134,6 +5210,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redshift/RedshiftMetadataHandler.html#getPaginatedResults(java.sql.Connection,java.lang.String,int,int)">getPaginatedResults(Connection, String, int, int)</a></span> - Method in class com.amazonaws.athena.connectors.redshift.<a href="com/amazonaws/athena/connectors/redshift/RedshiftMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redshift">RedshiftMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#getPaginatedTables(java.sql.Connection,java.lang.String,int,int)">getPaginatedTables(Connection, String, int, int)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html#getPaginatedTables(java.sql.Connection,java.lang.String,int,int)">getPaginatedTables(Connection, String, int, int)</a></span> - Method in class com.amazonaws.athena.connectors.mysql.<a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/oracle/OracleMetadataHandler.html#getPaginatedTables(java.sql.Connection,java.lang.String,int,int)">getPaginatedTables(Connection, String, int, int)</a></span> - Method in class com.amazonaws.athena.connectors.oracle.<a href="com/amazonaws/athena/connectors/oracle/OracleMetadataHandler.html" title="class in com.amazonaws.athena.connectors.oracle">OracleMetadataHandler</a></dt>
@@ -5191,6 +5269,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Delegates to the TableProvider that is registered for the requested table.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions(BlockWriter, GetTableLayoutRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveMetadataHandler.html#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions(BlockWriter, GetTableLayoutRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveMetadataHandler</a></dt>
 <dd>
 <div class="block">Used to get the hive partitions that must be read from the request table in order to satisfy the requested predicate.</div>
@@ -5321,6 +5401,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#getPartitionSchema(java.lang.String)">getPartitionSchema(String)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveMetadataHandler.html#getPartitionSchema(java.lang.String)">getPartitionSchema(String)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveMetadataHandler</a></dt>
 <dd>
 <div class="block">Delegates creation of partition schema to database type implementation.</div>
@@ -5676,6 +5758,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html#getSchemaNameCaseInsensitiveMatch(java.util.Map,com.mongodb.client.MongoClient,java.lang.String)">getSchemaNameCaseInsensitiveMatch(Map&lt;String, String&gt;, MongoClient, String)</a></span> - Static method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBCaseInsensitiveResolver</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html#getSchemaNameQuery(java.sql.Connection,java.lang.String)">getSchemaNameQuery(Connection, String)</a></span> - Static method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseUtil</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#getSchemaNameQuery(java.sql.Connection,java.lang.String)">getSchemaNameQuery(Connection, String)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html#getSchemas()">getSchemas()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></dt>
@@ -5687,6 +5771,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Provides access to the mapping of TableNames for each schema name discovered during the TableProvider
  scann.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html#getSchemaTableName(java.sql.ResultSet)">getSchemaTableName(ResultSet)</a></span> - Static method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseUtil</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#getSchemaTableName(java.sql.ResultSet)">getSchemaTableName(ResultSet)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/GlueRegistryReader.html#getSchemaVersionResult(java.lang.String,java.lang.String)">getSchemaVersionResult(String, String)</a></span> - Method in class com.amazonaws.athena.connectors.kafka.<a href="com/amazonaws/athena/connectors/kafka/GlueRegistryReader.html" title="class in com.amazonaws.athena.connectors.kafka">GlueRegistryReader</a></dt>
@@ -5975,6 +6061,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Fetches table metadata by first doing a DescribeTable on the given table table, falling back to case
  insensitive resolution if the table isn't found.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html#getTableMetadata(java.sql.PreparedStatement,java.lang.String)">getTableMetadata(PreparedStatement, String)</a></span> - Static method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseUtil</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#getTableMetadata(java.sql.PreparedStatement,java.lang.String)">getTableMetadata(PreparedStatement, String)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/TableName.html#getTableName()">getTableName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></dt>
@@ -6037,6 +6125,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html#getTableNameCaseInsensitiveMatch(java.util.Map,com.mongodb.client.MongoDatabase,java.lang.String)">getTableNameCaseInsensitiveMatch(Map&lt;String, String&gt;, MongoDatabase, String)</a></span> - Static method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBCaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBCaseInsensitiveResolver</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html#getTableNameQuery(java.sql.Connection,java.lang.String,java.lang.String)">getTableNameQuery(Connection, String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseUtil</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#getTableNameQuery(java.sql.Connection,java.lang.String,java.lang.String)">getTableNameQuery(Connection, String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/aws/cmdb/TableProviderFactory.html#getTableProviders()">getTableProviders()</a></span> - Method in class com.amazonaws.athena.connectors.aws.cmdb.<a href="com/amazonaws/athena/connectors/aws/cmdb/TableProviderFactory.html" title="class in com.amazonaws.athena.connectors.aws.cmdb">TableProviderFactory</a></dt>
@@ -6090,6 +6180,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Returns the list of table names.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBPaginatedTables.html#getTables()">getTables()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBPaginatedTables.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBPaginatedTables</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html#getTables(java.sql.Connection,java.lang.String)">getTables(Connection, String)</a></span> - Static method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseUtil</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#getTables(java.sql.Connection,java.lang.String)">getTables(Connection, String)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>&nbsp;</dd>
@@ -6826,6 +6918,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/dto/SplitParameters.html#info">info</a></span> - Variable in class com.amazonaws.athena.connectors.msk.dto.<a href="com/amazonaws/athena/connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html#informationSchemaCaseInsensitiveTableMatch(java.sql.Connection,java.lang.String,java.lang.String)">informationSchemaCaseInsensitiveTableMatch(Connection, String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseUtil.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseUtil</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#informationSchemaCaseInsensitiveTableMatch(java.sql.Connection,java.lang.String,java.lang.String)">informationSchemaCaseInsensitiveTableMatch(Connection, String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/rdf/NeptuneSparqlRepository.html#initAuthenticatingHttpClient()">initAuthenticatingHttpClient()</a></span> - Method in class com.amazonaws.athena.connectors.neptune.rdf.<a href="com/amazonaws/athena/connectors/neptune/rdf/NeptuneSparqlRepository.html" title="class in com.amazonaws.athena.connectors.neptune.rdf">NeptuneSparqlRepository</a></dt>
@@ -7334,6 +7428,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Lists the available namespaces in the HBase instance.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables(Connection, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables(Connection, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables(Connection, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.mysql.<a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlMetadataHandler</a></dt>
@@ -7392,6 +7488,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">This method builds and executes a ListTablesRequest against the specified Lambda function.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables(Connection, String)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables(Connection, String)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables(Connection, String)</a></span> - Method in class com.amazonaws.athena.connectors.mysql.<a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlMetadataHandler</a></dt>
@@ -7764,6 +7862,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/MySqlConstants.html#MYSQL_NAME">MYSQL_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.mysql.<a href="com/amazonaws/athena/connectors/mysql/MySqlConstants.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html#MYSQL_QUOTE_CHARACTER">MYSQL_QUOTE_CHARACTER</a></span> - Static variable in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseRecordHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseRecordHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/MySqlRecordHandler.html#MYSQL_QUOTE_CHARACTER">MYSQL_QUOTE_CHARACTER</a></span> - Static variable in class com.amazonaws.athena.connectors.mysql.<a href="com/amazonaws/athena/connectors/mysql/MySqlRecordHandler.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlRecordHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/mysql/MySqlCompositeHandler.html" title="class in com.amazonaws.athena.connectors.mysql"><span class="typeNameLink">MySqlCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/mysql/package-summary.html">com.amazonaws.athena.connectors.mysql</a></dt>
@@ -7836,6 +7936,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </a>
 <h2 class="title">N</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseConstants.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2Constants.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2Constants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2Constants.html#NAME">NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2Constants.html" title="class in com.amazonaws.athena.connectors.db2">Db2Constants</a></dt>
