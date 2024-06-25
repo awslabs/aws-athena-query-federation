@@ -77,4 +77,9 @@ public class GlueRegistryReader
         GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
         return result.getDataFormat();
     }
+    public String getSchemaDef(String glueRegistryName, String glueSchemaName)
+    {
+        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return result.getSchemaDefinition();
+    }
 }
