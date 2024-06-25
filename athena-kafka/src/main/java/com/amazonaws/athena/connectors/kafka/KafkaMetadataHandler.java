@@ -51,6 +51,8 @@ import com.amazonaws.services.glue.model.ListSchemasResult;
 import com.amazonaws.services.glue.model.RegistryId;
 import com.amazonaws.services.glue.model.RegistryListItem;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.Descriptors;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -71,6 +73,7 @@ import java.util.stream.Stream;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.kafka.KafkaConstants.AVRO_DATA_FORMAT;
 import static com.amazonaws.athena.connectors.kafka.KafkaConstants.MAX_RECORDS_IN_SPLIT;
+import static com.amazonaws.athena.connectors.kafka.KafkaConstants.PROTOBUF_DATA_FORMAT;
 
 public class KafkaMetadataHandler extends MetadataHandler
 {
@@ -327,8 +330,9 @@ public class KafkaMetadataHandler extends MetadataHandler
         String glueSchemaName = request.getTableName().getTableName();
         String topic;
         GlueRegistryReader registryReader = new GlueRegistryReader();
-        if (registryReader.getGlueSchemaType(glueRegistryName, glueSchemaName).equalsIgnoreCase(AVRO_DATA_FORMAT)) {
-            //if schema type is avro, then topic name should be glue schema name
+        String dataFormat = registryReader.getGlueSchemaType(glueRegistryName, glueSchemaName);
+        if (dataFormat.equalsIgnoreCase(AVRO_DATA_FORMAT) || dataFormat.equalsIgnoreCase(PROTOBUF_DATA_FORMAT)) {
+            //if schema type is avro/protobuf, then topic name should be glue schema name
             topic = glueSchemaName;
         }
         else {
@@ -428,7 +432,8 @@ public class KafkaMetadataHandler extends MetadataHandler
 
         // Get topic schema json from GLue registry as translated to TopicSchema pojo
         GlueRegistryReader registryReader = new GlueRegistryReader();
-        if (registryReader.getGlueSchemaType(glueRegistryName, glueSchemaName).equalsIgnoreCase(AVRO_DATA_FORMAT)) {
+        String dataFormat = registryReader.getGlueSchemaType(glueRegistryName, glueSchemaName);
+        if (dataFormat.equalsIgnoreCase(AVRO_DATA_FORMAT)) {
             AvroTopicSchema avroTopicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, AvroTopicSchema.class);
             // Creating ArrowType for each fields in the topic schema.
             // Also putting the additional column level information
@@ -448,6 +453,21 @@ public class KafkaMetadataHandler extends MetadataHandler
                 schemaBuilder.addField(field);
             });
             schemaBuilder.addMetadata("dataFormat", AVRO_DATA_FORMAT);
+        }
+        else if (dataFormat.equalsIgnoreCase(PROTOBUF_DATA_FORMAT)) {
+            String glueSchema = registryReader.getSchemaDef(glueRegistryName, glueSchemaName);
+            ProtobufSchema protobufSchema = new ProtobufSchema(glueSchema);
+            Descriptors.Descriptor descriptor = protobufSchema.toDescriptor();
+            for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
+                FieldType fieldType = new FieldType(
+                        true,
+                        KafkaUtils.toArrowType(fieldDescriptor.getType().toString()),
+                        null
+                );
+                Field field = new Field(fieldDescriptor.getName(), fieldType, null);
+                schemaBuilder.addField(field);
+            }
+            schemaBuilder.addMetadata("dataFormat", PROTOBUF_DATA_FORMAT);
         }
         else {
             TopicSchema topicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, TopicSchema.class);

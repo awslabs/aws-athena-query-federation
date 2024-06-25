@@ -19,10 +19,6 @@
     <value>org.apache.hadoop.io.compress.DefaultCodec,org.apache.hadoop.io.compress.GzipCodec,org.apache.hadoop.io.compress.BZip2Codec,org.apache.hadoop.io.compress.DeflateCodec,org.apache.hadoop.io.compress.SnappyCodec,org.apache.hadoop.io.compress.Lz4Codec</value>
   </property>
   <property>
-    <name>hadoop.security.authentication</name>
-    <value>kerberos</value>
-  </property>
-  <property>
     <name>hadoop.security.authorization</name>
     <value>true</value>
   </property>
