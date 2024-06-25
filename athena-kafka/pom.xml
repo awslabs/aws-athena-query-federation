@@ -79,11 +79,6 @@
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-sts</artifactId>
-            <version>${aws-sdk.version}</version>
-        </dependency>
         <!--
           This is purposefully using a legacy version because these tests
           rely on powermock and it will break on a later version.
