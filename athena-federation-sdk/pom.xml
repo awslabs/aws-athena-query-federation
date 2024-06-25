@@ -167,9 +167,9 @@
             <version>${aws-sdk-v2.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-athena</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>athena</artifactId>
+            <version>${aws-sdk-v2.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>

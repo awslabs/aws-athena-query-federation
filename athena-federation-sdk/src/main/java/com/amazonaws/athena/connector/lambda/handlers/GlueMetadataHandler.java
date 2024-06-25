@@ -32,7 +32,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -43,6 +42,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Database;
@@ -191,7 +191,7 @@ public abstract class GlueMetadataHandler
         GlueClient awsGlue,
         EncryptionKeyFactory encryptionKeyFactory,
         SecretsManagerClient secretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         String sourceType,
         String spillBucket,
         String spillPrefix,

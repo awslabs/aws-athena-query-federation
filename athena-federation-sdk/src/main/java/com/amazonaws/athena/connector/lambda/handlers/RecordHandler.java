@@ -40,8 +40,6 @@ import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3;
@@ -49,6 +47,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
@@ -73,7 +72,7 @@ public abstract class RecordHandler
     private final AmazonS3 amazonS3;
     private final String sourceType;
     private final CachableSecretsManager secretsManager;
-    private final AmazonAthena athena;
+    private final AthenaClient athena;
     private final ThrottlingInvoker athenaInvoker;
 
     /**
@@ -84,7 +83,7 @@ public abstract class RecordHandler
         this.sourceType = sourceType;
         this.amazonS3 = AmazonS3ClientBuilder.defaultClient();
         this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
-        this.athena = AmazonAthenaClientBuilder.defaultClient();
+        this.athena = AthenaClient.create();
         this.configOptions = configOptions;
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
@@ -92,7 +91,7 @@ public abstract class RecordHandler
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    public RecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
+    public RecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, String sourceType, java.util.Map<String, String> configOptions)
     {
         this.sourceType = sourceType;
         this.amazonS3 = amazonS3;
