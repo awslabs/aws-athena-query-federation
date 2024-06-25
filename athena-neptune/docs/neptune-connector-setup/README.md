@@ -1,8 +1,3 @@
-> **New feature support - Custom Schema/Gremlin Query**
->
-> Neptune Athena Connector now supports Query feature. You can now create a custom schema and specify a gremlin query to fetch the data for the schema from the graph databases. This enhancement allows users to specify a gremlin query instead of doing table join operations to retrieve data. You can also put a limit on number of records you want to retrieve. Refer [Glue Catalog - setup instructions](../aws-glue-sample-scripts/README.md)
-<br/>
-
 # Deploy Amazon Athena Neptune Connector
 
 To deploy the Amazon Athena Neptune connector, we will need the following pre-requisite information:
