@@ -39,7 +39,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
@@ -47,6 +46,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Database;
@@ -101,7 +101,7 @@ public class GcsMetadataHandler
     protected GcsMetadataHandler(
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient awsSecretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         GlueClient glueClient, BufferAllocator allocator,
