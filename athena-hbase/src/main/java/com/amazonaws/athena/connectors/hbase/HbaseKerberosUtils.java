@@ -55,6 +55,7 @@ public class HbaseKerberosUtils
     public static final String PRINCIPAL_NAME = "principal_name";
     public static final String HBASE_RPC_PROTECTION = "hbase_rpc_protection";
     public static final String KERBEROS_AUTH_ENABLED = "kerberos_auth_enabled";
+    public static final String HBASE_SECURITY_AUTHENTICATION = "kerberos";
 
     private HbaseKerberosUtils() {}
 

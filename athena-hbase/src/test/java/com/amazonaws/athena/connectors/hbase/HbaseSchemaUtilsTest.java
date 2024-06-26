@@ -71,8 +71,9 @@ public class HbaseSchemaUtilsTest
             ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
             return processor.scan(mockScanner);
         });
+        when(mockConnection.tableExists(any())).thenReturn(true);
 
-        Schema schema = HbaseSchemaUtils.inferSchema(mockConnection, tableName, numToScan);
+        Schema schema = HbaseSchemaUtils.inferSchema(mockConnection, HbaseTableNameUtils.getQualifiedTable(tableName), numToScan);
 
         Map<String, Types.MinorType> actualFields = new HashMap<>();
         schema.getFields().stream().forEach(next -> actualFields.put(next.getName(), Types.getMinorTypeForArrowType(next.getType())));
@@ -89,26 +90,6 @@ public class HbaseSchemaUtilsTest
 
         verify(mockConnection, times(1)).scanTable(any(), nullable(Scan.class), nullable(ResultProcessor.class));
         verify(mockScanner, times(1)).iterator();
-    }
-
-    @Test
-    public void getQualifiedTableName()
-    {
-        String table = "table";
-        String schema = "schema";
-        String expected = "schema:table";
-        String actual = HbaseSchemaUtils.getQualifiedTableName(new TableName(schema, table));
-        assertEquals(expected, actual);
-    }
-
-    @Test
-    public void getQualifiedTable()
-    {
-        String table = "table";
-        String schema = "schema";
-        org.apache.hadoop.hbase.TableName expected = org.apache.hadoop.hbase.TableName.valueOf(schema + ":" + table);
-        org.apache.hadoop.hbase.TableName actual = HbaseSchemaUtils.getQualifiedTable(new TableName(schema, table));
-        assertEquals(expected, actual);
     }
 
     @Test

@@ -75,4 +75,14 @@ public class GlueRegistryReader
         GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
         return objectMapper.readValue(result.schemaDefinition(), clazz);
     }
+    public String getGlueSchemaType(String glueRegistryName, String glueSchemaName)
+    {
+        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return result.getDataFormat();
+    }
+    public String getSchemaDef(String glueRegistryName, String glueSchemaName)
+    {
+        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return result.getSchemaDefinition();
+    }
 }
