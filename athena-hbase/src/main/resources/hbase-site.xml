@@ -79,10 +79,6 @@
     <value>300000</value>
   </property>
   <property>
-    <name>hbase.security.authentication</name>
-    <value>kerberos</value>
-  </property>
-  <property>
     <name>zookeeper.session.timeout</name>
     <value>60000</value>
   </property>
