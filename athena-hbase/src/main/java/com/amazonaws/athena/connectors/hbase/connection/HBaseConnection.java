@@ -157,6 +157,20 @@ public class HBaseConnection
     }
 
     /**
+     * Retrieves whether the table exists
+     *
+     * @param tableName The fully qualified HBase TableName for which to check existence.
+     * @return Whether the table exists or not.
+     */
+    public boolean tableExists(TableName tableName)
+    {
+        return callWithReconnectAndRetry(() -> {
+            Admin admin = getConnection().getAdmin();
+            return admin.tableExists(tableName);
+        });
+    }
+
+    /**
      * Used to close this connection by closing the underlying HBase Connection.
      */
     protected void close()

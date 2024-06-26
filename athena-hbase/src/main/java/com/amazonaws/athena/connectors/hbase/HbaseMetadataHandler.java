@@ -236,9 +236,11 @@ public class HbaseMetadataHandler
 
     private GetTableResponse getTableResponse(GetTableRequest request, Schema origSchema,
                                               com.amazonaws.athena.connector.lambda.domain.TableName tableName)
+            throws IOException
     {
+        TableName hbaseName = HbaseTableNameUtils.getHbaseTableName(configOptions, getOrCreateConn(request), tableName);
         if (origSchema == null) {
-            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), tableName, NUM_ROWS_TO_SCAN);
+            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), hbaseName, NUM_ROWS_TO_SCAN);
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -253,7 +255,10 @@ public class HbaseMetadataHandler
 
         Schema schema = schemaBuilder.build();
         logger.info("doGetTable: return {}", schema);
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+        return new GetTableResponse(
+                request.getCatalogName(),
+                new com.amazonaws.athena.connector.lambda.domain.TableName(hbaseName.getNamespaceAsString(), hbaseName.getNameAsString()),
+                schema);
     }
 
     /**
@@ -287,7 +292,7 @@ public class HbaseMetadataHandler
         Set<Split> splits = new HashSet<>();
 
         //We can read each region in parallel
-        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseSchemaUtils.getQualifiedTable(request.getTableName()))) {
+        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseTableNameUtils.getQualifiedTable(request.getTableName()))) {
             Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
                     .add(HBASE_CONN_STR, getConnStr(request))
                     .add(START_KEY_FIELD, new String(info.getStartKey()))
