@@ -25,18 +25,6 @@ import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.integ.data.TestConfig;
 import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
 import com.amazonaws.athena.connector.integ.providers.SecretsManagerCredentialsProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.athena.model.Datum;
-import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
-import com.amazonaws.services.athena.model.GetQueryExecutionResult;
-import com.amazonaws.services.athena.model.GetQueryResultsRequest;
-import com.amazonaws.services.athena.model.GetQueryResultsResult;
-import com.amazonaws.services.athena.model.ListDatabasesRequest;
-import com.amazonaws.services.athena.model.ListDatabasesResult;
-import com.amazonaws.services.athena.model.ResultConfiguration;
-import com.amazonaws.services.athena.model.Row;
-import com.amazonaws.services.athena.model.StartQueryExecutionRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -44,6 +32,17 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.iam.PolicyDocument;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.athena.model.Datum;
+import software.amazon.awssdk.services.athena.model.GetQueryExecutionRequest;
+import software.amazon.awssdk.services.athena.model.GetQueryExecutionResponse;
+import software.amazon.awssdk.services.athena.model.GetQueryResultsRequest;
+import software.amazon.awssdk.services.athena.model.GetQueryResultsResponse;
+import software.amazon.awssdk.services.athena.model.ListDatabasesRequest;
+import software.amazon.awssdk.services.athena.model.ListDatabasesResponse;
+import software.amazon.awssdk.services.athena.model.ResultConfiguration;
+import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.athena.model.StartQueryExecutionRequest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -94,7 +93,7 @@ public abstract class IntegrationTestBase
 
     private final ConnectorStackProvider connectorStackProvider;
     private final String lambdaFunctionName;
-    private final AmazonAthena athenaClient;
+    private final AthenaClient athenaClient;
     private final TestConfig testConfig;
     private final Optional<ConnectorVpcAttributes> vpcAttributes;
     private final Optional<SecretsManagerCredentials> secretCredentials;
@@ -128,7 +127,7 @@ public abstract class IntegrationTestBase
         };
 
         lambdaFunctionName = connectorStackProvider.getLambdaFunctionName();
-        athenaClient = AmazonAthenaClientBuilder.defaultClient();
+        athenaClient = AthenaClient.create();
         athenaWorkgroup = getAthenaWorkgroup();
         athenaResultLocation = getAthenaResultLocation();
     }
@@ -262,14 +261,15 @@ public abstract class IntegrationTestBase
     public List<String> listDatabases()
     {
         logger.info("listDatabases({})", lambdaFunctionName);
-        ListDatabasesRequest listDatabasesRequest = new ListDatabasesRequest()
-                .withCatalogName(lambdaFunctionName);
+        ListDatabasesRequest listDatabasesRequest = ListDatabasesRequest.builder()
+                .catalogName(lambdaFunctionName)
+                .build();
 
-        ListDatabasesResult listDatabasesResult = athenaClient.listDatabases(listDatabasesRequest);
-        logger.info("Results: [{}]", listDatabasesResult);
+        ListDatabasesResponse listDatabasesResponse = athenaClient.listDatabases(listDatabasesRequest);
+        logger.info("Results: [{}]", listDatabasesResponse);
 
         List<String> dbNames = new ArrayList<>();
-        listDatabasesResult.getDatabaseList().forEach(db -> dbNames.add(db.getName()));
+        listDatabasesResponse.databaseList().forEach(db -> dbNames.add(db.name()));
 
         return dbNames;
     }
@@ -285,8 +285,8 @@ public abstract class IntegrationTestBase
     {
         String query = String.format("show tables in `%s`.`%s`;", lambdaFunctionName, databaseName);
         List<String> tableNames = new ArrayList<>();
-        startQueryExecution(query).getResultSet().getRows()
-                .forEach(row -> tableNames.add(row.getData().get(0).getVarCharValue()));
+        startQueryExecution(query).resultSet().rows()
+                .forEach(row -> tableNames.add(row.data().get(0).varCharValue()));
 
         return tableNames;
     }
@@ -303,9 +303,9 @@ public abstract class IntegrationTestBase
     {
         String query = String.format("describe `%s`.`%s`.`%s`;", lambdaFunctionName, databaseName, tableName);
         Map<String, String> schema = new HashMap<>();
-        startQueryExecution(query).getResultSet().getRows()
+        startQueryExecution(query).resultSet().rows()
                 .forEach(row -> {
-                    String property = row.getData().get(0).getVarCharValue();
+                    String property = row.data().get(0).varCharValue();
                     String[] columnProperties = property.split("\t");
                     if (columnProperties.length == 2) {
                         schema.put(columnProperties[0], columnProperties[1]);
@@ -321,21 +321,22 @@ public abstract class IntegrationTestBase
      * @return The query results object containing the metadata and row information.
      * @throws RuntimeException The Query is cancelled or has failed.
      */
-    public GetQueryResultsResult startQueryExecution(String query)
+    public GetQueryResultsResponse startQueryExecution(String query)
             throws RuntimeException
     {
-        StartQueryExecutionRequest startQueryExecutionRequest = new StartQueryExecutionRequest()
-                .withWorkGroup(athenaWorkgroup)
-                .withQueryString(query)
-                .withResultConfiguration(new ResultConfiguration().withOutputLocation(athenaResultLocation));
+        StartQueryExecutionRequest startQueryExecutionRequest = StartQueryExecutionRequest.builder()
+                .workGroup(athenaWorkgroup)
+                .queryString(query)
+                .resultConfiguration(ResultConfiguration.builder().outputLocation(athenaResultLocation).build())
+                .build();
 
         String queryExecutionId = sendAthenaQuery(startQueryExecutionRequest);
         logger.info("Query: [{}], Query Id: [{}]", query, queryExecutionId);
         waitForAthenaQueryResults(queryExecutionId);
-        GetQueryResultsResult getQueryResultsResult = getAthenaQueryResults(queryExecutionId);
+        GetQueryResultsResponse getQueryResultsResponse = getAthenaQueryResults(queryExecutionId);
         //logger.info("Results: [{}]", getQueryResultsResult.toString());
 
-        return getQueryResultsResult;
+        return getQueryResultsResponse;
     }
 
     /**
@@ -345,7 +346,7 @@ public abstract class IntegrationTestBase
      */
     private String sendAthenaQuery(StartQueryExecutionRequest startQueryExecutionRequest)
     {
-        return athenaClient.startQueryExecution(startQueryExecutionRequest).getQueryExecutionId();
+        return athenaClient.startQueryExecution(startQueryExecutionRequest).queryExecutionId();
     }
 
     /**
@@ -357,12 +358,13 @@ public abstract class IntegrationTestBase
             throws RuntimeException
     {
         // Poll the state of the query request while it is queued or running
-        GetQueryExecutionRequest getQueryExecutionRequest = new GetQueryExecutionRequest()
-                .withQueryExecutionId(queryExecutionId);
-        GetQueryExecutionResult getQueryExecutionResult;
+        GetQueryExecutionRequest getQueryExecutionRequest = GetQueryExecutionRequest.builder()
+                .queryExecutionId(queryExecutionId)
+                .build();
+        GetQueryExecutionResponse getQueryExecutionResponse;
         while (true) {
-            getQueryExecutionResult = athenaClient.getQueryExecution(getQueryExecutionRequest);
-            String queryState = getQueryExecutionResult.getQueryExecution().getStatus().getState();
+            getQueryExecutionResponse = athenaClient.getQueryExecution(getQueryExecutionRequest);
+            String queryState = getQueryExecutionResponse.queryExecution().status().state().toString();
             logger.info("Query State: {}", queryState);
             if (queryState.equals(ATHENA_QUERY_QUEUED_STATE) || queryState.equals(ATHENA_QUERY_RUNNING_STATE)) {
                 try {
@@ -374,8 +376,8 @@ public abstract class IntegrationTestBase
                 }
             }
             else if (queryState.equals(ATHENA_QUERY_FAILED_STATE) || queryState.equals(ATHENA_QUERY_CANCELLED_STATE)) {
-                throw new RuntimeException(getQueryExecutionResult
-                        .getQueryExecution().getStatus().getStateChangeReason());
+                throw new RuntimeException(getQueryExecutionResponse
+                        .queryExecution().status().stateChangeReason());
             }
             break;
         }
@@ -386,11 +388,12 @@ public abstract class IntegrationTestBase
      * @param queryExecutionId The query's Id.
      * @return The query results object containing the metadata and row information.
      */
-    private GetQueryResultsResult getAthenaQueryResults(String queryExecutionId)
+    private GetQueryResultsResponse getAthenaQueryResults(String queryExecutionId)
     {
         // Get query results
-        GetQueryResultsRequest getQueryResultsRequest = new GetQueryResultsRequest()
-                .withQueryExecutionId(queryExecutionId);
+        GetQueryResultsRequest getQueryResultsRequest = GetQueryResultsRequest.builder()
+                .queryExecutionId(queryExecutionId)
+                .build();
 
         return athenaClient.getQueryResults(getQueryResultsRequest);
     }
@@ -472,8 +475,8 @@ public abstract class IntegrationTestBase
     public List<String> processQuery(String query)
     {
         List<String> firstColValues = new ArrayList<>();
-        skipColumnHeaderRow(startQueryExecution(query).getResultSet().getRows())
-                .forEach(row -> firstColValues.add(row.getData().get(0).getVarCharValue()));
+        skipColumnHeaderRow(startQueryExecution(query).resultSet().rows())
+                .forEach(row -> firstColValues.add(row.data().get(0).varCharValue()));
         return firstColValues;
     }
     public List<Row> skipColumnHeaderRow(List<Row> rows)
@@ -493,13 +496,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select int_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Integer> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Integer.parseInt(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        rows.forEach(row -> values.add(Integer.parseInt(row.data().get(0).varCharValue().split("\\.")[0])));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Integer not found: " + TEST_DATATYPES_INT_VALUE, values.contains(TEST_DATATYPES_INT_VALUE));
@@ -514,13 +517,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select varchar_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> values = new ArrayList<>();
-        rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> values.add(row.data().get(0).varCharValue()));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Varchar not found: " + TEST_DATATYPES_VARCHAR_VALUE, values.contains(TEST_DATATYPES_VARCHAR_VALUE));
@@ -535,13 +538,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select boolean_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Boolean> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Boolean.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Boolean.valueOf(row.data().get(0).varCharValue())));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Boolean not found: " + TEST_DATATYPES_BOOLEAN_VALUE, values.contains(TEST_DATATYPES_BOOLEAN_VALUE));
@@ -556,13 +559,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select smallint_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Short> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Short.valueOf(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        rows.forEach(row -> values.add(Short.valueOf(row.data().get(0).varCharValue().split("\\.")[0])));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Smallint not found: " + TEST_DATATYPES_SHORT_VALUE, values.contains(TEST_DATATYPES_SHORT_VALUE));
@@ -577,13 +580,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select bigint_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Long> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Long.valueOf(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        rows.forEach(row -> values.add(Long.valueOf(row.data().get(0).varCharValue().split("\\.")[0])));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Bigint not found: " + TEST_DATATYPES_LONG_VALUE, values.contains(TEST_DATATYPES_LONG_VALUE));
     }
@@ -597,13 +600,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select float4_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Float> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Float.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Float.valueOf(row.data().get(0).varCharValue())));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Float4 not found: " + TEST_DATATYPES_SINGLE_PRECISION_VALUE, values.contains(TEST_DATATYPES_SINGLE_PRECISION_VALUE));
     }
@@ -617,13 +620,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select float8_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Double> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Double.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Double.valueOf(row.data().get(0).varCharValue())));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Float8 not found: " + TEST_DATATYPES_DOUBLE_PRECISION_VALUE, values.contains(TEST_DATATYPES_DOUBLE_PRECISION_VALUE));
     }
@@ -637,13 +640,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select date_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<LocalDate> values = new ArrayList<>();
-        rows.forEach(row -> values.add(LocalDate.parse(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(LocalDate.parse(row.data().get(0).varCharValue())));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Date not found: " + TEST_DATATYPES_DATE_VALUE, values.contains(LocalDate.parse(TEST_DATATYPES_DATE_VALUE)));
     }
@@ -657,15 +660,15 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select timestamp_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<LocalDateTime> values = new ArrayList<>();
         // for some reason, timestamps lose their 'T'.
-        rows.forEach(row -> values.add(LocalDateTime.parse(row.getData().get(0).getVarCharValue().replace(' ', 'T'))));
-        logger.info(rows.get(0).getData().get(0).getVarCharValue());
+        rows.forEach(row -> values.add(LocalDateTime.parse(row.data().get(0).varCharValue().replace(' ', 'T'))));
+        logger.info(rows.get(0).data().get(0).varCharValue());
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Date not found: " + TEST_DATATYPES_TIMESTAMP_VALUE, values.contains(LocalDateTime.parse(TEST_DATATYPES_TIMESTAMP_VALUE)));
     }
@@ -679,20 +682,19 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select byte_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> values = new ArrayList<>();
-        rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
-        Datum actual = rows.get(0).getData().get(0);
-        Datum expected = new Datum();
-        expected.setVarCharValue("deadbeef");
-        logger.info(rows.get(0).getData().get(0).getVarCharValue());
+        rows.forEach(row -> values.add(row.data().get(0).varCharValue()));
+        Datum actual = rows.get(0).data().get(0);
+        Datum expected = Datum.builder().varCharValue("deadbeef").build();
+        logger.info(rows.get(0).data().get(0).varCharValue());
         assertEquals("Wrong number of DB records found.", 1, values.size());
-        String bytestring = actual.getVarCharValue().replace(" ", "");
-        assertEquals("Byte[] not found: " + Arrays.toString(TEST_DATATYPES_BYTE_ARRAY_VALUE), expected.getVarCharValue(), bytestring);
+        String bytestring = actual.varCharValue().replace(" ", "");
+        assertEquals("Byte[] not found: " + Arrays.toString(TEST_DATATYPES_BYTE_ARRAY_VALUE), expected.varCharValue(), bytestring);
     }
 
     @Test
@@ -704,17 +706,16 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select textarray_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> values = new ArrayList<>();
-        rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
-        Datum actual = rows.get(0).getData().get(0);
-        Datum expected = new Datum();
-        expected.setVarCharValue(TEST_DATATYPES_VARCHAR_ARRAY_VALUE);
-        logger.info(rows.get(0).getData().get(0).getVarCharValue());
+        rows.forEach(row -> values.add(row.data().get(0).varCharValue()));
+        Datum actual = rows.get(0).data().get(0);
+        Datum expected = Datum.builder().varCharValue(TEST_DATATYPES_VARCHAR_ARRAY_VALUE).build();
+        logger.info(rows.get(0).data().get(0).varCharValue());
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertEquals("List not found: " + TEST_DATATYPES_VARCHAR_ARRAY_VALUE, expected, actual);
     }
@@ -728,13 +729,13 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select int_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_NULL_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
-        Datum actual = rows.get(0).getData().get(0);
-        assertNull("Value not 'null'. Received: " + actual.getVarCharValue(), actual.getVarCharValue());
+        Datum actual = rows.get(0).data().get(0);
+        assertNull("Value not 'null'. Received: " + actual.varCharValue(), actual.varCharValue());
     }
 
     @Test
@@ -746,7 +747,7 @@ public abstract class IntegrationTestBase
 
         String query = String.format("select int_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_EMPTY_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
