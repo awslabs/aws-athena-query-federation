@@ -50,7 +50,7 @@
         <dependency>
             <groupId>com.google.api.grpc</groupId>
             <artifactId>grpc-google-cloud-bigquerystorage-v1</artifactId>
-            <version>3.6.0</version>
+            <version>3.5.2</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud</groupId>
@@ -70,12 +70,12 @@
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-api</artifactId>
-            <version>1.64.0</version>
+            <version>1.63.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-resourcemanager</artifactId>
-            <version>1.47.0</version>
+            <version>1.46.0</version>
         </dependency>
         <dependency>
             <groupId>nl.jqno.equalsverifier</groupId>
