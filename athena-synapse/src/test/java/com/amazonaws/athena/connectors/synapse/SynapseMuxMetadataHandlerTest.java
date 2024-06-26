@@ -32,10 +32,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
-import com.amazonaws.services.athena.AmazonAthena;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
@@ -50,7 +50,7 @@ public class SynapseMuxMetadataHandlerTest
     private JdbcMetadataHandler jdbcMetadataHandler;
     private BlockAllocator allocator;
     private SecretsManagerClient secretsManager;
-    private AmazonAthena athena;
+    private AthenaClient athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
 
@@ -61,7 +61,7 @@ public class SynapseMuxMetadataHandlerTest
         this.synapseMetadataHandler = Mockito.mock(SynapseMetadataHandler.class);
         this.metadataHandlerMap = Collections.singletonMap("fakedatabase", this.synapseMetadataHandler);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
