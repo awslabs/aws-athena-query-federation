@@ -44,7 +44,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
 import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
 import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -54,6 +53,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.GetTablesRequest;
 import software.amazon.awssdk.services.glue.model.GetTablesResponse;
@@ -112,7 +112,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         NeptuneConnection neptuneConnection,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient awsSecretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         java.util.Map<String, String> configOptions)
