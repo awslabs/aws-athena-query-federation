@@ -133,14 +133,32 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colFirst"><code>static org.apache.hadoop.hbase.TableName</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">HbaseTableNameUtils.</span><code><span class="memberNameLink"><a href="../../HbaseTableNameUtils.html#getHbaseTableName(java.util.Map,com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,com.amazonaws.athena.connector.lambda.domain.TableName)">getHbaseTableName</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions,
+                 <a href="../HBaseConnection.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HBaseConnection</a>&nbsp;conn,
+                 <a href="../../../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;athTableName)</code></th>
+<td class="colLast">
+<div class="block">Gets the hbase table name from Athena table name.</div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">HbaseSchemaUtils.</span><code><span class="memberNameLink"><a href="../../HbaseSchemaUtils.html#inferSchema(com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,com.amazonaws.athena.connector.lambda.domain.TableName,int)">inferSchema</a></span>&#8203;(<a href="../HBaseConnection.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HBaseConnection</a>&nbsp;client,
-           <a href="../../../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+<th class="colSecond" scope="row"><span class="typeNameLabel">HbaseSchemaUtils.</span><code><span class="memberNameLink"><a href="../../HbaseSchemaUtils.html#inferSchema(com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,org.apache.hadoop.hbase.TableName,int)">inferSchema</a></span>&#8203;(<a href="../HBaseConnection.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HBaseConnection</a>&nbsp;client,
+           org.apache.hadoop.hbase.TableName&nbsp;tableName,
            int&nbsp;numToScan)</code></th>
 <td class="colLast">
 <div class="block">This method will produce an Apache Arrow Schema for the given TableName and HBase connection
  by scanning up to the requested number of rows and using basic schema inference to determine
  data types.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected static org.apache.hadoop.hbase.TableName</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">HbaseTableNameUtils.</span><code><span class="memberNameLink"><a href="../../HbaseTableNameUtils.html#tryCaseInsensitiveSearch(com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,com.amazonaws.athena.connector.lambda.domain.TableName)">tryCaseInsensitiveSearch</a></span>&#8203;(<a href="../HBaseConnection.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HBaseConnection</a>&nbsp;conn,
+                        <a href="../../../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</code></th>
+<td class="colLast">
+<div class="block">Performs a case insensitive table search by listing all table names in the schema (namespace), mapping them
+ to their lowercase transformation, and then mapping the given tableName back to a unique table.</div>
 </td>
 </tr>
 </tbody>

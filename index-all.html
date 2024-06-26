@@ -3532,6 +3532,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/EmrClusterTableProvider.html#%3Cinit%3E(com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce)">EmrClusterTableProvider(AmazonElasticMapReduce)</a></span> - Constructor for class com.amazonaws.athena.connectors.aws.cmdb.tables.<a href="com/amazonaws/athena/connectors/aws/cmdb/tables/EmrClusterTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables">EmrClusterTableProvider</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#ENABLE_CASE_INSENSITIVE_MATCH">ENABLE_CASE_INSENSITIVE_MATCH</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html#ENABLE_QUERY_PASSTHROUGH">ENABLE_QUERY_PASSTHROUGH</a></span> - Static variable in interface com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthroughSignature.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthroughSignature</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/AesGcmBlockCrypto.html#encrypt(com.amazonaws.athena.connector.lambda.security.EncryptionKey,com.amazonaws.athena.connector.lambda.data.Block)">encrypt(EncryptionKey, Block)</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/AesGcmBlockCrypto.html" title="class in com.amazonaws.athena.connector.lambda.security">AesGcmBlockCrypto</a></dt>
@@ -4873,6 +4875,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Generates a list of distinct values from the given <a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate"><code>ValueSet</code></a> or an empty list if not possible.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#getHbaseTableName(java.util.Map,com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,com.amazonaws.athena.connector.lambda.domain.TableName)">getHbaseTableName(Map&lt;String, String&gt;, HBaseConnection, TableName)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
+<dd>
+<div class="block">Gets the hbase table name from Athena table name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html#getHigh()">getHigh()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitRange.html#getHigh()">getHigh()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitRange.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitRange</a></dt>
@@ -5554,15 +5560,23 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#getProvisionedReadCapacity()">getProvisionedReadCapacity()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html#getQualifiedTable(com.amazonaws.athena.connector.lambda.domain.TableName)">getQualifiedTable(TableName)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseSchemaUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#getQualifiedTable(com.amazonaws.athena.connector.lambda.domain.TableName)">getQualifiedTable(TableName)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
 <dd>
 <div class="block">Helper which goes from an Athena Federation SDK TableName to an HBase TableName.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#getQualifiedTable(java.lang.String,java.lang.String)">getQualifiedTable(String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
+<dd>
+<div class="block">Helper which goes from a schema and table name to an HBase TableName</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/TableName.html#getQualifiedTableName()">getQualifiedTableName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html#getQualifiedTableName(com.amazonaws.athena.connector.lambda.domain.TableName)">getQualifiedTableName(TableName)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseSchemaUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#getQualifiedTableName(com.amazonaws.athena.connector.lambda.domain.TableName)">getQualifiedTableName(TableName)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
 <dd>
 <div class="block">Helper which goes from an Athena Federation SDK TableName to an HBase table name string.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#getQualifiedTableName(java.lang.String,java.lang.String)">getQualifiedTableName(String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
+<dd>
+<div class="block">Helper which goes from a schema and table name to an HBase table name string</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchRecordHandler.html#getQueryBatchSize()">getQueryBatchSize()</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchRecordHandler.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchRecordHandler</a></dt>
 <dd>&nbsp;</dd>
@@ -6650,6 +6664,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Collection of helpful utilities that handle HBase schema inference, type, and naming conversion.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase"><span class="typeNameLink">HbaseTableNameUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a></dt>
+<dd>
+<div class="block">This class helps with resolving the differences in casing between HBase and Presto.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html" title="class in com.amazonaws.athena.connectors.hbase.integ"><span class="typeNameLink">HbaseTableUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/integ/package-summary.html">com.amazonaws.athena.connectors.hbase.integ</a></dt>
 <dd>
 <div class="block">This class can be used to establish a connection to a HBase instance.</div>
@@ -6898,7 +6916,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
  this is then cached in DDDBRecordMetadata and reused so that the values in the same column
  does not have to be re-evaluated/parsed</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html#inferSchema(com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,com.amazonaws.athena.connector.lambda.domain.TableName,int)">inferSchema(HBaseConnection, TableName, int)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseSchemaUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html#inferSchema(com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,org.apache.hadoop.hbase.TableName,int)">inferSchema(HBaseConnection, TableName, int)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseSchemaUtils</a></dt>
 <dd>
 <div class="block">This method will produce an Apache Arrow Schema for the given TableName and HBase connection
  by scanning up to the requested number of rows and using basic schema inference to determine
@@ -7966,7 +7984,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#NAMESPACE_FIELD">NAMESPACE_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html#NAMESPACE_QUALIFIER">NAMESPACE_QUALIFIER</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseSchemaUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#NAMESPACE_QUALIFIER">NAMESPACE_QUALIFIER</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#NEGATE_FUNCTION_NAME">NEGATE_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>
@@ -10261,6 +10279,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#TABLE_METADATA">TABLE_METADATA</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HBaseConnection.html#tableExists(org.apache.hadoop.hbase.TableName)">tableExists(TableName)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HBaseConnection.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HBaseConnection</a></dt>
+<dd>
+<div class="block">Retrieves whether the table exists</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain"><span class="typeNameLink">TableName</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/domain/package-summary.html">com.amazonaws.athena.connector.lambda.domain</a></dt>
 <dd>
 <div class="block">Represents a fully qualified TableName.</div>
@@ -10695,6 +10717,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/AmazonMskConstants.html#TRUSTSTORE_PASSWORD">TRUSTSTORE_PASSWORD</a></span> - Static variable in class com.amazonaws.athena.connectors.msk.<a href="com/amazonaws/athena/connectors/msk/AmazonMskConstants.html" title="class in com.amazonaws.athena.connectors.msk">AmazonMskConstants</a></dt>
 <dd>
 <div class="block">This is the truststore password</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#tryCaseInsensitiveSearch(com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,com.amazonaws.athena.connector.lambda.domain.TableName)">tryCaseInsensitiveSearch(HBaseConnection, TableName)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
+<dd>
+<div class="block">Performs a case insensitive table search by listing all table names in the schema (namespace), mapping them
+ to their lowercase transformation, and then mapping the given tableName back to a unique table.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connectors/jdbc/manager/TypeAndValue.html" title="class in com.amazonaws.athena.connectors.jdbc.manager"><span class="typeNameLink">TypeAndValue</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/manager/package-summary.html">com.amazonaws.athena.connectors.jdbc.manager</a></dt>
 <dd>&nbsp;</dd>
