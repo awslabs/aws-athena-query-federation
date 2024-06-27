@@ -50,9 +50,6 @@ import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
@@ -77,6 +74,9 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -130,7 +130,7 @@ public class GcsMetadataHandlerTest
     @Mock
     private AWSGlue awsGlue;
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
     @Mock
     private ServiceAccountCredentials serviceAccountCredentials;
     @Mock
@@ -139,7 +139,7 @@ public class GcsMetadataHandlerTest
     private MockedStatic<StorageOptions> mockedStorageOptions;
     private MockedStatic<ServiceAccountCredentials> mockedServiceAccountCredentials;
     private MockedStatic<GoogleCredentials> mockedServiceGoogleCredentials;
-    private MockedStatic<AWSSecretsManagerClientBuilder> mockedAWSSecretsManagerClientBuilder;
+    private MockedStatic<SecretsManagerClient> mockedAWSSecretsManagerClientBuilder;
     private MockedStatic<AWSGlueClientBuilder> mockedAWSGlueClientBuilder;
 
     @Before
@@ -149,7 +149,7 @@ public class GcsMetadataHandlerTest
         mockedStorageOptions = mockStatic(StorageOptions.class);
         mockedServiceAccountCredentials = mockStatic(ServiceAccountCredentials.class);
         mockedServiceGoogleCredentials = mockStatic(GoogleCredentials.class);
-        mockedAWSSecretsManagerClientBuilder = mockStatic(AWSSecretsManagerClientBuilder.class);
+        mockedAWSSecretsManagerClientBuilder = mockStatic(SecretsManagerClient.class);
         mockedAWSGlueClientBuilder = mockStatic(AWSGlueClientBuilder.class);
 
         Storage storage = mock(Storage.class);
@@ -170,9 +170,12 @@ public class GcsMetadataHandlerTest
         Mockito.when(GoogleCredentials.fromStream(Mockito.any())).thenReturn(credentials);
         Mockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
 
-        Mockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(ImmutableList.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
-        Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
+        Mockito.when(SecretsManagerClient.create()).thenReturn(secretsManager);
+        GetSecretValueResponse getSecretValueResponse = GetSecretValueResponse.builder()
+                .versionStages(ImmutableList.of("v1"))
+                .secretString("{\"gcs_credential_keys\": \"test\"}")
+                .build();
+        Mockito.when(secretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(getSecretValueResponse);
         Mockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
         gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", awsGlue, allocator, ImmutableMap.of());
         blockAllocator = new BlockAllocatorImpl();

@@ -21,11 +21,10 @@ package com.amazonaws.athena.connector.integ.providers;
 
 import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.integ.data.TestConfig;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -55,22 +54,20 @@ public class SecretsManagerCredentialsProvider
 
         if (secretsManagerSecret.isPresent()) {
             String secret = secretsManagerSecret.get();
-            AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
+            SecretsManagerClient secretsManager = SecretsManagerClient.create();
             try {
-                GetSecretValueResult secretValueResult = secretsManager.getSecretValue(new GetSecretValueRequest()
-                        .withSecretId(secret));
+                GetSecretValueResponse secretValueResult = secretsManager.getSecretValue(GetSecretValueRequest.builder()
+                        .secretId(secret)
+                        .build());
                 ObjectMapper objectMapper = new ObjectMapper();
-                Map<String, String> credentials = objectMapper.readValue(secretValueResult.getSecretString(),
+                Map<String, String> credentials = objectMapper.readValue(secretValueResult.secretString(),
                         HashMap.class);
                 return Optional.of(new SecretsManagerCredentials(secret, credentials.get("username"),
-                        credentials.get("password"),  secretValueResult.getARN()));
+                        credentials.get("password"),  secretValueResult.arn()));
             }
             catch (IOException e) {
                 throw new RuntimeException(String.format("Unable to parse SecretsManager secret (%s): %s",
                         secret, e.getMessage()), e);
-            }
-            finally {
-                secretsManager.shutdown();
             }
         }
 

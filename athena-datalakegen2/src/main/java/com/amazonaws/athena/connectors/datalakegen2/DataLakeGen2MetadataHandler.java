@@ -48,7 +48,6 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -58,6 +57,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -111,7 +111,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     @VisibleForTesting
     protected DataLakeGen2MetadataHandler(
         DatabaseConnectionConfig databaseConnectionConfig,
-        AWSSecretsManager secretsManager,
+        SecretsManagerClient secretsManager,
         AmazonAthena athena,
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)

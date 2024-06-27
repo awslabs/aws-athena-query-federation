@@ -49,12 +49,12 @@ import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
 import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
 import com.amazonaws.services.cloudwatch.model.Metric;
 import com.amazonaws.services.cloudwatch.model.MetricStat;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.CollectionUtils;
 import com.google.common.collect.Lists;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -141,7 +141,7 @@ public class MetricsMetadataHandler
     protected MetricsMetadataHandler(
         AmazonCloudWatch metrics,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
+        SecretsManagerClient secretsManager,
         AmazonAthena athena,
         String spillBucket,
         String spillPrefix,

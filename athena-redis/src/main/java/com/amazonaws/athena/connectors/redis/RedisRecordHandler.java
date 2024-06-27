@@ -33,8 +33,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import io.lettuce.core.KeyScanCursor;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
@@ -45,6 +43,7 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -96,7 +95,7 @@ public class RedisRecordHandler
     {
         this(
             AmazonS3ClientBuilder.standard().build(),
-            AWSSecretsManagerClientBuilder.defaultClient(),
+            SecretsManagerClient.create(),
             AmazonAthenaClientBuilder.defaultClient(),
             new RedisConnectionFactory(),
             configOptions);
@@ -104,7 +103,7 @@ public class RedisRecordHandler
 
     @VisibleForTesting
     protected RedisRecordHandler(AmazonS3 amazonS3,
-            AWSSecretsManager secretsManager,
+            SecretsManagerClient secretsManager,
             AmazonAthena athena,
             RedisConnectionFactory redisConnectionFactory,
             java.util.Map<String, String> configOptions)

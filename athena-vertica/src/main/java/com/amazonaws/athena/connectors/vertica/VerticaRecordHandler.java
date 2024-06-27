@@ -37,8 +37,6 @@ import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.*;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.holders.*;
@@ -47,6 +45,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -70,12 +69,12 @@ public class VerticaRecordHandler
     public VerticaRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
+                SecretsManagerClient.create(),
                 AmazonAthenaClientBuilder.defaultClient(), configOptions);
     }
 
     @VisibleForTesting
-    protected VerticaRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
+    protected VerticaRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;

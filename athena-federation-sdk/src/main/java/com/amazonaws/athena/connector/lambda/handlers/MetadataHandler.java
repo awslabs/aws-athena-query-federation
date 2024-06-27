@@ -64,14 +64,13 @@ import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -151,7 +150,7 @@ public abstract class MetadataHandler
             logger.debug("ENABLE_SPILL_ENCRYPTION with encryption factory: " + encryptionKeyFactory.getClass().getSimpleName());
         }
 
-        this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
+        this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
         this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
@@ -162,7 +161,7 @@ public abstract class MetadataHandler
      */
     public MetadataHandler(
         EncryptionKeyFactory encryptionKeyFactory,
-        AWSSecretsManager secretsManager,
+        SecretsManagerClient secretsManager,
         AmazonAthena athena,
         String sourceType,
         String spillBucket,

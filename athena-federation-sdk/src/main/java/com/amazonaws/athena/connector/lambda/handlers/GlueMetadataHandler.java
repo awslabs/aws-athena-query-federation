@@ -44,7 +44,6 @@ import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -54,6 +53,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -179,7 +179,7 @@ public abstract class GlueMetadataHandler
      *
      * @param awsGlue The glue client to use.
      * @param encryptionKeyFactory The EncryptionKeyFactory to use for spill encryption.
-     * @param secretsManager The AWSSecretsManager client that can be used when attempting to resolve secrets.
+     * @param secretsManager The SecretsManagerClient client that can be used when attempting to resolve secrets.
      * @param athena The Athena client that can be used to fetch query termination status to fast-fail this handler.
      * @param spillBucket The S3 Bucket to use when spilling results.
      * @param spillPrefix The S3 prefix to use when spilling results.
@@ -189,7 +189,7 @@ public abstract class GlueMetadataHandler
     protected GlueMetadataHandler(
         AWSGlue awsGlue,
         EncryptionKeyFactory encryptionKeyFactory,
-        AWSSecretsManager secretsManager,
+        SecretsManagerClient secretsManager,
         AmazonAthena athena,
         String sourceType,
         String spillBucket,

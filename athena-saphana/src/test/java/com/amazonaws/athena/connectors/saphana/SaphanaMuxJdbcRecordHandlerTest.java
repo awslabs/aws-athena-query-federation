@@ -30,11 +30,11 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -47,7 +47,7 @@ public class SaphanaMuxJdbcRecordHandlerTest
     private SaphanaRecordHandler saphanaRecordHandler;
     private JdbcRecordHandler jdbcRecordHandler;
     private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
     private AmazonAthena athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
@@ -58,7 +58,7 @@ public class SaphanaMuxJdbcRecordHandlerTest
         this.saphanaRecordHandler = Mockito.mock(SaphanaRecordHandler.class);
         this.recordHandlerMap = Collections.singletonMap("saphana", this.saphanaRecordHandler);
         this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);

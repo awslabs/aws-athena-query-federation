@@ -53,9 +53,6 @@ import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.Region;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -69,6 +66,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -103,7 +103,7 @@ public class VerticaMetadataHandlerTest extends TestBase
     private VerticaExportQueryBuilder verticaExportQueryBuilder;
     private VerticaSchemaUtils verticaSchemaUtils;
     private Connection connection;
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
     private AmazonAthena athena;
     private AmazonS3 amazonS3;
     private FederatedIdentity federatedIdentity;
@@ -134,7 +134,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         this.queryFactory = Mockito.mock(QueryFactory.class);
         this.verticaExportQueryBuilder = Mockito.mock(VerticaExportQueryBuilder.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.databaseMetaData = Mockito.mock(DatabaseMetaData.class);
@@ -146,14 +146,14 @@ public class VerticaMetadataHandlerTest extends TestBase
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.amazonS3 = Mockito.mock(AmazonS3.class);
 
-        Mockito.lenient().when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
+        Mockito.lenient().when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         Mockito.when(connection.getMetaData()).thenReturn(databaseMetaData);
         Mockito.when(amazonS3.getRegion()).thenReturn(Region.US_West_2);
 
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         this.verticaMetadataHandler = new VerticaMetadataHandler(databaseConnectionConfig, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), amazonS3, verticaSchemaUtils);
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);

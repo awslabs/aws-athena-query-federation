@@ -45,7 +45,6 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
 import com.amazonaws.services.timestreamquery.model.Datum;
 import com.amazonaws.services.timestreamquery.model.QueryRequest;
@@ -69,6 +68,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -97,7 +97,7 @@ public class TimestreamMetadataHandlerTest
     private BlockAllocator allocator;
 
     @Mock
-    protected AWSSecretsManager mockSecretsManager;
+    protected SecretsManagerClient mockSecretsManager;
     @Mock
     protected AmazonAthena mockAthena;
     @Mock

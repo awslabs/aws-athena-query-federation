@@ -39,13 +39,12 @@ import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -81,11 +80,11 @@ public class ExampleRecordHandler
 
     public ExampleRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), configOptions);
+        this(AmazonS3ClientBuilder.defaultClient(), SecretsManagerClient.create(), AmazonAthenaClientBuilder.defaultClient(), configOptions);
     }
 
     @VisibleForTesting
-    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
+    protected ExampleRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;

@@ -27,8 +27,8 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 
@@ -56,7 +56,7 @@ public class AwsCmdbRecordHandler
     }
 
     @VisibleForTesting
-    protected AwsCmdbRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, TableProviderFactory tableProviderFactory, java.util.Map<String, String> configOptions)
+    protected AwsCmdbRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, TableProviderFactory tableProviderFactory, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         tableProviders = tableProviderFactory.getTableProviders();

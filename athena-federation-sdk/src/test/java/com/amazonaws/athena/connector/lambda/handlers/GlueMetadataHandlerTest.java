@@ -53,8 +53,10 @@ import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
+
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -149,7 +151,7 @@ public class GlueMetadataHandlerTest
 
         handler = new GlueMetadataHandler(mockGlue,
                 new LocalKeyFactory(),
-                mock(AWSSecretsManager.class),
+                mock(SecretsManagerClient.class),
                 mock(AmazonAthena.class),
                 "glue-test",
                 "spill-bucket",

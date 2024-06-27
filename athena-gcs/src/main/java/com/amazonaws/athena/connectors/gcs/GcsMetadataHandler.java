@@ -44,7 +44,6 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
@@ -52,6 +51,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.net.URI;
@@ -100,7 +100,7 @@ public class GcsMetadataHandler
     @VisibleForTesting
     protected GcsMetadataHandler(
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager awsSecretsManager,
+        SecretsManagerClient awsSecretsManager,
         AmazonAthena athena,
         String spillBucket,
         String spillPrefix,

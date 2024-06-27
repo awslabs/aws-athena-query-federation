@@ -21,8 +21,8 @@ package com.amazonaws.athena.connectors.udfs;
 
 import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClient;
 import com.google.common.annotations.VisibleForTesting;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -55,7 +55,7 @@ public class AthenaUDFHandler
 
     public AthenaUDFHandler()
     {
-        this(new CachableSecretsManager(AWSSecretsManagerClient.builder().build()));
+        this(new CachableSecretsManager(SecretsManagerClient.create()));
     }
 
     @VisibleForTesting

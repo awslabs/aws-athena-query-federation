@@ -46,9 +46,6 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import io.lettuce.core.ScanArgs;
@@ -69,6 +66,9 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -119,7 +119,7 @@ public class RedisRecordHandlerTest
     private RedisCommandsWrapper<String, String> mockSyncCommands;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
     private RedisConnectionFactory mockFactory;
@@ -169,10 +169,10 @@ public class RedisRecordHandlerTest
         when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
-                    if ("endpoint".equalsIgnoreCase(request.getSecretId())) {
-                        return new GetSecretValueResult().withSecretString(decodedEndpoint);
+                    if ("endpoint".equalsIgnoreCase(request.secretId())) {
+                        return GetSecretValueResponse.builder().secretString(decodedEndpoint).build();
                     }
-                    throw new RuntimeException("Unknown secret " + request.getSecretId());
+                    throw new RuntimeException("Unknown secret " + request.secretId());
                 });
 
         handler = new RedisRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockFactory, com.google.common.collect.ImmutableMap.of());

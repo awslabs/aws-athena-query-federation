@@ -43,7 +43,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -54,6 +53,7 @@ import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.client.indices.GetIndexResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -132,7 +132,7 @@ public class ElasticsearchMetadataHandler
     protected ElasticsearchMetadataHandler(
         AWSGlue awsGlue,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager awsSecretsManager,
+        SecretsManagerClient awsSecretsManager,
         AmazonAthena athena,
         String spillBucket,
         String spillPrefix,

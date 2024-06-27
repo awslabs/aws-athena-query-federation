@@ -30,11 +30,10 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a
@@ -66,7 +65,7 @@ public class NeptuneRecordHandler extends RecordHandler
     {
         this(
             AmazonS3ClientBuilder.defaultClient(),
-            AWSSecretsManagerClientBuilder.defaultClient(),
+            SecretsManagerClient.create(),
             AmazonAthenaClientBuilder.defaultClient(),
             NeptuneConnection.createConnection(configOptions),
             configOptions);
@@ -75,7 +74,7 @@ public class NeptuneRecordHandler extends RecordHandler
     @VisibleForTesting
     protected NeptuneRecordHandler(
         AmazonS3 amazonS3,
-        AWSSecretsManager secretsManager,
+        SecretsManagerClient secretsManager,
         AmazonAthena amazonAthena,
         NeptuneConnection neptuneConnection,
         java.util.Map<String, String> configOptions)

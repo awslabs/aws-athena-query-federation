@@ -26,12 +26,12 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTableRequest;
 import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.sun.jna.platform.unix.LibC;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -100,7 +100,7 @@ public class GcsUtil
      */
     public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions) throws IOException
     {
-        CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
+        CachableSecretsManager secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
         String gcsCredentialsJsonString = secretsManager.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
         File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
         boolean destinationDirExists = new File(destination.getParent()).mkdirs();

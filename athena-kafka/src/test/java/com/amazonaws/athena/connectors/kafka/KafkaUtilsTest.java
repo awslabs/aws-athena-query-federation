@@ -34,10 +34,6 @@ import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
@@ -56,9 +52,11 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.ByteArrayInputStream;
-
 import java.io.FileWriter;
 import java.util.*;
 
@@ -77,13 +75,13 @@ public class KafkaUtilsTest {
     ObjectMapper objectMapper;
 
     @Mock
-    AWSSecretsManager awsSecretsManager;
+    SecretsManagerClient awsSecretsManager;
 
     @Mock
     GetSecretValueRequest secretValueRequest;
 
     @Mock
-    GetSecretValueResult secretValueResult;
+    GetSecretValueResponse secretValueResponse;
 
     @Mock
     DefaultAWSCredentialsProviderChain chain;
@@ -114,7 +112,7 @@ public class KafkaUtilsTest {
     private MockedConstruction<ObjectMapper> mockedObjectMapper;
     private MockedConstruction<DefaultAWSCredentialsProviderChain> mockedDefaultCredentials;
     private MockedStatic<AmazonS3ClientBuilder> mockedS3ClientBuilder;
-    private MockedStatic<AWSSecretsManagerClientBuilder> mockedSecretsManagerClient;
+    private MockedStatic<SecretsManagerClient> mockedSecretsManagerClient;
 
 
     @Before
@@ -123,8 +121,8 @@ public class KafkaUtilsTest {
         System.setProperty("aws.accessKeyId", "xxyyyioyuu");
         System.setProperty("aws.secretKey", "vamsajdsjkl");
 
-        mockedSecretsManagerClient = Mockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-        mockedSecretsManagerClient.when(()-> AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(awsSecretsManager);
+        mockedSecretsManagerClient = Mockito.mockStatic(SecretsManagerClient.class);
+        mockedSecretsManagerClient.when(()-> SecretsManagerClient.create()).thenReturn(awsSecretsManager);
 
         String creds = "{\"username\":\"admin\",\"password\":\"test\",\"keystore_password\":\"keypass\",\"truststore_password\":\"trustpass\",\"ssl_key_password\":\"sslpass\"}";
 
@@ -135,8 +133,8 @@ public class KafkaUtilsTest {
         map.put("truststore_password", "trustpass");
         map.put("ssl_key_password", "sslpass");
 
-        Mockito.when(secretValueResult.getSecretString()).thenReturn(creds);
-        Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResult);
+        Mockito.when(secretValueResponse.secretString()).thenReturn(creds);
+        Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResponse);
 
         mockedObjectMapper = Mockito.mockConstruction(ObjectMapper.class,
                 (mock, context) -> {
