@@ -48,12 +48,9 @@ public class GlueRegistryReader
     public GetSchemaVersionResponse getSchemaVersionResult(String glueRegistryName, String glueSchemaName)
     {
         GlueClient glue = GlueClient.create();
-        SchemaId sid = SchemaId.builder()
-                .registryName(glueRegistryName)
-                .schemaName(glueSchemaName)
-                .build();
-        GetSchemaResponse schemaResult = glue.getSchema(GetSchemaRequest.builder().schemaId(sid).build());
-        SchemaVersionNumber svn = SchemaVersionNumber.builder().versionNumber(schemaResult.latestSchemaVersion()).build();
+        SchemaId sid = SchemaId.builder().registryName(glueRegistryName).schemaName(glueSchemaName).build();
+        GetSchemaResponse schemaResponse = glue.getSchema(GetSchemaRequest.builder().schemaId(sid).build());
+        SchemaVersionNumber svn = SchemaVersionNumber.builder().versionNumber(schemaResponse.latestSchemaVersion()).build();
         return glue.getSchemaVersion(GetSchemaVersionRequest.builder()
                 .schemaId(sid)
                 .schemaVersionNumber(svn)
@@ -77,12 +74,12 @@ public class GlueRegistryReader
     }
     public String getGlueSchemaType(String glueRegistryName, String glueSchemaName)
     {
-        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
-        return result.getDataFormat();
+        GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return result.dataFormatAsString();
     }
     public String getSchemaDef(String glueRegistryName, String glueSchemaName)
     {
-        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
-        return result.getSchemaDefinition();
+        GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return result.schemaDefinition();
     }
 }
