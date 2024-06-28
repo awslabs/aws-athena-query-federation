@@ -166,6 +166,7 @@ public class KafkaMetadataHandlerTest {
         GetSchemaVersionResponse getSchemaVersionResponse = GetSchemaVersionResponse.builder()
                 .schemaArn(arn)
                 .schemaVersionId(schemaVersionId)
+                .dataFormat("json")
                 .schemaDefinition("{\n" +
                         "\t\"topicName\": \"testtable\",\n" +
                         "\t\"message\": {\n" +
@@ -198,6 +199,7 @@ public class KafkaMetadataHandlerTest {
         GetSchemaVersionResponse getSchemaVersionResponse = GetSchemaVersionResponse.builder()
                 .schemaArn(arn)
                 .schemaVersionId(schemaVersionId)
+                .dataFormat("json")
                 .schemaDefinition("{\n" +
                         "\t\"topicName\": \"testTopic\",\n" +
                         "\t\"message\": {\n" +
