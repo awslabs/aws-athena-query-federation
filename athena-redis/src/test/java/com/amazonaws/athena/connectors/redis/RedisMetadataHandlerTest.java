@@ -37,7 +37,6 @@ import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.athena.connectors.redis.util.MockKeyScanCursor;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
@@ -54,6 +53,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -103,7 +103,7 @@ public class RedisMetadataHandlerTest
     private RedisCommandsWrapper<String, String> mockSyncCommands;
 
     @Mock
-    private AWSGlue mockGlue;
+    private GlueClient mockGlue;
 
     @Mock
     private SecretsManagerClient mockSecretsManager;

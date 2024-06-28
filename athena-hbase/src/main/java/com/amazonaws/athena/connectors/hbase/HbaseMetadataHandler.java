@@ -45,8 +45,6 @@ import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Table;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
@@ -57,6 +55,8 @@ import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
@@ -101,12 +101,12 @@ public class HbaseMetadataHandler
     //is indeed enabled for use by this connector.
     private static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
     //Used to filter out Glue tables which lack HBase metadata flag.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.parameters().containsKey(HBASE_METADATA_FLAG);
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
     //The number of rows to scan when attempting to infer schema from an HBase table.
     private static final int NUM_ROWS_TO_SCAN = 10;
-    private final AWSGlue awsGlue;
+    private final GlueClient awsGlue;
     private final HbaseConnectionFactory connectionFactory;
 
     private final HbaseQueryPassthrough queryPassthrough = new HbaseQueryPassthrough();
@@ -120,7 +120,7 @@ public class HbaseMetadataHandler
 
     @VisibleForTesting
     protected HbaseMetadataHandler(
-        AWSGlue awsGlue,
+        GlueClient awsGlue,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient secretsManager,
         AmazonAthena athena,
