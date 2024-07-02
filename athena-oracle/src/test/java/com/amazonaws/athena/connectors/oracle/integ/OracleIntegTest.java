@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.oracle.integ;
 
 import com.amazonaws.athena.connector.integ.data.TestConfig;
-import com.amazonaws.services.athena.model.Row;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +34,7 @@ import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
+import software.amazon.awssdk.services.athena.model.Row;
 
 import static org.junit.Assert.assertEquals;
 
@@ -223,13 +223,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\";", lambdaFunctionName, oracleDBName ,rangePartitionTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> rangePartitonData = new ArrayList<>();
-        rows.forEach(row -> rangePartitonData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> rangePartitonData.add(row.data().get(0).varCharValue()));
         logger.info("rangePartitonData: {}", rangePartitonData);
     }
 
@@ -241,13 +241,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\";", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> allDataTypeData = new ArrayList<>();
-        rows.forEach(row -> allDataTypeData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> allDataTypeData.add(row.data().get(0).varCharValue()));
         logger.info("allDataTypeData: {}", allDataTypeData);
     }
 
@@ -259,13 +259,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\";", lambdaFunctionName, oracleDBName ,listPartitionTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> listPartitonData = new ArrayList<>();
-        rows.forEach(row -> listPartitonData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> listPartitonData.add(row.data().get(0).varCharValue()));
         logger.info("listPartitonData: {}", listPartitonData);
     }
 
@@ -277,13 +277,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where NUMBER_TYPE=320;", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> numberDataTypeData = new ArrayList<>();
-        rows.forEach(row -> numberDataTypeData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> numberDataTypeData.add(row.data().get(0).varCharValue()));
         logger.info("numberDataTypeData: {}", numberDataTypeData);
     }
 
@@ -295,13 +295,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where CHAR_TYPE='A';", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> charDataTypeData = new ArrayList<>();
-        rows.forEach(row -> charDataTypeData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> charDataTypeData.add(row.data().get(0).varCharValue()));
         logger.info("charDataTypeData: {}", charDataTypeData);
     }
 
@@ -313,13 +313,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where DATE_COL = date('2021-03-18');", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> dateDataTypeData = new ArrayList<>();
-        rows.forEach(row -> dateDataTypeData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> dateDataTypeData.add(row.data().get(0).varCharValue()));
         logger.info("dateDataTypeData: {}", dateDataTypeData);
     }
 
@@ -331,13 +331,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where TIMESTAMP_WITH_3_FRAC_SEC_COL >= CAST('2021-03-18 09:00:00.123' AS TIMESTAMP);", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> timestampDataTypeData = new ArrayList<>();
-        rows.forEach(row -> timestampDataTypeData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> timestampDataTypeData.add(row.data().get(0).varCharValue()));
         logger.info("timestampDataTypeData: {}", timestampDataTypeData);
     }
 
@@ -349,13 +349,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where VARCHAR_10_COL ='ORACLEXPR';", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> varcharDataTypeData = new ArrayList<>();
-        rows.forEach(row -> varcharDataTypeData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> varcharDataTypeData.add(row.data().get(0).varCharValue()));
         logger.info("varcharDataTypeData: {}", varcharDataTypeData);
     }
 
@@ -367,13 +367,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where NUMBER_3_SF_2_DP = 5.82;", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> decimalDataTypeData = new ArrayList<>();
-        rows.forEach(row -> decimalDataTypeData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> decimalDataTypeData.add(row.data().get(0).varCharValue()));
         logger.info("decimalDataTypeData: {}", decimalDataTypeData);
     }
 
@@ -385,13 +385,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where DATE_COL= date('2021-03-18') and NUMBER_3_SF_2_DP = 5.82;", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> multiDataTypeFilterData = new ArrayList<>();
-        rows.forEach(row -> multiDataTypeFilterData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> multiDataTypeFilterData.add(row.data().get(0).varCharValue()));
         logger.info("multiDataTypeFilterData: {}", multiDataTypeFilterData);
     }
 
@@ -404,13 +404,13 @@ public class OracleIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where float_col = 39840.0;", lambdaFunctionName, oracleDBName ,allDataTypeTable);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> floatDataTypeData = new ArrayList<>();
-        rows.forEach(row -> floatDataTypeData.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> floatDataTypeData.add(row.data().get(0).varCharValue()));
         logger.info("floatDataTypeData: {}", floatDataTypeData);
     }
 

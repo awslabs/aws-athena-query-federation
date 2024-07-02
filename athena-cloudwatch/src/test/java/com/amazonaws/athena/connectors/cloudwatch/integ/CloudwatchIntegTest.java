@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.cloudwatch.integ;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
-import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.logs.AWSLogs;
 import com.amazonaws.services.logs.AWSLogsClientBuilder;
 import com.amazonaws.services.logs.model.DeleteLogGroupRequest;
@@ -38,6 +37,7 @@ import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.LogStream;
+import software.amazon.awssdk.services.athena.model.Row;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -268,13 +268,13 @@ public class CloudwatchIntegTest extends IntegrationTestBase
 
         String query = String.format("select message from %s.\"%s\".\"%s\" where time between %d and %d;",
                 lambdaFunctionName, logGroupName, logStreamName, fromTimeMillis, toTimeMillis);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> messages = new ArrayList<>();
-        rows.forEach(row -> messages.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> messages.add(row.data().get(0).varCharValue()));
         logger.info("Messages: {}", messages);
         assertEquals("Wrong number of log messages found.", 1, messages.size());
         assertTrue("Expecting log message: " + logMessage, messages.contains(logMessage));

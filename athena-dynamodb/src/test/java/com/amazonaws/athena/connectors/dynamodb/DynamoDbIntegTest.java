@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
-import com.amazonaws.services.athena.model.Row;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
@@ -32,6 +31,7 @@ import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.athena.model.Row;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.nio.ByteBuffer;
@@ -239,13 +239,13 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
                 lambdaFunctionName, dynamodbDbName, movieTableName);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> titles = new ArrayList<>();
-        rows.forEach(row -> titles.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> titles.add(row.data().get(0).varCharValue()));
         logger.info("Titles: {}", titles);
         assertEquals("Wrong number of DB records found.", 1, titles.size());
         assertTrue("Movie title not found: Interstellar.", titles.contains("Interstellar"));
@@ -265,13 +265,13 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
 
         String query = String.format("select float8_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Double> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Double.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Double.valueOf(row.data().get(0).varCharValue())));
         AssertJUnit.assertEquals("Wrong number of DB records found.", 1, values.size());
         AssertJUnit.assertTrue("Float8 not found: " + 1E-130, values.contains(1E-130));
     }

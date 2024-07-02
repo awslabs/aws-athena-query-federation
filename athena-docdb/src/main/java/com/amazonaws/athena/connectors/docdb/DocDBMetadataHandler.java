@@ -42,7 +42,6 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.mongodb.client.MongoClient;
@@ -54,6 +53,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.Table;
@@ -118,7 +118,7 @@ public class DocDBMetadataHandler
         DocDBConnectionFactory connectionFactory,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient secretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         java.util.Map<String, String> configOptions)

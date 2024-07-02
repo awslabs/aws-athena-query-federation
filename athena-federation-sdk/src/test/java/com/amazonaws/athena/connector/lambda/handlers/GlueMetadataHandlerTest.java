@@ -41,10 +41,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.google.common.collect.ImmutableList;
-
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Database;
@@ -153,7 +152,7 @@ public class GlueMetadataHandlerTest
         handler = new GlueMetadataHandler(mockGlue,
                 new LocalKeyFactory(),
                 mock(SecretsManagerClient.class),
-                mock(AmazonAthena.class),
+                mock(AthenaClient.class),
                 "glue-test",
                 "spill-bucket",
                 "spill-prefix",

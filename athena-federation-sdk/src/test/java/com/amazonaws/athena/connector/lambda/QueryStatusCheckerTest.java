@@ -20,13 +20,15 @@
 package com.amazonaws.athena.connector.lambda;
 
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
-import com.amazonaws.services.athena.model.GetQueryExecutionResult;
-import com.amazonaws.services.athena.model.InvalidRequestException;
-import com.amazonaws.services.athena.model.QueryExecution;
-import com.amazonaws.services.athena.model.QueryExecutionStatus;
 import com.google.common.collect.ImmutableList;
+
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.athena.model.GetQueryExecutionRequest;
+import software.amazon.awssdk.services.athena.model.GetQueryExecutionResponse;
+import software.amazon.awssdk.services.athena.model.InvalidRequestException;
+import software.amazon.awssdk.services.athena.model.QueryExecution;
+import software.amazon.awssdk.services.athena.model.QueryExecutionStatus;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,20 +54,21 @@ public class QueryStatusCheckerTest
     private final ThrottlingInvoker athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, com.google.common.collect.ImmutableMap.of()).build();
 
     @Mock
-    private AmazonAthena athena;
+    private AthenaClient athena;
 
     @Test
     public void testFastTermination()
             throws InterruptedException
     {
         String queryId = "query0";
-        GetQueryExecutionRequest request = new GetQueryExecutionRequest().withQueryExecutionId(queryId);
-        when(athena.getQueryExecution(request)).thenReturn(new GetQueryExecutionResult().withQueryExecution(new QueryExecution().withStatus(new QueryExecutionStatus().withState("FAILED"))));
+        GetQueryExecutionRequest request = GetQueryExecutionRequest.builder().queryExecutionId(queryId).build();
+        when(athena.getQueryExecution(request)).thenReturn(GetQueryExecutionResponse.builder().queryExecution(QueryExecution.builder().status(QueryExecutionStatus.builder().state("FAILED").build()).build()).build());
         QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, queryId);
         assertTrue(queryStatusChecker.isQueryRunning());
         Thread.sleep(2000);
         assertFalse(queryStatusChecker.isQueryRunning());
-        verify(athena, times(1)).getQueryExecution(any());
+        verify(athena, times(1)).getQueryExecution(any(GetQueryExecutionRequest.class));
+        queryStatusChecker.close();
     }
 
     @Test
@@ -73,9 +76,9 @@ public class QueryStatusCheckerTest
             throws InterruptedException
     {
         String queryId = "query1";
-        GetQueryExecutionRequest request = new GetQueryExecutionRequest().withQueryExecutionId(queryId);
-        GetQueryExecutionResult result1and2 = new GetQueryExecutionResult().withQueryExecution(new QueryExecution().withStatus(new QueryExecutionStatus().withState("RUNNING")));
-        GetQueryExecutionResult result3 = new GetQueryExecutionResult().withQueryExecution(new QueryExecution().withStatus(new QueryExecutionStatus().withState("SUCCEEDED")));
+        GetQueryExecutionRequest request = GetQueryExecutionRequest.builder().queryExecutionId(queryId).build();
+        GetQueryExecutionResponse result1and2 = GetQueryExecutionResponse.builder().queryExecution(QueryExecution.builder().status(QueryExecutionStatus.builder().state("RUNNING").build()).build()).build();
+        GetQueryExecutionResponse result3 = GetQueryExecutionResponse.builder().queryExecution(QueryExecution.builder().status(QueryExecutionStatus.builder().state("SUCCEEDED").build()).build()).build();
         when(athena.getQueryExecution(request)).thenReturn(result1and2).thenReturn(result1and2).thenReturn(result3);
         try (QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, queryId)) {
             assertTrue(queryStatusChecker.isQueryRunning());
@@ -83,7 +86,7 @@ public class QueryStatusCheckerTest
             assertTrue(queryStatusChecker.isQueryRunning());
             Thread.sleep(3000);
             assertFalse(queryStatusChecker.isQueryRunning());
-            verify(athena, times(3)).getQueryExecution(any());
+            verify(athena, times(3)).getQueryExecution(any(GetQueryExecutionRequest.class));
         }
     }
 
@@ -92,13 +95,13 @@ public class QueryStatusCheckerTest
             throws InterruptedException
     {
         String queryId = "query2";
-        GetQueryExecutionRequest request = new GetQueryExecutionRequest().withQueryExecutionId(queryId);
-        when(athena.getQueryExecution(request)).thenThrow(new InvalidRequestException(""));
+        GetQueryExecutionRequest request = GetQueryExecutionRequest.builder().queryExecutionId(queryId).build();
+        when(athena.getQueryExecution(request)).thenThrow(InvalidRequestException.builder().message("").build());
         try (QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, queryId)) {
             assertTrue(queryStatusChecker.isQueryRunning());
             Thread.sleep(2000);
             assertTrue(queryStatusChecker.isQueryRunning());
-            verify(athena, times(1)).getQueryExecution(any());
+            verify(athena, times(1)).getQueryExecution(any(GetQueryExecutionRequest.class));
         }
     }
 
@@ -107,13 +110,13 @@ public class QueryStatusCheckerTest
             throws InterruptedException
     {
         String queryId = "query3";
-        GetQueryExecutionRequest request = new GetQueryExecutionRequest().withQueryExecutionId(queryId);
+        GetQueryExecutionRequest request = GetQueryExecutionRequest.builder().queryExecutionId(queryId).build();
         when(athena.getQueryExecution(request)).thenThrow(new AmazonServiceException(""));
         try (QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, queryId)) {
             assertTrue(queryStatusChecker.isQueryRunning());
             Thread.sleep(3000);
             assertTrue(queryStatusChecker.isQueryRunning());
-            verify(athena, times(2)).getQueryExecution(any());
+            verify(athena, times(2)).getQueryExecution(any(GetQueryExecutionRequest.class));
         }
     }
 }

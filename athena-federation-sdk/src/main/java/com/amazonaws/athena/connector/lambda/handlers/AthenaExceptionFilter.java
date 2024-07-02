@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connector.lambda.handlers;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.services.athena.model.TooManyRequestsException;
+import software.amazon.awssdk.services.athena.model.TooManyRequestsException;
 
 public class AthenaExceptionFilter
         implements ThrottlingInvoker.ExceptionFilter

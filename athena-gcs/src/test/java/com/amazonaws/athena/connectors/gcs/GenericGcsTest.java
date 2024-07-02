@@ -19,12 +19,12 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.lang.reflect.Field;
@@ -33,7 +33,7 @@ public class GenericGcsTest
 {
     protected MockedStatic<AmazonS3ClientBuilder> mockedS3Builder;
     protected  MockedStatic<SecretsManagerClient> mockedSecretManagerBuilder;
-    protected  MockedStatic<AmazonAthenaClientBuilder> mockedAthenaClientBuilder;
+    protected  MockedStatic<AthenaClient> mockedAthenaClientBuilder;
     protected  MockedStatic<GoogleCredentials> mockedGoogleCredentials;
     protected  MockedStatic<GcsUtil> mockedGcsUtil;
 
@@ -43,7 +43,7 @@ public class GenericGcsTest
     {
         mockedS3Builder = Mockito.mockStatic(AmazonS3ClientBuilder.class);
         mockedSecretManagerBuilder = Mockito.mockStatic(SecretsManagerClient.class);
-        mockedAthenaClientBuilder = Mockito.mockStatic(AmazonAthenaClientBuilder.class);
+        mockedAthenaClientBuilder = Mockito.mockStatic(AthenaClient.class);
         mockedGoogleCredentials = Mockito.mockStatic(GoogleCredentials.class);
         mockedGcsUtil = Mockito.mockStatic(GcsUtil.class);
         mockedServiceAccountCredentials = Mockito.mockStatic(ServiceAccountCredentials.class);

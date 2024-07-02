@@ -40,8 +40,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.athena.connectors.timestream.query.SelectQueryBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
@@ -60,6 +58,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.time.Instant;
@@ -95,13 +94,13 @@ public class TimestreamRecordHandler
         this(
             AmazonS3ClientBuilder.defaultClient(),
             SecretsManagerClient.create(),
-            AmazonAthenaClientBuilder.defaultClient(),
+            AthenaClient.create(),
             TimestreamClientBuilder.buildQueryClient(SOURCE_TYPE),
             configOptions);
     }
 
     @VisibleForTesting
-    protected TimestreamRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, AmazonTimestreamQuery tsQuery, java.util.Map<String, String> configOptions)
+    protected TimestreamRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, AmazonTimestreamQuery tsQuery, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.tsQuery = tsQuery;

@@ -19,13 +19,13 @@
  */
 package com.amazonaws.athena.connector.lambda;
 
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
-import com.amazonaws.services.athena.model.GetQueryExecutionResult;
-import com.amazonaws.services.athena.model.InvalidRequestException;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.athena.model.GetQueryExecutionRequest;
+import software.amazon.awssdk.services.athena.model.GetQueryExecutionResponse;
+import software.amazon.awssdk.services.athena.model.InvalidRequestException;
 
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,12 +50,12 @@ public class QueryStatusChecker
 
     private boolean wasStarted = false;
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
-    private final AmazonAthena athena;
+    private final AthenaClient athena;
     private final ThrottlingInvoker athenaInvoker;
     private final String queryId;
     private final Thread checkerThread;
 
-    public QueryStatusChecker(AmazonAthena athena, ThrottlingInvoker athenaInvoker, String queryId)
+    public QueryStatusChecker(AthenaClient athena, ThrottlingInvoker athenaInvoker, String queryId)
     {
         this.athena = athena;
         this.athenaInvoker = athenaInvoker;
@@ -114,8 +114,8 @@ public class QueryStatusChecker
     {
         logger.debug(format("Background thread checking status of Athena query %s, attempt %d", queryId, attempt));
         try {
-            GetQueryExecutionResult queryExecution = athenaInvoker.invoke(() -> athena.getQueryExecution(new GetQueryExecutionRequest().withQueryExecutionId(queryId)));
-            String state = queryExecution.getQueryExecution().getStatus().getState();
+            GetQueryExecutionResponse queryExecution = athenaInvoker.invoke(() -> athena.getQueryExecution(GetQueryExecutionRequest.builder().queryExecutionId(queryId).build()));
+            String state = queryExecution.queryExecution().status().state().toString();
             if (TERMINAL_STATES.contains(state)) {
                 logger.debug("Query {} has terminated with state {}", queryId, state);
                 isRunning.set(false);
