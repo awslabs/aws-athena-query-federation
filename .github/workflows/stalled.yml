@@ -1,0 +1,16 @@
+name: Label Stalled PRs
+on:
+  schedule:
+    - cron: '15 15 * * *' # Run every day at 15:15 UTC / 7:15 PST / 8:15 PDT
+  workflow_dispatch:
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    name: Stale PRs
+    steps:
+    - uses: aws-actions/stale-issue-cleanup@v6
+      with:
+        stale-pr-label: 'stalled'
+        stale-pr-message: 'This PR is stalled because it has been open for 30 days with no activity.'
+        days-before-stale: 30
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
