@@ -140,12 +140,14 @@ public abstract class MetadataHandler
         this.spillPrefix = this.configOptions.getOrDefault(SPILL_PREFIX_ENV, DEFAULT_SPILL_PREFIX);
 
         if (DISABLE_ENCRYPTION.equalsIgnoreCase(this.configOptions.getOrDefault(DISABLE_SPILL_ENCRYPTION, "false"))) {
+            logger.debug("DISABLE_SPILL_ENCRYPTION");
             this.encryptionKeyFactory = null;
         }
         else {
             this.encryptionKeyFactory = (this.configOptions.get(KMS_KEY_ID_ENV) != null) ?
                     new KmsKeyFactory(AWSKMSClientBuilder.standard().build(), this.configOptions.get(KMS_KEY_ID_ENV)) :
                     new LocalKeyFactory();
+            logger.debug("ENABLE_SPILL_ENCRYPTION with encryption factory: " + encryptionKeyFactory.getClass().getSimpleName());
         }
 
         this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());

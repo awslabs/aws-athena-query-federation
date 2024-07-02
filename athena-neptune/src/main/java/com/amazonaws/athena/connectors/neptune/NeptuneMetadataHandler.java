@@ -64,6 +64,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
@@ -299,12 +300,23 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with limit: " + gremlinQuery);
                 Object object = new PropertyGraphHandler(neptuneConnection).getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
                 GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
-                Map graphTraversalObj = null;
                 if (graphTraversalForSchema.hasNext()) {
-                    graphTraversalObj = (Map) graphTraversalForSchema.next();
+                    Object responseObj = graphTraversalForSchema.next();
+                    if (responseObj instanceof Map && gremlinQuery.contains(Constants.GREMLIN_QUERY_SUPPORT_TYPE)) {
+                        logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with valueMap");
+                        Map graphTraversalObj = (Map) responseObj;
+                        schema = getSchemaFromResults(getTableResponse, graphTraversalObj, fields);
+                        return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
+                    }
+                    else {
+                        throw new RuntimeException("Unsupported gremlin query format: We are currently supporting only valueMap gremlin queries. " +
+                                "Please make sure you are using valueMap gremlin query. " +
+                                "Example for valueMap query is g.V().hasLabel(\\\"airport\\\").valueMap().limit(5)");
+                    }
                 }
-                schema = getSchemaFromResults(getTableResponse, graphTraversalObj, fields);
-                return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
+                else {
+                    throw new NoSuchElementException("No data available for gremlin query: " + gremlinQuery);
+                }
 
             case RDF:
                 String sparqlQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
@@ -314,12 +326,14 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 neptuneSparqlConnection.runQuery(sparqlQuery);
                 String strim = getTableResponse.getSchema().getCustomMetadata().get(Constants.SCHEMA_STRIP_URI);
                 boolean trimURI = strim == null ? false : Boolean.parseBoolean(strim);
-                Map<String, Object> resultsMap = null;
                 if (neptuneSparqlConnection.hasNext()) {
-                    resultsMap = neptuneSparqlConnection.next(trimURI);
+                    Map<String, Object> resultsMap = neptuneSparqlConnection.next(trimURI);
+                    schema = getSchemaFromResults(getTableResponse, resultsMap, fields);
+                    return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                 }
-                schema = getSchemaFromResults(getTableResponse, resultsMap, fields);
-                return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
+                else {
+                    throw new NoSuchElementException("No data available for sparql query: " + sparqlQuery);
+                }
 
             default:
                 throw new IllegalArgumentException("Unsupported graphType: " + graphType);
