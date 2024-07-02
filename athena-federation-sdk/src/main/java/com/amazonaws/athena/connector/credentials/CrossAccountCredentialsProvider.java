@@ -23,13 +23,12 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceAsyncClientBuilder;
-import com.amazonaws.services.securitytoken.model.AssumeRoleRequest;
-import com.amazonaws.services.securitytoken.model.AssumeRoleResult;
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
+import software.amazon.awssdk.services.sts.model.Credentials;
 
 import java.util.Map;
 
@@ -44,13 +43,14 @@ public class CrossAccountCredentialsProvider
     {
         if (configOptions.containsKey(CROSS_ACCOUNT_ROLE_ARN_CONFIG)) {
             logger.debug("Found cross-account role arn to assume.");
-            AWSSecurityTokenService stsClient = AWSSecurityTokenServiceAsyncClientBuilder.standard().build();
-            AssumeRoleRequest assumeRoleRequest = new AssumeRoleRequest()
-                .withRoleArn(configOptions.get(CROSS_ACCOUNT_ROLE_ARN_CONFIG))
-                .withRoleSessionName(roleSessionName);
-            AssumeRoleResult assumeRoleResult = stsClient.assumeRole(assumeRoleRequest);
-            Credentials credentials = assumeRoleResult.getCredentials();
-            BasicSessionCredentials basicSessionCredentials = new BasicSessionCredentials(credentials.getAccessKeyId(), credentials.getSecretAccessKey(), credentials.getSessionToken());
+            StsClient stsClient = StsClient.create();
+            AssumeRoleRequest assumeRoleRequest = AssumeRoleRequest.builder()
+                .roleArn(configOptions.get(CROSS_ACCOUNT_ROLE_ARN_CONFIG))
+                .roleSessionName(roleSessionName)
+                .build();
+            AssumeRoleResponse assumeRoleResponse = stsClient.assumeRole(assumeRoleRequest);
+            Credentials credentials = assumeRoleResponse.credentials();
+            BasicSessionCredentials basicSessionCredentials = new BasicSessionCredentials(credentials.accessKeyId(), credentials.secretAccessKey(), credentials.sessionToken());
             return new AWSStaticCredentialsProvider(basicSessionCredentials);
         }
         return DefaultAWSCredentialsProviderChain.getInstance();
