@@ -37,10 +37,13 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
+import com.amazonaws.athena.connectors.kafka.dto.AvroTopicSchema;
 import com.amazonaws.athena.connectors.kafka.dto.SplitParameters;
 import com.amazonaws.athena.connectors.kafka.dto.TopicPartitionPiece;
 import com.amazonaws.athena.connectors.kafka.dto.TopicSchema;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.Descriptors;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -66,7 +69,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connectors.kafka.KafkaConstants.AVRO_DATA_FORMAT;
 import static com.amazonaws.athena.connectors.kafka.KafkaConstants.MAX_RECORDS_IN_SPLIT;
+import static com.amazonaws.athena.connectors.kafka.KafkaConstants.PROTOBUF_DATA_FORMAT;
 
 public class KafkaMetadataHandler extends MetadataHandler
 {
@@ -258,7 +263,7 @@ public class KafkaMetadataHandler extends MetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest) throws Exception
     {
         LOGGER.info("doGetTable request: {}", getTableRequest);
-        Schema tableSchema = null;
+        Schema tableSchema;
         try {
             tableSchema = getSchema(getTableRequest.getTableName().getSchemaName(), getTableRequest.getTableName().getTableName());
         }
@@ -325,9 +330,17 @@ public class KafkaMetadataHandler extends MetadataHandler
         // returning a single partition.
         String glueRegistryName = request.getTableName().getSchemaName();
         String glueSchemaName = request.getTableName().getTableName();
+        String topic;
         GlueRegistryReader registryReader = new GlueRegistryReader();
-        TopicSchema topicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, TopicSchema.class);
-        String topic =  topicSchema.getTopicName();
+        String dataFormat = registryReader.getGlueSchemaType(glueRegistryName, glueSchemaName);
+        if (dataFormat.equalsIgnoreCase(AVRO_DATA_FORMAT) || dataFormat.equalsIgnoreCase(PROTOBUF_DATA_FORMAT)) {
+            //if schema type is avro/protobuf, then topic name should be glue schema name
+            topic = glueSchemaName;
+        }
+        else {
+            TopicSchema topicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, TopicSchema.class);
+            topic = topicSchema.getTopicName();
+        }
 
         LOGGER.info("Retrieved topicName: {}", topic);
 
@@ -421,29 +434,65 @@ public class KafkaMetadataHandler extends MetadataHandler
 
         // Get topic schema json from GLue registry as translated to TopicSchema pojo
         GlueRegistryReader registryReader = new GlueRegistryReader();
-        TopicSchema topicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, TopicSchema.class);
-
-        // Creating ArrowType for each fields in the topic schema.
-        // Also putting the additional column level information
-        // into the metadata in ArrowType field.
-        topicSchema.getMessage().getFields().forEach(it -> {
-            FieldType fieldType = new FieldType(
-                    true,
-                    KafkaUtils.toArrowType(it.getType()),
-                    null,
-                    com.google.common.collect.ImmutableMap.of(
-                            "mapping", it.getMapping(),
-                            "formatHint", it.getFormatHint(),
-                            "type", it.getType()
-                    )
-            );
-            Field field = new Field(it.getName(), fieldType, null);
-            schemaBuilder.addField(field);
-        });
-
-        // Putting the additional schema level information into the metadata in ArrowType schema.
-        schemaBuilder.addMetadata("dataFormat", topicSchema.getMessage().getDataFormat());
-
+        String dataFormat = registryReader.getGlueSchemaType(glueRegistryName, glueSchemaName);
+        if (dataFormat.equalsIgnoreCase(AVRO_DATA_FORMAT)) {
+            AvroTopicSchema avroTopicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, AvroTopicSchema.class);
+            // Creating ArrowType for each fields in the topic schema.
+            // Also putting the additional column level information
+            // into the metadata in ArrowType field.
+            avroTopicSchema.getFields().forEach(it -> {
+                FieldType fieldType = new FieldType(
+                        true,
+                        KafkaUtils.toArrowType(it.getType()),
+                        null,
+                        com.google.common.collect.ImmutableMap.of(
+                                "name", it.getName(),
+                                "formatHint", it.getFormatHint(),
+                                "type", it.getType()
+                        )
+                );
+                Field field = new Field(it.getName(), fieldType, null);
+                schemaBuilder.addField(field);
+            });
+            schemaBuilder.addMetadata("dataFormat", AVRO_DATA_FORMAT);
+        }
+        else if (dataFormat.equalsIgnoreCase(PROTOBUF_DATA_FORMAT)) {
+            String glueSchema = registryReader.getSchemaDef(glueRegistryName, glueSchemaName);
+            ProtobufSchema protobufSchema = new ProtobufSchema(glueSchema);
+            Descriptors.Descriptor descriptor = protobufSchema.toDescriptor();
+            for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
+                FieldType fieldType = new FieldType(
+                        true,
+                        KafkaUtils.toArrowType(fieldDescriptor.getType().toString()),
+                        null
+                );
+                Field field = new Field(fieldDescriptor.getName(), fieldType, null);
+                schemaBuilder.addField(field);
+            }
+            schemaBuilder.addMetadata("dataFormat", PROTOBUF_DATA_FORMAT);
+        }
+        else {
+            TopicSchema topicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, TopicSchema.class);
+            // Creating ArrowType for each fields in the topic schema.
+            // Also putting the additional column level information
+            // into the metadata in ArrowType field.
+            topicSchema.getMessage().getFields().forEach(it -> {
+                FieldType fieldType = new FieldType(
+                        true,
+                        KafkaUtils.toArrowType(it.getType()),
+                        null,
+                        com.google.common.collect.ImmutableMap.of(
+                                "mapping", it.getMapping(),
+                                "formatHint", it.getFormatHint(),
+                                "type", it.getType()
+                        )
+                );
+                Field field = new Field(it.getName(), fieldType, null);
+                schemaBuilder.addField(field);
+            });
+            // Putting the additional schema level information into the metadata in ArrowType schema.
+            schemaBuilder.addMetadata("dataFormat", topicSchema.getMessage().getDataFormat());
+        }
         // NOTE: these values are being shoved in here for usage later in the calling context
         // of doGetTable() since Java doesn't have tuples.
         schemaBuilder.addMetadata("glueRegistryName", glueRegistryName);
