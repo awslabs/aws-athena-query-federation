@@ -83,7 +83,8 @@ public class BigQueryMetadataHandler
     extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
-    private final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID);
+    private final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID) != null ?
+            configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase() : null;
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
 

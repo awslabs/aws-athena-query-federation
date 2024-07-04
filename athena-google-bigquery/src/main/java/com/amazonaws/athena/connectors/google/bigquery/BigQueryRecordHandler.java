@@ -127,7 +127,7 @@ public class BigQueryRecordHandler
                                      List<QueryParameterValue> parameterValues,
                                      BigQuery bigQueryClient) throws Exception
     {
-        String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID);
+        String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase();
         String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
         String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(), bigQueryClient);
 
