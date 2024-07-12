@@ -31,10 +31,10 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
@@ -61,7 +61,7 @@ public class MultiplexingJdbcRecordHandler
 
     @VisibleForTesting
     protected MultiplexingJdbcRecordHandler(
-        AmazonS3 amazonS3,
+        S3Client amazonS3,
         SecretsManagerClient secretsManager,
         AmazonAthena athena,
         JdbcConnectionFactory jdbcConnectionFactory,

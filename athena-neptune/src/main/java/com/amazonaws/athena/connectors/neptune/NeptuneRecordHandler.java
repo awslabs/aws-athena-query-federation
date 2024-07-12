@@ -28,11 +28,10 @@ import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandle
 import com.amazonaws.athena.connectors.neptune.rdf.RDFHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 /**
@@ -64,7 +63,7 @@ public class NeptuneRecordHandler extends RecordHandler
     public NeptuneRecordHandler(java.util.Map<String, String> configOptions) 
     {
         this(
-            AmazonS3ClientBuilder.defaultClient(),
+            S3Client.create(),
             SecretsManagerClient.create(),
             AmazonAthenaClientBuilder.defaultClient(),
             NeptuneConnection.createConnection(configOptions),
@@ -73,7 +72,7 @@ public class NeptuneRecordHandler extends RecordHandler
 
     @VisibleForTesting
     protected NeptuneRecordHandler(
-        AmazonS3 amazonS3,
+        S3Client amazonS3,
         SecretsManagerClient secretsManager,
         AmazonAthena amazonAthena,
         NeptuneConnection neptuneConnection,
