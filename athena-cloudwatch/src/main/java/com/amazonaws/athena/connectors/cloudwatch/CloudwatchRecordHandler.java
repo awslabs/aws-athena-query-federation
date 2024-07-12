@@ -41,11 +41,10 @@ import com.amazonaws.services.logs.model.GetLogEventsResult;
 import com.amazonaws.services.logs.model.GetQueryResultsResult;
 import com.amazonaws.services.logs.model.OutputLogEvent;
 import com.amazonaws.services.logs.model.ResultField;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.List;
@@ -83,7 +82,7 @@ public class CloudwatchRecordHandler
     public CloudwatchRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(
-                AmazonS3ClientBuilder.defaultClient(),
+                S3Client.create(),
                 SecretsManagerClient.create(),
                 AmazonAthenaClientBuilder.defaultClient(),
                 AWSLogsClientBuilder.defaultClient(),
@@ -91,7 +90,7 @@ public class CloudwatchRecordHandler
     }
 
     @VisibleForTesting
-    protected CloudwatchRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, AWSLogs awsLogs, java.util.Map<String, String> configOptions)
+    protected CloudwatchRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, AWSLogs awsLogs, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.awsLogs = awsLogs;

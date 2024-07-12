@@ -33,8 +33,6 @@ import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -53,6 +51,7 @@ import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
@@ -82,7 +81,7 @@ public class HbaseRecordHandler
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
 
-    private final AmazonS3 amazonS3;
+    private final S3Client amazonS3;
     private final HbaseConnectionFactory connectionFactory;
 
     private final HbaseQueryPassthrough queryPassthrough = new HbaseQueryPassthrough();
@@ -90,7 +89,7 @@ public class HbaseRecordHandler
     public HbaseRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(
-            AmazonS3ClientBuilder.defaultClient(),
+            S3Client.create(),
             SecretsManagerClient.create(),
             AmazonAthenaClientBuilder.defaultClient(),
             new HbaseConnectionFactory(),
@@ -98,7 +97,7 @@ public class HbaseRecordHandler
     }
 
     @VisibleForTesting
-    protected HbaseRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, HbaseConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
+    protected HbaseRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, HbaseConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;

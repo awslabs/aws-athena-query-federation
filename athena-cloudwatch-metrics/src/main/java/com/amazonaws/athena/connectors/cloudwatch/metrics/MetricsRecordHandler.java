@@ -42,12 +42,11 @@ import com.amazonaws.services.cloudwatch.model.Metric;
 import com.amazonaws.services.cloudwatch.model.MetricDataQuery;
 import com.amazonaws.services.cloudwatch.model.MetricDataResult;
 import com.amazonaws.services.cloudwatch.model.MetricStat;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Date;
@@ -98,19 +97,19 @@ public class MetricsRecordHandler
     //Used to handle throttling events by applying AIMD congestion control
     private final ThrottlingInvoker invoker;
 
-    private final AmazonS3 amazonS3;
+    private final S3Client amazonS3;
     private final AmazonCloudWatch metrics;
 
     public MetricsRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
+        this(S3Client.create(),
                 SecretsManagerClient.create(),
                 AmazonAthenaClientBuilder.defaultClient(),
                 AmazonCloudWatchClientBuilder.standard().build(), configOptions);
     }
 
     @VisibleForTesting
-    protected MetricsRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, AmazonCloudWatch metrics, java.util.Map<String, String> configOptions)
+    protected MetricsRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, AmazonCloudWatch metrics, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;

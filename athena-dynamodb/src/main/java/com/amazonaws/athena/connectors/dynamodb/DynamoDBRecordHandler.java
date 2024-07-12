@@ -36,7 +36,6 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.util.json.Jackson;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
@@ -56,6 +55,7 @@ import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
@@ -128,7 +128,7 @@ public class DynamoDBRecordHandler
     }
 
     @VisibleForTesting
-    DynamoDBRecordHandler(DynamoDbClient ddbClient, AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
+    DynamoDBRecordHandler(DynamoDbClient ddbClient, S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, sourceType, configOptions);
         this.ddbClient = ddbClient;

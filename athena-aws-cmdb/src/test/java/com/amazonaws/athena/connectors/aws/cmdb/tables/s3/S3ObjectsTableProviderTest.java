@@ -23,11 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsV2Request;
-import com.amazonaws.services.s3.model.ListObjectsV2Result;
-import com.amazonaws.services.s3.model.Owner;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -35,6 +30,11 @@ import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.Owner;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -45,7 +45,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class S3ObjectsTableProviderTest
@@ -54,7 +53,7 @@ public class S3ObjectsTableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(S3ObjectsTableProviderTest.class);
 
     @Mock
-    private AmazonS3 mockS3;
+    private S3Client mockS3;
 
     protected String getIdField()
     {
@@ -92,25 +91,26 @@ public class S3ObjectsTableProviderTest
         AtomicLong count = new AtomicLong(0);
         when(mockS3.listObjectsV2(nullable(ListObjectsV2Request.class))).thenAnswer((InvocationOnMock invocation) -> {
             ListObjectsV2Request request = (ListObjectsV2Request) invocation.getArguments()[0];
-            assertEquals(getIdValue(), request.getBucketName());
+            assertEquals(getIdValue(), request.bucket());
 
-            ListObjectsV2Result mockResult = mock(ListObjectsV2Result.class);
-            List<S3ObjectSummary> values = new ArrayList<>();
-            values.add(makeObjectSummary(getIdValue()));
-            values.add(makeObjectSummary(getIdValue()));
-            values.add(makeObjectSummary("fake-id"));
-            when(mockResult.getObjectSummaries()).thenReturn(values);
+            List<S3Object> values = new ArrayList<>();
+            values.add(makeS3Object());
+            values.add(makeS3Object());
+            ListObjectsV2Response.Builder responseBuilder = ListObjectsV2Response.builder().contents(values);
 
             if (count.get() > 0) {
-                assertNotNull(request.getContinuationToken());
+                assertNotNull(request.continuationToken());
             }
 
             if (count.incrementAndGet() < 2) {
-                when(mockResult.isTruncated()).thenReturn(true);
-                when(mockResult.getNextContinuationToken()).thenReturn("token");
+                responseBuilder.isTruncated(true);
+                responseBuilder.nextContinuationToken("token");
+            }
+            else {
+                responseBuilder.isTruncated(false);
             }
 
-            return mockResult;
+            return responseBuilder.build();
         });
     }
 
@@ -167,19 +167,17 @@ public class S3ObjectsTableProviderTest
         }
     }
 
-    private S3ObjectSummary makeObjectSummary(String id)
+    private S3Object makeS3Object()
     {
-        S3ObjectSummary summary = new S3ObjectSummary();
-        Owner owner = new Owner();
-        owner.setId("owner_id");
-        owner.setDisplayName("owner_name");
-        summary.setOwner(owner);
-        summary.setBucketName(id);
-        summary.setETag("e_tag");
-        summary.setKey("key");
-        summary.setSize(100);
-        summary.setLastModified(new Date(100_000));
-        summary.setStorageClass("storage_class");
-        return summary;
+        Owner owner = Owner.builder().id("owner_id").displayName("owner_name").build();
+        S3Object s3Object = S3Object.builder()
+                .owner(owner)
+                .eTag("e_tag")
+                .key("key")
+                .size((long)100)
+                .lastModified(new Date(100_000).toInstant())
+                .storageClass("storage_class")
+                .build();
+        return s3Object;
     }
 }
