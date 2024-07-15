@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.junit.jupiter.api.AfterAll;
@@ -28,6 +26,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -59,10 +58,8 @@ public class GcsCompositeHandlerTest extends GenericGcsTest {
         mockedServiceAccountCredentials.when(() -> ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
         credentials = Mockito.mock(GoogleCredentials.class);
         mockedGoogleCredentials.when(() -> GoogleCredentials.fromStream(Mockito.any())).thenReturn(credentials);
-        AmazonS3ClientBuilder mockedAmazonS3Builder = Mockito.mock(AmazonS3ClientBuilder.class);
-        AmazonS3 mockedAmazonS3 = Mockito.mock(AmazonS3.class);
-        when(mockedAmazonS3Builder.build()).thenReturn(mockedAmazonS3);
-        mockedS3Builder.when(AmazonS3ClientBuilder::standard).thenReturn(mockedAmazonS3Builder);
+        S3Client mockedAmazonS3 = Mockito.mock(S3Client.class);
+        when(S3Client.create()).thenReturn(mockedAmazonS3);
     }
 
     @AfterAll
