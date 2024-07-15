@@ -20,12 +20,12 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
-import com.amazonaws.services.kms.AWSKMS;
-import com.amazonaws.services.kms.model.DataKeySpec;
-import com.amazonaws.services.kms.model.GenerateDataKeyRequest;
-import com.amazonaws.services.kms.model.GenerateDataKeyResult;
-import com.amazonaws.services.kms.model.GenerateRandomRequest;
-import com.amazonaws.services.kms.model.GenerateRandomResult;
+import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.DataKeySpec;
+import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
+import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
+import software.amazon.awssdk.services.kms.model.GenerateRandomRequest;
+import software.amazon.awssdk.services.kms.model.GenerateRandomResponse;
 
 /**
  * An EncryptionKeyFactory that is backed by AWS KMS.
@@ -35,10 +35,10 @@ import com.amazonaws.services.kms.model.GenerateRandomResult;
 public class KmsKeyFactory
         implements EncryptionKeyFactory
 {
-    private final AWSKMS kmsClient;
+    private final KmsClient kmsClient;
     private final String masterKeyId;
 
-    public KmsKeyFactory(AWSKMS kmsClient, String masterKeyId)
+    public KmsKeyFactory(KmsClient kmsClient, String masterKeyId)
     {
         this.kmsClient = kmsClient;
         this.masterKeyId = masterKeyId;
@@ -49,16 +49,18 @@ public class KmsKeyFactory
      */
     public EncryptionKey create()
     {
-        GenerateDataKeyResult dataKeyResult =
+        GenerateDataKeyResponse dataKeyResponse =
                 kmsClient.generateDataKey(
-                        new GenerateDataKeyRequest()
-                                .withKeyId(masterKeyId)
-                                .withKeySpec(DataKeySpec.AES_128));
+                        GenerateDataKeyRequest.builder()
+                                .keyId(masterKeyId)
+                                .keySpec(DataKeySpec.AES_128)
+                                .build());
 
-        GenerateRandomRequest randomRequest = new GenerateRandomRequest()
-                .withNumberOfBytes(AesGcmBlockCrypto.NONCE_BYTES);
-        GenerateRandomResult randomResult = kmsClient.generateRandom(randomRequest);
+        GenerateRandomRequest randomRequest = GenerateRandomRequest.builder()
+                .numberOfBytes(AesGcmBlockCrypto.NONCE_BYTES)
+                .build();
+        GenerateRandomResponse randomResponse = kmsClient.generateRandom(randomRequest);
 
-        return new EncryptionKey(dataKeyResult.getPlaintext().array(), randomResult.getPlaintext().array());
+        return new EncryptionKey(dataKeyResponse.plaintext().asByteArray(), randomResponse.plaintext().asByteArray());
     }
 }
