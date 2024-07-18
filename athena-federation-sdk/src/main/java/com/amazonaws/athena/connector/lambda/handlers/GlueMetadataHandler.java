@@ -264,16 +264,13 @@ public abstract class GlueMetadataHandler
                 .catalogId(getCatalog(request))
                 .build();
 
-        List<String> schemas = new ArrayList<>();
         GetDatabasesIterable responses = awsGlue.getDatabasesPaginator(getDatabasesRequest);
-
-        responses.stream().forEach(response -> response.databaseList()
-                .forEach(database -> {
-                    if (filter == null || filter.filter(database)) {
-                        schemas.add(database.name());
-                    }
-                }));
-
+        List<String> schemas = responses.stream()
+                .flatMap(response -> response.databaseList().stream())
+                .filter(database -> filter == null || filter.filter(database))
+                .map(Database::name)
+                .collect(Collectors.toList());
+        
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
 
@@ -321,12 +318,11 @@ public abstract class GlueMetadataHandler
                 pageSize -= maxResults;
             }
             GetTablesResponse response = awsGlue.getTables(getTablesRequest.build());
-
-            for (Table next : response.tableList()) {
-                if (filter == null || filter.filter(next)) {
-                    tables.add(new TableName(request.getSchemaName(), next.name()));
-                }
-            }
+            tables.addAll(response.tableList()
+                    .stream()
+                    .filter(table -> filter == null || filter.filter(table))
+                    .map(table -> new TableName(request.getSchemaName(), table.name()))
+                    .collect(Collectors.toSet()));
 
             nextToken = response.nextToken();
         }
