@@ -48,11 +48,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.Region;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -66,6 +61,10 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -105,7 +104,7 @@ public class VerticaMetadataHandlerTest extends TestBase
     private Connection connection;
     private SecretsManagerClient secretsManager;
     private AmazonAthena athena;
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
     private FederatedIdentity federatedIdentity;
     private BlockAllocatorImpl allocator;
     private DatabaseMetaData databaseMetaData;
@@ -117,11 +116,7 @@ public class VerticaMetadataHandlerTest extends TestBase
     private QueryStatusChecker queryStatusChecker;
     private VerticaMetadataHandler verticaMetadataHandlerMocked;
     @Mock
-    private AmazonS3 s3clientMock;
-    @Mock
-    private ListObjectsRequest listObjectsRequest;
-    @Mock
-    private ObjectListing objectListing;
+    private S3Client s3clientMock;
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", VERTICA_NAME,
             "vertica://jdbc:vertica:thin:username/password@//127.0.0.1:1521/vrt");
 
@@ -144,11 +139,10 @@ public class VerticaMetadataHandlerTest extends TestBase
         this.schemaBuilder = Mockito.mock(SchemaBuilder.class);
         this.blockWriter = Mockito.mock(BlockWriter.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
-        this.amazonS3 = Mockito.mock(AmazonS3.class);
+        this.amazonS3 = Mockito.mock(S3Client.class);
 
         Mockito.lenient().when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         Mockito.when(connection.getMetaData()).thenReturn(databaseMetaData);
-        Mockito.when(amazonS3.getRegion()).thenReturn(Region.US_West_2);
 
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
@@ -344,21 +338,13 @@ public class VerticaMetadataHandlerTest extends TestBase
             BlockUtils.setValue(partitions.getFieldVector("awsRegionSql"), i, "us-west-2");
 
         }
-        List<S3ObjectSummary> s3ObjectSummariesList = new ArrayList<>();
-        S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
-        s3ObjectSummary.setBucketName("s3ExportBucket");
-        s3ObjectSummary.setKey("testKey");
-        s3ObjectSummariesList.add(s3ObjectSummary);
-        ListObjectsRequest listObjectsRequestObj = new ListObjectsRequest();
-        listObjectsRequestObj.setBucketName("s3ExportBucket");
-        listObjectsRequestObj.setPrefix("queryId");
 
-
+        List<S3Object> objectList = new ArrayList<>();
+        S3Object obj = S3Object.builder().key("testKey").build();
+        objectList.add(obj);
+        ListObjectsResponse listObjectsResponse = ListObjectsResponse.builder().contents(objectList).build();
         Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
-        Mockito.lenient().when(listObjectsRequest.withBucketName(nullable(String.class))).thenReturn(listObjectsRequestObj);
-        Mockito.lenient().when(listObjectsRequest.withPrefix(nullable(String.class))).thenReturn(listObjectsRequestObj);
-        Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class))).thenReturn(objectListing);
-        Mockito.when(objectListing.getObjectSummaries()).thenReturn(s3ObjectSummariesList);
+        Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class))).thenReturn(listObjectsResponse);
 
         GetSplitsRequest originalReq = new GetSplitsRequest(this.federatedIdentity, "queryId", "catalog_name",
                 new TableName("schema", "table_name"),
