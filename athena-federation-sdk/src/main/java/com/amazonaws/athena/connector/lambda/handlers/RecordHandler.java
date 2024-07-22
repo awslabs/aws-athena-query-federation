@@ -46,11 +46,10 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -84,7 +83,7 @@ public abstract class RecordHandler
     {
         this.sourceType = sourceType;
         this.amazonS3 = AmazonS3ClientBuilder.defaultClient();
-        this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
+        this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
         this.configOptions = configOptions;
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
@@ -93,7 +92,7 @@ public abstract class RecordHandler
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    public RecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
+    public RecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
     {
         this.sourceType = sourceType;
         this.amazonS3 = amazonS3;

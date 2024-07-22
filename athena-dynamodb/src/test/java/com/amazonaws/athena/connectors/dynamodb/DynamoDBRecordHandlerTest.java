@@ -46,7 +46,6 @@ import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.impl.UnionListReader;
@@ -69,6 +68,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -124,7 +124,7 @@ public class DynamoDBRecordHandlerTest
     private AWSGlue glueClient;
 
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
 
     @Mock
     private AmazonAthena athena;
@@ -138,7 +138,7 @@ public class DynamoDBRecordHandlerTest
         logger.info("{}: enter", testName.getMethodName());
 
         allocator = new BlockAllocatorImpl();
-        handler = new DynamoDBRecordHandler(ddbClient, mock(AmazonS3.class), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "source_type", com.google.common.collect.ImmutableMap.of());
+        handler = new DynamoDBRecordHandler(ddbClient, mock(AmazonS3.class), mock(SecretsManagerClient.class), mock(AmazonAthena.class), "source_type", com.google.common.collect.ImmutableMap.of());
         metadataHandler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient, com.google.common.collect.ImmutableMap.of());
     }
 

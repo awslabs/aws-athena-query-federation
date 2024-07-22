@@ -37,7 +37,6 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.ServerStreamingCallable;
 import com.google.cloud.bigquery.BigQuery;
@@ -79,6 +78,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -107,7 +107,7 @@ public class BigQueryRecordHandlerTest
     BigQuery bigQuery;
 
     @Mock
-    AWSSecretsManager awsSecretsManager;
+    SecretsManagerClient awsSecretsManager;
     private String bucket = "bucket";
 
     private String prefix = "prefix";

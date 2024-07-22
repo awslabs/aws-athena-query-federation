@@ -31,8 +31,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.elasticsearch.action.search.ClearScrollRequest;
@@ -48,6 +46,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -91,7 +90,7 @@ public class ElasticsearchRecordHandler
 
     public ElasticsearchRecordHandler(Map<String, String> configOptions)
     {
-        super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
+        super(AmazonS3ClientBuilder.defaultClient(), SecretsManagerClient.create(),
                 AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE, configOptions);
 
         this.typeUtils = new ElasticsearchTypeUtils();
@@ -103,7 +102,7 @@ public class ElasticsearchRecordHandler
     @VisibleForTesting
     protected ElasticsearchRecordHandler(
         AmazonS3 amazonS3,
-        AWSSecretsManager secretsManager,
+        SecretsManagerClient secretsManager,
         AmazonAthena amazonAthena,
         AwsRestHighLevelClientFactory clientFactory,
         long queryTimeout,

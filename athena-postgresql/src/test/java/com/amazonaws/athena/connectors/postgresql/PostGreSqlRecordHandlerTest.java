@@ -35,7 +35,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -47,6 +46,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -69,7 +69,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
     private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
     private AmazonAthena athena;
 
     @Before
@@ -77,7 +77,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
             throws Exception
     {
         this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);

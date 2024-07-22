@@ -38,7 +38,6 @@ import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.GetSchemaResult;
 import com.amazonaws.services.glue.model.GetSchemaVersionResult;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors;
@@ -62,12 +61,11 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
-
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.kafka.KafkaConstants.AVRO_DATA_FORMAT;
@@ -90,7 +88,7 @@ public class KafkaRecordHandlerTest {
     AmazonS3 amazonS3;
 
     @Mock
-    AWSSecretsManager awsSecretsManager;
+    SecretsManagerClient awsSecretsManager;
 
     @Mock
     private AmazonAthena athena;

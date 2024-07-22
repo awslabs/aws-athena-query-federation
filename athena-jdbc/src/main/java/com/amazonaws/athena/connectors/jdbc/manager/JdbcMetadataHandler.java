@@ -46,7 +46,6 @@ import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
 import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -58,6 +57,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -115,7 +115,7 @@ public abstract class JdbcMetadataHandler
     @VisibleForTesting
     protected JdbcMetadataHandler(
         DatabaseConnectionConfig databaseConnectionConfig,
-        AWSSecretsManager secretsManager,
+        SecretsManagerClient secretsManager,
         AmazonAthena athena,
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)

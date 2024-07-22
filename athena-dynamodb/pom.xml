@@ -41,10 +41,12 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>dynamodb</artifactId>
+            <version>${aws-sdk-v2.version}</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>dynamodb-enhanced</artifactId>
+            <version>${aws-sdk-v2.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -55,6 +57,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>url-connection-client</artifactId>
+            <version>${aws-sdk-v2.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -113,11 +116,8 @@
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
-            <artifactId>sdk-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
             <artifactId>sts</artifactId>
+            <version>${aws-sdk-v2.version}</version>
         </dependency>
     </dependencies>
     <repositories>

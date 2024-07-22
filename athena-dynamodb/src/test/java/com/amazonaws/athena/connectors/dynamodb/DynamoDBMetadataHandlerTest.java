@@ -55,7 +55,6 @@ import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -75,6 +74,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -132,7 +132,7 @@ public class DynamoDBMetadataHandlerTest
     private AWSGlue glueClient;
 
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
 
     @Mock
     private AmazonAthena athena;
