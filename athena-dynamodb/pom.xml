@@ -20,12 +20,6 @@
             <artifactId>athena-federation-integ-test</artifactId>
             <version>2022.47.1</version>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.amazonaws</groupId>
-                    <artifactId>aws-java-sdk-sts</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
