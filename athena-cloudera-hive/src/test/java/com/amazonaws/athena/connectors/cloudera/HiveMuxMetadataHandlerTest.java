@@ -43,7 +43,7 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.services.athena.AmazonAthena;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import static org.mockito.ArgumentMatchers.nullable;
@@ -55,7 +55,7 @@ public class HiveMuxMetadataHandlerTest
     private JdbcMetadataHandler jdbcMetadataHandler;
     private BlockAllocator allocator;
     private SecretsManagerClient secretsManager;
-    private AmazonAthena athena;
+    private AthenaClient athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
     @BeforeClass
@@ -69,7 +69,7 @@ public class HiveMuxMetadataHandlerTest
         this.hiveMetadataHandler = Mockito.mock(HiveMetadataHandler.class);
         this.metadataHandlerMap = Collections.singletonMap("metaHive", this.hiveMetadataHandler);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,

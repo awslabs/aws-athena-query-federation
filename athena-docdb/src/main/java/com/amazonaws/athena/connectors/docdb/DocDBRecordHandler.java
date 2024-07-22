@@ -28,8 +28,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.mongodb.client.MongoClient;
@@ -42,6 +40,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
@@ -82,13 +81,13 @@ public class DocDBRecordHandler
         this(
             AmazonS3ClientBuilder.defaultClient(),
             SecretsManagerClient.create(),
-            AmazonAthenaClientBuilder.defaultClient(),
+            AthenaClient.create(),
             new DocDBConnectionFactory(),
             configOptions);
     }
 
     @VisibleForTesting
-    protected DocDBRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, DocDBConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
+    protected DocDBRecordHandler(AmazonS3 amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, DocDBConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.connectionFactory = connectionFactory;

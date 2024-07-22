@@ -27,7 +27,6 @@ import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
-import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.docdb.AmazonDocDB;
 import com.amazonaws.services.docdb.AmazonDocDBClientBuilder;
 import com.amazonaws.services.docdb.model.DBCluster;
@@ -57,6 +56,7 @@ import software.amazon.awscdk.services.ec2.SecurityGroup;
 import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ec2.VpcAttributes;
 import software.amazon.awscdk.services.iam.PolicyDocument;
+import software.amazon.awssdk.services.athena.model.Row;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -371,13 +371,13 @@ public class DocDbIntegTest extends IntegrationTestBase {
 
         String query = String.format("select title from %s.%s.%s where year > 2012;",
                 lambdaFunctionName, docdbDbName, docdbTableMovies);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> titles = new ArrayList<>();
-        rows.forEach(row -> titles.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> titles.add(row.data().get(0).varCharValue()));
         logger.info("Titles: {}", titles);
         assertEquals("Wrong number of DB records found.", 1, titles.size());
         assertTrue("Movie title not found: Interstellar.", titles.contains("Interstellar"));

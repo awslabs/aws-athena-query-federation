@@ -40,7 +40,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
@@ -65,6 +64,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Database;
@@ -135,7 +135,7 @@ public class GcsMetadataHandlerTest
     @Mock
     private ServiceAccountCredentials serviceAccountCredentials;
     @Mock
-    private AmazonAthena athena;
+    private AthenaClient athena;
 
     private MockedStatic<StorageOptions> mockedStorageOptions;
     private MockedStatic<ServiceAccountCredentials> mockedServiceAccountCredentials;

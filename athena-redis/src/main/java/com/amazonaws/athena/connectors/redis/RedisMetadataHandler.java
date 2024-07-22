@@ -47,7 +47,6 @@ import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.athena.connectors.redis.qpt.RedisQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.collect.ImmutableMap;
 import io.lettuce.core.KeyScanCursor;
 import io.lettuce.core.Range;
@@ -60,6 +59,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.Table;
@@ -154,7 +154,7 @@ public class RedisMetadataHandler
         GlueClient awsGlue,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient secretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         RedisConnectionFactory redisConnectionFactory,
         String spillBucket,
         String spillPrefix,
