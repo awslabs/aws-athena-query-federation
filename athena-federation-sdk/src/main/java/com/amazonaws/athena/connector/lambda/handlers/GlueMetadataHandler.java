@@ -263,7 +263,6 @@ public abstract class GlueMetadataHandler
         GetDatabasesRequest getDatabasesRequest = GetDatabasesRequest.builder()
                 .catalogId(getCatalog(request))
                 .build();
-
         GetDatabasesIterable responses = awsGlue.getDatabasesPaginator(getDatabasesRequest);
         List<String> schemas = responses.stream()
                 .flatMap(response -> response.databaseList().stream())
