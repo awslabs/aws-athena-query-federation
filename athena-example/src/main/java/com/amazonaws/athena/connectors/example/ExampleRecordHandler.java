@@ -42,6 +42,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
