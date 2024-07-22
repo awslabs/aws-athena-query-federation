@@ -30,12 +30,12 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.oracle.OracleMuxRecordHandler;
 import com.amazonaws.athena.connectors.oracle.OracleRecordHandler;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
@@ -50,7 +50,7 @@ public class OracleMuxJdbcRecordHandlerTest
     private JdbcRecordHandler jdbcRecordHandler;
     private AmazonS3 amazonS3;
     private SecretsManagerClient secretsManager;
-    private AmazonAthena athena;
+    private AthenaClient athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
 
@@ -61,7 +61,7 @@ public class OracleMuxJdbcRecordHandlerTest
         this.recordHandlerMap = Collections.singletonMap("oracle", this.oracleRecordHandler);
         this.amazonS3 = Mockito.mock(AmazonS3.class);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "oracle",

@@ -32,7 +32,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -43,6 +42,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Database;
@@ -191,7 +191,7 @@ public abstract class GlueMetadataHandler
         GlueClient awsGlue,
         EncryptionKeyFactory encryptionKeyFactory,
         SecretsManagerClient secretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         String sourceType,
         String spillBucket,
         String spillPrefix,
@@ -263,13 +263,17 @@ public abstract class GlueMetadataHandler
         GetDatabasesRequest getDatabasesRequest = GetDatabasesRequest.builder()
                 .catalogId(getCatalog(request))
                 .build();
+
+        List<String> schemas = new ArrayList<>();
         GetDatabasesIterable responses = awsGlue.getDatabasesPaginator(getDatabasesRequest);
-        List<String> schemas = responses.stream()
-                .flatMap(response -> response.databaseList().stream())
-                .filter(database -> filter == null || filter.filter(database))
-                .map(Database::name)
-                .collect(Collectors.toList());
-        
+
+        responses.stream().forEach(response -> response.databaseList()
+                .forEach(database -> {
+                    if (filter == null || filter.filter(database)) {
+                        schemas.add(database.name());
+                    }
+                }));
+
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
 
@@ -317,11 +321,12 @@ public abstract class GlueMetadataHandler
                 pageSize -= maxResults;
             }
             GetTablesResponse response = awsGlue.getTables(getTablesRequest.build());
-            tables.addAll(response.tableList()
-                    .stream()
-                    .filter(table -> filter == null || filter.filter(table))
-                    .map(table -> new TableName(request.getSchemaName(), table.name()))
-                    .collect(Collectors.toSet()));
+
+            for (Table next : response.tableList()) {
+                if (filter == null || filter.filter(next)) {
+                    tables.add(new TableName(request.getSchemaName(), next.name()));
+                }
+            }
 
             nextToken = response.nextToken();
         }

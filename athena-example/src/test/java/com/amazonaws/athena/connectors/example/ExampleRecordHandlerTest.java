@@ -33,7 +33,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -48,6 +47,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
@@ -74,7 +74,7 @@ public class ExampleRecordHandlerTest
     private Schema schemaForRead;
     private AmazonS3 amazonS3;
     private SecretsManagerClient awsSecretsManager;
-    private AmazonAthena athena;
+    private AthenaClient athena;
     private S3BlockSpillReader spillReader;
 
     @Rule
@@ -107,7 +107,7 @@ public class ExampleRecordHandlerTest
 
         amazonS3 = mock(AmazonS3.class);
         awsSecretsManager = mock(SecretsManagerClient.class);
-        athena = mock(AmazonAthena.class);
+        athena = mock(AthenaClient.class);
 
         when(amazonS3.doesObjectExist(nullable(String.class), nullable(String.class))).thenReturn(true);
         when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
