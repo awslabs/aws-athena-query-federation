@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.timestream.integ;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.athena.connectors.timestream.TimestreamClientBuilder;
-import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite;
 import com.amazonaws.services.timestreamwrite.model.CreateTableRequest;
 import com.amazonaws.services.timestreamwrite.model.DeleteTableRequest;
@@ -38,6 +37,7 @@ import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.timestream.CfnDatabase;
+import software.amazon.awssdk.services.athena.model.Row;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -295,13 +295,13 @@ public class TimestreamIntegTest extends IntegrationTestBase
 
         String query = String.format("select conversation from \"%s\".\"%s\".\"%s\" where subject = '%s' order by time desc limit 1;",
                 lambdaFunctionName, timestreamDbName, timestreamTableName, jokeProtagonist);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> conversation = new ArrayList<>();
-        rows.forEach(row -> conversation.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> conversation.add(row.data().get(0).varCharValue()));
         logger.info("conversation: {}", conversation);
         assertEquals("Wrong number of DB records found.", 1, conversation.size());
         assertTrue("Did not find correct conversation: " + jokePunchline, conversation.contains(jokePunchline));

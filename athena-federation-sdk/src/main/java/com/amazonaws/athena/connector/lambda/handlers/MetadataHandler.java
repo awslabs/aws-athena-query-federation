@@ -58,9 +58,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.KmsKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -70,6 +67,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
@@ -118,7 +117,7 @@ public abstract class MetadataHandler
     protected static final String KMS_KEY_ID_ENV = "kms_key_id";
     protected static final String DISABLE_SPILL_ENCRYPTION = "disable_spill_encryption";
     private final CachableSecretsManager secretsManager;
-    private final AmazonAthena athena;
+    private final AthenaClient athena;
     private final ThrottlingInvoker athenaInvoker;
     private final EncryptionKeyFactory encryptionKeyFactory;
     private final String spillBucket;
@@ -145,13 +144,13 @@ public abstract class MetadataHandler
         }
         else {
             this.encryptionKeyFactory = (this.configOptions.get(KMS_KEY_ID_ENV) != null) ?
-                    new KmsKeyFactory(AWSKMSClientBuilder.standard().build(), this.configOptions.get(KMS_KEY_ID_ENV)) :
+                    new KmsKeyFactory(KmsClient.create(), this.configOptions.get(KMS_KEY_ID_ENV)) :
                     new LocalKeyFactory();
             logger.debug("ENABLE_SPILL_ENCRYPTION with encryption factory: " + encryptionKeyFactory.getClass().getSimpleName());
         }
 
         this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
-        this.athena = AmazonAthenaClientBuilder.defaultClient();
+        this.athena = AthenaClient.create();
         this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
@@ -162,7 +161,7 @@ public abstract class MetadataHandler
     public MetadataHandler(
         EncryptionKeyFactory encryptionKeyFactory,
         SecretsManagerClient secretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         String sourceType,
         String spillBucket,
         String spillPrefix,

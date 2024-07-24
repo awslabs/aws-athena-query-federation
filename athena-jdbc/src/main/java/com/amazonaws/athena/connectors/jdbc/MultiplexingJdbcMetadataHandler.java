@@ -39,9 +39,9 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
@@ -65,7 +65,7 @@ public class MultiplexingJdbcMetadataHandler
      */
     protected MultiplexingJdbcMetadataHandler(
         SecretsManagerClient secretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
         Map<String, JdbcMetadataHandler> metadataHandlerMap,
         DatabaseConnectionConfig databaseConnectionConfig,

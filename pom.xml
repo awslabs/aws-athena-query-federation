@@ -24,12 +24,12 @@
         <slf4j-log4j.version>2.0.13</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.8.5</jqwik.version>
-        <assertj.version>3.26.0</assertj.version>
+        <jqwik.version>1.9.0</jqwik.version>
+        <assertj.version>3.26.3</assertj.version>
         <testng.version>7.10.2</testng.version>
          <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.17.1</fasterxml.jackson.version>
-        <surefire.failsafe.version>3.3.0</surefire.failsafe.version>
+        <fasterxml.jackson.version>2.17.2</fasterxml.jackson.version>
+        <surefire.failsafe.version>3.3.1</surefire.failsafe.version>
         <log4j2Version>2.23.1</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
         <guava.version>33.2.1-jre</guava.version>
@@ -37,7 +37,7 @@
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
-        <mssql.jdbc.version>12.7.0.jre11-preview</mssql.jdbc.version>
+        <mssql.jdbc.version>12.7.1.jre11-preview</mssql.jdbc.version>
         <commons.cli.version>1.8.0</commons.cli.version>
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
@@ -54,7 +54,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.10.2</version>
+                <version>5.10.3</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
