@@ -71,7 +71,6 @@ import com.amazonaws.athena.connector.lambda.serde.v4.OptimizationSubTypeSerDeV4
 import com.amazonaws.athena.connector.lambda.serde.v4.OrderByFieldSerDeV4;
 import com.amazonaws.athena.connector.lambda.serde.v4.SchemaSerDeV4;
 import com.amazonaws.athena.connector.lambda.serde.v4.VariableExpressionSerDeV4;
-import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -96,11 +95,12 @@ import com.fasterxml.jackson.databind.ser.Serializers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.lambda.model.LambdaException;
 
 public class ObjectMapperFactoryV5
 {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
-    private static final String LAMDA_EXCEPTION_CLASS_NAME = LambdaFunctionException.class.getName();
+    private static final String LAMDA_EXCEPTION_CLASS_NAME = LambdaException.class.getName();
 
     private static final SerializerFactory SERIALIZER_FACTORY;
 
@@ -196,7 +196,7 @@ public class ObjectMapperFactoryV5
             ImmutableMap<Class<?>, JsonDeserializer<?>> desers = ImmutableMap.of(
                     FederationRequest.class, createRequestDeserializer(allocator),
                     FederationResponse.class, createResponseDeserializer(allocator),
-                    LambdaFunctionException.class, new LambdaFunctionExceptionSerDe.Deserializer());
+                    LambdaException.class, new LambdaFunctionExceptionSerDe.Deserializer());
             SimpleDeserializers deserializers = new SimpleDeserializers(desers);
             DeserializerFactoryConfig dConfig = new DeserializerFactoryConfig().withAdditionalDeserializers(deserializers);
             _deserializationContext = new DefaultDeserializationContext.Impl(new StrictDeserializerFactory(dConfig));

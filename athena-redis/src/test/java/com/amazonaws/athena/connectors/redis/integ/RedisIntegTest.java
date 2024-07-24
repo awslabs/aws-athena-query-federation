@@ -35,10 +35,6 @@ import com.amazonaws.services.elasticache.model.DescribeCacheClustersResult;
 import com.amazonaws.services.elasticache.model.DescribeReplicationGroupsRequest;
 import com.amazonaws.services.elasticache.model.DescribeReplicationGroupsResult;
 import com.amazonaws.services.elasticache.model.Endpoint;
-import com.amazonaws.services.lambda.AWSLambda;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.model.InvocationType;
-import com.amazonaws.services.lambda.model.InvokeRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -64,6 +60,9 @@ import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 import software.amazon.awssdk.services.glue.model.TableInput;
 import software.amazon.awssdk.services.glue.model.UpdateTableRequest;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -191,20 +190,21 @@ public class RedisIntegTest extends IntegrationTestBase
         logger.info("----------------------------------------------------");
 
         String redisLambdaName = "integ-redis-helper-" + UUID.randomUUID();
-        AWSLambda lambdaClient = AWSLambdaClientBuilder.defaultClient();
+        LambdaClient lambdaClient = LambdaClient.create();
         CloudFormationClient cloudFormationRedisClient = new CloudFormationClient(getRedisLambdaStack(redisLambdaName));
         try {
             // Create the Lambda function.
             cloudFormationRedisClient.createStack();
             // Invoke the Lambda function.
-            lambdaClient.invoke(new InvokeRequest()
-                    .withFunctionName(redisLambdaName)
-                    .withInvocationType(InvocationType.RequestResponse));
+            lambdaClient.invoke(InvokeRequest.builder()
+                    .functionName(redisLambdaName)
+                    .invocationType(InvocationType.REQUEST_RESPONSE)
+                    .build());
         }
         finally {
             // Delete the Lambda function.
             cloudFormationRedisClient.deleteStack();
-            lambdaClient.shutdown();
+            lambdaClient.close();
         }
     }
 

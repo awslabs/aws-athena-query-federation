@@ -32,10 +32,6 @@ import com.amazonaws.services.docdb.AmazonDocDBClientBuilder;
 import com.amazonaws.services.docdb.model.DBCluster;
 import com.amazonaws.services.docdb.model.DescribeDBClustersRequest;
 import com.amazonaws.services.docdb.model.DescribeDBClustersResult;
-import com.amazonaws.services.lambda.AWSLambda;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.model.InvocationType;
-import com.amazonaws.services.lambda.model.InvokeRequest;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +53,9 @@ import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ec2.VpcAttributes;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -263,20 +262,21 @@ public class DocDbIntegTest extends IntegrationTestBase {
         logger.info("----------------------------------------------------");
 
         String mongoLambdaName = "integ-mongodb-" + UUID.randomUUID();
-        AWSLambda lambdaClient = AWSLambdaClientBuilder.defaultClient();
+        LambdaClient lambdaClient = LambdaClient.create();
         CloudFormationClient cloudFormationMongoClient = new CloudFormationClient(getMongoLambdaStack(mongoLambdaName));
         try {
             // Create the Lambda function.
             cloudFormationMongoClient.createStack();
             // Invoke the Lambda function.
-            lambdaClient.invoke(new InvokeRequest()
-                    .withFunctionName(mongoLambdaName)
-                    .withInvocationType(InvocationType.RequestResponse));
+            lambdaClient.invoke(InvokeRequest.builder()
+                    .functionName(mongoLambdaName)
+                    .invocationType(InvocationType.REQUEST_RESPONSE)
+                    .build());
         }
         finally {
             // Delete the Lambda function.
             cloudFormationMongoClient.deleteStack();
-            lambdaClient.shutdown();
+            lambdaClient.close();
         }
     }
 

@@ -34,10 +34,6 @@ import com.amazonaws.services.elasticmapreduce.model.DescribeClusterRequest;
 import com.amazonaws.services.elasticmapreduce.model.DescribeClusterResult;
 import com.amazonaws.services.elasticmapreduce.model.ListClustersRequest;
 import com.amazonaws.services.elasticmapreduce.model.ListClustersResult;
-import com.amazonaws.services.lambda.AWSLambda;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.model.InvocationType;
-import com.amazonaws.services.lambda.model.InvokeRequest;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +46,9 @@ import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.emr.CfnCluster;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -279,20 +278,21 @@ public class HbaseIntegTest extends IntegrationTestBase
         logger.info("----------------------------------------------------");
 
         String hbaseLambdaName = "integ-hbase-" + UUID.randomUUID();
-        AWSLambda lambdaClient = AWSLambdaClientBuilder.defaultClient();
+        LambdaClient lambdaClient = LambdaClient.create();
         CloudFormationClient cloudFormationHbaseClient = new CloudFormationClient(getHbaseLambdaStack(hbaseLambdaName));
         try {
             // Create the Lambda function.
             cloudFormationHbaseClient.createStack();
             // Invoke the Lambda function.
-            lambdaClient.invoke(new InvokeRequest()
-                    .withFunctionName(hbaseLambdaName)
-                    .withInvocationType(InvocationType.RequestResponse));
+            lambdaClient.invoke(InvokeRequest.builder()
+                    .functionName(hbaseLambdaName)
+                    .invocationType(InvocationType.REQUEST_RESPONSE)
+                    .build());
         }
         finally {
             // Delete the Lambda function.
             cloudFormationHbaseClient.deleteStack();
-            lambdaClient.shutdown();
+            lambdaClient.close();
         }
 
     }
