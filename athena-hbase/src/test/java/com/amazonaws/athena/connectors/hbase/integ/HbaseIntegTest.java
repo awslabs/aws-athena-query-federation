@@ -46,6 +46,9 @@ import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.emr.CfnCluster;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

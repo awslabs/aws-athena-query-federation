@@ -53,6 +53,9 @@ import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ec2.VpcAttributes;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 
 import java.util.ArrayList;
 import java.util.HashMap;
