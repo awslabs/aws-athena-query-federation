@@ -56,7 +56,6 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -67,6 +66,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
@@ -160,7 +160,7 @@ public class DynamoDBMetadataHandler
     DynamoDBMetadataHandler(
             EncryptionKeyFactory keyFactory,
             SecretsManagerClient secretsManager,
-            AmazonAthena athena,
+            AthenaClient athena,
             String spillBucket,
             String spillPrefix,
             DynamoDbClient ddbClient,

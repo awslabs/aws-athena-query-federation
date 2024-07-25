@@ -40,7 +40,6 @@ import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.athena.connectors.redis.util.MockKeyScanCursor;
 import com.amazonaws.athena.connectors.redis.util.MockScoredValueScanCursor;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import io.lettuce.core.ScanArgs;
@@ -61,7 +60,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -69,7 +68,6 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -129,7 +127,7 @@ public class RedisRecordHandlerTest
     private RedisConnectionFactory mockFactory;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()

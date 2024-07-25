@@ -42,7 +42,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
 import com.amazonaws.services.timestreamquery.model.ColumnInfo;
 import com.amazonaws.services.timestreamquery.model.Datum;
@@ -59,6 +58,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -111,7 +111,7 @@ public class TimestreamMetadataHandler
         GlueClient glue,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient secretsManager,
-        AmazonAthena athena,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         java.util.Map<String, String> configOptions)

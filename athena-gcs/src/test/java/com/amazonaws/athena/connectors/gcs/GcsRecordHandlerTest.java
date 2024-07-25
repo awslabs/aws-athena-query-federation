@@ -34,8 +34,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.google.auth.oauth2.GoogleCredentials;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -48,6 +46,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -74,7 +73,7 @@ public class GcsRecordHandlerTest extends GenericGcsTest
     private SecretsManagerClient secretsManager;
 
     @Mock
-    private AmazonAthena athena;
+    private AthenaClient athena;
 
     @Mock
     GoogleCredentials credentials;
@@ -127,7 +126,7 @@ public class GcsRecordHandlerTest extends GenericGcsTest
         // To mock SecretsManagerClient via SecretsManagerClient
         mockedSecretManagerBuilder.when(SecretsManagerClient::create).thenReturn(secretsManager);
         // To mock AmazonAthena via AmazonAthenaClientBuilder
-        mockedAthenaClientBuilder.when(AmazonAthenaClientBuilder::defaultClient).thenReturn(athena);
+        mockedAthenaClientBuilder.when(AthenaClient::create).thenReturn(athena);
         mockedGoogleCredentials.when(() -> GoogleCredentials.fromStream(any())).thenReturn(credentials);
         Schema schemaForRead = new Schema(GcsTestUtils.getTestSchemaFieldsArrow());
         spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());

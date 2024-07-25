@@ -38,7 +38,6 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.impl.UnionListReader;
@@ -59,6 +58,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
@@ -125,7 +125,7 @@ public class DynamoDBRecordHandlerTest
     private SecretsManagerClient secretsManager;
 
     @Mock
-    private AmazonAthena athena;
+    private AthenaClient athena;
 
     @Rule
     public TestName testName = new TestName();
@@ -136,7 +136,7 @@ public class DynamoDBRecordHandlerTest
         logger.info("{}: enter", testName.getMethodName());
 
         allocator = new BlockAllocatorImpl();
-        handler = new DynamoDBRecordHandler(ddbClient, mock(S3Client.class), mock(SecretsManagerClient.class), mock(AmazonAthena.class), "source_type", com.google.common.collect.ImmutableMap.of());
+        handler = new DynamoDBRecordHandler(ddbClient, mock(S3Client.class), mock(SecretsManagerClient.class), mock(AthenaClient.class), "source_type", com.google.common.collect.ImmutableMap.of());
         metadataHandler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient, com.google.common.collect.ImmutableMap.of());
     }
 

@@ -29,8 +29,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.Dimension;
@@ -46,6 +44,7 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -104,12 +103,12 @@ public class MetricsRecordHandler
     {
         this(S3Client.create(),
                 SecretsManagerClient.create(),
-                AmazonAthenaClientBuilder.defaultClient(),
+                AthenaClient.create(),
                 AmazonCloudWatchClientBuilder.standard().build(), configOptions);
     }
 
     @VisibleForTesting
-    protected MetricsRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, AmazonCloudWatch metrics, java.util.Map<String, String> configOptions)
+    protected MetricsRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, AmazonCloudWatch metrics, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;

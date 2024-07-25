@@ -26,8 +26,6 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.teradata.tpcds.Results;
 import com.teradata.tpcds.Session;
 import com.teradata.tpcds.Table;
@@ -38,6 +36,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -76,11 +75,11 @@ public class TPCDSRecordHandler
 
     public TPCDSRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(S3Client.create(), SecretsManagerClient.create(), AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE, configOptions);
+        super(S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(), SOURCE_TYPE, configOptions);
     }
 
     @VisibleForTesting
-    protected TPCDSRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
+    protected TPCDSRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
     }

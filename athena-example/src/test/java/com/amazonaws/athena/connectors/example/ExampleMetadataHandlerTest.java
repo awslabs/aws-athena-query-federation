@@ -43,7 +43,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -52,6 +51,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
@@ -73,7 +73,7 @@ public class ExampleMetadataHandlerTest
 
     private ExampleMetadataHandler handler = new ExampleMetadataHandler(new LocalKeyFactory(),
             mock(SecretsManagerClient.class),
-            mock(AmazonAthena.class),
+            mock(AthenaClient.class),
             "spill-bucket",
             "spill-prefix",
             com.google.common.collect.ImmutableMap.of());

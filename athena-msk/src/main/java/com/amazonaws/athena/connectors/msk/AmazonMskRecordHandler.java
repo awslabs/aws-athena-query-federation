@@ -27,8 +27,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -37,6 +35,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -55,12 +54,12 @@ public class AmazonMskRecordHandler
         this(
             S3Client.create(),
             SecretsManagerClient.create(),
-            AmazonAthenaClientBuilder.defaultClient(),
+            AthenaClient.create(),
             configOptions);
     }
 
     @VisibleForTesting
-    public AmazonMskRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
+    public AmazonMskRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, AmazonMskConstants.MSK_SOURCE, configOptions);
     }

@@ -31,8 +31,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -51,6 +49,7 @@ import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -91,13 +90,13 @@ public class HbaseRecordHandler
         this(
             S3Client.create(),
             SecretsManagerClient.create(),
-            AmazonAthenaClientBuilder.defaultClient(),
+            AthenaClient.create(),
             new HbaseConnectionFactory(),
             configOptions);
     }
 
     @VisibleForTesting
-    protected HbaseRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, HbaseConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
+    protected HbaseRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, HbaseConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;

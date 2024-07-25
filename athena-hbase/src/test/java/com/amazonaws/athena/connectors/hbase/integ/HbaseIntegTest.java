@@ -26,7 +26,6 @@ import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
-import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
 import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduceClientBuilder;
 import com.amazonaws.services.elasticmapreduce.model.Application;
@@ -35,10 +34,6 @@ import com.amazonaws.services.elasticmapreduce.model.DescribeClusterRequest;
 import com.amazonaws.services.elasticmapreduce.model.DescribeClusterResult;
 import com.amazonaws.services.elasticmapreduce.model.ListClustersRequest;
 import com.amazonaws.services.elasticmapreduce.model.ListClustersResult;
-import com.amazonaws.services.lambda.AWSLambda;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.model.InvocationType;
-import com.amazonaws.services.lambda.model.InvokeRequest;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +45,10 @@ import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.emr.CfnCluster;
 import software.amazon.awscdk.services.iam.PolicyDocument;
+import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -279,20 +278,21 @@ public class HbaseIntegTest extends IntegrationTestBase
         logger.info("----------------------------------------------------");
 
         String hbaseLambdaName = "integ-hbase-" + UUID.randomUUID();
-        AWSLambda lambdaClient = AWSLambdaClientBuilder.defaultClient();
+        LambdaClient lambdaClient = LambdaClient.create();
         CloudFormationClient cloudFormationHbaseClient = new CloudFormationClient(getHbaseLambdaStack(hbaseLambdaName));
         try {
             // Create the Lambda function.
             cloudFormationHbaseClient.createStack();
             // Invoke the Lambda function.
-            lambdaClient.invoke(new InvokeRequest()
-                    .withFunctionName(hbaseLambdaName)
-                    .withInvocationType(InvocationType.RequestResponse));
+            lambdaClient.invoke(InvokeRequest.builder()
+                    .functionName(hbaseLambdaName)
+                    .invocationType(InvocationType.REQUEST_RESPONSE)
+                    .build());
         }
         finally {
             // Delete the Lambda function.
             cloudFormationHbaseClient.deleteStack();
-            lambdaClient.shutdown();
+            lambdaClient.close();
         }
 
     }
@@ -376,13 +376,13 @@ public class HbaseIntegTest extends IntegrationTestBase
         String query = String
                 .format("select \"info:lead_actor\" from %s.%s.%s where \"movie:title\" = 'Aliens';",
                         lambdaFunctionName, hbaseDbName, hbaseTableName);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> actors = new ArrayList<>();
-        rows.forEach(row -> actors.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> actors.add(row.data().get(0).varCharValue()));
         logger.info("Actors: {}", actors);
         assertEquals("Wrong number of DB records found.", 1, actors.size());
         assertTrue("Actor not found: Sigourney Weaver.", actors.contains("Sigourney Weaver"));
@@ -397,13 +397,13 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:int_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Integer> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Integer.parseInt(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        rows.forEach(row -> values.add(Integer.parseInt(row.data().get(0).varCharValue().split("\\.")[0])));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Integer not found: " + TEST_DATATYPES_INT_VALUE, values.contains(TEST_DATATYPES_INT_VALUE));
@@ -418,13 +418,13 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:varchar_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> values = new ArrayList<>();
-        rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> values.add(row.data().get(0).varCharValue()));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Varchar not found: " + TEST_DATATYPES_VARCHAR_VALUE, values.contains(TEST_DATATYPES_VARCHAR_VALUE));
@@ -439,13 +439,13 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:boolean_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Boolean> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Boolean.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Boolean.valueOf(row.data().get(0).varCharValue())));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Boolean not found: " + TEST_DATATYPES_BOOLEAN_VALUE, values.contains(TEST_DATATYPES_BOOLEAN_VALUE));
@@ -460,13 +460,13 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:smallint_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Short> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Short.valueOf(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        rows.forEach(row -> values.add(Short.valueOf(row.data().get(0).varCharValue().split("\\.")[0])));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Smallint not found: " + TEST_DATATYPES_SHORT_VALUE, values.contains(TEST_DATATYPES_SHORT_VALUE));
@@ -481,13 +481,13 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:bigint_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Long> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Long.valueOf(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        rows.forEach(row -> values.add(Long.valueOf(row.data().get(0).varCharValue().split("\\.")[0])));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Bigint not found: " + TEST_DATATYPES_LONG_VALUE, values.contains(TEST_DATATYPES_LONG_VALUE));
     }
@@ -501,13 +501,13 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:float4_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Float> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Float.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Float.valueOf(row.data().get(0).varCharValue())));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Float4 not found: " + TEST_DATATYPES_SINGLE_PRECISION_VALUE, values.contains(TEST_DATATYPES_SINGLE_PRECISION_VALUE));
     }
@@ -521,13 +521,13 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:float8_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Double> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Double.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Double.valueOf(row.data().get(0).varCharValue())));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Float8 not found: " + TEST_DATATYPES_DOUBLE_PRECISION_VALUE, values.contains(TEST_DATATYPES_DOUBLE_PRECISION_VALUE));
     }
@@ -541,13 +541,13 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:date_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<LocalDate> values = new ArrayList<>();
-        rows.forEach(row -> values.add(LocalDate.parse(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(LocalDate.parse(row.data().get(0).varCharValue())));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Date not found: " + TEST_DATATYPES_DATE_VALUE, values.contains(LocalDate.parse(TEST_DATATYPES_DATE_VALUE)));
     }
@@ -561,15 +561,15 @@ public class HbaseIntegTest extends IntegrationTestBase
 
         String query = String.format("select \"datatype:timestamp_type\" from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<LocalDateTime> values = new ArrayList<>();
         // for some reason, timestamps lose their 'T'.
-        rows.forEach(row -> values.add(LocalDateTime.parse(row.getData().get(0).getVarCharValue().replace(' ', 'T'))));
-        logger.info(rows.get(0).getData().get(0).getVarCharValue());
+        rows.forEach(row -> values.add(LocalDateTime.parse(row.data().get(0).varCharValue().replace(' ', 'T'))));
+        logger.info(rows.get(0).data().get(0).varCharValue());
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Date not found: " + TEST_DATATYPES_TIMESTAMP_VALUE, values.contains(LocalDateTime.parse(TEST_DATATYPES_TIMESTAMP_VALUE)));
     }

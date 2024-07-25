@@ -28,8 +28,6 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -49,6 +47,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -77,7 +76,7 @@ public class GcsRecordHandler
     {
         this(S3Client.create(),
                 SecretsManagerClient.create(),
-                AmazonAthenaClientBuilder.defaultClient(), configOptions);
+                AthenaClient.create(), configOptions);
         this.allocator = allocator;
     }
 
@@ -89,7 +88,7 @@ public class GcsRecordHandler
      * @param amazonAthena   An instance of AmazonAthena
      */
     @VisibleForTesting
-    protected GcsRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
+    protected GcsRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient amazonAthena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();

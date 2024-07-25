@@ -25,8 +25,8 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.google.common.annotations.VisibleForTesting;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -55,7 +55,7 @@ public class SaphanaMuxRecordHandler extends MultiplexingJdbcRecordHandler
     }
 
     @VisibleForTesting
-    SaphanaMuxRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+    SaphanaMuxRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
                            DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);

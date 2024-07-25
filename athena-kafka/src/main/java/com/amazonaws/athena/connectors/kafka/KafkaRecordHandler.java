@@ -27,8 +27,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.kafka.dto.KafkaField;
 import com.amazonaws.athena.connectors.kafka.dto.SplitParameters;
 import com.amazonaws.athena.connectors.kafka.dto.TopicResultSet;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
@@ -41,6 +39,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -62,12 +61,12 @@ public class KafkaRecordHandler
         this(
             S3Client.create(),
             SecretsManagerClient.create(),
-            AmazonAthenaClientBuilder.defaultClient(),
+            AthenaClient.create(),
             configOptions);
     }
 
     @VisibleForTesting
-    public KafkaRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
+    public KafkaRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, KafkaConstants.KAFKA_SOURCE, configOptions);
     }
