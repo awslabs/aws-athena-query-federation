@@ -24,6 +24,9 @@ public final class VerticaConstants
     public static final String VERTICA_NAME = "vertica";
     public static final String VERTICA_DRIVER_CLASS = "com.vertica.jdbc.Driver";
     public static final int VERTICA_DEFAULT_PORT = 5433;
+    public static final String VERTICA_SPLIT_QUERY_ID = "query_id";
+    public static final String VERTICA_SPLIT_EXPORT_BUCKET = "exportBucket";
+    public static final String VERTICA_SPLIT_OBJECT_KEY = "s3ObjectKey";
 
     private VerticaConstants() {}
 }

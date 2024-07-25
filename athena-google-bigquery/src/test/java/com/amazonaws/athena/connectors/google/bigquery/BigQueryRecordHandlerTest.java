@@ -35,7 +35,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.s3.AmazonS3;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.ServerStreamingCallable;
 import com.google.cloud.bigquery.BigQuery;
@@ -78,6 +77,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.nio.charset.StandardCharsets;
@@ -120,7 +120,7 @@ public class BigQueryRecordHandlerTest
     @Mock
     private ArrowSchema arrowSchema;
     private BigQueryRecordHandler bigQueryRecordHandler;
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
     private S3BlockSpiller spillWriter;
     private S3BlockSpillReader spillReader;
     private Schema schemaForRead;
@@ -200,7 +200,7 @@ public class BigQueryRecordHandlerTest
         mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         allocator = new BlockAllocatorImpl();
-        amazonS3 = mock(AmazonS3.class);
+        amazonS3 = mock(S3Client.class);
 
         //Create Spill config
         spillConfig = SpillConfig.newBuilder()

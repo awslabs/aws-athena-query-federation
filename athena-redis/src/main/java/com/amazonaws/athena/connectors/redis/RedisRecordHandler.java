@@ -29,8 +29,6 @@ import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.athena.connectors.redis.qpt.RedisQueryPassthrough;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import io.lettuce.core.KeyScanCursor;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
@@ -42,6 +40,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.HashMap;
@@ -86,14 +85,14 @@ public class RedisRecordHandler
     private static final int SCAN_COUNT_SIZE = 100;
 
     private final RedisConnectionFactory redisConnectionFactory;
-    private final AmazonS3 amazonS3;
+    private final S3Client amazonS3;
 
     private final RedisQueryPassthrough queryPassthrough = new RedisQueryPassthrough();
 
     public RedisRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(
-            AmazonS3ClientBuilder.standard().build(),
+            S3Client.create(),
             SecretsManagerClient.create(),
             AthenaClient.create(),
             new RedisConnectionFactory(),
@@ -101,7 +100,7 @@ public class RedisRecordHandler
     }
 
     @VisibleForTesting
-    protected RedisRecordHandler(AmazonS3 amazonS3,
+    protected RedisRecordHandler(S3Client amazonS3,
             SecretsManagerClient secretsManager,
             AthenaClient athena,
             RedisConnectionFactory redisConnectionFactory,

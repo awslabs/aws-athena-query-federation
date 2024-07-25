@@ -20,11 +20,11 @@ package com.amazonaws.athena.connector.lambda.domain.spill;
  * #L%
  */
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -39,14 +39,14 @@ public class SpillLocationVerifier
     private enum BucketState
     {UNCHECKED, VALID, INVALID}
 
-    private final AmazonS3 amazons3;
+    private final S3Client amazons3;
     private String bucket;
     private BucketState state;
 
     /**
      * @param amazons3 The S3 object for the account.
      */
-    public SpillLocationVerifier(AmazonS3 amazons3)
+    public SpillLocationVerifier(S3Client amazons3)
     {
         this.amazons3 = amazons3;
         this.bucket = null;
@@ -85,7 +85,7 @@ public class SpillLocationVerifier
     void updateBucketState()
     {
         try {
-            Set<String> buckets = amazons3.listBuckets().stream().map(b -> b.getName()).collect(Collectors.toSet());
+            Set<String> buckets = amazons3.listBuckets().buckets().stream().map(b -> b.name()).collect(Collectors.toSet());
 
             if (!buckets.contains(bucket)) {
                 state = BucketState.INVALID;
@@ -96,7 +96,7 @@ public class SpillLocationVerifier
 
             logger.info("The state of bucket {} has been updated to {} from {}", bucket, state, BucketState.UNCHECKED);
         }
-        catch (AmazonS3Exception ex) {
+        catch (S3Exception ex) {
             throw new RuntimeException("Error while checking bucket ownership for " + bucket, ex);
         }
     }

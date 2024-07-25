@@ -32,8 +32,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
-import com.amazonaws.athena.connectors.oracle.OracleMetadataHandler;
-import com.amazonaws.athena.connectors.oracle.OracleMuxMetadataHandler;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;

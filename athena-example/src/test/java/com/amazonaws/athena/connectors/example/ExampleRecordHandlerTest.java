@@ -33,9 +33,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -48,6 +45,10 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
@@ -59,6 +60,7 @@ import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -72,7 +74,7 @@ public class ExampleRecordHandlerTest
             System.getenv("publishing").equalsIgnoreCase("true");
     private BlockAllocatorImpl allocator;
     private Schema schemaForRead;
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
     private SecretsManagerClient awsSecretsManager;
     private AthenaClient athena;
     private S3BlockSpillReader spillReader;
@@ -105,23 +107,18 @@ public class ExampleRecordHandlerTest
 
         allocator = new BlockAllocatorImpl();
 
-        amazonS3 = mock(AmazonS3.class);
+        amazonS3 = mock(S3Client.class);
         awsSecretsManager = mock(SecretsManagerClient.class);
         athena = mock(AthenaClient.class);
 
-        when(amazonS3.doesObjectExist(nullable(String.class), nullable(String.class))).thenReturn(true);
-        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
+        when(amazonS3.getObject(any(GetObjectRequest.class)))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override
                     public Object answer(InvocationOnMock invocationOnMock)
                             throws Throwable
                     {
-                        S3Object mockObject = mock(S3Object.class);
-                        when(mockObject.getObjectContent()).thenReturn(
-                                new S3ObjectInputStream(
-                                        new ByteArrayInputStream(getFakeObject()), null));
-                        return mockObject;
+                        return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(getFakeObject()));
                     }
                 });
 

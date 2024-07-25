@@ -38,9 +38,8 @@ import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
 import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduceClientBuilder;
 import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.AmazonRDSClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
+import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -62,12 +61,12 @@ public class TableProviderFactory
             AmazonEC2ClientBuilder.standard().build(),
             AmazonElasticMapReduceClientBuilder.standard().build(),
             AmazonRDSClientBuilder.standard().build(),
-            AmazonS3ClientBuilder.standard().build(),
+            S3Client.create(),
             configOptions);
     }
 
     @VisibleForTesting
-    protected TableProviderFactory(AmazonEC2 ec2, AmazonElasticMapReduce emr, AmazonRDS rds, AmazonS3 amazonS3, java.util.Map<String, String> configOptions)
+    protected TableProviderFactory(AmazonEC2 ec2, AmazonElasticMapReduce emr, AmazonRDS rds, S3Client amazonS3, java.util.Map<String, String> configOptions)
     {
         addProvider(new Ec2TableProvider(ec2));
         addProvider(new EbsTableProvider(ec2));

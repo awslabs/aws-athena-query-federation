@@ -20,14 +20,16 @@ package com.amazonaws.athena.connector.lambda.domain.spill;
  * #L%
  */
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.Bucket;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Spy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Bucket;
+import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,7 +59,7 @@ public class SpillLocationVerifierTest
 
         bucketNames = Arrays.asList("bucket1", "bucket2", "bucket3");
         List<Bucket> buckets = createBuckets(bucketNames);
-        AmazonS3 mockS3 = createMockS3(buckets);
+        S3Client mockS3 = createMockS3(buckets);
         spyVerifier = spy(new SpillLocationVerifier(mockS3));
 
         logger.info("setUpBefore - exit");
@@ -137,19 +139,19 @@ public class SpillLocationVerifierTest
         logger.info("checkBucketAuthZFail - exit");
     }
 
-    private AmazonS3 createMockS3(List<Bucket> buckets)
+    private S3Client createMockS3(List<Bucket> buckets)
     {
-        AmazonS3 s3mock = mock(AmazonS3.class);
-        when(s3mock.listBuckets()).thenReturn(buckets);
+        S3Client s3mock = mock(S3Client.class);
+        ListBucketsResponse response = ListBucketsResponse.builder().buckets(buckets).build();
+        when(s3mock.listBuckets()).thenReturn(response);
         return s3mock;
     }
 
     private List<Bucket> createBuckets(List<String> names)
     {
-        List<Bucket> buckets = new ArrayList();
+        List<Bucket> buckets = new ArrayList<>();
         for (String name : names) {
-            Bucket bucket = mock(Bucket.class);
-            when(bucket.getName()).thenReturn(name);
+            Bucket bucket = Bucket.builder().name(name).build();
             buckets.add(bucket);
         }
 
