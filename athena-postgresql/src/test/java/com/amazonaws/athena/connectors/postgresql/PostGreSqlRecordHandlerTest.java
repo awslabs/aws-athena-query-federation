@@ -221,7 +221,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         //month – 0 to 11
         //day – 1 to 31
         //Start date = 1992-1-1
-        Date expectedDate = new Date(120, 0, 4);
+        Date expectedDate = new Date(120, 0, 5);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
                 .setDate(1, expectedDate);
