@@ -290,7 +290,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 if (e.getMessage().contains("VIEW DATABASE STATE permission denied")) {
                     LOGGER.error("Permission denied to view database state for {}", e.getMessage());
                     handleSinglePartition(blockWriter);
-                } else {
+                }
+                else {
                     throw e;
                 }
             }
