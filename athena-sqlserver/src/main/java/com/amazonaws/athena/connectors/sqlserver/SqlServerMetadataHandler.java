@@ -288,7 +288,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             catch (SQLServerException e) {
                 // for permission denied sqlServer exception retuning single partition
                 if (e.getMessage().contains("VIEW DATABASE STATE permission denied")) {
-                    LOGGER.error("Permission denied to view database state for {}", e.getMessage());
+                    LOGGER.warn("Permission denied to view database state for {}", e.getMessage());
                     handleSinglePartition(blockWriter);
                 }
                 else {
