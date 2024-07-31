@@ -127,7 +127,7 @@ public class BigQueryRecordHandler
                                      List<QueryParameterValue> parameterValues,
                                      BigQuery bigQueryClient) throws Exception
     {
-        String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID);
+        String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase();
         String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
         String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(), bigQueryClient);
 
@@ -263,7 +263,13 @@ public class BigQueryRecordHandler
                 // data available.  If no sessions are available for an anonymous (cached) table, consider
                 // writing results of a query to a named table rather than consuming cached results
                 // directly.
-                Preconditions.checkState(session.getStreamsCount() > 0);
+                try {
+                    Preconditions.checkState(session.getStreamsCount() > 0);
+                }
+                catch (IllegalStateException exp) {
+                    logger.warn("No records found in the table: " + tableName);
+                    return;
+                }
 
                 // Use the first stream to perform reading.
                 String streamName = session.getStreams(0).getName();
