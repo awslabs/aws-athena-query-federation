@@ -70,7 +70,6 @@ Resources:
                 - rds:Describe*
                 - rds:ListTagsForResource
                 - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
                 - s3:ListBucket
                 - athena:GetQueryExecution
               Effect: Allow

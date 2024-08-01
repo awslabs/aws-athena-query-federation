@@ -115,7 +115,6 @@ Resources:
              - glue:GetPartition
              - glue:GetDatabase
              - athena:GetQueryExecution
-             - s3:ListAllMyBuckets
             Effect: Allow
             Resource: '*'
           - Action:
