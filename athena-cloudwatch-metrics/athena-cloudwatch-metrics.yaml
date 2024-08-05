@@ -66,7 +66,6 @@ Resources:
                 - cloudwatch:Get*
                 - cloudwatch:List*
                 - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
               Effect: Allow
               Resource: '*'
           Version: '2012-10-17'
