@@ -59,6 +59,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.microsoft.sqlserver.jdbc.SQLServerException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -227,12 +228,12 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         List<String> params = Arrays.asList(getTableLayoutRequest.getTableName().getTableName(), getTableLayoutRequest.getTableName().getSchemaName());
 
         //check whether the input table is a view or not
-        String viewFlag = "N";
+        boolean viewFlag = false;
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(params).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
-                viewFlag = "VIEW".equalsIgnoreCase(resultSet.getString("TYPE_DESC")) ? "Y" : "N";
+                viewFlag = "VIEW".equalsIgnoreCase(resultSet.getString("TYPE_DESC"));
             }
             LOGGER.info("viewFlag: {}", viewFlag);
         }
@@ -252,14 +253,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 }
 
                 // create a single split for view/non-partition table
-                if ("Y".equals(viewFlag) || rowCount == 0) {
-                    LOGGER.debug("Getting as single Partition: ");
-                    blockWriter.writeRows((Block block, int rowNum) ->
-                    {
-                        block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
-                        //we wrote 1 row so we return 1
-                        return 1;
-                    });
+                if (viewFlag || rowCount == 0) {
+                    handleSinglePartition(blockWriter);
                 }
                 else {
                     LOGGER.debug("Getting data with diff Partitions: ");
@@ -290,7 +285,26 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                     }
                 }
             }
+            catch (SQLServerException e) {
+                // for permission denied sqlServer exception retuning single partition
+                if (e.getMessage().contains("VIEW DATABASE STATE permission denied")) {
+                    LOGGER.warn("Permission denied to view database state for {}", e.getMessage());
+                    handleSinglePartition(blockWriter);
+                }
+                else {
+                    throw e;
+                }
+            }
         }
+    }
+
+    private static void handleSinglePartition(BlockWriter blockWriter)
+    {
+        LOGGER.debug("Getting as single Partition: ");
+        blockWriter.writeRows((Block block, int rowNum) -> {
+            block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
+            return 1;
+        });
     }
 
     /**
