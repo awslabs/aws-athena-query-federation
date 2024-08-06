@@ -25,7 +25,6 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.neptune.auth.NeptuneSigV4SignerException;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
-import org.eclipse.rdf4j.model.URI;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
 import org.eclipse.rdf4j.query.BindingSet;
@@ -79,7 +78,7 @@ public class NeptuneSparqlConnection extends NeptuneConnection
             this.neptuneSparqlRepo = new NeptuneSparqlRepository(this.connectionString);
         }
         logger.info("Initializing");
-        this.neptuneSparqlRepo.initialize();
+        this.neptuneSparqlRepo.init();
         logger.info("Getting connection");
         this.connection = this.neptuneSparqlRepo.getConnection();
         logger.info("Connection obtained");
@@ -106,11 +105,7 @@ public class NeptuneSparqlConnection extends NeptuneConnection
             Value val = bindingSet.getValue(varName);
             String sval = val.stringValue();
             Object oval = sval;
-            if (this.trimURI && val instanceof URI) {
-                oval = ((URI) val).getLocalName();
-                logger.debug("URI " + varName + "=" + oval);
-            } 
-            else if (this.trimURI && val instanceof IRI) {
+            if (this.trimURI && val instanceof IRI) {
                 oval = ((IRI) val).getLocalName();
                 logger.debug("IRI " + varName + "=" + oval);
             } 
