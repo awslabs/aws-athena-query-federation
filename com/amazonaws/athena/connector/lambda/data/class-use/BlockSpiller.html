@@ -187,34 +187,38 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.msk.consumer">com.amazonaws.athena.connectors.msk.consumer</a></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.neptune">com.amazonaws.athena.connectors.neptune</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.neptune.propertygraph">com.amazonaws.athena.connectors.neptune.propertygraph</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.neptune.rdf">com.amazonaws.athena.connectors.neptune.rdf</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.redis">com.amazonaws.athena.connectors.redis</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.synapse">com.amazonaws.athena.connectors.synapse</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.timestream">com.amazonaws.athena.connectors.timestream</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.tpcds">com.amazonaws.athena.connectors.tpcds</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -827,6 +831,78 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">
 <div class="block">generates the sql to executes on basis of where condition and executes it.</div>
 </td>
+</tr>
+</tbody>
+</table>
+</section>
+</li>
+<li class="blockList">
+<section><a id="com.amazonaws.athena.connectors.msk.consumer">
+<!--   -->
+</a>
+<h3>Uses of <a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a> in <a href="../../../../connectors/msk/consumer/package-summary.html">com.amazonaws.athena.connectors.msk.consumer</a></h3>
+<table class="useSummary">
+<caption><span>Methods in <a href="../../../../connectors/msk/consumer/package-summary.html">com.amazonaws.athena.connectors.msk.consumer</a> with parameters of type <a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Method</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BaseMskConsumer.</span><code><span class="memberNameLink"><a href="../../../../connectors/msk/consumer/BaseMskConsumer.html#consume(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker,com.amazonaws.athena.connectors.msk.dto.SplitParameters,org.apache.kafka.clients.consumer.Consumer)">consume</a></span>&#8203;(<a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
+       <a href="../../records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;recordsRequest,
+       <a href="../../QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker,
+       <a href="../../../../connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a>&nbsp;splitParameters,
+       org.apache.kafka.clients.consumer.Consumer&lt;?,&#8203;?&gt;&nbsp;consumer)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">MskConsumer.</span><code><span class="memberNameLink"><a href="../../../../connectors/msk/consumer/MskConsumer.html#consume(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker,com.amazonaws.athena.connectors.msk.dto.SplitParameters,org.apache.kafka.clients.consumer.Consumer)">consume</a></span>&#8203;(<a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
+       <a href="../../records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;recordsRequest,
+       <a href="../../QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker,
+       <a href="../../../../connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a>&nbsp;splitParameters,
+       org.apache.kafka.clients.consumer.Consumer&lt;?,&#8203;?&gt;&nbsp;kafkaConsumer)</code></th>
+<td class="colLast">
+<div class="block">Consume topic data as batch.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected abstract void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BaseMskConsumer.</span><code><span class="memberNameLink"><a href="../../../../connectors/msk/consumer/BaseMskConsumer.html#processRecord(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connectors.msk.dto.SplitParameters,org.apache.kafka.clients.consumer.ConsumerRecord)">processRecord</a></span>&#8203;(<a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
+             <a href="../../../../connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a>&nbsp;splitParameters,
+             org.apache.kafka.clients.consumer.ConsumerRecord&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="../../../../connectors/msk/consumer/BaseMskConsumer.html" title="type parameter in BaseMskConsumer">T</a>&gt;&nbsp;record)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">MskAvroConsumer.</span><code><span class="memberNameLink"><a href="../../../../connectors/msk/consumer/MskAvroConsumer.html#processRecord(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connectors.msk.dto.SplitParameters,org.apache.kafka.clients.consumer.ConsumerRecord)">processRecord</a></span>&#8203;(<a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
+             <a href="../../../../connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a>&nbsp;splitParameters,
+             org.apache.kafka.clients.consumer.ConsumerRecord&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;org.apache.avro.generic.GenericRecord&gt;&nbsp;record)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">MskDefaultConsumer.</span><code><span class="memberNameLink"><a href="../../../../connectors/msk/consumer/MskDefaultConsumer.html#processRecord(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connectors.msk.dto.SplitParameters,org.apache.kafka.clients.consumer.ConsumerRecord)">processRecord</a></span>&#8203;(<a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
+             <a href="../../../../connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a>&nbsp;splitParameters,
+             org.apache.kafka.clients.consumer.ConsumerRecord&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="../../../../connectors/msk/dto/TopicResultSet.html" title="class in com.amazonaws.athena.connectors.msk.dto">TopicResultSet</a>&gt;&nbsp;record)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">MskProtobufConsumer.</span><code><span class="memberNameLink"><a href="../../../../connectors/msk/consumer/MskProtobufConsumer.html#processRecord(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connectors.msk.dto.SplitParameters,org.apache.kafka.clients.consumer.ConsumerRecord)">processRecord</a></span>&#8203;(<a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
+             <a href="../../../../connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a>&nbsp;splitParameters,
+             org.apache.kafka.clients.consumer.ConsumerRecord&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;com.google.protobuf.DynamicMessage&gt;&nbsp;record)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">MskRecordProcessor.</span><code><span class="memberNameLink"><a href="../../../../connectors/msk/consumer/MskRecordProcessor.html#processRecord(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connectors.msk.dto.SplitParameters,org.apache.kafka.clients.consumer.ConsumerRecord)">processRecord</a></span>&#8203;(<a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
+             <a href="../../../../connectors/msk/dto/SplitParameters.html" title="class in com.amazonaws.athena.connectors.msk.dto">SplitParameters</a>&nbsp;splitParameters,
+             org.apache.kafka.clients.consumer.ConsumerRecord&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="../../../../connectors/msk/consumer/MskRecordProcessor.html" title="type parameter in MskRecordProcessor">T</a>&gt;&nbsp;record)</code></th>
+<td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
 </table>
