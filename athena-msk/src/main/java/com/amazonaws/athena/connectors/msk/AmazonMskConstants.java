@@ -64,6 +64,9 @@ public class AmazonMskConstants
 
     public static final int MAX_RECORDS_IN_SPLIT = 10_000;
 
+    public static final String AVRO_DATA_FORMAT = "avro";
+    public static final String PROTOBUF_DATA_FORMAT = "protobuf";
+
     private AmazonMskConstants()
     {
     }
