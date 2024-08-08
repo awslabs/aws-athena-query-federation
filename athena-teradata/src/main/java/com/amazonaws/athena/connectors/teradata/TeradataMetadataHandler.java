@@ -244,7 +244,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
     {
         final String getPartitionsCountQuery = "Select  count(distinct partition ) as partition_count FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
                 getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
-        String partitioncount = configOptions.get("partitioncount");
+        String partitioncount = configOptions.containsKey("partition_count") ? configOptions.get("partition_count") : configOptions.getOrDefault("partitioncount", "500");
         int totalPartitionCount = Integer.parseInt(partitioncount);
         int  partitionCount = 0;
         boolean nonPartitionApproach = false;
