@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connector.lambda.metadata.optimizations;
 
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.dynamicFiltering.DisableDynamicFiltering;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.HintsSubtype;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.PushdownSubTypes;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
@@ -79,7 +79,7 @@ public enum DataSourceOptimizations
         public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof HintsSubtype)) {
-                throw new IllegalArgumentException("Dynamic Filtering Optimization must contain valid dynamic filtering subtypes.");
+                throw new IllegalArgumentException("Data Source Hunts  must contain valid data source hint subtypes.");
             }
             return new SimpleImmutableEntry<>(DATA_SOURCE_HINTS.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }

@@ -17,9 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations.dynamicFiltering;
-
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.PushdownSubTypes;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
 public enum HintsSubtype
     implements PushdownSubTypes
@@ -34,7 +32,7 @@ public enum HintsSubtype
         return subType;
     }
 
-    DisableDynamicFiltering(String subType)
+    HintsSubtype(String subType)
     {
         this.subType = subType;
     }
