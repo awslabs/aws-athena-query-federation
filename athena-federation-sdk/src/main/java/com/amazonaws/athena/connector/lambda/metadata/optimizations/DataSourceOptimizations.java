@@ -74,7 +74,7 @@ public enum DataSourceOptimizations
             return new SimpleImmutableEntry<String, List<OptimizationSubType>>(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
     },
-    DATA_SOURCE_HINTS("supports_data_source_hints")
+    DATA_SOURCE_HINTS("data_source_hints")
     {
         public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
