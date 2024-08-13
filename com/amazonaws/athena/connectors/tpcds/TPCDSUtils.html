@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":9,"i1":9,"i2":9};
+var data = {"i0":9,"i1":9,"i2":9,"i3":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -172,6 +172,15 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>static com.teradata.tpcds.Table</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateQptTable(java.util.Map)">validateQptTable</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;query)</code></th>
+<td class="colLast">
+<div class="block">Required that the requested Table be present in the TPCDS generated schema
+ And For Query Passthrough; only support ONE table per select statement;
+ And should only be used for testing.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>static com.teradata.tpcds.Table</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTable(com.amazonaws.athena.connector.lambda.domain.TableName)">validateTable</a></span>&#8203;(<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</code></th>
 <td class="colLast">
 <div class="block">Required that the requested Table be present in the TPCDS generated schema.</div>
@@ -236,7 +245,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <a id="validateTable(com.amazonaws.athena.connector.lambda.domain.TableName)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>validateTable</h4>
 <pre class="methodSignature">public static&nbsp;com.teradata.tpcds.Table&nbsp;validateTable&#8203;(<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</pre>
@@ -244,6 +253,24 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>tableName</code> - The fully qualified name of the requested table.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>The TPCDS table, if present, otherwise the method throws.</dd>
+</dl>
+</li>
+</ul>
+<a id="validateQptTable(java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>validateQptTable</h4>
+<pre class="methodSignature">public static&nbsp;com.teradata.tpcds.Table&nbsp;validateQptTable&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;query)</pre>
+<div class="block">Required that the requested Table be present in the TPCDS generated schema
+ And For Query Passthrough; only support ONE table per select statement;
+ And should only be used for testing.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>query</code> - Query Passthrough</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>The TPCDS table, if present, otherwise the method throws.</dd>
 </dl>
