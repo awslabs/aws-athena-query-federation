@@ -75,6 +75,7 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NA
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
@@ -337,6 +338,7 @@ public class MetricsMetadataHandlerTest
         for (Split nextSplit : response.getSplits()) {
             assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
         }
+        assertNull(continuationToken);
 
         logger.info("doGetMetricSamplesSplits: exit");
     }
