@@ -277,7 +277,9 @@ public class MetricsMetadataHandlerTest
             List<Metric> metrics = new ArrayList<>();
 
             for (int i = 0; i < numMetrics; i++) {
-                metrics.add(new Metric().withNamespace(namespaceFilter).withMetricName("metric-" + i));
+                //first page does not match constraints, but second page should
+                String mockNamespace = (request.getNextToken() == null) ? "NotMyNameSpace" : namespaceFilter;
+                metrics.add(new Metric().withNamespace(mockNamespace).withMetricName("metric-" + i));
             }
 
             return new ListMetricsResult().withNextToken(nextToken).withMetrics(metrics);
@@ -308,30 +310,33 @@ public class MetricsMetadataHandlerTest
                 new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
 
-        int numContinuations = 0;
-        do {
-            GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
-            logger.info("doGetMetricSamplesSplits: req[{}]", req);
+        GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+        logger.info("doGetMetricSamplesSplits: req[{}]", req);
 
-            MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-            assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
-            GetSplitsResponse response = (GetSplitsResponse) rawResponse;
-            continuationToken = response.getContinuationToken();
+        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        continuationToken = response.getContinuationToken();
 
-            logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
-            assertEquals(3, response.getSplits().size());
-            for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
-            }
+        //first page does not match constraints
+        logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+        assertEquals(0, response.getSplits().size());
 
-            if (continuationToken != null) {
-                numContinuations++;
-            }
+        req = new GetSplitsRequest(originalReq, continuationToken);
+
+        rawResponse = handler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+
+        response = (GetSplitsResponse) rawResponse;
+        continuationToken = response.getContinuationToken();
+
+        //but second page should
+        logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+        assertEquals(3, response.getSplits().size());
+        for (Split nextSplit : response.getSplits()) {
+            assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
         }
-        while (continuationToken != null);
-
-        assertEquals(1, numContinuations);
 
         logger.info("doGetMetricSamplesSplits: exit");
     }
