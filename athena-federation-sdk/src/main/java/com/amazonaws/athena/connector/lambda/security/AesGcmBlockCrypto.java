@@ -124,9 +124,6 @@ public class AesGcmBlockCrypto
             throw new RuntimeException("Invalid key");
         }
 
-        logger.error("Expected " + NONCE_BYTES + " nonce bytes but found " + key.getNonce().length);
-        logger.error("Expected " + KEY_BYTES + " key bytes but found " + key.getKey().length);
-
         GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, key.getNonce());
         SecretKeySpec secretKeySpec = new SecretKeySpec(key.getKey(), KEYSPEC);
 
