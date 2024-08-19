@@ -61,7 +61,7 @@
             <dependency>
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-sts</artifactId>
-                <version>1.12.660</version>
+                <version>1.12.769</version>
             </dependency>
             <dependency>
                 <groupId>software.amazon.msk</groupId>
