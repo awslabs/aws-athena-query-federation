@@ -189,7 +189,6 @@ public class ConnectorStack extends Stack
         statementActionsPolicy.add("glue:GetPartition");
         statementActionsPolicy.add("glue:GetDatabase");
         statementActionsPolicy.add("athena:GetQueryExecution");
-        statementActionsPolicy.add("s3:ListAllMyBuckets");
 
         return PolicyDocument.Builder.create()
                 .statements(ImmutableList.of(PolicyStatement.Builder.create()

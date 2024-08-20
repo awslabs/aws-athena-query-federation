@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -50,7 +49,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_NUMBER_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
@@ -100,7 +98,14 @@ public class TPCDSRecordHandler
         int splitNumber = Integer.parseInt(split.getProperty(SPLIT_NUMBER_FIELD));
         int totalNumSplits = Integer.parseInt(split.getProperty(SPLIT_TOTAL_NUMBER_FIELD));
         int scaleFactor = Integer.parseInt(split.getProperty(SPLIT_SCALE_FACTOR_FIELD));
-        Table table = validateTable(recordsRequest.getTableName());
+
+        Table table;
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            table = TPCDSUtils.validateQptTable(recordsRequest.getConstraints().getQueryPassthroughArguments());
+        }
+        else {
+            table = TPCDSUtils.validateTable(recordsRequest.getTableName());
+        }
 
         Session session = Session.getDefaultSession()
                 .withScale(scaleFactor)
@@ -123,25 +128,6 @@ public class TPCDSRecordHandler
                 return matched ? 1 : 0;
             });
         }
-    }
-
-    /**
-     * Required that the requested Table be present in the TPCDS generated schema.
-     *
-     * @param tableName The fully qualified name of the requested table.
-     * @return The TPCDS table, if present, otherwise the method throws.
-     */
-    private Table validateTable(TableName tableName)
-    {
-        Optional<Table> table = Table.getBaseTables().stream()
-                .filter(next -> next.getName().equals(tableName.getTableName()))
-                .findFirst();
-
-        if (!table.isPresent()) {
-            throw new RuntimeException("Unknown table " + tableName);
-        }
-
-        return table.get();
     }
 
     /**
