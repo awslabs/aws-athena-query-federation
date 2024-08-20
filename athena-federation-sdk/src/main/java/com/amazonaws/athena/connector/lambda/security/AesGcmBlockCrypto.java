@@ -54,7 +54,7 @@ public class AesGcmBlockCrypto
     private static final Logger logger = LoggerFactory.getLogger(AesGcmBlockCrypto.class);
     protected static final int GCM_TAG_LENGTH_BITS = 16 * 8;
     protected static final int NONCE_BYTES = 12;
-    protected static final int KEY_BYTES = 16;
+    protected static final int KEY_BYTES = 32;
     protected static final String KEYSPEC = "AES";
     protected static final String ALGO = "AES/GCM/NoPadding";
     protected static final String ALGO_BC = "BC";
