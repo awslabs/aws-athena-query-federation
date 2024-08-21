@@ -19,11 +19,11 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
-import com.amazonaws.services.cloudwatch.model.MetricStat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 
 import java.io.IOException;
 import java.util.List;

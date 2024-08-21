@@ -19,12 +19,12 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
-import com.amazonaws.services.cloudwatch.model.Dimension;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.cloudwatch.model.MetricStat;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.cloudwatch.model.Dimension;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,17 +48,19 @@ public class MetricStatSerDeTest
         String namespace = "namespace";
 
         List<Dimension> dimensions = new ArrayList<>();
-        dimensions.add(new Dimension().withName("dim_name1").withValue("dim_value1"));
-        dimensions.add(new Dimension().withName("dim_name2").withValue("dim_value2"));
+        dimensions.add(Dimension.builder().name("dim_name1").value("dim_value1").build());
+        dimensions.add(Dimension.builder().name("dim_name2").value("dim_value2").build());
 
         List<MetricStat> metricStats = new ArrayList<>();
-        metricStats.add(new MetricStat()
-                .withMetric(new Metric()
-                        .withNamespace(namespace)
-                        .withMetricName(metricName)
-                        .withDimensions(dimensions))
-                .withPeriod(60)
-                .withStat(statistic));
+        metricStats.add(MetricStat.builder()
+                .metric(Metric.builder()
+                        .namespace(namespace)
+                        .metricName(metricName)
+                        .dimensions(dimensions)
+                        .build())
+                .period(60)
+                .stat(statistic)
+                .build());
         String actualSerialization = MetricStatSerDe.serialize(metricStats);
         logger.info("serializeTest: {}", actualSerialization);
         List<MetricStat> actual = MetricStatSerDe.deserialize(actualSerialization);
