@@ -41,6 +41,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.DataFormat;
 import software.amazon.awssdk.services.glue.model.GetSchemaRequest;
 import software.amazon.awssdk.services.glue.model.GetSchemaResponse;
 import software.amazon.awssdk.services.glue.model.GetSchemaVersionRequest;
@@ -171,6 +172,7 @@ public class AmazonMskMetadataHandlerTest {
                         "\t\t}]\n" +
                         "\t}\n" +
                         "}")
+                .dataFormat(DataFormat.JSON)
                 .build();
         Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
         Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
@@ -203,6 +205,7 @@ public class AmazonMskMetadataHandlerTest {
                         "\t\t}]\n" +
                         "\t}\n" +
                         "}")
+                .dataFormat(DataFormat.JSON)
                 .build();
         Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
         Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);

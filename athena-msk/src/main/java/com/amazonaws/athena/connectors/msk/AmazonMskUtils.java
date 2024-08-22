@@ -24,11 +24,17 @@ import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.athena.connectors.msk.serde.MskCsvDeserializer;
 import com.amazonaws.athena.connectors.msk.serde.MskJsonDeserializer;
+import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryKafkaDeserializer;
+import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
+import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
+import com.amazonaws.services.schemaregistry.utils.ProtobufMessageType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.DynamicMessage;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -95,7 +101,6 @@ public class AmazonMskUtils
     private static final String KAFKA_KEY_DESERIALIZER_CLASS_CONFIG = "key.deserializer";
     private static final String KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG = "value.deserializer";
 
-    private static GlueRegistryReader glueRegistryReader;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private AmazonMskUtils() {}
@@ -109,6 +114,7 @@ public class AmazonMskUtils
     {
         Properties properties;
         properties = getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         return new KafkaConsumer<>(properties);
     }
@@ -127,6 +133,7 @@ public class AmazonMskUtils
     public static Consumer<String, TopicResultSet> getKafkaConsumer(Schema schema, java.util.Map<String, String> configOptions) throws Exception
     {
         Properties properties = AmazonMskUtils.getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         // Get the topic data type, while we had built the schema we had put it in schema's metadata
         String dataFormat = schema.getCustomMetadata().get("dataFormat");
@@ -149,6 +156,22 @@ public class AmazonMskUtils
                 valueDeserializer
         );
     }
+    public static Consumer<String, GenericRecord> getAvroKafkaConsumer(java.util.Map<String, String> configOptions) throws Exception
+    {
+        Properties properties = getKafkaProperties(configOptions);
+        properties.put(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, GlueSchemaRegistryKafkaDeserializer.class
+                .getName());
+        properties.put(AWSSchemaRegistryConstants.AVRO_RECORD_TYPE, AvroRecordType.GENERIC_RECORD.getName());
+        return new KafkaConsumer<>(properties);
+    }
+
+    public static Consumer<String, DynamicMessage> getProtobufKafkaConsumer(java.util.Map<String, String> configOptions) throws Exception
+    {
+        Properties properties = getKafkaProperties(configOptions);
+        properties.put(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, GlueSchemaRegistryKafkaDeserializer.class.getName());
+        properties.put(AWSSchemaRegistryConstants.PROTOBUF_MESSAGE_TYPE, ProtobufMessageType.DYNAMIC_MESSAGE.getName());
+        return new KafkaConsumer<>(properties);
+    }
 
     /**
      * Creates the required settings for kafka consumer.
@@ -168,7 +191,6 @@ public class AmazonMskUtils
         properties.setProperty(KAFKA_MAX_POLL_RECORDS_CONFIG, "10000");
         properties.setProperty(KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG, "1048576");
         properties.setProperty(KAFKA_KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         //fetch authentication type for the kafka cluster
         AuthType authType = AuthType.valueOf(getRequiredConfig(AmazonMskConstants.AUTH_TYPE, configOptions).toUpperCase().trim());
@@ -407,17 +429,22 @@ public class AmazonMskUtils
     {
         switch (dataType.trim().toUpperCase()) {
             case "BOOLEAN":
+            case "BOOL":
                 return new ArrowType.Bool();
             case "TINYINT":
                 return Types.MinorType.TINYINT.getType();
             case "SMALLINT":
                 return Types.MinorType.SMALLINT.getType();
             case "INT":
+            case "INT32":
             case "INTEGER":
                 return Types.MinorType.INT.getType();
+            case "LONG":
             case "BIGINT":
+            case "INT64":
                 return Types.MinorType.BIGINT.getType();
             case "FLOAT":
+                return Types.MinorType.FLOAT4.getType();
             case "DOUBLE":
             case "DECIMAL":
                 return Types.MinorType.FLOAT8.getType();

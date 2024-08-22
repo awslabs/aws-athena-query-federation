@@ -1,5 +1,3 @@
-package com.amazonaws.athena.connector.lambda.domain.spill;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
@@ -20,14 +18,14 @@ package com.amazonaws.athena.connector.lambda.domain.spill;
  * #L%
  */
 
+package com.amazonaws.athena.connector.lambda.domain.spill;
+
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.S3Exception;
-
-import java.util.Set;
-import java.util.stream.Collectors;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
 /**
  * This class is used to track the bucket and its state, and check its validity
@@ -85,19 +83,21 @@ public class SpillLocationVerifier
     void updateBucketState()
     {
         try {
-            Set<String> buckets = amazons3.listBuckets().buckets().stream().map(b -> b.name()).collect(Collectors.toSet());
-
-            if (!buckets.contains(bucket)) {
+            amazons3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
+            state = BucketState.VALID;
+        }
+        catch (AwsServiceException ex) {
+            int statusCode = ex.statusCode();
+            // returns 404 if bucket was not found, 403 if bucket access is forbidden
+            if (statusCode == 404 || statusCode == 403) {
                 state = BucketState.INVALID;
             }
             else {
-                state = BucketState.VALID;
+                throw new RuntimeException("Error while checking bucket ownership for " + bucket, ex);
             }
-
-            logger.info("The state of bucket {} has been updated to {} from {}", bucket, state, BucketState.UNCHECKED);
         }
-        catch (S3Exception ex) {
-            throw new RuntimeException("Error while checking bucket ownership for " + bucket, ex);
+        finally {
+            logger.info("The state of bucket {} has been updated to {} from {}", bucket, state, BucketState.UNCHECKED);
         }
     }
 

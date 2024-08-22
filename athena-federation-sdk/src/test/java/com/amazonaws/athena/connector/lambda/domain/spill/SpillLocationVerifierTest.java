@@ -1,5 +1,3 @@
-package com.amazonaws.athena.connector.lambda.domain.spill;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
@@ -20,6 +18,8 @@ package com.amazonaws.athena.connector.lambda.domain.spill;
  * #L%
  */
 
+package com.amazonaws.athena.connector.lambda.domain.spill;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -114,7 +113,7 @@ public class SpillLocationVerifierTest
     {
         logger.info("checkBucketAuthZFail - enter");
 
-        String bucketNotOwn = "spill-bucket";
+        String bucketNotOwn = "forbidden";
 
         try {
             spyVerifier.checkBucketAuthZ(bucketNotOwn);

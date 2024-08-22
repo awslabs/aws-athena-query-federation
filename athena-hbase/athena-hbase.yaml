@@ -110,7 +110,6 @@ Resources:
                 - glue:GetPartition
                 - glue:GetDatabase
                 - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
                 - s3:ListBucket
                 - s3:GetObject
                 - s3:GetBucketLocation

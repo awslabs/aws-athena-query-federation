@@ -71,7 +71,6 @@ Resources:
                 - glue:GetPartition
                 - glue:GetDatabase
                 - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
                 - timestream:Describe*
                 - timestream:List*
                 - timestream:Select*
