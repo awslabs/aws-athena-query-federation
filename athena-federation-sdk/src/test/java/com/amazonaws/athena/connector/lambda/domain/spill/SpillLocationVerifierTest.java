@@ -24,12 +24,16 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Spy;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +41,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -57,8 +62,7 @@ public class SpillLocationVerifierTest
         logger.info("setUpBefore - enter");
 
         bucketNames = Arrays.asList("bucket1", "bucket2", "bucket3");
-        List<Bucket> buckets = createBuckets(bucketNames);
-        S3Client mockS3 = createMockS3(buckets);
+        S3Client mockS3 = createMockS3(bucketNames);
         spyVerifier = spy(new SpillLocationVerifier(mockS3));
 
         logger.info("setUpBefore - exit");
@@ -138,22 +142,24 @@ public class SpillLocationVerifierTest
         logger.info("checkBucketAuthZFail - exit");
     }
 
-    private S3Client createMockS3(List<Bucket> buckets)
+    private S3Client createMockS3(List<String> buckets)
     {
         S3Client s3mock = mock(S3Client.class);
-        ListBucketsResponse response = ListBucketsResponse.builder().buckets(buckets).build();
-        when(s3mock.listBuckets()).thenReturn(response);
+        when(s3mock.headBucket(any(HeadBucketRequest.class)))
+                .thenAnswer((Answer<HeadBucketResponse>) invocationOnMock -> {
+                    String bucketName = ((HeadBucketRequest) invocationOnMock.getArguments()[0]).bucket();
+                    if (buckets.contains(bucketName)) {
+                        return null;
+                    }
+                    AwsServiceException exception;
+                    if (bucketName.equals("forbidden")) {
+                        exception = S3Exception.builder().statusCode(403).message("Forbidden").build();
+                    }
+                    else {
+                        exception = S3Exception.builder().statusCode(404).message("Not Found").build();
+                    }
+                    throw exception;
+                });
         return s3mock;
-    }
-
-    private List<Bucket> createBuckets(List<String> names)
-    {
-        List<Bucket> buckets = new ArrayList<>();
-        for (String name : names) {
-            Bucket bucket = Bucket.builder().name(name).build();
-            buckets.add(bucket);
-        }
-
-        return buckets;
     }
 }

@@ -23,9 +23,9 @@ package com.amazonaws.athena.connector.lambda.domain.spill;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
  * This class is used to track the bucket and its state, and check its validity
@@ -86,7 +86,7 @@ public class SpillLocationVerifier
             amazons3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
             state = BucketState.VALID;
         }
-        catch (AwsServiceException ex) {
+        catch (S3Exception ex) {
             int statusCode = ex.statusCode();
             // returns 404 if bucket was not found, 403 if bucket access is forbidden
             if (statusCode == 404 || statusCode == 403) {
