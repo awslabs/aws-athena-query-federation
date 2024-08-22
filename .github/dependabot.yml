@@ -15,6 +15,7 @@ updates:
       - dependency-name: "com.google.cloud:google-cloud-resourcemanager"
       - dependency-name: "com.google.api.grpc:grpc-google-cloud-bigquerystorage-v1"
       - dependency-name: "io.grpc:grpc-api"
+      - dependency-name: "software.amazon.msk:aws-msk-iam-auth"
 
   - package-ecosystem: "github-actions"
     directory: "/"
