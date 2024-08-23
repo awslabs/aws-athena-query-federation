@@ -80,7 +80,7 @@ public class GlueRegistryReader
     public String getGlueSchemaType(String glueRegistryName, String glueSchemaName)
     {
         GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
-        return result.dataFormat().toString();
+        return result.dataFormatAsString();
     }
     public String getSchemaDef(String glueRegistryName, String glueSchemaName)
     {
