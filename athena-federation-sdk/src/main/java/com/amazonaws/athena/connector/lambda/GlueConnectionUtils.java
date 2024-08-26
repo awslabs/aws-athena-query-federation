@@ -19,19 +19,19 @@
  */
 package com.amazonaws.athena.connector.lambda;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.Connection;
-import com.amazonaws.services.glue.model.GetConnectionRequest;
-import com.amazonaws.services.glue.model.GetConnectionResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Connection;
+import software.amazon.awssdk.services.glue.model.GetConnectionRequest;
+import software.amazon.awssdk.services.glue.model.GetConnectionResponse;
 
+import java.net.URI;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -65,15 +65,16 @@ public class GlueConnectionUtils
                 try {
                     HashMap<String, HashMap<String, String>> athenaPropertiesToMap = new HashMap<String, HashMap<String, String>>();
 
-                    AWSGlue awsGlue = AWSGlueClientBuilder.standard()
-                            .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
-                                    "https://glue-gamma.ap-south-1.amazonaws.com", "ap-south-1"
-                                    ))
-                            .withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT)).build();
-                    GetConnectionResult glueConnection = awsGlue.getConnection(new GetConnectionRequest().withName(glueConnectionName));
+                    GlueClient awsGlue = GlueClient.builder()
+                            .endpointOverride(new URI("https://glue-gamma.ap-south-1.amazonaws.com"))
+                            .httpClientBuilder(ApacheHttpClient
+                                    .builder()
+                                    .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
+                            .build();
+                    GetConnectionResponse glueConnection = awsGlue.getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
                     logger.debug("Successfully retrieved connection {}", glueConnectionName);
-                    Connection connection = glueConnection.getConnection();
-                    String athenaPropertiesAsString = connection.getConnectionProperties().get(GLUE_CONNECTION_ATHENA_PROPERTIES);
+                    Connection connection = glueConnection.connection();
+                    String athenaPropertiesAsString = connection.connectionProperties().get(GLUE_CONNECTION_ATHENA_PROPERTIES);
                     try {
                         ObjectMapper mapper = new ObjectMapper();
                         athenaPropertiesToMap = mapper.readValue(athenaPropertiesAsString, new TypeReference<HashMap>(){});
