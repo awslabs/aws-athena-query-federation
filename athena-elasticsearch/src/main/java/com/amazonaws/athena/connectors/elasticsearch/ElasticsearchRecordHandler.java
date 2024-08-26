@@ -35,6 +35,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -96,7 +97,7 @@ public class ElasticsearchRecordHandler
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = new AwsRestHighLevelClientFactory(configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true"));
-        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_SEARCH, ""));
+        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_SEARCH, "720"));
         this.scrollTimeout = Long.parseLong(configOptions.getOrDefault(SCROLL_TIMEOUT, "60"));
     }
 
@@ -156,13 +157,16 @@ public class ElasticsearchRecordHandler
 
         String endpoint = recordsRequest.getSplit().getProperty(domain);
         String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
+        String username = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_USERNAME);
+        String password = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_PASSWORD);
+        boolean useSecret = StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
         logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}, Query: {}",
                 domain, index,
                 recordsRequest.getSchema(), query);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
-            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+            AwsRestHighLevelClient client = useSecret ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
             try {
                 // Create field extractors for all data types in the schema.
                 GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);

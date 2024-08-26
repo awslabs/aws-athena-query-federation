@@ -10,10 +10,10 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.18.2
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
-  AthenaCatalogName:
+  LambdaFunctionName:
     Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
@@ -24,6 +24,18 @@ Parameters:
     Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
     Default: athena-spill
+  GlueConnection:
+    Description: "(Optional) Name of glue connection storing connection details for Federated Data source."
+    Type: String
+    Default: ""
+  KmsKeyId:
+    Description: "(Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys."
+    Type: String
+    Default: ""
+  LambdaRoleArn:
+    Description: "(Optional) A custom role to be used by the Connector lambda"
+    Type: String
+    Default: ""
   LambdaTimeout:
     Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
     Default: 900
@@ -36,47 +48,127 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: 'false'
     Type: String
-  PermissionsBoundaryARN:
+  PermissionsBoundaryArn:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
+
 Conditions:
-  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  HasKmsKeyId: !Not [ !Equals [ !Ref KmsKeyId, "" ] ]
+  NotHasLambdaRole: !Equals [ !Ref LambdaRoleArn, "" ]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryArn, "" ] ]
+  CreateKmsPolicy: !And [ !Condition HasKmsKeyId, !Condition NotHasLambdaRole ]
+  HasGlueConnection: !Not [ !Equals [ !Ref GlueConnection, "" ] ]
+  NotHasGlueConnectionAndHasKmsKeyId: !And
+    - !Not [ !Condition HasGlueConnection ]
+    - !Condition HasKmsKeyId
+
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
     Properties:
       Environment:
         Variables:
-          disable_spill_encryption: !Ref DisableSpillEncryption
-          spill_bucket: !Ref SpillBucket
-          spill_prefix: !Ref SpillPrefix
-      FunctionName: !Ref AthenaCatalogName
+          disable_spill_encryption: !If [HasGlueConnection, !Ref "AWS::NoValue", !Ref DisableSpillEncryption]
+          spill_bucket: !If [HasGlueConnection, !Ref "AWS::NoValue", !Ref SpillBucket]
+          spill_prefix: !If [HasGlueConnection, !Ref "AWS::NoValue", !Ref SpillPrefix]
+          kms_key_id: !If [NotHasGlueConnectionAndHasKmsKeyId, !Ref KmsKeyId, !Ref "AWS::NoValue"]
+          glue_connection: !If [HasGlueConnection, !Ref GlueConnection, !Ref "AWS::NoValue"]
+      FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.aws.cmdb.AwsCmdbCompositeHandler"
-      CodeUri: "./target/athena-aws-cmdb-2022.47.1.jar"
+      CodeUri: "./target/athena-aws-cmdb-2024.18.2.jar"
       Description: "Enables Amazon Athena to communicate with various AWS Services, making your resource inventories accessible via SQL."
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
-      Policies:
-        - Statement:
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn]
+
+  FunctionRole:
+    Condition: NotHasLambdaRole
+    Type: AWS::IAM::Role
+    Properties:
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref "AWS::NoValue" ]
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+
+  FunctionExecutionPolicy:
+    Condition: NotHasLambdaRole
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionExecutionPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - autoscaling:Describe*
+              - elasticloadbalancing:Describe*
+              - ec2:Describe*
+              - elasticmapreduce:Describe*
+              - elasticmapreduce:List*
+              - rds:Describe*
+              - rds:ListTagsForResource
+              - athena:GetQueryExecution
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - athena:GetQueryExecution
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:DeleteObject
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${bucketName}
+                  - bucketName:
+                      Ref: SpillBucket
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${bucketName}/*
+                  - bucketName:
+                      Ref: SpillBucket
+          - !If
+            - HasGlueConnection
             - Action:
-                - autoscaling:Describe*
-                - elasticloadbalancing:Describe*
-                - ec2:Describe*
-                - elasticmapreduce:Describe*
-                - elasticmapreduce:List*
-                - rds:Describe*
-                - rds:ListTagsForResource
-                - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
-                - s3:ListBucket
-                - athena:GetQueryExecution
+                - glue:GetConnection
               Effect: Allow
-              Resource: '*'
-          Version: '2012-10-17'
-        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
-        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
-        - S3CrudPolicy:
-            BucketName: !Ref SpillBucket
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
+                - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+            - !Ref "AWS::NoValue"
+      Roles:
+        - !Ref FunctionRole
+
+  FunctionKmsPolicy:
+    Condition: CreateKmsPolicy
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionKmsPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - kms:GenerateRandom
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:GenerateDataKey
+            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
+      Roles:
+        - !Ref FunctionRole

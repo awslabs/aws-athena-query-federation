@@ -144,7 +144,7 @@ In this example, use the following settings:
 - ApplicationName: AthenaNeptuneConnectorRDF
 - AthenaCatalogName: athena-catalog-neptune-rdf
 - GlueDatabaseName: graph-database-rdf
-- NeptuneGraphType: RDF
+- NeptuneGraphtype: RDF
 
 ### Step 6: Query
 Once connector is deployed, you can run SQL queries against the Athena service to retrieve this RDF data. 

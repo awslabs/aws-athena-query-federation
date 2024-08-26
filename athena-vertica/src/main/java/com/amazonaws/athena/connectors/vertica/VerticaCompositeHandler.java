@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.vertica;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class VerticaCompositeHandler
 {
     public VerticaCompositeHandler()
     {
-        super(new VerticaMetadataHandler(System.getenv()), new VerticaRecordHandler(System.getenv()));
+        super(new VerticaMetadataHandler(GlueConnectionUtils.getGlueConnection()), new VerticaRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

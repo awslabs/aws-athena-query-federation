@@ -168,7 +168,7 @@ export class OpenSearchStack extends cdk.Stack {
       parameters: {
         'AthenaCatalogName': `opensearch-cdk-deployed`,
         'IsVPCAccess': true,
-        'SecretNamePrefix': 'asdf',
+        'SecretName': 'asdf',
         'AutoDiscoverEndpoint': false,
         'DomainMapping': `default=${connectionString}`,
         'SecurityGroupIds': [securityGroup.securityGroupId],

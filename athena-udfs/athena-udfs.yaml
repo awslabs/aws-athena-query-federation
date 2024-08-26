@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.18.2
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -25,7 +25,7 @@ Parameters:
     Description: 'Lambda memory in MB (min 128 - 3008 max).'
     Default: 3008
     Type: Number
-  SecretNameOrPrefix:
+  SecretName:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. database-*).'
     Type: String
   PermissionsBoundaryARN:
@@ -40,7 +40,7 @@ Resources:
     Properties:
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.udfs.AthenaUDFHandler"
-      CodeUri: "./target/athena-udfs-2022.47.1.jar"
+      CodeUri: "./target/athena-udfs-2024.18.2.jar"
       Description: "This connector enables Amazon Athena to leverage common UDFs made available via Lambda."
       Runtime: java11
       Timeout: !Ref LambdaTimeout
@@ -51,5 +51,5 @@ Resources:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}'
           Version: '2012-10-17'

@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2024.18.2
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -20,9 +20,10 @@ Parameters:
   DefaultConnectionString:
     Description: 'The default connection string is used when catalog is "lambda:${LambdaFunctionName}". Catalog specific Connection Strings can be added later. Format: ${DatabaseType}://${NativeJdbcConnectionString}.'
     Type: String
-  SecretNamePrefix:
-      Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena Redshift Federation secret names can be prefixed with "AthenaRedshiftFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaRedshiftFederation*". Parameter value in this case should be "AthenaRedshiftFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
-      Type: String
+    Default: ""
+  SecretName:
+    Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena Redshift Federation secret names can be prefixed with "AthenaRedshiftFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaRedshiftFederation*". Parameter value in this case should be "AthenaRedshiftFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
+    Type: String
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
@@ -30,6 +31,10 @@ Parameters:
     Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
     Default: athena-spill
+  GlueConnection:
+    Description: "(Optional) Name of glue connection storing connection details for Federated Data source."
+    Type: String
+    Default: ""
   LambdaTimeout:
     Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
     Default: 900
@@ -48,44 +53,47 @@ Parameters:
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
-  KMSKeyId:
+  KmsKeyId:
     Description: "(Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys."
     Type: String
     Default: ""
-  LambdaRole:
+  LambdaRoleArn:
     Description: "(Optional) A custom IAM role ARN to be used by the Connector lambda"
     Type: String
     Default: ""
-  PermissionsBoundaryARN:
+  PermissionsBoundaryArn:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
 Conditions:
-  HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
-  NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
-  NotHasLambdaRoleAndHasKMSKeyId: !And
-    - !Condition NotHasLambdaRole
-    - !Condition HasKMSKeyId
-  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  HasKmsKeyId: !Not [!Equals [!Ref KmsKeyId, ""]]
+  NotHasLambdaRole: !Equals [!Ref LambdaRoleArn, ""]
+  CreateKmsPolicy: !And [!Condition NotHasLambdaRole, !Condition HasKmsKeyId]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryArn, "" ] ]
+  HasGlueConnection: !Not [ !Equals [ !Ref GlueConnection, "" ] ]
+  NotHasGlueConnectionAndHasKmsKeyId: !And
+    - !Not [ !Condition HasGlueConnection ]
+    - !Condition HasKmsKeyId
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
     Properties:
       Environment:
         Variables:
-          disable_spill_encryption: !Ref DisableSpillEncryption
-          spill_bucket: !Ref SpillBucket
-          spill_prefix: !Ref SpillPrefix
-          default: !Ref DefaultConnectionString
-          kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
+          disable_spill_encryption: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref DisableSpillEncryption ]
+          spill_bucket: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref SpillBucket ]
+          spill_prefix: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref SpillPrefix ]
+          kms_key_id: !If [ NotHasGlueConnectionAndHasKmsKeyId, !Ref KmsKeyId, !Ref "AWS::NoValue" ]
+          glue_connection: !If [ HasGlueConnection, !Ref GlueConnection, !Ref "AWS::NoValue" ]
+          default: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref DefaultConnectionString ]
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.redshift.RedshiftMuxCompositeHandler"
-      CodeUri: "./target/athena-redshift-2022.47.1.jar"
+      CodeUri: "./target/athena-redshift-2024.18.2.jar"
       Description: "Enables Amazon Athena to communicate with Redshift using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn]
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
         SubnetIds: !Ref SubnetIds
@@ -94,7 +102,7 @@ Resources:
     Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
-      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
@@ -107,7 +115,6 @@ Resources:
             Action:
               - "sts:AssumeRole"
 
-
   FunctionExecutionPolicy:
     Condition: NotHasLambdaRole
     Type: "AWS::IAM::Policy"
@@ -119,11 +126,18 @@ Resources:
           - Effect: Allow
             Action:
               - secretsmanager:GetSecretValue
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*'
           - Effect: Allow
             Action:
               - athena:GetQueryExecution
               - s3:ListAllMyBuckets
+            Resource: '*'
+          - Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DetachNetworkInterface
+            Effect: Allow
             Resource: '*'
           - Effect: Allow
             Action:
@@ -138,31 +152,40 @@ Resources:
               - s3:DeleteObject
             Resource:
               - Fn::Sub:
-                - arn:${AWS::Partition}:s3:::${bucketName}
-                - bucketName:
-                    Ref: SpillBucket
+                  - arn:${AWS::Partition}:s3:::${bucketName}
+                  - bucketName:
+                      Ref: SpillBucket
               - Fn::Sub:
-                - arn:${AWS::Partition}:s3:::${bucketName}/*
-                - bucketName:
-                    Ref: SpillBucket
+                  - arn:${AWS::Partition}:s3:::${bucketName}/*
+                  - bucketName:
+                      Ref: SpillBucket
+          - !If
+            - HasGlueConnection
+            - Action:
+                - glue:GetConnection
+              Effect: Allow
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
+                - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+            - !Ref "AWS::NoValue"
       Roles:
         - !Ref FunctionRole
 
-  FunctionKMSPolicy:
-    Condition: NotHasLambdaRoleAndHasKMSKeyId
+  FunctionKmsPolicy:
+    Condition: CreateKmsPolicy
     Type: "AWS::IAM::Policy"
     Properties:
-      PolicyName: FunctionKMSPolicy
+      PolicyName: FunctionKmsPolicy
       PolicyDocument:
         Version: 2012-10-17
         Statement:
           - Effect: Allow
             Action:
-             - kms:GenerateRandom
+              - kms:GenerateRandom
             Resource: '*'
           - Effect: Allow
             Action:
               - kms:GenerateDataKey
-            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
+            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
       Roles:
         - !Ref FunctionRole

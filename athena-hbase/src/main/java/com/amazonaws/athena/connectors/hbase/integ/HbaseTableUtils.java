@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.hbase.integ;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -98,7 +99,7 @@ public class HbaseTableUtils
         configuration.set("hbase.client.pause", "500");
         configuration.set("zookeeper.recovery.retry", "2");
 
-        java.util.Map<String, String> configOptions = System.getenv();
+        java.util.Map<String, String> configOptions = GlueConnectionUtils.getGlueConnection();
         boolean kerberosAuthEnabled = configOptions.get(KERBEROS_AUTH_ENABLED) != null && "true".equalsIgnoreCase(configOptions.get(KERBEROS_AUTH_ENABLED));
         logger.info("Kerberos Authentication Enabled: " + kerberosAuthEnabled);
         if (kerberosAuthEnabled) {

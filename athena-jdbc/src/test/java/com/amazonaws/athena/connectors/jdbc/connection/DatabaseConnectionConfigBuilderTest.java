@@ -33,6 +33,9 @@ public class DatabaseConnectionConfigBuilderTest
     private static final String CONNECTION_STRING2 = "postgres://jdbc:postgresql://hostname/user=testUser&password=testPassword";
     private static final String CONNECTION_STRING3 = "redshift://jdbc:redshift://hostname:5439/dev?${arn:aws:secretsmanager:us-east-1:1234567890:secret:redshift/user/secret}";
     private static final String CONNECTION_STRING4 = "postgres://jdbc:postgresql://hostname:5439/dev?${arn:aws:secretsmanager:us-east-1:1234567890:secret:postgresql/user/secret}";
+    private static final String CONNECTION_STRING5 = "jdbc:postgresql://hostname/test";
+    private static final String CONNECTION_STRING5_SECRET = "testSecret";
+    private static final String MOCK_GLUE_CONNECTION_NAME = "postgresql-connection";
 
     @Test
     public void build()
@@ -122,4 +125,40 @@ public class DatabaseConnectionConfigBuilderTest
                 Assert.assertEquals(secrets[i], databaseConnectionConfigs.get(i).getSecret());
         }
     }
+
+    @Test
+    public void buildUsingGlueConnectionWithSecret()
+    {
+        DatabaseConnectionConfig glueSupplementedConnection = new DatabaseConnectionConfig("default", "postgres",
+                "jdbc:postgresql://hostname/test", "testSecret");
+
+        List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder()
+                .engine("postgres")
+                .properties(ImmutableMap.of(
+                        "default", CONNECTION_STRING2,
+                        "default_connection_string", CONNECTION_STRING5,
+                        "secret_name", CONNECTION_STRING5_SECRET,
+                        "glue_connection", MOCK_GLUE_CONNECTION_NAME))
+                .build();
+
+        Assert.assertEquals(Arrays.asList(glueSupplementedConnection), databaseConnectionConfigs);
+    }
+
+    @Test
+    public void buildUsingGlueConnectionNoSecret()
+    {
+        DatabaseConnectionConfig glueSupplementedConnection = new DatabaseConnectionConfig("default", "postgres",
+                "jdbc:postgresql://hostname/test");
+
+        List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder()
+                .engine("postgres")
+                .properties(ImmutableMap.of(
+                        "default", CONNECTION_STRING2,
+                        "default_connection_string", CONNECTION_STRING5,
+                        "glue_connection", MOCK_GLUE_CONNECTION_NAME))
+                .build();
+
+        Assert.assertEquals(Arrays.asList(glueSupplementedConnection), databaseConnectionConfigs);
+    }
 }
+

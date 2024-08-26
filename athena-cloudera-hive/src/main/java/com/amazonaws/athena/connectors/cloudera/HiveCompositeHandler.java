@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudera;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -32,6 +33,6 @@ public class HiveCompositeHandler
 {
     public HiveCompositeHandler()
     {
-        super(new HiveMetadataHandler(System.getenv()), new HiveRecordHandler(System.getenv()));
+        super(new HiveMetadataHandler(GlueConnectionUtils.getGlueConnection()), new HiveRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.mysql;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -32,6 +33,6 @@ public class MySqlCompositeHandler
 {
     public MySqlCompositeHandler()
     {
-        super(new MySqlMetadataHandler(System.getenv()), new MySqlRecordHandler(System.getenv()));
+        super(new MySqlMetadataHandler(GlueConnectionUtils.getGlueConnection()), new MySqlRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

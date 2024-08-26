@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -31,6 +32,6 @@ public class DataLakeGen2CompositeHandler extends CompositeHandler
 {
     public DataLakeGen2CompositeHandler()
     {
-        super(new DataLakeGen2MetadataHandler(System.getenv()), new DataLakeGen2RecordHandler(System.getenv()));
+        super(new DataLakeGen2MetadataHandler(GlueConnectionUtils.getGlueConnection()), new DataLakeGen2RecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

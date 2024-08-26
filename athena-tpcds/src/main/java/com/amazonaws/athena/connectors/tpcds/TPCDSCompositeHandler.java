@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.tpcds;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 public class TPCDSCompositeHandler
@@ -26,6 +27,6 @@ public class TPCDSCompositeHandler
 {
     public TPCDSCompositeHandler()
     {
-        super(new TPCDSMetadataHandler(System.getenv()), new TPCDSRecordHandler(System.getenv()));
+        super(new TPCDSMetadataHandler(GlueConnectionUtils.getGlueConnection()), new TPCDSRecordHandler(GlueConnectionUtils.getGlueConnection()));
     }
 }

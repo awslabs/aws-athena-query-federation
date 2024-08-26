@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.jdbc;
 
+import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
@@ -43,10 +44,10 @@ public class MultiplexingJdbcCompositeHandler
     {
         super(
             hasCatalogConnections ?
-                muxMetadataHandlerClass.getConstructor(java.util.Map.class).newInstance(System.getenv()) :
-                metadataHandlerClass.getConstructor(java.util.Map.class).newInstance(System.getenv()),
+                muxMetadataHandlerClass.getConstructor(java.util.Map.class).newInstance(GlueConnectionUtils.getGlueConnection()) :
+                metadataHandlerClass.getConstructor(java.util.Map.class).newInstance(GlueConnectionUtils.getGlueConnection()),
             hasCatalogConnections ?
-                muxRecordHandlerClass.getConstructor(java.util.Map.class).newInstance(System.getenv()) :
-                recordHandlerClass.getConstructor(java.util.Map.class).newInstance(System.getenv()));
+                muxRecordHandlerClass.getConstructor(java.util.Map.class).newInstance(GlueConnectionUtils.getGlueConnection()) :
+                recordHandlerClass.getConstructor(java.util.Map.class).newInstance(GlueConnectionUtils.getGlueConnection()));
     }
 }

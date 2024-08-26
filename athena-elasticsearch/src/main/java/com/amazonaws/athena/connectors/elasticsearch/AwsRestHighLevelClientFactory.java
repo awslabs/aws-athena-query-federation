@@ -84,6 +84,18 @@ public class AwsRestHighLevelClientFactory
         return client;
     }
 
+    public synchronized AwsRestHighLevelClient getOrCreateClient(String endpoint, String username, String password)
+    {
+        AwsRestHighLevelClient client = clientCache.get(endpoint);
+
+        if (client == null) {
+            client = createClient(endpoint, username, password);
+            clientCache.put(endpoint, client);
+        }
+
+        return client;
+    }
+
     /**
      * Creates a new Elasticsearch REST client. If useAwsCredentials = true, the client is injected with AWS
      * credentials. If useAwsCredentials = false and username/password are extracted using the credentialsPattern,
@@ -99,12 +111,14 @@ public class AwsRestHighLevelClientFactory
     private AwsRestHighLevelClient createClient(String endpoint)
     {
         if (useAwsCredentials) {
+            logger.debug("Creating Client using Aws Credentials.");
             return new AwsRestHighLevelClient.Builder(endpoint)
                     .withCredentials(new DefaultAWSCredentialsProviderChain()).build();
         }
         else {
             Matcher credentials = credentialsPattern.matcher(endpoint);
             if (credentials.find()) {
+                logger.debug("Creating Client using embedded Secret in Connection String.");
                 String usernameAndPassword = credentials.group();
                 String username = usernameAndPassword.substring(0, usernameAndPassword.indexOf("@"));
                 String password = usernameAndPassword.substring(usernameAndPassword.indexOf("@") + 1,
@@ -115,9 +129,14 @@ public class AwsRestHighLevelClientFactory
             }
         }
 
-        logger.debug("Default client w/o credentials");
-
+        logger.debug("Creating default client w/o credentials");
         // Default client w/o credentials.
         return new AwsRestHighLevelClient.Builder(endpoint).build();
+    }
+
+    private AwsRestHighLevelClient createClient(String endpoint, String username, String password)
+    {
+        logger.debug("Creating Client using credentials provided by Glue Connectionn secret_name property");
+        return new AwsRestHighLevelClient.Builder(endpoint).withCredentials(username, password).build();
     }
 }
