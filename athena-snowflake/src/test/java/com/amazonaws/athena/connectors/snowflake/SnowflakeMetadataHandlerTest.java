@@ -29,16 +29,16 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.*;
 import java.util.*;
@@ -58,8 +58,8 @@ public class SnowflakeMetadataHandlerTest
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
     private FederatedIdentity federatedIdentity;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
     private BlockAllocator blockAllocator;
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
 
@@ -71,9 +71,9 @@ public class SnowflakeMetadataHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class , Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
@@ -100,12 +100,28 @@ public class SnowflakeMetadataHandlerTest
         Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.COUNT_RECORDS_QUERY)).thenReturn(preparedStatement);
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
-        Object[][] values = {{"partition : partition-limit-500000-offset-0"},{"partition : partition-limit-500000-offset-500000"}};
+        Object[][] values = {{"partition : partition-primary-pkey-limit-500000-offset-0"},{"partition : partition-primary-pkey-limit-500000-offset-500000"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
         double totalActualRecordCount = 10001;
         Mockito.when(resultSet.getLong(1)).thenReturn((long) totalActualRecordCount);
+
+        PreparedStatement primaryKeyPreparedStatement = Mockito.mock(PreparedStatement.class); 
+        String[] primaryKeyColumns = new String[] {SnowflakeMetadataHandler.PRIMARY_KEY_COLUMN_NAME};
+        String[][] primaryKeyValues = new String[][]{new String[] {"pkey"}};
+        ResultSet primaryKeyResultSet = mockResultSet(primaryKeyColumns, primaryKeyValues, new AtomicInteger(-1));
+        Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.SHOW_PRIMARY_KEYS_QUERY + "testTable")).thenReturn(primaryKeyPreparedStatement);
+        Mockito.when(primaryKeyPreparedStatement.executeQuery()).thenReturn(primaryKeyResultSet);
+
+        PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
+        String GET_PKEY_COUNTS_QUERY = "SELECT pkey, count(*) as COUNTS FROM testTable GROUP BY pkey ORDER BY COUNTS DESC"; 
+        String[] countsColumns = new String[] {"pkey", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
+        Object[][] countsValues = {{"a", 1}};
+        ResultSet countsResultSet = mockResultSet(countsColumns, countsValues, new AtomicInteger(-1));
+        Mockito.when(this.connection.prepareStatement(GET_PKEY_COUNTS_QUERY)).thenReturn(countsPreparedStatement);
+        Mockito.when(countsPreparedStatement.executeQuery()).thenReturn(countsResultSet);
+
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         List<String> expectedValues = new ArrayList<>();
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
@@ -120,7 +136,7 @@ public class SnowflakeMetadataHandlerTest
             if (i > 1) {
                 offset = offset + partitionActualRecordCount;
             }
-            actualValues.add("[partition : partition-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
+            actualValues.add("[partition : partition-primary-pkey-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
         }
         Assert.assertEquals((int)limit, getTableLayoutResponse.getPartitions().getRowCount());
         Assert.assertEquals(expectedValues, actualValues);
@@ -148,12 +164,28 @@ public class SnowflakeMetadataHandlerTest
 
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
-        Object[][] values = {{"partition : partition-limit-500000-offset-0"}};
+        Object[][] values = {{"partition : partition-primary-pkey-limit-500000-offset-0"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
         Mockito.when(resultSet.getLong(1)).thenReturn(1001L);
+
+        PreparedStatement primaryKeyPreparedStatement = Mockito.mock(PreparedStatement.class);
+        String[] primaryKeyColumns = new String[] {SnowflakeMetadataHandler.PRIMARY_KEY_COLUMN_NAME};
+        String[][] primaryKeyValues = new String[][]{new String[] {""}};
+        ResultSet primaryKeyResultSet = mockResultSet(primaryKeyColumns, primaryKeyValues, new AtomicInteger(-1));
+        Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.SHOW_PRIMARY_KEYS_QUERY +              "testTable")).thenReturn(primaryKeyPreparedStatement);
+        Mockito.when(primaryKeyPreparedStatement.executeQuery()).thenReturn(primaryKeyResultSet);
+
+        PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
+        String GET_PKEY_COUNTS_QUERY = "SELECT pkey, count(*) as COUNTS FROM testTable GROUP BY pkey ORDER BY COUNTS DESC";
+        String[] countsColumns = new String[] {"pkey", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
+        Object[][] countsValues = {{"a", 1}};
+        ResultSet countsResultSet = mockResultSet(countsColumns, countsValues, new AtomicInteger(-1));
+        Mockito.when(this.connection.prepareStatement(GET_PKEY_COUNTS_QUERY)).thenReturn(countsPreparedStatement);
+        Mockito.when(countsPreparedStatement.executeQuery()).thenReturn(countsResultSet);
+
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
@@ -162,7 +194,7 @@ public class SnowflakeMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Arrays.asList("[partition : partition-limit-1001-offset-0]"));
+        Assert.assertEquals(expectedValues, Arrays.asList("[partition : partition-primary--limit-1001-offset-0]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
@@ -194,11 +226,27 @@ public class SnowflakeMetadataHandlerTest
         long offset = 0;
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
-        Object[][] values = {{"partition : partition-limit-500000-offset-0"}};
+        Object[][] values = {{"partition : partition-primary-pkey-limit-500000-offset-0"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
         Mockito.when(resultSet.getLong(1)).thenReturn((long)totalActualRecordCount);
+        
+        PreparedStatement primaryKeyPreparedStatement = Mockito.mock(PreparedStatement.class);
+        String[] primaryKeyColumns = new String[] {SnowflakeMetadataHandler.PRIMARY_KEY_COLUMN_NAME};
+        String[][] primaryKeyValues = new String[][]{new String[] {"pkey"}};
+        ResultSet primaryKeyResultSet = mockResultSet(primaryKeyColumns, primaryKeyValues, new AtomicInteger(-1));
+        Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.SHOW_PRIMARY_KEYS_QUERY + "testTable")).thenReturn(primaryKeyPreparedStatement);
+        Mockito.when(primaryKeyPreparedStatement.executeQuery()).thenReturn(primaryKeyResultSet);
+
+        PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
+        String GET_PKEY_COUNTS_QUERY = "SELECT pkey, count(*) as COUNTS FROM testTable GROUP BY pkey ORDER BY COUNTS DESC";
+        String[] countsColumns = new String[] {"pkey", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
+        Object[][] countsValues = {{"a", 1}};
+        ResultSet countsResultSet = mockResultSet(countsColumns, countsValues, new AtomicInteger(-1));
+        Mockito.when(this.connection.prepareStatement(GET_PKEY_COUNTS_QUERY)).thenReturn(countsPreparedStatement);
+        Mockito.when(countsPreparedStatement.executeQuery()).thenReturn(countsResultSet);
+    
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         List<String> actualValues = new ArrayList<>();
         List<String> expectedValues = new ArrayList<>();
@@ -209,7 +257,7 @@ public class SnowflakeMetadataHandlerTest
             if (i > 1) {
                 offset = offset + partitionActualRecordCount;
             }
-            actualValues.add("[partition : partition-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
+            actualValues.add("[partition : partition-primary-pkey-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
         }
         Assert.assertEquals(expectedValues,actualValues);
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();

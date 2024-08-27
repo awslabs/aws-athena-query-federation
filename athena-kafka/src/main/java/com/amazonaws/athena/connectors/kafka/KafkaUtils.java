@@ -24,24 +24,13 @@ import com.amazonaws.athena.connectors.kafka.dto.SplitParameters;
 import com.amazonaws.athena.connectors.kafka.dto.TopicResultSet;
 import com.amazonaws.athena.connectors.kafka.serde.KafkaCsvDeserializer;
 import com.amazonaws.athena.connectors.kafka.serde.KafkaJsonDeserializer;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.DynamicMessage;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -49,6 +38,16 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -97,8 +96,8 @@ public class KafkaUtils
     private static final String KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG = "max.partition.fetch.bytes";
     private static final String KAFKA_KEY_DESERIALIZER_CLASS_CONFIG = "key.deserializer";
     private static final String KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG = "value.deserializer";
+    private static final String KAFKA_SCHEMA_REGISTRY_URL = "schema.registry.url";
 
-    private static GlueRegistryReader glueRegistryReader;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private KafkaUtils() {}
@@ -112,6 +111,7 @@ public class KafkaUtils
     {
         Properties properties;
         properties = getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         return new KafkaConsumer<>(properties);
     }
@@ -130,6 +130,7 @@ public class KafkaUtils
     public static Consumer<String, TopicResultSet> getKafkaConsumer(Schema schema, java.util.Map<String, String> configOptions) throws Exception
     {
         Properties properties = KafkaUtils.getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         // Get the topic data type, while we had built the schema we had put it in schema's metadata
         String dataFormat = schema.getCustomMetadata().get("dataFormat");
@@ -153,6 +154,22 @@ public class KafkaUtils
         );
     }
 
+    public static Consumer<String, GenericRecord> getAvroKafkaConsumer(java.util.Map<String, String> configOptions) throws Exception
+    {
+        Properties properties = getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, io.confluent.kafka.serializers.KafkaAvroDeserializer.class.getName());
+        properties.setProperty(KAFKA_SCHEMA_REGISTRY_URL, getRequiredConfig(KafkaConstants.KAFKA_SCHEMA_REGISTRY_URL, configOptions));
+        return new KafkaConsumer<>(properties);
+    }
+
+    public static Consumer<String, DynamicMessage> getProtobufKafkaConsumer(java.util.Map<String, String> configOptions) throws Exception
+    {
+        Properties properties = getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer.class.getName());
+        properties.setProperty(KAFKA_SCHEMA_REGISTRY_URL, getRequiredConfig(KafkaConstants.KAFKA_SCHEMA_REGISTRY_URL, configOptions));
+        return new KafkaConsumer<>(properties);
+    }
+
     /**
      * Creates the required settings for kafka consumer.
      *
@@ -171,7 +188,6 @@ public class KafkaUtils
         properties.setProperty(KAFKA_MAX_POLL_RECORDS_CONFIG, "10000");
         properties.setProperty(KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG, "1048576");
         properties.setProperty(KAFKA_KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         //fetch authentication type for the kafka cluster
         AuthType authType = AuthType.valueOf(getRequiredConfig(KafkaConstants.AUTH_TYPE, configOptions).toUpperCase().trim());
@@ -308,20 +324,24 @@ public class KafkaUtils
     {
         LOGGER.debug("Creating the connection with AWS S3 for copying certificates to Temp Folder");
         Path tempDir = getTempDirPath();
-        AWSCredentials credentials = new DefaultAWSCredentialsProviderChain().getCredentials();
-        AmazonS3 s3Client = AmazonS3ClientBuilder.standard().
-                withCredentials(new AWSStaticCredentialsProvider(credentials)).
-                build();
+        // create() Uses default credentials chain
+        S3Client s3Client = S3Client.create();
 
         String s3uri = getRequiredConfig(KafkaConstants.CERTIFICATES_S3_REFERENCE, configOptions);
         String[] s3Bucket = s3uri.split("s3://")[1].split("/");
 
-        ObjectListing objectListing = s3Client.listObjects(s3Bucket[0], s3Bucket[1]);
+        ListObjectsResponse response = s3Client.listObjects(ListObjectsRequest.builder()
+                .bucket(s3Bucket[0])
+                .prefix(s3Bucket[1])
+                .build());
 
-        for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
-            S3Object object = s3Client.getObject(new GetObjectRequest(s3Bucket[0], objectSummary.getKey()));
-            InputStream inputStream = new BufferedInputStream(object.getObjectContent());
-            String key = objectSummary.getKey();
+        for (S3Object objectSummary : response.contents()) {
+            ResponseInputStream<GetObjectResponse> responseStream = s3Client.getObject(GetObjectRequest.builder()
+                    .bucket(s3Bucket[0])
+                    .key(objectSummary.key())
+                    .build());
+            InputStream inputStream = new BufferedInputStream(responseStream);
+            String key = objectSummary.key();
             String fName = key.substring(key.indexOf('/') + 1);
             if (!fName.isEmpty()) {
                 File file = new File(tempDir + File.separator + fName);
@@ -356,11 +376,12 @@ public class KafkaUtils
      */
     private static Map<String, Object> getCredentialsAsKeyValue(java.util.Map<String, String> configOptions) throws Exception
     {
-        AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
-        GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
-        getSecretValueRequest.setSecretId(getRequiredConfig(KafkaConstants.SECRET_MANAGER_KAFKA_CREDS_NAME, configOptions));
-        GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
-        return objectMapper.readValue(response.getSecretString(), new TypeReference<Map<String, Object>>()
+        SecretsManagerClient secretsManager = SecretsManagerClient.create();
+        GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder()
+                .secretId(getRequiredConfig(KafkaConstants.SECRET_MANAGER_KAFKA_CREDS_NAME, configOptions))
+                .build();
+        GetSecretValueResponse response = secretsManager.getSecretValue(getSecretValueRequest);
+        return objectMapper.readValue(response.secretString(), new TypeReference<Map<String, Object>>()
         {
         });
     }
@@ -407,17 +428,22 @@ public class KafkaUtils
     {
         switch (dataType.trim().toUpperCase()) {
             case "BOOLEAN":
+            case "BOOL":
                 return new ArrowType.Bool();
             case "TINYINT":
                 return Types.MinorType.TINYINT.getType();
             case "SMALLINT":
                 return Types.MinorType.SMALLINT.getType();
             case "INT":
+            case "INT32":
             case "INTEGER":
                 return Types.MinorType.INT.getType();
+            case "LONG":
             case "BIGINT":
+            case "INT64":
                 return Types.MinorType.BIGINT.getType();
             case "FLOAT":
+                return Types.MinorType.FLOAT4.getType();
             case "DOUBLE":
             case "DECIMAL":
                 return Types.MinorType.FLOAT8.getType();

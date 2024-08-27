@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * This class is a Utility class to create Extractors for each field type as per
@@ -124,7 +125,14 @@ public final class CustomSchemaRowWriter
                                     else if (fieldValue instanceof ArrayList) {
                                         ArrayList<Object> objValues = (ArrayList) fieldValue;
                                         if (objValues != null && objValues.get(0) != null) {
-                                            value.value = objValues.get(0).toString();
+                                            if (objValues.size() > 1) {
+                                                value.value = String.join(";", objValues.stream()
+                                                        .map(Object::toString)
+                                                        .collect(Collectors.toList()));
+                                            }
+                                            else {
+                                                value.value = objValues.get(0).toString();
+                                            }
                                             value.isSet = 1;
                                         }
                                     }

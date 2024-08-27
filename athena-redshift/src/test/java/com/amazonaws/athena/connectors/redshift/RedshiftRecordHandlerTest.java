@@ -36,20 +36,22 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlQueryStringBuilder;
 import com.amazonaws.athena.connectors.postgresql.PostgreSqlFederationExpressionParser;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -60,6 +62,8 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_NAME;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class RedshiftRecordHandlerTest
@@ -71,17 +75,18 @@ public class RedshiftRecordHandlerTest
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private S3Client amazonS3;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
+    private MockedStatic<PostGreSqlMetadataHandler> mockedPostGreSqlMetadataHandler;
 
     @Before
     public void setup()
             throws Exception
     {
-        this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.amazonS3 = Mockito.mock(S3Client.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
@@ -90,6 +95,13 @@ public class RedshiftRecordHandlerTest
                 "redshift://jdbc:redshift://hostname/user=A&password=B");
 
         this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
+        mockedPostGreSqlMetadataHandler = Mockito.mockStatic(PostGreSqlMetadataHandler.class);
+        mockedPostGreSqlMetadataHandler.when(() -> PostGreSqlMetadataHandler.getCharColumns(any(), anyString(), anyString())).thenReturn(Collections.singletonList("testCol10"));
+    }
+
+    @After
+    public void close(){
+        mockedPostGreSqlMetadataHandler.close();
     }
 
     @Test
@@ -110,6 +122,7 @@ public class RedshiftRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol7", Types.MinorType.FLOAT8.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol8", Types.MinorType.BIT.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol9", new ArrowType.Decimal(8, 2)).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("testCol10", new ArrowType.Utf8()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_schema_name", Types.MinorType.VARCHAR.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
@@ -136,6 +149,7 @@ public class RedshiftRecordHandlerTest
         ValueSet valueSet7 = getSingleValueSet(1.2d);
         ValueSet valueSet8 = getSingleValueSet(true);
         ValueSet valueSet9 = getSingleValueSet(BigDecimal.valueOf(12.34));
+        ValueSet valueSet10 = getSingleValueSet("A");
 
         Constraints constraints = Mockito.mock(Constraints.class);
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
@@ -148,9 +162,10 @@ public class RedshiftRecordHandlerTest
                 .put("testCol7", valueSet7)
                 .put("testCol8", valueSet8)
                 .put("testCol9", valueSet9)
+                .put("testCol10", valueSet10)
                 .build());
 
-        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\" FROM \"s0\".\"p0\"  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?)";
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\", RTRIM(\"testCol10\") AS \"testCol10\" FROM \"s0\".\"p0\"  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?) AND (\"testCol10\" = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
@@ -169,7 +184,7 @@ public class RedshiftRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(10, 1.2d);
         Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(11, true);
         Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(12, BigDecimal.valueOf(12.34));
-
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(13, "A");
         logger.info("buildSplitSqlTest - exit");
     }
 

@@ -20,7 +20,6 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * #L%
  */
 
-import com.amazonaws.ClientConfiguration;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -33,18 +32,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.GetDatabasesRequest;
-import com.amazonaws.services.glue.model.GetDatabasesResult;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetTablesRequest;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -54,7 +41,19 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResponse;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.paginators.GetDatabasesIterable;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -137,7 +136,7 @@ public abstract class GlueMetadataHandler
     // emulate behavior from prior versions.
     public static final String GLUE_TABLE_CONTAINS_PREVIOUSLY_UNSUPPORTED_TYPE = "glueTableContainsPreviouslyUnsupportedType";
 
-    private final AWSGlue awsGlue;
+    private final GlueClient awsGlue;
 
     /**
      * Basic constructor which is recommended when extending this class.
@@ -156,8 +155,10 @@ public abstract class GlueMetadataHandler
         boolean disabled = configOptions.get(DISABLE_GLUE) != null && !"false".equalsIgnoreCase(configOptions.get(DISABLE_GLUE));
 
         // null if the current instance does not want to leverage Glue for metadata
-        awsGlue = disabled ? null : (AWSGlueClientBuilder.standard()
-                .withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT))
+        awsGlue = disabled ? null : (GlueClient.builder()
+                .httpClientBuilder(ApacheHttpClient
+                        .builder()
+                        .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
                 .build());
     }
 
@@ -168,7 +169,7 @@ public abstract class GlueMetadataHandler
      * @param sourceType The source type, used in diagnostic logging.
      * @param configOptions The configOptions for this MetadataHandler.
      */
-    public GlueMetadataHandler(AWSGlue awsGlue, String sourceType, java.util.Map<String, String> configOptions)
+    public GlueMetadataHandler(GlueClient awsGlue, String sourceType, java.util.Map<String, String> configOptions)
     {
         super(sourceType, configOptions);
         this.awsGlue = awsGlue;
@@ -179,7 +180,7 @@ public abstract class GlueMetadataHandler
      *
      * @param awsGlue The glue client to use.
      * @param encryptionKeyFactory The EncryptionKeyFactory to use for spill encryption.
-     * @param secretsManager The AWSSecretsManager client that can be used when attempting to resolve secrets.
+     * @param secretsManager The SecretsManagerClient client that can be used when attempting to resolve secrets.
      * @param athena The Athena client that can be used to fetch query termination status to fast-fail this handler.
      * @param spillBucket The S3 Bucket to use when spilling results.
      * @param spillPrefix The S3 prefix to use when spilling results.
@@ -187,10 +188,10 @@ public abstract class GlueMetadataHandler
      */
     @VisibleForTesting
     protected GlueMetadataHandler(
-        AWSGlue awsGlue,
+        GlueClient awsGlue,
         EncryptionKeyFactory encryptionKeyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         String sourceType,
         String spillBucket,
         String spillPrefix,
@@ -206,7 +207,7 @@ public abstract class GlueMetadataHandler
      *
      * @return The AWSGlue client being used by this class, or null if disabled.
      */
-    protected AWSGlue getAwsGlue()
+    protected GlueClient getAwsGlue()
     {
         return awsGlue;
     }
@@ -259,24 +260,19 @@ public abstract class GlueMetadataHandler
     protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request, DatabaseFilter filter)
             throws Exception
     {
-        GetDatabasesRequest getDatabasesRequest = new GetDatabasesRequest();
-        getDatabasesRequest.setCatalogId(getCatalog(request));
+        GetDatabasesRequest getDatabasesRequest = GetDatabasesRequest.builder()
+                .catalogId(getCatalog(request))
+                .build();
 
         List<String> schemas = new ArrayList<>();
-        String nextToken = null;
-        do {
-            getDatabasesRequest.setNextToken(nextToken);
-            GetDatabasesResult result = awsGlue.getDatabases(getDatabasesRequest);
+        GetDatabasesIterable responses = awsGlue.getDatabasesPaginator(getDatabasesRequest);
 
-            for (Database next : result.getDatabaseList()) {
-                if (filter == null || filter.filter(next)) {
-                    schemas.add(next.getName());
-                }
-            }
-
-            nextToken = result.getNextToken();
-        }
-        while (nextToken != null);
+        responses.stream().forEach(response -> response.databaseList()
+                .forEach(database -> {
+                    if (filter == null || filter.filter(database)) {
+                        schemas.add(database.name());
+                    }
+                }));
 
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
@@ -309,31 +305,30 @@ public abstract class GlueMetadataHandler
     protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request, TableFilter filter)
             throws Exception
     {
-        GetTablesRequest getTablesRequest = new GetTablesRequest();
-        getTablesRequest.setCatalogId(getCatalog(request));
-        getTablesRequest.setDatabaseName(request.getSchemaName());
-
         Set<TableName> tables = new HashSet<>();
         String nextToken = request.getNextToken();
         int pageSize = request.getPageSize();
         do {
-            getTablesRequest.setNextToken(nextToken);
+            GetTablesRequest.Builder getTablesRequest = GetTablesRequest.builder()
+                    .catalogId(getCatalog(request))
+                    .databaseName(request.getSchemaName())
+                    .nextToken(nextToken);
             if (pageSize != UNLIMITED_PAGE_SIZE_VALUE) {
                 // Paginated requests will include the maxResults argument determined by the minimum value between the
                 // pageSize and the maximum results supported by Glue (as defined in the Glue API docs).
                 int maxResults = Math.min(pageSize, GET_TABLES_REQUEST_MAX_RESULTS);
-                getTablesRequest.setMaxResults(maxResults);
+                getTablesRequest.maxResults(maxResults);
                 pageSize -= maxResults;
             }
-            GetTablesResult result = awsGlue.getTables(getTablesRequest);
+            GetTablesResponse response = awsGlue.getTables(getTablesRequest.build());
 
-            for (Table next : result.getTableList()) {
+            for (Table next : response.tableList()) {
                 if (filter == null || filter.filter(next)) {
-                    tables.add(new TableName(request.getSchemaName(), next.getName()));
+                    tables.add(new TableName(request.getSchemaName(), next.name()));
                 }
             }
 
-            nextToken = result.getNextToken();
+            nextToken = response.nextToken();
         }
         while (nextToken != null && (pageSize == UNLIMITED_PAGE_SIZE_VALUE || pageSize > 0));
 
@@ -387,21 +382,23 @@ public abstract class GlueMetadataHandler
             throws Exception
     {
         TableName tableName = request.getTableName();
-        com.amazonaws.services.glue.model.GetTableRequest getTableRequest = new com.amazonaws.services.glue.model.GetTableRequest();
-        getTableRequest.setCatalogId(getCatalog(request));
-        getTableRequest.setDatabaseName(tableName.getSchemaName());
-        getTableRequest.setName(tableName.getTableName());
+        //Full class name required due to name overlap with athena
+        software.amazon.awssdk.services.glue.model.GetTableRequest getTableRequest = software.amazon.awssdk.services.glue.model.GetTableRequest.builder()
+                .catalogId(getCatalog(request))
+                .databaseName(tableName.getSchemaName())
+                .name(tableName.getTableName())
+                .build();
 
-        GetTableResult result = awsGlue.getTable(getTableRequest);
-        Table table = result.getTable();
+        software.amazon.awssdk.services.glue.model.GetTableResponse response = awsGlue.getTable(getTableRequest);
+        Table table = response.table();
 
         if (filter != null && !filter.filter(table)) {
             throw new RuntimeException("No matching table found " + request.getTableName());
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        if (table.getParameters() != null) {
-            table.getParameters()
+        if (table.parameters() != null) {
+            table.parameters()
                     .entrySet()
                     .forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue()));
         }
@@ -412,35 +409,37 @@ public abstract class GlueMetadataHandler
         Map<String, String> datetimeFormatMappingWithColumnName = new HashMap<>();
 
         Set<String> partitionCols = new HashSet<>();
-        if (table.getPartitionKeys() != null) {
-            partitionCols = table.getPartitionKeys()
-                    .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
+        if (table.partitionKeys() != null) {
+            partitionCols = table.partitionKeys()
+                    .stream()
+                    .map(next -> columnNameMapping.getOrDefault(next.name(), next.name()))
+                    .collect(Collectors.toSet());
         }
 
         // partition columns should be added to the schema if they exist
-        List<Column> allColumns = Stream.of(table.getStorageDescriptor().getColumns(), table.getPartitionKeys() == null ? new ArrayList<Column>() : table.getPartitionKeys())
+        List<Column> allColumns = Stream.of(table.storageDescriptor().columns(), table.partitionKeys() == null ? new ArrayList<Column>() : table.partitionKeys())
                 .flatMap(x -> x.stream())
                 .collect(Collectors.toList());
 
         boolean glueTableContainsPreviouslyUnsupportedType = false;
         for (Column next : allColumns) {
-            String rawColumnName = next.getName();
+            String rawColumnName = next.name();
             String mappedColumnName = columnNameMapping.getOrDefault(rawColumnName, rawColumnName);
             // apply any type override provided in typeOverrideMapping from metadata
             // this is currently only used for timestamp with timezone support
-            logger.info("Column {} with registered type {}", rawColumnName, next.getType());
-            Field arrowField = convertField(mappedColumnName, next.getType());
+            logger.info("Column {} with registered type {}", rawColumnName, next.type());
+            Field arrowField = convertField(mappedColumnName, next.type());
             schemaBuilder.addField(arrowField);
             // Add non-null non-empty comments to metadata
-            if (next.getComment() != null && !next.getComment().trim().isEmpty()) {
-                schemaBuilder.addMetadata(mappedColumnName, next.getComment());
+            if (next.comment() != null && !next.comment().trim().isEmpty()) {
+                schemaBuilder.addMetadata(mappedColumnName, next.comment());
             }
             if (dateTimeFormatMapping.containsKey(rawColumnName)) {
                 datetimeFormatMappingWithColumnName.put(mappedColumnName, dateTimeFormatMapping.get(rawColumnName));
             }
 
             // Indicate that we found a `set` or `decimal` type so that we can set this metadata on the schemaBuilder later on
-            if (glueTableContainsPreviouslyUnsupportedType == false && isPreviouslyUnsupported(next.getType(), arrowField)) {
+            if (glueTableContainsPreviouslyUnsupportedType == false && isPreviouslyUnsupported(next.type(), arrowField)) {
                 glueTableContainsPreviouslyUnsupportedType = true;
             }
         }
@@ -449,8 +448,8 @@ public abstract class GlueMetadataHandler
 
         populateSourceTableNameIfAvailable(table, schemaBuilder);
 
-        if (table.getViewOriginalText() != null && !table.getViewOriginalText().isEmpty()) {
-            schemaBuilder.addMetadata(VIEW_METADATA_FIELD, table.getViewOriginalText());
+        if (table.viewOriginalText() != null && !table.viewOriginalText().isEmpty()) {
+            schemaBuilder.addMetadata(VIEW_METADATA_FIELD, table.viewOriginalText());
         }
 
         schemaBuilder.addMetadata(GLUE_TABLE_CONTAINS_PREVIOUSLY_UNSUPPORTED_TYPE, String.valueOf(glueTableContainsPreviouslyUnsupportedType));
@@ -515,12 +514,12 @@ public abstract class GlueMetadataHandler
      */
     protected static void populateSourceTableNameIfAvailable(Table table, SchemaBuilder schemaBuilder)
     {
-        String sourceTableProperty = table.getParameters().get(SOURCE_TABLE_PROPERTY);
+        String sourceTableProperty = table.parameters().get(SOURCE_TABLE_PROPERTY);
         if (sourceTableProperty != null) {
             // table property exists so nothing to do (assumes all table properties were already copied)
             return;
         }
-        String location = table.getStorageDescriptor().getLocation();
+        String location = table.storageDescriptor().location();
         if (location != null) {
             Matcher matcher = TABLE_ARN_REGEX.matcher(location);
             if (matcher.matches()) {
@@ -550,7 +549,7 @@ public abstract class GlueMetadataHandler
      */
     protected static Map<String, String> getColumnNameMapping(Table table)
     {
-        String columnNameMappingParam = table.getParameters().get(COLUMN_NAME_MAPPING_PROPERTY);
+        String columnNameMappingParam = table.parameters().get(COLUMN_NAME_MAPPING_PROPERTY);
         if (!Strings.isNullOrEmpty(columnNameMappingParam)) {
             return MAP_SPLITTER.split(columnNameMappingParam);
         }
@@ -567,7 +566,7 @@ public abstract class GlueMetadataHandler
      */
     private Map<String, String> getDateTimeFormatMapping(Table table)
     {
-        String datetimeFormatMappingParam = table.getParameters().get(DATETIME_FORMAT_MAPPING_PROPERTY);
+        String datetimeFormatMappingParam = table.parameters().get(DATETIME_FORMAT_MAPPING_PROPERTY);
         if (!Strings.isNullOrEmpty(datetimeFormatMappingParam)) {
             return MAP_SPLITTER.split(datetimeFormatMappingParam);
         }

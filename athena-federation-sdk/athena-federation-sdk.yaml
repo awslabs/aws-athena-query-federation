@@ -53,12 +53,6 @@ Resources:
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Policies:
-        - Statement:
-            - Action:
-                - s3:ListAllMyBuckets
-              Effect: Allow
-              Resource: '*'
-          Version: '2012-10-17'
         #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
         #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
         - S3CrudPolicy:

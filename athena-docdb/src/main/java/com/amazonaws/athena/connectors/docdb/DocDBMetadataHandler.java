@@ -42,11 +42,6 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.mongodb.client.MongoClient;
@@ -58,6 +53,11 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -97,13 +97,13 @@ public class DocDBMetadataHandler
     //is indeed enabled for use by this connector.
     private static final String DOCDB_METADATA_FLAG = "docdb-metadata-flag";
     //Used to filter out Glue tables which lack a docdb metadata flag.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(DOCDB_METADATA_FLAG);
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.parameters().containsKey(DOCDB_METADATA_FLAG);
     //The number of documents to scan when attempting to infer schema from an DocDB collection.
     private static final int SCHEMA_INFERRENCE_NUM_DOCS = 10;
     // used to filter out Glue databases which lack the docdb-metadata-flag in the URI.
-    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DOCDB_METADATA_FLAG));
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(DOCDB_METADATA_FLAG));
 
-    private final AWSGlue glue;
+    private final GlueClient glue;
     private final DocDBConnectionFactory connectionFactory;
     private final DocDBQueryPassthrough queryPassthrough = new DocDBQueryPassthrough();
 
@@ -116,11 +116,11 @@ public class DocDBMetadataHandler
 
     @VisibleForTesting
     protected DocDBMetadataHandler(
-        AWSGlue glue,
+        GlueClient glue,
         DocDBConnectionFactory connectionFactory,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         java.util.Map<String, String> configOptions)

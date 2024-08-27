@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.hbase;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -35,6 +34,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,8 +46,6 @@ public class HbaseSchemaUtils
 {
     //Field name for the special 'row' column which represets the HBase key used to store a given row.
     protected static final String ROW_COLUMN_NAME = "row";
-    //The HBase namespce qualifier character which commonly separates namespaces and column families from tables and columns.
-    protected static final String NAMESPACE_QUALIFIER = ":";
     private static final Logger logger = LoggerFactory.getLogger(HbaseSchemaUtils.class);
 
     private HbaseSchemaUtils() {}
@@ -62,11 +60,11 @@ public class HbaseSchemaUtils
      * @param numToScan The number of records to scan as part of producing the Schema.
      * @return An Apache Arrow Schema representing the schema of the HBase table.
      */
-    public static Schema inferSchema(HBaseConnection client, TableName tableName, int numToScan)
+    public static Schema inferSchema(HBaseConnection client, org.apache.hadoop.hbase.TableName tableName, int numToScan)
+            throws IOException
     {
         Scan scan = new Scan().setMaxResultSize(numToScan).setFilter(new PageFilter(numToScan));
-        org.apache.hadoop.hbase.TableName hbaseTableName = org.apache.hadoop.hbase.TableName.valueOf(getQualifiedTableName(tableName));
-        return client.scanTable(hbaseTableName, scan, (ResultScanner scanner) -> {
+        return client.scanTable(tableName, scan, (ResultScanner scanner) -> {
             try {
                 return scanAndInferSchema(scanner);
             }
@@ -132,7 +130,7 @@ public class HbaseSchemaUtils
         for (Map.Entry<String, Map<String, ArrowType>> nextFamily : schemaInference.entrySet()) {
             String family = nextFamily.getKey();
             for (Map.Entry<String, ArrowType> nextCol : nextFamily.getValue().entrySet()) {
-                schemaBuilder.addField(family + NAMESPACE_QUALIFIER + nextCol.getKey(), nextCol.getValue());
+                schemaBuilder.addField(family + HbaseTableNameUtils.NAMESPACE_QUALIFIER + nextCol.getKey(), nextCol.getValue());
             }
         }
 
@@ -142,28 +140,6 @@ public class HbaseSchemaUtils
                     rowCount + " rows. Please ensure the table is not empty and contains at least 1 supported column type.");
         }
         return schema;
-    }
-
-    /**
-     * Helper which goes from an Athena Federation SDK TableName to an HBase table name string.
-     *
-     * @param tableName An Athena Federation SDK TableName.
-     * @return The corresponding HBase table name string.
-     */
-    public static String getQualifiedTableName(TableName tableName)
-    {
-        return tableName.getSchemaName() + NAMESPACE_QUALIFIER + tableName.getTableName();
-    }
-
-    /**
-     * Helper which goes from an Athena Federation SDK TableName to an HBase TableName.
-     *
-     * @param tableName An Athena Federation SDK TableName.
-     * @return The corresponding HBase TableName.
-     */
-    public static org.apache.hadoop.hbase.TableName getQualifiedTable(TableName tableName)
-    {
-        return org.apache.hadoop.hbase.TableName.valueOf(tableName.getSchemaName() + NAMESPACE_QUALIFIER + tableName.getTableName());
     }
 
     /**
@@ -243,7 +219,7 @@ public class HbaseSchemaUtils
      */
     public static String[] extractColumnParts(String glueColumnName)
     {
-        return glueColumnName.split(NAMESPACE_QUALIFIER);
+        return glueColumnName.split(HbaseTableNameUtils.NAMESPACE_QUALIFIER);
     }
 
     /**

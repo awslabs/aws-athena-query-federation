@@ -130,7 +130,6 @@ Resources:
           - Effect: Allow
             Action:
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
             Resource: '*'
           - Action:
               - ec2:CreateNetworkInterface

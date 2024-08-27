@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2024.18.2
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -76,7 +76,7 @@ Resources:
           glue_connection: !If [ HasGlueConnection, !Ref GlueConnection, !Ref "AWS::NoValue" ]
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.tpcds.TPCDSCompositeHandler"
-      CodeUri: "./target/athena-tpcds-2024.18.2.jar"
+      CodeUri: "./target/athena-tpcds-2022.47.1.jar"
       Description: "This connector enables Amazon Athena to communicate with a randomly generated TPC-DS data source."
       Runtime: java11
       Timeout: !Ref LambdaTimeout
@@ -112,7 +112,7 @@ Resources:
         Statement:
           - Action:
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
+
             Effect: Allow
             Resource: '*'
           - Action:

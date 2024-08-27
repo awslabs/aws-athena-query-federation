@@ -2,8 +2,8 @@
 
 To query RDF data using this connector, create a table in the Glue data catalog that maps to RDF data in the Neptune database. There are two styles of mapping available:
 
-- **Class-based**: The table represents an RDFS class. Each row represents an RDF resource whose type of that class. Columns represent datatype or object properties. See the airport_rdf example below.
-- **Query-based**: The table represents the resultset of a SPARQL query. Each row is one result. See the route_rdf example below.
+- **Class-based**: The table represents an RDFS class. Each row represents an RDF resource whose type of that class. Columns represent datatype or object properties. See the `airport_rdf` example below.
+- **Query-based**: The table represents the resultset of a SPARQL query. Each row is one result. See the `route_rdf` example below.
 
 In each case, you define columns and use table properties to map RDF to that column structure. Here is a summary of table properties to indicate RDF mapping:
 
@@ -22,30 +22,6 @@ In each case, you define columns and use table properties to map RDF to that col
 ## Examples
 We provide examples of both class-based and query-based tables. The examples use the Air Routes dataset. 
 
-### Step 1: Create Neptune Cluster and Seed Air Routes Data in Neptune
-In your Neptune cluster, seed the Air Routes dataset as RDF using the instructions in [../neptune-cluster-setup/README.md](../neptune-cluster-setup/README.md). 
-
-### Step 2: Create Glue Tables
-Create the Glue tables. We provide a shell script [manual/sample-cli-script.sh](manual/sample-cli-script.sh). 
-
-Ensure to have the right executable permissions on the script once you download it.
-
-```
-chmod 755 sample-cli-script.sh
-```
-Ensure to setup credentials for your AWS CLI to work.
-
-Replace &lt;aws-profile> with the AWS profile name that carries your credentials and replace &lt;aws-region> with AWS region where you are creating the 
-AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
-
-```
-./sample-cli-script.sh  <aws-profile> <aws-region>
-
-```
-
-Next we study the structure of each of the tables created.
-
-### Step 3: Understanding Class-Based Tables
 The **airport_rdf** table is a class-based table. Its rows represent individual RDF resources that have a specified RDFS class. The column names represent predicates. The column values represent objects. 
 
 The next figure shows the column structure of the table:
@@ -102,7 +78,6 @@ To apply this approach to your own dataset, we recommend running a SPARQL query 
 ```
 select distinct ?p where { ?s rdf:type #MYCLASS . ?s ?p ?o } LIMIT 1000
 ```
-### Step 4: Understanding Query-Based Tables
 The **route_rdf** table is a query-based table. Its rows represent results from a SPARQL select query.
 
 ![](./assets/routerdf.png)
@@ -136,18 +111,7 @@ The **route_rdf_nopfx** table is similar to **route_rdf** except the prefixes ar
 
 ![](./assets/routerdf_nopfx.png)
 
-### Step 5: Deploy the Athena Connector
-Deploy the Athena connector using RDF as the graph type. See [../neptune-connector-setup/README.md](../neptune-connector-setup/README.md). 
-
-In this example, use the following settings:
-
-- ApplicationName: AthenaNeptuneConnectorRDF
-- AthenaCatalogName: athena-catalog-neptune-rdf
-- GlueDatabaseName: graph-database-rdf
-- NeptuneGraphtype: RDF
-
-### Step 6: Query
-Once connector is deployed, you can run SQL queries against the Athena service to retrieve this RDF data. 
+Run SQL queries against the Athena service to retrieve this RDF data. 
 
 The following query accesses the class-based table to retrieve 100 airports.
 

@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.HBASE_RPC_PROTECTION;
+import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.HBASE_SECURITY_AUTHENTICATION;
 import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.KERBEROS_AUTH_ENABLED;
 import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.KERBEROS_CONFIG_FILES_S3_REFERENCE;
 import static com.amazonaws.athena.connectors.hbase.HbaseKerberosUtils.PRINCIPAL_NAME;
@@ -130,6 +131,8 @@ public class HbaseConnectionFactory
             logger.info("Kerberos Authentication Enabled: " + kerberosAuthEnabled);
             if (kerberosAuthEnabled) {
                 String keytabLocation = null;
+                config.set("hbase.security.authentication", HBASE_SECURITY_AUTHENTICATION);
+                config.set("hadoop.security.authentication", HBASE_SECURITY_AUTHENTICATION);
                 config.set("hbase.rpc.protection", configOptions.get(HBASE_RPC_PROTECTION));
                 logger.info("hbase.rpc.protection: " + config.get("hbase.rpc.protection"));
                 String s3uri = configOptions.get(KERBEROS_CONFIG_FILES_S3_REFERENCE);

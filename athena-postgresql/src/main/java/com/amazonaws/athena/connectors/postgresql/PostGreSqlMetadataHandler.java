@@ -46,8 +46,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -57,11 +55,14 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -114,8 +115,8 @@ public class PostGreSqlMetadataHandler
     @VisibleForTesting
     protected PostGreSqlMetadataHandler(
         DatabaseConnectionConfig databaseConnectionConfig,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
@@ -444,5 +445,32 @@ public class PostGreSqlMetadataHandler
         preparedStatement.setString(3, databaseName);
         LOGGER.debug("Prepared statement for getting name of Materialized View with Case Insensitive Look Up: {}", preparedStatement);
         return preparedStatement;
+    }
+
+    /**
+     * Retrieves the names of columns with the data type 'CHAR' for a specified table in a PostgreSQL/Redshift database.
+     *
+     * @param connection the JDBC connection to the database
+     * @param schema Postgresql/Redshift schema name
+     * @param table Postgresql/Redshift table name
+     * @return a list of column names that have the data type 'CHAR'
+     * @throws SQLException if a database access error occurs
+     */
+    public static List<String> getCharColumns(Connection connection, String schema, String table) throws SQLException
+    {
+        List<String> charColumns = new ArrayList<>();
+        String query = "SELECT column_name " +
+                "FROM information_schema.columns " +
+                "WHERE table_schema = ? AND table_name = ? AND data_type = 'character'";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, schema);
+            statement.setString(2, table);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    charColumns.add(resultSet.getString("column_name"));
+                }
+            }
+        }
+        return charColumns;
     }
 }

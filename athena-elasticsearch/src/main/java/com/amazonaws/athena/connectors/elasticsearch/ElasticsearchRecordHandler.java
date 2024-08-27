@@ -27,12 +27,6 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.StringUtils;
@@ -49,6 +43,9 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -92,8 +89,8 @@ public class ElasticsearchRecordHandler
 
     public ElasticsearchRecordHandler(Map<String, String> configOptions)
     {
-        super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE, configOptions);
+        super(S3Client.create(), SecretsManagerClient.create(),
+                AthenaClient.create(), SOURCE_TYPE, configOptions);
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = new AwsRestHighLevelClientFactory(configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true"));
@@ -103,9 +100,9 @@ public class ElasticsearchRecordHandler
 
     @VisibleForTesting
     protected ElasticsearchRecordHandler(
-        AmazonS3 amazonS3,
-        AWSSecretsManager secretsManager,
-        AmazonAthena amazonAthena,
+        S3Client amazonS3,
+        SecretsManagerClient secretsManager,
+        AthenaClient amazonAthena,
         AwsRestHighLevelClientFactory clientFactory,
         long queryTimeout,
         long scrollTimeout,

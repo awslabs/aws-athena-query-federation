@@ -1,10 +1,8 @@
-package com.amazonaws.athena.connector.lambda.records;
-
 /*-
  * #%L
- * Amazon Athena Query Federation SDK
+ * athena-clickhouse
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2024 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,20 +17,18 @@ package com.amazonaws.athena.connector.lambda.records;
  * limitations under the License.
  * #L%
  */
+package com.amazonaws.athena.connectors.clickhouse;
 
-import com.amazonaws.services.lambda.invoke.LambdaFunction;
+import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
- * Lambda functions intended for <code>Record</code> operations associate with this interface.
+ * Boilerplate composite handler that allows one to use a single Lambda function for both Metadata and Data. 
  */
-public interface RecordService
+public class ClickHouseCompositeHandler
+        extends CompositeHandler
 {
-    /**
-     * Returns data/records corresponding to the request type.
-     *
-     * @param request The data/records request.
-     * @return The data/records.
-     */
-    @LambdaFunction(functionName = "record")
-    RecordResponse readRecords(final RecordRequest request);
+    public ClickHouseCompositeHandler()
+    {
+        super(new ClickHouseMetadataHandler(System.getenv()), new ClickHouseRecordHandler(System.getenv()));
+    }
 }

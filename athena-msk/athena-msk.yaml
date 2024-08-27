@@ -164,7 +164,6 @@ Resources:
             Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
           - Action:
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
               - s3:ListBucket
               - s3:GetObject
               - s3:GetBucketLocation

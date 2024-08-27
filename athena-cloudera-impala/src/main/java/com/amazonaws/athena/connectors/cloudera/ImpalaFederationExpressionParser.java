@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.hortonworks;
+package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcFederationExpressionParser;
 import com.google.common.base.Joiner;

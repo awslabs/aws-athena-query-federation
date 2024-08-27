@@ -39,12 +39,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
@@ -52,6 +46,12 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.net.URI;
@@ -80,11 +80,11 @@ public class GcsMetadataHandler
      */
     private static final String SOURCE_TYPE = "gcs";
     private static final CharSequence GCS_FLAG = "google-cloud-storage-flag";
-    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for GCS.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().startsWith(GCS_LOCATION_PREFIX);
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.storageDescriptor().location().startsWith(GCS_LOCATION_PREFIX);
     private final StorageMetadata datasource;
-    private final AWSGlue glueClient;
+    private final GlueClient glueClient;
     private final BufferAllocator allocator;
 
     public GcsMetadataHandler(BufferAllocator allocator, java.util.Map<String, String> configOptions) throws IOException
@@ -100,11 +100,11 @@ public class GcsMetadataHandler
     @VisibleForTesting
     protected GcsMetadataHandler(
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager awsSecretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient awsSecretsManager,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
-        AWSGlue glueClient, BufferAllocator allocator,
+        GlueClient glueClient, BufferAllocator allocator,
         java.util.Map<String, String> configOptions) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
@@ -174,9 +174,9 @@ public class GcsMetadataHandler
             //fetch schema from dataset api
             Schema schema = datasource.buildTableSchema(table, allocator);
             Map<String, String> columnNameMapping = getColumnNameMapping(table);
-            List<Column> partitionKeys = table.getPartitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.getPartitionKeys();
+            List<Column> partitionKeys = table.partitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.partitionKeys();
             Set<String> partitionCols = partitionKeys.stream()
-                .map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
+                .map(next -> columnNameMapping.getOrDefault(next.name(), next.name())).collect(Collectors.toSet());
             return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema, partitionCols);
         }
     }
@@ -246,14 +246,14 @@ public class GcsMetadataHandler
             //getting storage file list
             List<String> fileList = datasource.getStorageSplits(locationUri);
             SpillLocation spillLocation = makeSpillLocation(request);
-            LOGGER.info("Split list for {}.{} is \n{}", table.getDatabaseName(), table.getName(), fileList);
+            LOGGER.info("Split list for {}.{} is \n{}", table.databaseName(), table.name(), fileList);
 
             //creating splits based folder
             String storageSplitJson = new ObjectMapper().writeValueAsString(fileList);
             LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
                     storageSplitJson);
             Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(FILE_FORMAT, table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM))
+                    .add(FILE_FORMAT, table.parameters().get(CLASSIFICATION_GLUE_TABLE_PARAM))
                     .add(STORAGE_SPLIT_JSON, storageSplitJson);
 
             // set partition column name and value in split

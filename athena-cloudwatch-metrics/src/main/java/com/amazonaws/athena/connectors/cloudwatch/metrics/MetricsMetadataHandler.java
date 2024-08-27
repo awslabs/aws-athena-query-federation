@@ -42,19 +42,19 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
 import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
 import com.amazonaws.services.cloudwatch.model.Metric;
 import com.amazonaws.services.cloudwatch.model.MetricStat;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.CollectionUtils;
 import com.google.common.collect.Lists;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -141,8 +141,8 @@ public class MetricsMetadataHandler
     protected MetricsMetadataHandler(
         AmazonCloudWatch metrics,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         java.util.Map<String, String> configOptions)
@@ -258,9 +258,15 @@ public class MetricsMetadataHandler
                 }
             }
 
+            String continuationToken = null;
+            if (result.getNextToken() != null &&
+                    !result.getNextToken().equalsIgnoreCase(listMetricsRequest.getNextToken())) {
+                continuationToken = result.getNextToken();
+            }
+
             if (CollectionUtils.isNullOrEmpty(metricStats)) {
                 logger.info("No metric stats present after filtering predicates.");
-                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);
             }
 
             List<List<MetricStat>> partitions = Lists.partition(metricStats, calculateSplitSize(metricStats.size()));
@@ -269,12 +275,6 @@ public class MetricsMetadataHandler
                 splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
                         .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, serializedMetricStats)
                         .build());
-            }
-
-            String continuationToken = null;
-            if (result.getNextToken() != null &&
-                    !result.getNextToken().equalsIgnoreCase(listMetricsRequest.getNextToken())) {
-                continuationToken = result.getNextToken();
             }
 
             return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);

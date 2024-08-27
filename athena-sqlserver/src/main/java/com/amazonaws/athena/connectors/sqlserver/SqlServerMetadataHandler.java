@@ -54,11 +54,10 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.microsoft.sqlserver.jdbc.SQLServerException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -66,6 +65,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -129,7 +130,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "WHERE t.object_id = (select object_id from sys.objects o where o.name = ? " +
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
-    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT t.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT o.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('U', 'V') and s.name = ? ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
 
     public SqlServerMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -149,8 +150,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     @VisibleForTesting
     protected SqlServerMetadataHandler(
         DatabaseConnectionConfig databaseConnectionConfig,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
@@ -167,8 +168,9 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int token, int limit) throws SQLException
     {
         PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
-        preparedStatement.setInt(1, token);
-        preparedStatement.setInt(2, limit);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setInt(2, token);
+        preparedStatement.setInt(3, limit);
         LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
@@ -227,12 +229,12 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         List<String> params = Arrays.asList(getTableLayoutRequest.getTableName().getTableName(), getTableLayoutRequest.getTableName().getSchemaName());
 
         //check whether the input table is a view or not
-        String viewFlag = "N";
+        boolean viewFlag = false;
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(params).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
-                viewFlag = "VIEW".equalsIgnoreCase(resultSet.getString("TYPE_DESC")) ? "Y" : "N";
+                viewFlag = "VIEW".equalsIgnoreCase(resultSet.getString("TYPE_DESC"));
             }
             LOGGER.info("viewFlag: {}", viewFlag);
         }
@@ -252,14 +254,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 }
 
                 // create a single split for view/non-partition table
-                if ("Y".equals(viewFlag) || rowCount == 0) {
-                    LOGGER.debug("Getting as single Partition: ");
-                    blockWriter.writeRows((Block block, int rowNum) ->
-                    {
-                        block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
-                        //we wrote 1 row so we return 1
-                        return 1;
-                    });
+                if (viewFlag || rowCount == 0) {
+                    handleSinglePartition(blockWriter);
                 }
                 else {
                     LOGGER.debug("Getting data with diff Partitions: ");
@@ -290,7 +286,26 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                     }
                 }
             }
+            catch (SQLServerException e) {
+                // for permission denied sqlServer exception retuning single partition
+                if (e.getMessage().contains("VIEW DATABASE STATE permission denied")) {
+                    LOGGER.warn("Permission denied to view database state for {}", e.getMessage());
+                    handleSinglePartition(blockWriter);
+                }
+                else {
+                    throw e;
+                }
+            }
         }
+    }
+
+    private static void handleSinglePartition(BlockWriter blockWriter)
+    {
+        LOGGER.debug("Getting as single Partition: ");
+        blockWriter.writeRows((Block block, int rowNum) -> {
+            block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
+            return 1;
+        });
     }
 
     /**
@@ -507,9 +522,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             throws SQLException
     {
         String queryToListUserCreatedSchemas = "select s.name as schema_name from " +
-                "sys.schemas s inner join sys.sysusers u on u.uid = s.principal_id " +
-                "where u.issqluser = 1 " +
-                "and u.name not in ('sys', 'guest', 'INFORMATION_SCHEMA') " +
+                "sys.schemas s " +
+                "where s.name not in ('sys', 'guest', 'INFORMATION_SCHEMA', 'db_accessadmin', 'db_backupoperator', 'db_datareader', 'db_datawriter', 'db_ddladmin', 'db_denydatareader', 'db_denydatawriter', 'db_owner', 'db_securityadmin') " +
                 "order by s.name";
         try (Statement st = jdbcConnection.createStatement();
                 ResultSet resultSet = st.executeQuery(queryToListUserCreatedSchemas)) {

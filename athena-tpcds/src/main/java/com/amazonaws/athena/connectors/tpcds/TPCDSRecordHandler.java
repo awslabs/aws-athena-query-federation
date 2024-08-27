@@ -23,15 +23,8 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.teradata.tpcds.Results;
 import com.teradata.tpcds.Session;
 import com.teradata.tpcds.Table;
@@ -42,6 +35,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -50,7 +46,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_NUMBER_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
@@ -78,11 +73,11 @@ public class TPCDSRecordHandler
 
     public TPCDSRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE, configOptions);
+        super(S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(), SOURCE_TYPE, configOptions);
     }
 
     @VisibleForTesting
-    protected TPCDSRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
+    protected TPCDSRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
     }
@@ -100,7 +95,14 @@ public class TPCDSRecordHandler
         int splitNumber = Integer.parseInt(split.getProperty(SPLIT_NUMBER_FIELD));
         int totalNumSplits = Integer.parseInt(split.getProperty(SPLIT_TOTAL_NUMBER_FIELD));
         int scaleFactor = Integer.parseInt(split.getProperty(SPLIT_SCALE_FACTOR_FIELD));
-        Table table = validateTable(recordsRequest.getTableName());
+
+        Table table;
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            table = TPCDSUtils.validateQptTable(recordsRequest.getConstraints().getQueryPassthroughArguments());
+        }
+        else {
+            table = TPCDSUtils.validateTable(recordsRequest.getTableName());
+        }
 
         Session session = Session.getDefaultSession()
                 .withScale(scaleFactor)
@@ -123,25 +125,6 @@ public class TPCDSRecordHandler
                 return matched ? 1 : 0;
             });
         }
-    }
-
-    /**
-     * Required that the requested Table be present in the TPCDS generated schema.
-     *
-     * @param tableName The fully qualified name of the requested table.
-     * @return The TPCDS table, if present, otherwise the method throws.
-     */
-    private Table validateTable(TableName tableName)
-    {
-        Optional<Table> table = Table.getBaseTables().stream()
-                .filter(next -> next.getName().equals(tableName.getTableName()))
-                .findFirst();
-
-        if (!table.isPresent()) {
-            throw new RuntimeException("Unknown table " + tableName);
-        }
-
-        return table.get();
     }
 
     /**

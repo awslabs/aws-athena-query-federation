@@ -117,7 +117,6 @@ Resources:
               - logs:TestMetricFilter
               - logs:FilterLogEvents
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
             Effect: Allow
             Resource: '*'
           - Action:

@@ -54,9 +54,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.RdsSecretsCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -76,6 +73,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Array;
 import java.sql.Connection;
@@ -111,9 +111,9 @@ public abstract class JdbcRecordHandler
     }
 
     protected JdbcRecordHandler(
-        AmazonS3 amazonS3,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        S3Client amazonS3,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         DatabaseConnectionConfig databaseConnectionConfig,
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)

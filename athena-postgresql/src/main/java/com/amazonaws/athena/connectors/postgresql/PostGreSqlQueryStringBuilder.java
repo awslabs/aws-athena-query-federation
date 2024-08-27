@@ -20,12 +20,19 @@
 package com.amazonaws.athena.connectors.postgresql;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
+import org.apache.arrow.vector.types.pojo.Schema;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Extends {@link JdbcSplitQueryBuilder} and implements PostGreSql specific SQL clauses for split.
@@ -38,6 +45,39 @@ public class PostGreSqlQueryStringBuilder
     public PostGreSqlQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
         super(quoteCharacters, federationExpressionParser);
+    }
+
+    @Override
+    public PreparedStatement buildSql(
+            final Connection jdbcConnection,
+            final String catalog,
+            final String schema,
+            final String table,
+            final Schema tableSchema,
+            final Constraints constraints,
+            final Split split)
+            throws SQLException
+    {
+        List<String> charColumns = PostGreSqlMetadataHandler.getCharColumns(jdbcConnection, schema, table);
+
+        String columnNames = tableSchema.getFields().stream()
+                .map(field -> {
+                    String columnName = field.getName();
+                    if (!split.getProperties().containsKey(columnName)) {
+                        if (charColumns.contains(columnName)) {
+                            return "RTRIM(" + quote(columnName) + ") AS " + quote(columnName);
+                        }
+                        else {
+                            return quote(columnName);
+                        }
+                    }
+                    else {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(", "));
+        return prepareStatementWithSql(jdbcConnection, catalog, schema, table, tableSchema, constraints, split, columnNames);
     }
 
     @Override

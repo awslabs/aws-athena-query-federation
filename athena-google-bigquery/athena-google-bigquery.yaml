@@ -13,7 +13,7 @@ Metadata:
       - Athena-Federation
       - Google-SDK
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2024.18.2
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -104,7 +104,7 @@ Resources:
           GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.google.bigquery.BigQueryCompositeHandler"
-      CodeUri: "./target/athena-google-bigquery-2024.18.2.jar"
+      CodeUri: "./target/athena-google-bigquery-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with BigQuery using Google SDK"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
@@ -156,7 +156,7 @@ Resources:
             Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
           - Action:
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
+
             Effect: Allow
             Resource: '*'
           - Action:

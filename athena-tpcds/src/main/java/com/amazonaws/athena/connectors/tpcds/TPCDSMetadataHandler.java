@@ -25,7 +25,10 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -35,19 +38,23 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.tpcds.qpt.TPCDSQueryPassthrough;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.teradata.tpcds.Table;
 import com.teradata.tpcds.column.Column;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -74,6 +81,8 @@ public class TPCDSMetadataHandler
     protected static final String SPLIT_SCALE_FACTOR_FIELD = "scaleFactor";
     //The list of valid schemas which also convey the scale factor
     protected static final Set<String> SCHEMA_NAMES = ImmutableSet.of("tpcds1", "tpcds10", "tpcds100", "tpcds250", "tpcds1000");
+    // Query Passthrough
+    protected static final TPCDSQueryPassthrough queryPassthrough = new TPCDSQueryPassthrough();
 
     /**
      * used to aid in debugging. Athena will use this name in conjunction with your catalog id
@@ -89,13 +98,22 @@ public class TPCDSMetadataHandler
     @VisibleForTesting
     protected TPCDSMetadataHandler(
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         java.util.Map<String, String> configOptions)
     {
         super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     /**
@@ -151,6 +169,24 @@ public class TPCDSMetadataHandler
                 Collections.EMPTY_SET);
     }
 
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        logger.info("doGetQueryPassthroughSchema: enter - " + request);
+        logger.warn("This method is only for testing purpose and should not be used in production");
+        Table table = TPCDSUtils.validateQptTable(request.getQueryPassthroughArguments());
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        for (Column nextCol : table.getColumns()) {
+            schemaBuilder.addField(TPCDSUtils.convertColumn(nextCol));
+        }
+
+        return new GetTableResponse(request.getCatalogName(),
+                request.getTableName(),
+                schemaBuilder.build(),
+                Collections.EMPTY_SET);
+    }
+
     /**
      * We do not support partitioning at this time since Partition Pruning Performance is not part of the dimensions
      * we test using TPCDS. By making this a NoOp the Athena Federation SDK will automatically generate a single
@@ -175,12 +211,28 @@ public class TPCDSMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
-        String catalogName = request.getCatalogName();
-        int scaleFactor = TPCDSUtils.extractScaleFactor(request.getTableName().getSchemaName());
+        logger.info("{}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName().getTableName());
+        String catalogName;
+        String schemaName;
+        String tableName;
+        if (request.getConstraints().isQueryPassThrough()) {
+            logger.info("QPT Split Requested");
+            Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+            catalogName = qptArguments.get(TPCDSQueryPassthrough.TPCDS_CATALOG);
+            schemaName = qptArguments.get(TPCDSQueryPassthrough.TPCDS_SCHEMA);
+            tableName = qptArguments.get(TPCDSQueryPassthrough.TPCDS_TABLE);
+        }
+        else {
+            catalogName = request.getCatalogName();
+            schemaName = request.getTableName().getSchemaName();
+            tableName = request.getTableName().getTableName();
+        }
+
+        int scaleFactor = TPCDSUtils.extractScaleFactor(schemaName);
         int totalSplits = (int) Math.ceil(((double) scaleFactor / 48D));    //each split would be ~48MB
 
         logger.info("doGetSplits: Generating {} splits for {} at scale factor {}",
-                totalSplits, request.getTableName(), scaleFactor);
+                totalSplits, tableName, scaleFactor);
 
         int nextSplit = request.getContinuationToken() == null ? 0 : Integer.parseInt(request.getContinuationToken());
         Set<Split> splits = new HashSet<>();
@@ -197,5 +249,22 @@ public class TPCDSMetadataHandler
 
         logger.info("doGetSplits: exit - " + splits.size());
         return new GetSplitsResponse(catalogName, splits);
+    }
+
+    /**
+     * Helper function that provides a single partition for Query Pass-Through
+     *
+     */
+    protected GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
+    {
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
+
+        //Since this is QPT query we return a fixed split.
+        Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+        return new GetSplitsResponse(request.getCatalogName(),
+                Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .applyProperties(qptArguments)
+                        .build());
     }
 }

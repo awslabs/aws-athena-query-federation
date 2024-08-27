@@ -140,7 +140,6 @@ Resources:
             Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
           - Action:
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
             Effect: Allow
             Resource: '*'
           - Action:

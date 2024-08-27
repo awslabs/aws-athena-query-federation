@@ -32,8 +32,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.logs.AWSLogs;
 import com.amazonaws.services.logs.AWSLogsClientBuilder;
 import com.amazonaws.services.logs.model.GetLogEventsRequest;
@@ -41,13 +39,12 @@ import com.amazonaws.services.logs.model.GetLogEventsResult;
 import com.amazonaws.services.logs.model.GetQueryResultsResult;
 import com.amazonaws.services.logs.model.OutputLogEvent;
 import com.amazonaws.services.logs.model.ResultField;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.List;
 import java.util.Map;
@@ -84,15 +81,15 @@ public class CloudwatchRecordHandler
     public CloudwatchRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(
-                AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
+                S3Client.create(),
+                SecretsManagerClient.create(),
+                AthenaClient.create(),
                 AWSLogsClientBuilder.defaultClient(),
                 configOptions);
     }
 
     @VisibleForTesting
-    protected CloudwatchRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, AWSLogs awsLogs, java.util.Map<String, String> configOptions)
+    protected CloudwatchRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, AWSLogs awsLogs, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.awsLogs = awsLogs;

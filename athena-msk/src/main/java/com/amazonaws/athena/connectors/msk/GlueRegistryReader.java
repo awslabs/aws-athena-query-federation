@@ -19,16 +19,15 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.GetSchemaRequest;
-import com.amazonaws.services.glue.model.GetSchemaResult;
-import com.amazonaws.services.glue.model.GetSchemaVersionRequest;
-import com.amazonaws.services.glue.model.GetSchemaVersionResult;
-import com.amazonaws.services.glue.model.SchemaId;
-import com.amazonaws.services.glue.model.SchemaVersionNumber;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetSchemaRequest;
+import software.amazon.awssdk.services.glue.model.GetSchemaResponse;
+import software.amazon.awssdk.services.glue.model.GetSchemaVersionRequest;
+import software.amazon.awssdk.services.glue.model.GetSchemaVersionResponse;
+import software.amazon.awssdk.services.glue.model.SchemaId;
+import software.amazon.awssdk.services.glue.model.SchemaVersionNumber;
 
 public class GlueRegistryReader
 {
@@ -46,15 +45,21 @@ public class GlueRegistryReader
      * @param glueSchemaName
      * @return
      */
-    public GetSchemaVersionResult getSchemaVersionResult(String glueRegistryName, String glueSchemaName)
+    public GetSchemaVersionResponse getSchemaVersionResult(String glueRegistryName, String glueSchemaName)
     {
-        AWSGlue glue = AWSGlueClientBuilder.defaultClient();
-        SchemaId sid = new SchemaId().withRegistryName(glueRegistryName).withSchemaName(glueSchemaName);
-        GetSchemaResult schemaResult = glue.getSchema(new GetSchemaRequest().withSchemaId(sid));
-        SchemaVersionNumber svn = new SchemaVersionNumber().withVersionNumber(schemaResult.getLatestSchemaVersion());
-        return glue.getSchemaVersion(new GetSchemaVersionRequest()
-                .withSchemaId(sid)
-                .withSchemaVersionNumber(svn)
+        GlueClient glue = GlueClient.create();
+        SchemaId sid = SchemaId.builder()
+                .registryName(glueRegistryName)
+                .schemaName(glueSchemaName)
+                .build();
+        GetSchemaResponse schemaResult = glue.getSchema(GetSchemaRequest.builder().schemaId(sid).build());
+        SchemaVersionNumber svn = SchemaVersionNumber.builder()
+                .versionNumber(schemaResult.latestSchemaVersion())
+                .build();
+        return glue.getSchemaVersion(GetSchemaVersionRequest.builder()
+                .schemaId(sid)
+                .schemaVersionNumber(svn)
+                .build()
         );
     }
     /**
@@ -69,7 +74,17 @@ public class GlueRegistryReader
      */
     public <T> T getGlueSchema(String glueRegistryName, String glueSchemaName, Class<T> clazz) throws Exception
     {
-        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
-        return objectMapper.readValue(result.getSchemaDefinition(), clazz);
+        GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return objectMapper.readValue(result.schemaDefinition(), clazz);
+    }
+    public String getGlueSchemaType(String glueRegistryName, String glueSchemaName)
+    {
+        GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return result.dataFormatAsString();
+    }
+    public String getSchemaDef(String glueRegistryName, String glueSchemaName)
+    {
+        GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return result.schemaDefinition();
     }
 }

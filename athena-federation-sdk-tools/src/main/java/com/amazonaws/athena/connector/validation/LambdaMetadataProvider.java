@@ -42,8 +42,8 @@ import java.util.List;
 import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.validation.FederationServiceProvider.callService;
 import static com.amazonaws.athena.connector.validation.FederationServiceProvider.generateQueryId;
-import static com.amazonaws.athena.connector.validation.FederationServiceProvider.getService;
 
 /**
  * This class offers multiple convenience methods to retrieve metadata from a deployed Lambda.
@@ -75,7 +75,7 @@ public class LambdaMetadataProvider
     try (ListSchemasRequest request =
                  new ListSchemasRequest(identity, queryId, catalog)) {
       log.info("Submitting request: {}", request);
-      ListSchemasResponse response = (ListSchemasResponse) getService(metadataFunction, identity, catalog).call(request);
+      ListSchemasResponse response = (ListSchemasResponse) callService(metadataFunction, identity, catalog, request);
       log.info("Received response: {}", response);
       return response;
     }
@@ -107,7 +107,7 @@ public class LambdaMetadataProvider
     try (ListTablesRequest request =
                  new ListTablesRequest(identity, queryId, catalog, schema, null, UNLIMITED_PAGE_SIZE_VALUE)) {
       log.info("Submitting request: {}", request);
-      ListTablesResponse response = (ListTablesResponse) getService(metadataFunction, identity, catalog).call(request);
+      ListTablesResponse response = (ListTablesResponse) callService(metadataFunction, identity, catalog, request);
       log.info("Received response: {}", response);
       return response;
     }
@@ -136,7 +136,7 @@ public class LambdaMetadataProvider
     try (GetTableRequest request =
                  new GetTableRequest(identity, queryId, catalog, tableName, Collections.emptyMap())) {
       log.info("Submitting request: {}", request);
-      GetTableResponse response = (GetTableResponse) getService(metadataFunction, identity, catalog).call(request);
+      GetTableResponse response = (GetTableResponse) callService(metadataFunction, identity, catalog, request);
       log.info("Received response: {}", response);
       return response;
     }
@@ -171,7 +171,7 @@ public class LambdaMetadataProvider
     try (GetTableLayoutRequest request =
                  new GetTableLayoutRequest(identity, queryId, catalog, tableName, constraints, schema, partitionCols)) {
       log.info("Submitting request: {}", request);
-      GetTableLayoutResponse response = (GetTableLayoutResponse) getService(metadataFunction, identity, catalog).call(request);
+      GetTableLayoutResponse response = (GetTableLayoutResponse) callService(metadataFunction, identity, catalog, request);
       log.info("Received response: {}", response);
       return response;
     }
@@ -208,7 +208,7 @@ public class LambdaMetadataProvider
     try (GetSplitsRequest request =
                  new GetSplitsRequest(identity, queryId, catalog, tableName, partitions, partitionCols, constraints, contToken)) {
       log.info("Submitting request: {}", request);
-      GetSplitsResponse response = (GetSplitsResponse) getService(metadataFunction, identity, catalog).call(request);
+      GetSplitsResponse response = (GetSplitsResponse) callService(metadataFunction, identity, catalog, request);
       log.info("Received response: {}", response);
       return response;
     }

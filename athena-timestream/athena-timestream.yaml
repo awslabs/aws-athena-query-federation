@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2024.18.2
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -74,7 +74,7 @@ Resources:
           glue_connection: !If [ HasGlueConnection, !Ref GlueConnection, !Ref "AWS::NoValue" ]
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.timestream.TimestreamCompositeHandler"
-      CodeUri: "./target/athena-timestream-2024.18.2.jar"
+      CodeUri: "./target/athena-timestream-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with Amazon Timestream, making your time series data accessible from Athena."
       Runtime: java11
       Timeout: !Ref LambdaTimeout
@@ -118,8 +118,7 @@ Resources:
               - glue:GetPartition
               - glue:GetDatabase
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
-              - timestream:Describe*
+              -  timestream:Describe*
               - timestream:List*
               - timestream:Select*
             Effect: Allow

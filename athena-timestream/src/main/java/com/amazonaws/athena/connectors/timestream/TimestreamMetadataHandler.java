@@ -42,10 +42,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
 import com.amazonaws.services.timestreamquery.model.ColumnInfo;
 import com.amazonaws.services.timestreamquery.model.Datum;
@@ -62,6 +58,10 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
 import java.util.List;
@@ -82,14 +82,14 @@ public class TimestreamMetadataHandler
     //is indeed enabled for use by this connector.
     private static final String METADATA_FLAG = "timestream-metadata-flag";
     //Used to filter out Glue tables which lack a timestream metadata flag.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(METADATA_FLAG);
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.parameters().containsKey(METADATA_FLAG);
 
     private static final long MAX_RESULTS = 100_000;
 
     //Used to generate TimeStream queries using templates query patterns.
     private final QueryFactory queryFactory = new QueryFactory();
 
-    private final AWSGlue glue;
+    private final GlueClient glue;
     private final AmazonTimestreamQuery tsQuery;
     private final AmazonTimestreamWrite tsMeta;
 
@@ -108,10 +108,10 @@ public class TimestreamMetadataHandler
     protected TimestreamMetadataHandler(
         AmazonTimestreamQuery tsQuery,
         AmazonTimestreamWrite tsMeta,
-        AWSGlue glue,
+        GlueClient glue,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         java.util.Map<String, String> configOptions)

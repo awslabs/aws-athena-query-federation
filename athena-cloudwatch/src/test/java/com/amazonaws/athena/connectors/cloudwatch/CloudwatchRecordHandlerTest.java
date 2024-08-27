@@ -39,17 +39,10 @@ import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.logs.AWSLogs;
 import com.amazonaws.services.logs.model.GetLogEventsRequest;
 import com.amazonaws.services.logs.model.GetLogEventsResult;
 import com.amazonaws.services.logs.model.OutputLogEvent;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
@@ -63,6 +56,15 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -77,7 +79,6 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -97,13 +98,13 @@ public class CloudwatchRecordHandlerTest
     private AWSLogs mockAwsLogs;
 
     @Mock
-    private AmazonS3 mockS3;
+    private S3Client mockS3;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
@@ -116,31 +117,27 @@ public class CloudwatchRecordHandlerTest
         handler = new CloudwatchRecordHandler(mockS3, mockSecretsManager, mockAthena, mockAwsLogs, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
-        when(mockS3.putObject(any()))
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
+                    InputStream inputStream = ((RequestBody) invocationOnMock.getArguments()[1]).contentStreamProvider().newStream();
                     ByteHolder byteHolder = new ByteHolder();
                     byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                     synchronized (mockS3Storage) {
                         mockS3Storage.add(byteHolder);
                         logger.info("puObject: total size " + mockS3Storage.size());
                     }
-                    return mock(PutObjectResult.class);
+                    return PutObjectResponse.builder().build();
                 });
 
-        when(mockS3.getObject(nullable(String.class), nullable(String.class)))
+        when(mockS3.getObject(any(GetObjectRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
                     synchronized (mockS3Storage) {
                         byteHolder = mockS3Storage.get(0);
                         mockS3Storage.remove(0);
                         logger.info("getObject: total size " + mockS3Storage.size());
                     }
-                    when(mockObject.getObjectContent()).thenReturn(
-                            new S3ObjectInputStream(
-                                    new ByteArrayInputStream(byteHolder.getBytes()), null));
-                    return mockObject;
+                    return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
                 });
 
         when(mockAwsLogs.getLogEvents(nullable(GetLogEventsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {

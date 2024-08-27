@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2024.18.2
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -110,7 +110,7 @@ Resources:
           hbase_rpc_protection: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref HbaseRpcProtection ]
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.hbase.HbaseCompositeHandler"
-      CodeUri: "./target/athena-hbase-2024.18.2.jar"
+      CodeUri: "./target/athena-hbase-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with HBase, making your HBase data accessible via SQL"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
@@ -161,7 +161,6 @@ Resources:
               - glue:GetPartition
               - glue:GetDatabase
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
             Effect: Allow
             Resource: '*'
           - Action:

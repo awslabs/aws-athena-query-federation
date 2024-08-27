@@ -22,10 +22,6 @@ package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
@@ -48,6 +44,9 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -81,11 +80,10 @@ public class BigQueryUtils
     public static Credentials getCredentialsFromSecretsManager(java.util.Map<String, String> configOptions)
             throws IOException
     {
-        AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
-        GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
-        getSecretValueRequest.setSecretId(getEnvBigQueryCredsSmId(configOptions));
-        GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
-        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.getSecretString().getBytes())).createScoped(
+        SecretsManagerClient secretsManager = SecretsManagerClient.create();
+        GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder().secretId(getEnvBigQueryCredsSmId(configOptions)).build();
+        GetSecretValueResponse response = secretsManager.getSecretValue(getSecretValueRequest);
+        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.secretString().getBytes())).createScoped(
                 ImmutableSet.of(
                         "https://www.googleapis.com/auth/bigquery",
                         "https://www.googleapis.com/auth/drive"));
@@ -98,7 +96,7 @@ public class BigQueryUtils
         if (StringUtils.isNotEmpty(endpoint)) {
             bigqueryBuilder.setHost(endpoint);
         }
-        bigqueryBuilder.setProjectId(configOptions.get(BigQueryConstants.GCP_PROJECT_ID));
+        bigqueryBuilder.setProjectId(configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase());
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager(configOptions));
         return bigqueryBuilder.build().getService();
     }
@@ -213,7 +211,7 @@ public class BigQueryUtils
      */
     public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions) throws IOException
     {
-        CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
+        CachableSecretsManager secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
         String gcsCredentialsJsonString = secretsManager.getSecret(configOptions.get(BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID));
         File destination = new File(TMP_SERVICE_ACCOUNT_JSON);
         boolean destinationDirExists = new File(destination.getParent()).mkdirs();

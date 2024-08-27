@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.metadata.optimizations;
 
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.HintsSubtype;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.PushdownSubTypes;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
@@ -71,6 +72,18 @@ public enum DataSourceOptimizations
                 throw new IllegalArgumentException("Complex Expression Pushdown Optimization must contain valid pushdown subtypes.");
             }
             return new SimpleImmutableEntry<String, List<OptimizationSubType>>(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
+        }
+    },
+    //Allows Connector to provide some hints to be used by the engine
+    //Currently this only supports data source default collate to match of Athena
+    DATA_SOURCE_HINTS("data_source_hints")
+    {
+        public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
+        {
+            if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof HintsSubtype)) {
+                throw new IllegalArgumentException("Data Source Hints  must contain valid data source hint subtypes.");
+            }
+            return new SimpleImmutableEntry<>(DATA_SOURCE_HINTS.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
     };
 

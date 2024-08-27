@@ -1,8 +1,8 @@
 /*-
  * #%L
- * Amazon Athena Query Federation SDK Tools
+ * Athena MSK Connector
  * %%
- * Copyright (C) 2019 - 2020 Amazon Web Services
+ * Copyright (C) 2019 - 2024 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,13 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.validation;
+package com.amazonaws.athena.connectors.msk.consumer;
 
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
-import com.amazonaws.athena.connector.lambda.request.FederationResponse;
-import com.amazonaws.services.lambda.invoke.LambdaFunction;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-public interface FederationService
+public interface MskRecordProcessor<T>
 {
-    @LambdaFunction
-    FederationResponse call(final FederationRequest request);
+    void processRecord(BlockSpiller spiller, SplitParameters splitParameters, ConsumerRecord<String, T> record);
 }

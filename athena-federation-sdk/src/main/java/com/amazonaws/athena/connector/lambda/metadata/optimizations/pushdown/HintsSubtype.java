@@ -1,10 +1,8 @@
-package com.amazonaws.athena.connector.lambda.metadata;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,20 +17,24 @@ package com.amazonaws.athena.connector.lambda.metadata;
  * limitations under the License.
  * #L%
  */
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-import com.amazonaws.services.lambda.invoke.LambdaFunction;
-
-/**
- * Lambda functions intended for <code>Metadata</code> operations associate with this interface.
- */
-public interface MetadataService
+public enum HintsSubtype
+    implements PushdownSubTypes
 {
-    /**
-     * Returns metadata corresponding to the request type.
-     *
-     * @param request The metadata request.
-     * @return The metadata.
-     */
-    @LambdaFunction(functionName = "metadata")
-    MetadataResponse getMetadata(final MetadataRequest request);
+    //This indicates that the connector does not support the same default collate setting of Athena
+    NON_DEFAULT_COLLATE("non_default_collate");
+
+    private String subType;
+
+    @Override
+    public String getSubType()
+    {
+        return subType;
+    }
+
+    HintsSubtype(String subType)
+    {
+        this.subType = subType;
+    }
 }

@@ -40,12 +40,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
 import com.amazonaws.services.timestreamquery.model.Datum;
 import com.amazonaws.services.timestreamquery.model.QueryRequest;
@@ -69,6 +63,11 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -80,7 +79,6 @@ import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -97,15 +95,15 @@ public class TimestreamMetadataHandlerTest
     private BlockAllocator allocator;
 
     @Mock
-    protected AWSSecretsManager mockSecretsManager;
+    protected SecretsManagerClient mockSecretsManager;
     @Mock
-    protected AmazonAthena mockAthena;
+    protected AthenaClient mockAthena;
     @Mock
     protected AmazonTimestreamQuery mockTsQuery;
     @Mock
     protected AmazonTimestreamWrite mockTsMeta;
     @Mock
-    protected AWSGlue mockGlue;
+    protected GlueClient mockGlue;
 
     @Before
     public void setUp()
@@ -238,8 +236,8 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doGetTable - enter");
 
-        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class)))
-                .thenReturn(mock(GetTableResult.class));
+        when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class)))
+                .thenReturn(software.amazon.awssdk.services.glue.model.GetTableResponse.builder().build());
 
         when(mockTsQuery.query(nullable(QueryRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             QueryRequest request = invocation.getArgument(0, QueryRequest.class);
@@ -294,23 +292,25 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doGetTable - enter");
 
-        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            com.amazonaws.services.glue.model.GetTableRequest request = invocation.getArgument(0,
-                    com.amazonaws.services.glue.model.GetTableRequest.class);
+        when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            software.amazon.awssdk.services.glue.model.GetTableRequest request = invocation.getArgument(0,
+            software.amazon.awssdk.services.glue.model.GetTableRequest.class);
 
             List<Column> columns = new ArrayList<>();
-            columns.add(new Column().withName("col1").withType("varchar"));
-            columns.add(new Column().withName("col2").withType("double"));
-            com.amazonaws.services.glue.model.Table table = new com.amazonaws.services.glue.model.Table();
-            table.setName(request.getName());
-            table.setDatabaseName(request.getDatabaseName());
-            StorageDescriptor storageDescriptor = new StorageDescriptor();
-            storageDescriptor.setColumns(columns);
-            table.setStorageDescriptor(storageDescriptor);
-            table.setViewOriginalText("view text");
-            table.setParameters(Collections.singletonMap("timestream-metadata-flag", "timestream-metadata-flag"));
+            columns.add(Column.builder().name("col1").type("varchar").build());
+            columns.add(Column.builder().name("col2").type("double").build());
+            StorageDescriptor storageDescriptor = StorageDescriptor.builder()
+                    .columns(columns)
+                    .build();
+            software.amazon.awssdk.services.glue.model.Table table = software.amazon.awssdk.services.glue.model.Table.builder()
+                    .name(request.name())
+                    .databaseName(request.databaseName())
+                    .storageDescriptor(storageDescriptor)
+                    .viewOriginalText("view text")
+                    .parameters(Collections.singletonMap("timestream-metadata-flag", "timestream-metadata-flag"))
+                    .build();
 
-            return new GetTableResult().withTable(table);
+            return software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
         });
 
         GetTableRequest req = new GetTableRequest(identity,
@@ -340,25 +340,25 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doGetTimeSeriesTableGlue - enter");
 
-        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            com.amazonaws.services.glue.model.GetTableRequest request = invocation.getArgument(0,
-                    com.amazonaws.services.glue.model.GetTableRequest.class);
+        when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            software.amazon.awssdk.services.glue.model.GetTableRequest request = invocation.getArgument(0,
+            software.amazon.awssdk.services.glue.model.GetTableRequest.class);
 
             List<Column> columns = new ArrayList<>();
-            columns.add(new Column().withName("az").withType("varchar"));
-            columns.add(new Column().withName("hostname").withType("varchar"));
-            columns.add(new Column().withName("region").withType("varchar"));
-            columns.add(new Column().withName("cpu_utilization").withType("ARRAY<STRUCT<time: timestamp, measure_value\\:\\:double: double>>"));
-            com.amazonaws.services.glue.model.Table table = new com.amazonaws.services.glue.model.Table();
-            table.setName(request.getName());
-            table.setDatabaseName(request.getDatabaseName());
-            StorageDescriptor storageDescriptor = new StorageDescriptor();
-            storageDescriptor.setColumns(columns);
-            table.setStorageDescriptor(storageDescriptor);
-            table.setViewOriginalText("SELECT az, hostname, region, cpu_utilization FROM TIMESERIES(metrics_table,'cpu_utilization')");
-            table.setParameters(Collections.singletonMap("timestream-metadata-flag", "timestream-metadata-flag"));
+            columns.add(Column.builder().name("az").type("varchar").build());
+            columns.add(Column.builder().name("hostname").type("varchar").build());
+            columns.add(Column.builder().name("region").type("varchar").build());
+            columns.add(Column.builder().name("cpu_utilization").type("ARRAY<STRUCT<time: timestamp, measure_value\\:\\:double: double>>").build());
+            StorageDescriptor storageDescriptor = StorageDescriptor.builder().columns(columns).build();
+            software.amazon.awssdk.services.glue.model.Table table = software.amazon.awssdk.services.glue.model.Table.builder()
+                    .name(request.name())
+                    .databaseName(request.databaseName())
+                    .storageDescriptor(storageDescriptor)
+                    .viewOriginalText("SELECT az, hostname, region, cpu_utilization FROM TIMESERIES(metrics_table,'cpu_utilization')")
+                    .parameters(Collections.singletonMap("timestream-metadata-flag", "timestream-metadata-flag"))
+                    .build();
 
-            return new GetTableResult().withTable(table);
+            return software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
         });
 
         GetTableRequest req = new GetTableRequest(identity,

@@ -27,12 +27,16 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.GetSchemaResult;
-import com.amazonaws.services.glue.model.GetSchemaVersionResult;
-import com.amazonaws.services.glue.model.ListRegistriesResult;
-import com.amazonaws.services.glue.model.RegistryListItem;
+
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetSchemaRequest;
+import software.amazon.awssdk.services.glue.model.GetSchemaResponse;
+import software.amazon.awssdk.services.glue.model.GetSchemaVersionRequest;
+import software.amazon.awssdk.services.glue.model.GetSchemaVersionResponse;
+import software.amazon.awssdk.services.glue.model.ListRegistriesRequest;
+import software.amazon.awssdk.services.glue.model.ListRegistriesResponse;
+import software.amazon.awssdk.services.glue.model.RegistryListItem;
+
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.PartitionInfo;
@@ -71,10 +75,10 @@ public class KafkaMetadataHandlerTest {
     private List<String> partitionCols;
     private Constraints constraints;
 
-    private MockedStatic<AWSGlueClientBuilder> awsGlueClientBuilder;
+    private MockedStatic<GlueClient> awsGlueClientBuilder;
 
     @Mock
-    AWSGlue awsGlue;
+    GlueClient glueClient;
 
     MockConsumer<String, String> consumer;
 
@@ -113,8 +117,8 @@ public class KafkaMetadataHandlerTest {
         consumer.updateEndOffsets(partitionsEnd);
         consumer.updatePartitions("testTopic", partitionInfoList);
 
-        awsGlueClientBuilder = Mockito.mockStatic(AWSGlueClientBuilder.class);
-        awsGlueClientBuilder.when(()-> AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
+        awsGlueClientBuilder = Mockito.mockStatic(GlueClient.class);
+        awsGlueClientBuilder.when(()-> GlueClient.create()).thenReturn(glueClient);
 
         kafkaMetadataHandler = new KafkaMetadataHandler(consumer, configOptions);
     }
@@ -127,9 +131,13 @@ public class KafkaMetadataHandlerTest {
 
     @Test
     public void testDoListSchemaNames() {
-        Mockito.when(awsGlue.listRegistries(any())).thenAnswer(x -> (new ListRegistriesResult()).withRegistries(
-          (new RegistryListItem()).withRegistryName("Asdf").withDescription("something something {AthenaFederationKafka} something"))
-        );
+        Mockito.when(glueClient.listRegistries(any(ListRegistriesRequest.class))).thenAnswer(x -> (ListRegistriesResponse.builder()
+                .registries((RegistryListItem.builder())
+                        .registryName("Asdf")
+                        .description("something something {AthenaFederationKafka} something")
+                        .build())
+                .build()
+        ));
 
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, QUERY_ID, "default");
         ListSchemasResponse listSchemasResponse = kafkaMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
@@ -150,26 +158,29 @@ public class KafkaMetadataHandlerTest {
     public void testDoGetTable() throws Exception {
         String arn = "defaultarn", schemaName = "defaultschemaname", schemaVersionId = "defaultversionid";
         Long latestSchemaVersion = 123L;
-        GetSchemaResult getSchemaResult = new GetSchemaResult();
-        GetSchemaVersionResult getSchemaVersionResult = new GetSchemaVersionResult();
-        getSchemaResult.setSchemaArn(arn);
-        getSchemaResult.setSchemaName(schemaName);
-        getSchemaResult.setLatestSchemaVersion(latestSchemaVersion);
-        getSchemaVersionResult.setSchemaArn(arn);
-        getSchemaVersionResult.setSchemaVersionId(schemaVersionId);
-        getSchemaVersionResult.setSchemaDefinition("{\n" +
-                "\t\"topicName\": \"testtable\",\n" +
-                "\t\"message\": {\n" +
-                "\t\t\"dataFormat\": \"json\",\n" +
-                "\t\t\"fields\": [{\n" +
-                "\t\t\t\"name\": \"intcol\",\n" +
-                "\t\t\t\"mapping\": \"intcol\",\n" +
-                "\t\t\t\"type\": \"INTEGER\"\n" +
-                "\t\t}]\n" +
-                "\t}\n" +
-                "}");
-        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
-        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
+        GetSchemaResponse getSchemaResponse = GetSchemaResponse.builder()
+                .schemaArn(arn)
+                .schemaName(schemaName)
+                .latestSchemaVersion(latestSchemaVersion)
+                .build();
+        GetSchemaVersionResponse getSchemaVersionResponse = GetSchemaVersionResponse.builder()
+                .schemaArn(arn)
+                .schemaVersionId(schemaVersionId)
+                .dataFormat("json")
+                .schemaDefinition("{\n" +
+                        "\t\"topicName\": \"testtable\",\n" +
+                        "\t\"message\": {\n" +
+                        "\t\t\"dataFormat\": \"json\",\n" +
+                        "\t\t\"fields\": [{\n" +
+                        "\t\t\t\"name\": \"intcol\",\n" +
+                        "\t\t\t\"mapping\": \"intcol\",\n" +
+                        "\t\t\t\"type\": \"INTEGER\"\n" +
+                        "\t\t}]\n" +
+                        "\t}\n" +
+                        "}")
+                .build();
+        Mockito.when(glueClient.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
+        Mockito.when(glueClient.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "kafka", new TableName("default", "testtable"), Collections.emptyMap());
         GetTableResponse getTableResponse = kafkaMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         assertEquals(1, getTableResponse.getSchema().getFields().size());
@@ -180,27 +191,30 @@ public class KafkaMetadataHandlerTest {
     {
         String arn = "defaultarn", schemaName = "defaultschemaname", schemaVersionId = "defaultversionid";
         Long latestSchemaVersion = 123L;
-        GetSchemaResult getSchemaResult = new GetSchemaResult();
-        GetSchemaVersionResult getSchemaVersionResult = new GetSchemaVersionResult();
-        getSchemaResult.setSchemaArn(arn);
-        getSchemaResult.setSchemaName(schemaName);
-        getSchemaResult.setLatestSchemaVersion(latestSchemaVersion);
-        getSchemaVersionResult.setSchemaArn(arn);
-        getSchemaVersionResult.setSchemaVersionId(schemaVersionId);
-        getSchemaVersionResult.setSchemaDefinition("{\n" +
-                "\t\"topicName\": \"testTopic\",\n" +
-                "\t\"message\": {\n" +
-                "\t\t\"dataFormat\": \"json\",\n" +
-                "\t\t\"fields\": [{\n" +
-                "\t\t\t\"name\": \"intcol\",\n" +
-                "\t\t\t\"mapping\": \"intcol\",\n" +
-                "\t\t\t\"type\": \"INTEGER\"\n" +
-                "\t\t}]\n" +
-                "\t}\n" +
-                "}");
+        GetSchemaResponse getSchemaResponse = GetSchemaResponse.builder()
+                .schemaArn(arn)
+                .schemaName(schemaName)
+                .latestSchemaVersion(latestSchemaVersion)
+                .build();
+        GetSchemaVersionResponse getSchemaVersionResponse = GetSchemaVersionResponse.builder()
+                .schemaArn(arn)
+                .schemaVersionId(schemaVersionId)
+                .dataFormat("json")
+                .schemaDefinition("{\n" +
+                        "\t\"topicName\": \"testTopic\",\n" +
+                        "\t\"message\": {\n" +
+                        "\t\t\"dataFormat\": \"json\",\n" +
+                        "\t\t\"fields\": [{\n" +
+                        "\t\t\t\"name\": \"intcol\",\n" +
+                        "\t\t\t\"mapping\": \"intcol\",\n" +
+                        "\t\t\t\"type\": \"INTEGER\"\n" +
+                        "\t\t}]\n" +
+                        "\t}\n" +
+                        "}")
+                .build();
 
-        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
-        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
+        Mockito.when(glueClient.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
+        Mockito.when(glueClient.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
 
         GetSplitsRequest request = new GetSplitsRequest(
                 federatedIdentity,
