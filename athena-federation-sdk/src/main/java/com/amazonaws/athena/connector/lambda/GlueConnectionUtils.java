@@ -19,13 +19,12 @@
  */
 package com.amazonaws.athena.connector.lambda;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.AuthenticationConfiguration;
 import software.amazon.awssdk.services.glue.model.Connection;
 import software.amazon.awssdk.services.glue.model.GetConnectionRequest;
 import software.amazon.awssdk.services.glue.model.GetConnectionResponse;
@@ -34,17 +33,11 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class GlueConnectionUtils
 {
     // config property to store glue connection reference
     public static final String DEFAULT_GLUE_CONNECTION = "glue_connection";
-    // Connection properties storing athena specific connection details
-    public static final String GLUE_CONNECTION_ATHENA_PROPERTIES = "AthenaProperties";
-    public static final String GLUE_CONNECTION_ATHENA_CONNECTOR_PROPERTIES = "connectorProperties";
-    public static final String GLUE_CONNECTION_ATHENA_DRIVER_PROPERTIES = "driverProperties";
-    public static final String[] propertySubsets = {GLUE_CONNECTION_ATHENA_CONNECTOR_PROPERTIES, GLUE_CONNECTION_ATHENA_DRIVER_PROPERTIES};
 
     private static final int CONNECT_TIMEOUT = 250;
     private static final Logger logger = LoggerFactory.getLogger(GlueConnectionUtils.class);
@@ -63,8 +56,6 @@ public class GlueConnectionUtils
             HashMap<String, String> cachedConfig = connectionNameCache.get(glueConnectionName);
             if (cachedConfig == null) {
                 try {
-                    HashMap<String, HashMap<String, String>> athenaPropertiesToMap = new HashMap<String, HashMap<String, String>>();
-
                     GlueClient awsGlue = GlueClient.builder()
                             .endpointOverride(new URI("https://glue-gamma.ap-south-1.amazonaws.com"))
                             .httpClientBuilder(ApacheHttpClient
@@ -74,26 +65,9 @@ public class GlueConnectionUtils
                     GetConnectionResponse glueConnection = awsGlue.getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
                     logger.debug("Successfully retrieved connection {}", glueConnectionName);
                     Connection connection = glueConnection.connection();
-                    String athenaPropertiesAsString = connection.connectionProperties().get(GLUE_CONNECTION_ATHENA_PROPERTIES);
-                    try {
-                        ObjectMapper mapper = new ObjectMapper();
-                        athenaPropertiesToMap = mapper.readValue(athenaPropertiesAsString, new TypeReference<HashMap>(){});
-                        logger.debug("Successfully parsed connection properties");
-                    }
-                    catch (Exception err) {
-                         logger.error("Error Parsing AthenaDriverProperties JSON to Map", err.toString());
-                    }
-                    for (String subset : propertySubsets) {
-                        if (athenaPropertiesToMap.containsKey(subset)) {
-                            logger.debug("Adding {} subset from Glue Connection config.", subset);
-                            Map<String, String> properties = athenaPropertiesToMap.get(subset).entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, element -> String.valueOf(element.getValue())));
-                            logger.debug("Adding the following set of properties to config: {}", properties);
-                            envConfig.putAll(properties);
-                        }
-                        else {
-                            logger.debug("{} properties not included in Glue Connnection config.", subset);
-                        }
-                    }
+                    envConfig.putAll(connection.athenaProperties());
+                    envConfig.putAll(connection.connectionPropertiesAsStrings());
+                    envConfig.putAll(authenticationConfigurationToMap(connection.authenticationConfiguration()));
                     connectionNameCache.put(glueConnectionName, envConfig);
                 }
                 catch (Exception err) {
@@ -109,5 +83,14 @@ public class GlueConnectionUtils
             logger.debug("No Glue Connection name was defined in Environment Variables.");
         }
         return envConfig;
+    }
+
+    private static Map<String, String> authenticationConfigurationToMap(AuthenticationConfiguration auth)
+    {
+        Map<String, String> authMap = new HashMap<>();
+
+        String[] splitArn = auth.secretArn().split(":");
+        authMap.put("secret_name", splitArn[splitArn.length - 1]);
+        return authMap;
     }
 }
