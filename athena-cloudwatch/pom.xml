@@ -26,6 +26,7 @@
             <groupId>software.amazon.awscdk</groupId>
             <artifactId>logs</artifactId>
             <version>${aws-cdk.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
