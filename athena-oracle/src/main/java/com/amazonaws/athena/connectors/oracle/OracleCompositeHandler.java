@@ -20,7 +20,7 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.connection.OracleEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -34,6 +34,6 @@ public class OracleCompositeHandler
 {
     public OracleCompositeHandler()
     {
-        super(new OracleMetadataHandler(GlueConnectionUtils.getGlueConnection()), new OracleRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new OracleMetadataHandler(new OracleEnvironmentProperties().createEnvironment()), new OracleRecordHandler(new OracleEnvironmentProperties().createEnvironment()));
     }
 }

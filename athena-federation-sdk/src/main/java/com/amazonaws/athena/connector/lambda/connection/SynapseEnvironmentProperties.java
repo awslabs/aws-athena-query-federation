@@ -1,8 +1,8 @@
 /*-
  * #%L
- * athena-synapse
+ * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 - 2024 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,15 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.synapse;
+package com.amazonaws.athena.connector.lambda.connection;
 
-import com.amazonaws.athena.connector.lambda.connection.SynapseEnvironmentProperties;
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import java.util.Map;
 
-public class SynapseCompositeHandler extends CompositeHandler
+public class SynapseEnvironmentProperties extends SqlServerEnvironmentProperties
 {
-    public SynapseCompositeHandler()
+    @Override
+    protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        super(new SynapseMetadataHandler(new SynapseEnvironmentProperties().createEnvironment()), new SynapseRecordHandler(new SynapseEnvironmentProperties().createEnvironment()));
+        return "synapse://jdbc:synapse://";
     }
 }

@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.postgresql;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.connection.PostGreSqlEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -33,6 +33,6 @@ public class PostGreSqlCompositeHandler
 {
     public PostGreSqlCompositeHandler()
     {
-        super(new PostGreSqlMetadataHandler(GlueConnectionUtils.getGlueConnection()), new PostGreSqlRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new PostGreSqlMetadataHandler(new PostGreSqlEnvironmentProperties().createEnvironment()), new PostGreSqlRecordHandler(new PostGreSqlEnvironmentProperties().createEnvironment()));
     }
 }
