@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.redis.integ;
 
-import com.amazonaws.ClientConfiguration;
 import com.amazonaws.athena.connector.integ.ConnectorStackFactory;
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.athena.connector.integ.clients.CloudFormationClient;
@@ -28,13 +27,6 @@ import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
-import com.amazonaws.services.elasticache.AmazonElastiCache;
-import com.amazonaws.services.elasticache.AmazonElastiCacheClientBuilder;
-import com.amazonaws.services.elasticache.model.DescribeCacheClustersRequest;
-import com.amazonaws.services.elasticache.model.DescribeCacheClustersResult;
-import com.amazonaws.services.elasticache.model.DescribeReplicationGroupsRequest;
-import com.amazonaws.services.elasticache.model.DescribeReplicationGroupsResult;
-import com.amazonaws.services.elasticache.model.Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -56,6 +48,12 @@ import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.elasticache.ElastiCacheClient;
+import software.amazon.awssdk.services.elasticache.model.DescribeCacheClustersRequest;
+import software.amazon.awssdk.services.elasticache.model.DescribeCacheClustersResponse;
+import software.amazon.awssdk.services.elasticache.model.DescribeReplicationGroupsRequest;
+import software.amazon.awssdk.services.elasticache.model.DescribeReplicationGroupsResponse;
+import software.amazon.awssdk.services.elasticache.model.Endpoint;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 import software.amazon.awssdk.services.glue.model.TableInput;
@@ -143,12 +141,12 @@ public class RedisIntegTest extends IntegrationTestBase
             Endpoint standaloneEndpoint = getRedisInstanceData(redisStandaloneName, false);
             logger.info("Got Endpoint: " + standaloneEndpoint.toString());
             redisEndpoints.put(STANDALONE_KEY, String.format("%s:%s",
-                    standaloneEndpoint.getAddress(), standaloneEndpoint.getPort()));
+                    standaloneEndpoint.address(), standaloneEndpoint.port()));
 
             Endpoint clusterEndpoint = getRedisInstanceData(redisClusterName, true);
             logger.info("Got Endpoint: " + clusterEndpoint.toString());
             redisEndpoints.put(CLUSTER_KEY, String.format("%s:%s:%s",
-                    clusterEndpoint.getAddress(), clusterEndpoint.getPort(), redisPassword));
+                    clusterEndpoint.address(), clusterEndpoint.port(), redisPassword));
 
             // Get endpoint information and set the connection string environment var for Lambda.
             environmentVars.put("standalone_connection", redisEndpoints.get(STANDALONE_KEY));
@@ -346,21 +344,26 @@ public class RedisIntegTest extends IntegrationTestBase
      */
     private Endpoint getRedisInstanceData(String redisName, boolean isCluster)
     {
-        AmazonElastiCache elastiCacheClient = AmazonElastiCacheClientBuilder.defaultClient();
+        ElastiCacheClient elastiCacheClient = ElastiCacheClient.builder().build();
         try {
             if (isCluster) {
-                DescribeReplicationGroupsResult describeResult = elastiCacheClient.describeReplicationGroups(new DescribeReplicationGroupsRequest()
-                        .withReplicationGroupId(redisName));
-                return describeResult.getReplicationGroups().get(0).getConfigurationEndpoint();
+                DescribeReplicationGroupsRequest describeRequest = DescribeReplicationGroupsRequest.builder()
+                        .replicationGroupId(redisName)
+                        .build();
+                DescribeReplicationGroupsResponse describeResponse = elastiCacheClient.describeReplicationGroups(describeRequest);
+                return describeResponse.replicationGroups().get(0).configurationEndpoint();
             }
             else {
-                DescribeCacheClustersResult describeResult = elastiCacheClient.describeCacheClusters(new DescribeCacheClustersRequest()
-                        .withCacheClusterId(redisName).withShowCacheNodeInfo(true));
-                return describeResult.getCacheClusters().get(0).getCacheNodes().get(0).getEndpoint();
+                DescribeCacheClustersRequest describeRequest = DescribeCacheClustersRequest.builder()
+                        .cacheClusterId(redisName)
+                        .showCacheNodeInfo(true)
+                        .build();
+                DescribeCacheClustersResponse describeResponse = elastiCacheClient.describeCacheClusters(describeRequest);
+                return describeResponse.cacheClusters().get(0).cacheNodes().get(0).endpoint();
             }
         }
         finally {
-            elastiCacheClient.shutdown();
+            elastiCacheClient.close();
         }
     }
 
