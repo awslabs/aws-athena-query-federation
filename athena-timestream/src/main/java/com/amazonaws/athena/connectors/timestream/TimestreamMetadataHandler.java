@@ -42,16 +42,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
-import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
-import com.amazonaws.services.timestreamquery.model.ColumnInfo;
-import com.amazonaws.services.timestreamquery.model.Datum;
-import com.amazonaws.services.timestreamquery.model.QueryRequest;
-import com.amazonaws.services.timestreamquery.model.QueryResult;
-import com.amazonaws.services.timestreamquery.model.Row;
-import com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite;
-import com.amazonaws.services.timestreamwrite.model.ListDatabasesRequest;
-import com.amazonaws.services.timestreamwrite.model.ListDatabasesResult;
-import com.amazonaws.services.timestreamwrite.model.ListTablesResult;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -62,6 +52,16 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient;
+import software.amazon.awssdk.services.timestreamquery.model.ColumnInfo;
+import software.amazon.awssdk.services.timestreamquery.model.Datum;
+import software.amazon.awssdk.services.timestreamquery.model.QueryRequest;
+import software.amazon.awssdk.services.timestreamquery.model.QueryResponse;
+import software.amazon.awssdk.services.timestreamquery.model.Row;
+import software.amazon.awssdk.services.timestreamwrite.TimestreamWriteClient;
+import software.amazon.awssdk.services.timestreamwrite.model.Database;
+import software.amazon.awssdk.services.timestreamwrite.model.ListDatabasesRequest;
+import software.amazon.awssdk.services.timestreamwrite.model.ListDatabasesResponse;
 
 import java.util.Collections;
 import java.util.List;
@@ -90,8 +90,8 @@ public class TimestreamMetadataHandler
     private final QueryFactory queryFactory = new QueryFactory();
 
     private final GlueClient glue;
-    private final AmazonTimestreamQuery tsQuery;
-    private final AmazonTimestreamWrite tsMeta;
+    private final TimestreamQueryClient tsQuery;
+    private final TimestreamWriteClient tsMeta;
 
     private final TimestreamQueryPassthrough queryPassthrough;
 
@@ -106,8 +106,8 @@ public class TimestreamMetadataHandler
 
     @VisibleForTesting
     protected TimestreamMetadataHandler(
-        AmazonTimestreamQuery tsQuery,
-        AmazonTimestreamWrite tsMeta,
+        TimestreamQueryClient tsQuery,
+        TimestreamWriteClient tsMeta,
         GlueClient glue,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient secretsManager,
@@ -136,9 +136,9 @@ public class TimestreamMetadataHandler
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
             throws Exception
     {
-        List<String> schemas = PaginatedRequestIterator.stream(this::doListSchemaNamesOnePage, ListDatabasesResult::getNextToken)
-            .flatMap(result -> result.getDatabases().stream())
-            .map(db -> db.getDatabaseName())
+        List<String> schemas = PaginatedRequestIterator.stream(this::doListSchemaNamesOnePage, ListDatabasesResponse::nextToken)
+            .flatMap(result -> result.databases().stream())
+            .map(Database::databaseName)
             .collect(Collectors.toList());
 
         return new ListSchemasResponse(
@@ -146,9 +146,9 @@ public class TimestreamMetadataHandler
             schemas);
     }
 
-    private ListDatabasesResult doListSchemaNamesOnePage(String nextToken)
+    private ListDatabasesResponse doListSchemaNamesOnePage(String nextToken)
     {
-        return tsMeta.listDatabases(new ListDatabasesRequest().withNextToken(nextToken));
+        return tsMeta.listDatabases(ListDatabasesRequest.builder().nextToken(nextToken).build());
     }
 
     @Override
@@ -159,7 +159,7 @@ public class TimestreamMetadataHandler
         try {
             return doListTablesInternal(blockAllocator, request);
         }
-        catch (com.amazonaws.services.timestreamwrite.model.ResourceNotFoundException ex) {
+        catch (software.amazon.awssdk.services.timestreamwrite.model.ResourceNotFoundException ex) {
             // If it fails then we will retry after resolving the schema name by ignoring the casing
             String resolvedSchemaName = findSchemaNameIgnoringCase(request.getSchemaName());
             request = new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(), resolvedSchemaName, request.getNextToken(), request.getPageSize());
@@ -191,43 +191,43 @@ public class TimestreamMetadataHandler
         }
 
         // Otherwise don't retrieve all pages, just pass through the page token.
-        ListTablesResult timestreamResults = doListTablesOnePage(request.getSchemaName(), request.getNextToken());
-        List<TableName> tableNames = timestreamResults.getTables()
+        software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse timestreamResults = doListTablesOnePage(request.getSchemaName(), request.getNextToken());
+        List<TableName> tableNames = timestreamResults.tables()
             .stream()
-            .map(table -> new TableName(request.getSchemaName(), table.getTableName()))
+            .map(table -> new TableName(request.getSchemaName(), table.tableName()))
             .collect(Collectors.toList());
 
         // Pass through whatever token we got from Glue to the user
         ListTablesResponse result = new ListTablesResponse(
             request.getCatalogName(),
             tableNames,
-            timestreamResults.getNextToken());
+            timestreamResults.nextToken());
         logger.debug("doListTables [paginated] result: {}", result);
         return result;
     }
 
-    private ListTablesResult doListTablesOnePage(String schemaName, String nextToken)
+    private software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse doListTablesOnePage(String schemaName, String nextToken)
     {
         // TODO: We should pass through the pageSize as withMaxResults(pageSize)
-        com.amazonaws.services.timestreamwrite.model.ListTablesRequest listTablesRequest =
-                new com.amazonaws.services.timestreamwrite.model.ListTablesRequest()
-                        .withDatabaseName(schemaName)
-                        .withNextToken(nextToken);
+        software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest listTablesRequest = software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.builder()
+                .databaseName(schemaName)
+                .nextToken(nextToken)
+                .build();
         return tsMeta.listTables(listTablesRequest);
     }
 
     private Stream<TableName> getTableNamesInSchema(String schemaName)
     {
-        return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(schemaName, pageToken), ListTablesResult::getNextToken)
-            .flatMap(currResult -> currResult.getTables().stream())
-            .map(table -> new TableName(schemaName, table.getTableName()));
+        return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(schemaName, pageToken), software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse::nextToken)
+            .flatMap(currResult -> currResult.tables().stream())
+            .map(table -> new TableName(schemaName, table.tableName()));
     }
 
     private String findSchemaNameIgnoringCase(String schemaNameInsensitive)
     {
-        return PaginatedRequestIterator.stream(this::doListSchemaNamesOnePage, ListDatabasesResult::getNextToken)
-            .flatMap(result -> result.getDatabases().stream())
-            .map(db -> db.getDatabaseName())
+        return PaginatedRequestIterator.stream(this::doListSchemaNamesOnePage, ListDatabasesResponse::nextToken)
+            .flatMap(result -> result.databases().stream())
+            .map(Database::databaseName)
             .filter(name -> name.equalsIgnoreCase(schemaNameInsensitive))
             .findAny()
             .orElseThrow(() -> new RuntimeException(String.format("Could not find a case-insensitive match for schema name %s", schemaNameInsensitive)));
@@ -238,9 +238,9 @@ public class TimestreamMetadataHandler
         String caseInsenstiveSchemaNameMatch = findSchemaNameIgnoringCase(getTableRequest.getTableName().getSchemaName());
 
         // based on AmazonMskMetadataHandler::findGlueRegistryNameIgnoringCasing
-        return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(caseInsenstiveSchemaNameMatch, pageToken), ListTablesResult::getNextToken)
-            .flatMap(result -> result.getTables().stream())
-            .map(tbl -> new TableName(caseInsenstiveSchemaNameMatch, tbl.getTableName()))
+        return PaginatedRequestIterator.stream((pageToken) -> doListTablesOnePage(caseInsenstiveSchemaNameMatch, pageToken), software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse::nextToken)
+            .flatMap(result -> result.tables().stream())
+            .map(tbl -> new TableName(caseInsenstiveSchemaNameMatch, tbl.tableName()))
             .filter(tbl -> tbl.getTableName().equalsIgnoreCase(getTableRequest.getTableName().getTableName()))
             .findAny()
             .orElseThrow(() -> new RuntimeException(String.format("Could not find a case-insensitive match for table name %s", getTableRequest.getTableName().getTableName())));
@@ -256,24 +256,24 @@ public class TimestreamMetadataHandler
         logger.info("doGetTable: Retrieving schema for table[{}] from TimeStream using describeQuery[{}].",
                 tableName, describeQuery);
 
-        QueryRequest queryRequest = new QueryRequest().withQueryString(describeQuery);
+       QueryRequest queryRequest = QueryRequest.builder().queryString(describeQuery).build();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         do {
-            QueryResult queryResult = tsQuery.query(queryRequest);
-            for (Row next : queryResult.getRows()) {
-                List<Datum> datum = next.getData();
+            QueryResponse queryResult = tsQuery.query(queryRequest);
+            for (Row next : queryResult.rows()) {
+                List<Datum> datum = next.data();
 
                 if (datum.size() != 3) {
                     throw new RuntimeException("Unexpected datum size " + datum.size() +
                             " while getting schema from datum[" + datum.toString() + "]");
                 }
 
-                Field nextField = TimestreamSchemaUtils.makeField(datum.get(0).getScalarValue(), datum.get(1).getScalarValue());
+                Field nextField = TimestreamSchemaUtils.makeField(datum.get(0).scalarValue(), datum.get(1).scalarValue());
                 schemaBuilder.addField(nextField);
             }
-            queryRequest = new QueryRequest().withNextToken(queryResult.getNextToken());
+            queryRequest = QueryRequest.builder().nextToken(queryResult.nextToken()).build();
         }
-        while (queryRequest.getNextToken() != null);
+        while (queryRequest.nextToken() != null);
 
         return schemaBuilder.build();
    } 
@@ -300,7 +300,7 @@ public class TimestreamMetadataHandler
             Schema schema = inferSchemaForTable(request.getTableName());
             return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
         }
-        catch (com.amazonaws.services.timestreamquery.model.ValidationException ex) {
+        catch (software.amazon.awssdk.services.timestreamquery.model.ValidationException ex) {
             logger.debug("Could not find table name matching {} in database {}. Falling back to case-insensitive lookup.", request.getTableName().getTableName(), request.getTableName().getSchemaName());
 
             TableName resolvedTableName = findTableNameIgnoringCase(blockAllocator, request);
@@ -319,13 +319,13 @@ public class TimestreamMetadataHandler
 
         queryPassthrough.verify(request.getQueryPassthroughArguments());
         String customerPassedQuery = request.getQueryPassthroughArguments().get(TimestreamQueryPassthrough.QUERY);
-        QueryRequest queryRequest = new QueryRequest().withQueryString(customerPassedQuery).withMaxRows(1);
+        QueryRequest queryRequest = QueryRequest.builder().queryString(customerPassedQuery).maxRows(1).build();
         // Timestream Query does not provide a way to conduct a dry run or retrieve metadata results without execution. Therefore, we need to "seek" at least once before obtaining metadata.
-        QueryResult queryResult = tsQuery.query(queryRequest);
-        List<ColumnInfo> columnInfo = queryResult.getColumnInfo();
+        QueryResponse queryResult = tsQuery.query(queryRequest);
+        List<ColumnInfo> columnInfo = queryResult.columnInfo();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         for (ColumnInfo column : columnInfo) {
-            Field nextField = TimestreamSchemaUtils.makeField(column.getName(), column.getType().getScalarType().toLowerCase());
+            Field nextField = TimestreamSchemaUtils.makeField(column.name(), column.type().scalarTypeAsString().toLowerCase());
             schemaBuilder.addField(nextField);
         }
 
