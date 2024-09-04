@@ -69,10 +69,9 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.hortonworks.HiveMuxCompositeHandler"
-      CodeUri: "./target/athena-hortonworks-hive-2022.47.1.jar"
+      PackageType: "Image"
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/prod-athena-federation-repository-${AWS::Region}-hortonworks-hive:2022.47.1'
       Description: "Enables Amazon Athena to communicate with Hortonworks Hive using JDBC"
-      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
