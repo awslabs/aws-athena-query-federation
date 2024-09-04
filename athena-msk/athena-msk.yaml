@@ -26,14 +26,13 @@ Parameters:
       - SSL
       - NO_AUTH
   KafkaEndpoint:
-    Description: '(Optional if Glue Connection is provided) MSK cluster endpoint'
+    Description: 'MSK cluster endpoint'
     Type: String
-    Default: ""
   LambdaFunctionName:
     Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
-  SecretsManagerSecret:
+  SecretNamePrefix:
     Description: "The secret name within AWS Secrets Manager that contains your aws key and secret Credentials(Not Required for IAM AUTH)"
     Default: ""
     Type: String
@@ -44,10 +43,6 @@ Parameters:
     Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
     Default: athena-spill
-  GlueConnection:
-    Description: "(Optional) Name of glue connection storing connection details for Federated Data source."
-    Type: String
-    Default: ""
   LambdaTimeout:
     Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
     Default: 900
@@ -72,30 +67,20 @@ Parameters:
     Description: 'The S3 bucket reference where keystore and truststore certificates are uploaded. Applicable for SSL auth'
     Default: ""
     Type: String
-  LambdaRoleArn:
+  LambdaRoleARN:
     Description: "(Must for auth type IAM) A custom role to be used by the Connector lambda"
     Default: ""
     Type: String
-  PermissionsBoundaryArn:
+  PermissionsBoundaryARN:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
-  KmsKeyId:
-    Description: "(Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys."
-    Type: String
-    Default: ""
 
 Conditions:
+  NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
-  HasKmsKeyId: !Not [ !Equals [ !Ref KmsKeyId, "" ] ]
-  NotHasLambdaRole: !Equals [ !Ref LambdaRoleArn, "" ]
-  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryArn, "" ] ]
-  CreateKmsPolicy: !And [ !Condition HasKmsKeyId, !Condition NotHasLambdaRole ]
-  HasGlueConnection: !Not [ !Equals [ !Ref GlueConnection, "" ] ]
-  NotHasGlueConnectionAndHasKmsKeyId: !And
-    - !Not [ !Condition HasGlueConnection ]
-    - !Condition HasKmsKeyId
 
 Resources:
   AthenaMSKConnector:
@@ -103,15 +88,13 @@ Resources:
     Properties:
       Environment:
         Variables:
-          disable_spill_encryption: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref DisableSpillEncryption ]
-          spill_bucket: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref SpillBucket ]
-          spill_prefix: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref SpillPrefix ]
-          kms_key_id: !If [ NotHasGlueConnectionAndHasKmsKeyId, !Ref KmsKeyId, !Ref "AWS::NoValue" ]
-          glue_connection: !If [ HasGlueConnection, !Ref GlueConnection, !Ref "AWS::NoValue" ]
-          secrets_manager_secret: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref SecretsManagerSecret ]
-          certificates_s3_reference: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref CertificatesS3Reference ]
-          kafka_endpoint: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref KafkaEndpoint ]
-          auth_type: !If [ HasGlueConnection, !Ref "AWS::NoValue", !Ref AuthType ]
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          secrets_manager_secret: !Ref SecretNamePrefix
+          certificates_s3_reference: !Ref CertificatesS3Reference
+          kafka_endpoint: !Ref KafkaEndpoint
+          auth_type: !Ref AuthType
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.msk.AmazonMskCompositeHandler"
       CodeUri: "./target/athena-msk-2022.47.1.jar"
@@ -119,7 +102,7 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn]
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
       VpcConfig:
         SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
         SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue"]
@@ -128,7 +111,7 @@ Resources:
     Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
-      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref "AWS::NoValue" ]
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
@@ -152,7 +135,7 @@ Resources:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretsManagerSecret}*'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
           - Action:
               - logs:CreateLogGroup
             Effect: Allow
@@ -185,33 +168,5 @@ Resources:
               - autoscaling:CompleteLifecycleAction
             Effect: Allow
             Resource: '*'
-          - !If
-            - HasGlueConnection
-            - Action:
-                - glue:GetConnection
-              Effect: Allow
-              Resource:
-                - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
-                - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
-            - !Ref "AWS::NoValue"
-      Roles:
-        - !Ref FunctionRole
-
-  FunctionKmsPolicy:
-    Condition: CreateKmsPolicy
-    Type: "AWS::IAM::Policy"
-    Properties:
-      PolicyName: FunctionKmsPolicy
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - kms:GenerateRandom
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - kms:GenerateDataKey
-            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
       Roles:
         - !Ref FunctionRole

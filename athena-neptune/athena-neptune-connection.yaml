@@ -1,0 +1,165 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaNeptuneConnectorWithGlueConnection
+    Description: This connector enables Amazon Athena to communicate with your Neptune instance, making your Neptune graph data accessible via SQL.
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['athena-federation','athena-neptune','neptune']
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2022.47.1
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+
+Parameters:
+  NeptuneClusterResId:
+    Description: 'To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.'
+    Type: String
+  LambdaFunctionName:
+    Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    Default: 'athena-catalog'
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  GlueConnection:
+    Description: "Name of glue connection storing connection details for Federated Data source."
+    Type: String
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup(s) that should be applied to the Lambda function to allow connectivity to Neptune cluster. (e.g. sg1,sg2,sg3)'
+    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet(s) that the Lambda function can use to access the Neptune cluster. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  KmsKeyId:
+    Description: "(Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys."
+    Type: String
+    Default: ""
+  LambdaRoleArn:
+    Description: "(Optional) A custom role to be used by the Connector lambda"
+    Type: String
+    Default: ""
+
+Conditions:
+  HasKmsKeyId: !Not [ !Equals [ !Ref KmsKeyId, "" ] ]
+  NotHasLambdaRole: !Equals [ !Ref LambdaRoleArn, "" ]
+  CreateKmsPolicy: !And [ !Condition HasKmsKeyId, !Condition NotHasLambdaRole ]
+
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          glue_connection: !Ref GlueConnection
+          SERVICE_REGION: !Ref AWS::Region
+      FunctionName: !Ref LambdaFunctionName
+      Handler: "com.amazonaws.athena.connectors.neptune.NeptuneCompositeHandler"
+      CodeUri: "./target/athena-neptune-2022.47.1.jar"
+      Description: "Enables Amazon Athena to communicate with Neptune, making your Neptune graph data accessible via SQL."
+      Runtime: java11
+      Timeout: 900
+      MemorySize: 3008
+      Role: !If [ NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn ]
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds
+
+  FunctionRole:
+    Condition: NotHasLambdaRole
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+
+  FunctionExecutionPolicy:
+    Condition: NotHasLambdaRole
+    Type: "AWS::IAM::Policy"
+    Properties:
+      Roles:
+        - !Ref FunctionRole
+      PolicyName: FunctionExecutionPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - glue:GetTableVersions
+              - glue:GetPartitions
+              - glue:GetTables
+              - glue:GetTableVersion
+              - glue:GetDatabases
+              - glue:GetTable
+              - glue:GetPartition
+              - glue:GetDatabase
+              - athena:GetQueryExecution
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - neptune-db:*
+            Effect: Allow
+            #Dynamically construct Neptune Cluster Resource ARN to limit permissions to the specific cluster provided
+            Resource: !Sub 'arn:${AWS::Partition}:neptune-db:${AWS::Region}:${AWS::AccountId}:${NeptuneClusterResId}/*'
+          - Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DetachNetworkInterface
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:DeleteObject
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${bucketName}
+                  - bucketName:
+                      Ref: SpillBucket
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${bucketName}/*
+                  - bucketName:
+                      Ref: SpillBucket
+          - Action:
+              - glue:GetConnection
+            Effect: Allow
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
+              - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+
+  FunctionKmsPolicy:
+    Condition: CreateKmsPolicy
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionKmsPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - kms:GenerateRandom
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:GenerateDataKey
+            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
+      Roles:
+        - !Ref FunctionRole
