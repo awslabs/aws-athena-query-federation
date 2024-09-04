@@ -81,33 +81,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>software.amazon.jsii</groupId>
-            <artifactId>jsii-runtime</artifactId>
-            <version>${jsii.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.datatype</groupId>
-                    <artifactId>jackson-datatype-jsr310</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.dataformat</groupId>
-                    <artifactId>jackson-dataformat-cbor</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-annotations</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-secretsmanager</artifactId>
             <version>${aws-sdk.version}</version>
@@ -287,8 +260,8 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-             <!--- to meet engine version 3.15.0 -->
-            <version>3.15.0</version>
+             <!--- to meet engine version 3.17.0 -->
+            <version>3.17.0</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>

@@ -66,7 +66,7 @@
         <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
-            <version>1.11.3</version>
+            <version>1.12.0</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
@@ -86,7 +86,7 @@
         <dependency>
             <groupId>org.apache.directory.api</groupId>
             <artifactId>api-ldap-model</artifactId>
-            <version>2.1.6</version>
+            <version>2.1.7</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
