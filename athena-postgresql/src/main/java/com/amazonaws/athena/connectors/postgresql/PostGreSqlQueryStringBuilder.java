@@ -129,6 +129,7 @@ public class PostGreSqlQueryStringBuilder
         if (isPostgresqlCollateExperimentalFlagEnabled()) {
             Types.MinorType minorType = Types.getMinorTypeForArrowType(type);
             //Only check for varchar; as it's the only collate-able type
+            //Only a range that is applicable
             if (minorType.equals(Types.MinorType.VARCHAR) && isOperatorARange(operator)) {
                 accumulator.add(new TypeAndValue(type, value));
                 return format("%s %s ? COLLATE \"C\"", quote(columnName), operator);
