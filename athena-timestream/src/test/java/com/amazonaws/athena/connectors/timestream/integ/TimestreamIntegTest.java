@@ -146,6 +146,9 @@ public class TimestreamIntegTest extends IntegrationTestBase
             // Do not rethrow here.
             logger.error("Unable to delete Timestream table: " + e.getMessage(), e);
         }
+        finally {
+            timestreamWriteClient.close();
+        }
     }
 
     /**

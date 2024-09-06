@@ -54,7 +54,7 @@ public class TimestreamClientBuilder
   {
     String userAgent = "aws-athena-" + sourceType + "-connector";
     ClientOverrideConfiguration clientConfiguration = ClientOverrideConfiguration.builder().putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, userAgent).build();
-    logger.info("Created client configuration with user agent {} for Timestream SDK", clientConfiguration.advancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX).stream().findFirst());
+    logger.info("Created client configuration with user agent {} for Timestream SDK is present", clientConfiguration.advancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX).isPresent());
     return clientConfiguration;
   }
 }
