@@ -344,7 +344,7 @@ public class RedisIntegTest extends IntegrationTestBase
      */
     private Endpoint getRedisInstanceData(String redisName, boolean isCluster)
     {
-        ElastiCacheClient elastiCacheClient = ElastiCacheClient.builder().build();
+        ElastiCacheClient elastiCacheClient = ElastiCacheClient.create();
         try {
             if (isCluster) {
                 DescribeReplicationGroupsRequest describeRequest = DescribeReplicationGroupsRequest.builder()
