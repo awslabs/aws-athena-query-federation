@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.vertica;
 
-import com.amazonaws.athena.connector.lambda.connection.VerticaEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 import java.io.IOException;

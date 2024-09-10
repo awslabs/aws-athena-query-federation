@@ -17,7 +17,9 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.db2as400;
+
+import com.amazonaws.athena.connector.lambda.EnvironmentProperties;
 
 import java.util.HashMap;
 import java.util.Map;

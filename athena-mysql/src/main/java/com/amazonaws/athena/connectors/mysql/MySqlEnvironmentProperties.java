@@ -17,27 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.mysql;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class TeradataEnvironmentProperties extends JdbcEnvironmentProperties
+public class MySqlEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "teradata://jdbc:teradata://";
-    }
-
-    @Override
-    protected String getDatabase(Map<String, String> connectionProperties)
-    {
-        return "/TMODE=ANSI,CHARSET=UTF8,DATABASE=" + connectionProperties.get(DATABASE);
-    }
-
-    @Override
-    protected String getJdbcParametersSeparator()
-    {
-        return ",";
+        return "mysql://jdbc:mysql://";
     }
 }

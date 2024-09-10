@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -31,6 +31,6 @@ public class CloudwatchCompositeHandler
 {
     public CloudwatchCompositeHandler()
     {
-        super(new CloudwatchMetadataHandler(GlueConnectionUtils.getGlueConnection()), new CloudwatchRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new CloudwatchMetadataHandler(new EnvironmentProperties().createEnvironment()), new CloudwatchRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

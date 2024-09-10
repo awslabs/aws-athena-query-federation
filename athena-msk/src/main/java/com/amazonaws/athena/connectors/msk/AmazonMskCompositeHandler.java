@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 public class AmazonMskCompositeHandler
@@ -27,6 +26,6 @@ public class AmazonMskCompositeHandler
 {
     public AmazonMskCompositeHandler() throws Exception
     {
-        super(new AmazonMskMetadataHandler(GlueConnectionUtils.getGlueConnection()), new AmazonMskRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new AmazonMskMetadataHandler(new AmazonMskEnvironmentProperties().createEnvironment()), new AmazonMskRecordHandler(new AmazonMskEnvironmentProperties().createEnvironment()));
     }
 }

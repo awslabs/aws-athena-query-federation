@@ -17,7 +17,9 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.jdbc;
+
+import com.amazonaws.athena.connector.lambda.EnvironmentProperties;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,7 +39,6 @@ public abstract class JdbcEnvironmentProperties extends EnvironmentProperties
         String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get("HOST")
                 + ":" + connectionProperties.get("PORT") + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
 
-        logger.debug("Constructed connection string: {}", connectionString);
         environment.put(DEFAULT, connectionString);
         return environment;
     }

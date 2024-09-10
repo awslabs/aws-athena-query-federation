@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.hortonworks;
 
-import com.amazonaws.athena.connector.lambda.connection.HortonworksEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**

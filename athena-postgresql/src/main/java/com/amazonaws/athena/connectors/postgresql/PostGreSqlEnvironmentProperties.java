@@ -17,15 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.postgresql;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class DataLakeGen2EnvironmentProperties extends SqlServerEnvironmentProperties
+public class PostGreSqlEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "datalakegentwo://jdbc:sqlserver://";
+        return "postgres://jdbc:postgresql://";
     }
 }

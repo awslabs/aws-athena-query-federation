@@ -17,15 +17,23 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.saphana;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class HortonworksEnvironmentProperties extends JdbcEnvironmentProperties
+public class SaphanaEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "hive://jdbc:hive2://";
+        return "saphana://jdbc:sap://";
+    }
+
+    @Override
+    protected String getDatabase(Map<String, String> connectionProperties)
+    {
+        return "/";
     }
 }

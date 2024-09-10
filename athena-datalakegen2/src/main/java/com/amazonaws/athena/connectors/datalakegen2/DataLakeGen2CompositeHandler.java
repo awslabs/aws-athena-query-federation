@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
-import com.amazonaws.athena.connector.lambda.connection.DataLakeGen2EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**

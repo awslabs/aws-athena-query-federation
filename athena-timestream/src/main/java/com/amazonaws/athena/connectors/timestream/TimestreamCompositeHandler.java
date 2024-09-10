@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.timestream;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 public class TimestreamCompositeHandler
@@ -27,6 +27,6 @@ public class TimestreamCompositeHandler
 {
     public TimestreamCompositeHandler()
     {
-        super(new TimestreamMetadataHandler(GlueConnectionUtils.getGlueConnection()), new TimestreamRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new TimestreamMetadataHandler(new EnvironmentProperties().createEnvironment()), new TimestreamRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

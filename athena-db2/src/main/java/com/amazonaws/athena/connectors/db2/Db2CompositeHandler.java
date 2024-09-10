@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.db2;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -32,6 +31,6 @@ public class Db2CompositeHandler extends CompositeHandler
 {
     public Db2CompositeHandler()
     {
-        super(new Db2MetadataHandler(GlueConnectionUtils.getGlueConnection()), new Db2RecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new Db2MetadataHandler(new Db2EnvironmentProperties().createEnvironment()), new Db2RecordHandler(new Db2EnvironmentProperties().createEnvironment()));
     }
 }

@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -47,9 +46,9 @@ public class GcsCompositeHandler
      */
     public GcsCompositeHandler() throws IOException, CertificateEncodingException, NoSuchAlgorithmException, KeyStoreException
     {
-        super(new GcsMetadataHandler(allocator, GlueConnectionUtils.getGlueConnection()), new GcsRecordHandler(allocator, GlueConnectionUtils.getGlueConnection()));
+        super(new GcsMetadataHandler(allocator, new GcsEnvironmentProperties().createEnvironment()), new GcsRecordHandler(allocator, new GcsEnvironmentProperties().createEnvironment()));
         installCaCertificate();
-        installGoogleCredentialsJsonFile(GlueConnectionUtils.getGlueConnection());
+        installGoogleCredentialsJsonFile(new GcsEnvironmentProperties().createEnvironment());
         setupNativeEnvironmentVariables();
     }
 }

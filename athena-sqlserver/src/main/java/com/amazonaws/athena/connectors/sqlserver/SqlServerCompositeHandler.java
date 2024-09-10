@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.sqlserver;
 
-import com.amazonaws.athena.connector.lambda.connection.SqlServerEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 public class SqlServerCompositeHandler extends CompositeHandler

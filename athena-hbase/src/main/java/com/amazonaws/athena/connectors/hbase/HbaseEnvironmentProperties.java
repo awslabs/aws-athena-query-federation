@@ -17,15 +17,24 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.hbase;
 
+import com.amazonaws.athena.connector.lambda.EnvironmentProperties;
+
+import java.util.HashMap;
 import java.util.Map;
 
-public class MySqlEnvironmentProperties extends JdbcEnvironmentProperties
+public class HbaseEnvironmentProperties extends EnvironmentProperties
 {
+    private static final String DEFAULT_HBASE = "default_hbase";
     @Override
-    protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
+    public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
     {
-        return "mysql://jdbc:mysql://";
+        Map<String, String> environment = new HashMap<>();
+
+        environment.put(DEFAULT_HBASE, connectionProperties.get("HOST")
+                + ":" + connectionProperties.get("HBASE_PORT")
+                + ":" + connectionProperties.get("ZOOKEEPER_PORT"));
+        return environment;
     }
 }

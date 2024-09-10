@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.synapse;
 
-import com.amazonaws.athena.connector.lambda.connection.SynapseEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 public class SynapseCompositeHandler extends CompositeHandler

@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connector.lambda;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;

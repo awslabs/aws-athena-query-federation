@@ -17,15 +17,29 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.db2;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class ImpalaEnvironmentProperties extends SaphanaEnvironmentProperties
+public class Db2EnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "impala://jdbc:impala://";
+        return "dbtwo://jdbc:db2://";
+    }
+
+    @Override
+    protected String getDatabase(Map<String, String> connectionProperties)
+    {
+        return ":" + connectionProperties.get(DATABASE);
+    }
+
+    @Override
+    protected String getDelimiter()
+    {
+        return ";";
     }
 }

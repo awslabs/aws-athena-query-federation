@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.redis;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -31,6 +31,6 @@ public class RedisCompositeHandler
 {
     public RedisCompositeHandler()
     {
-        super(new RedisMetadataHandler(GlueConnectionUtils.getGlueConnection()), new RedisRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new RedisMetadataHandler(new EnvironmentProperties().createEnvironment()), new RedisRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }
