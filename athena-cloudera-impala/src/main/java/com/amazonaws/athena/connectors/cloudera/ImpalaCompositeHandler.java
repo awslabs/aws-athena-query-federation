@@ -20,7 +20,7 @@
  */
 package com.amazonaws.athena.connectors.cloudera;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.connection.ImpalaEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -34,6 +34,7 @@ public class ImpalaCompositeHandler
 {
     public ImpalaCompositeHandler()
     {
-        super(new ImpalaMetadataHandler(GlueConnectionUtils.getGlueConnection()), new ImpalaRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new ImpalaMetadataHandler(new ImpalaEnvironmentProperties().createEnvironment()),
+                new ImpalaRecordHandler(new ImpalaEnvironmentProperties().createEnvironment()));
     }
 }

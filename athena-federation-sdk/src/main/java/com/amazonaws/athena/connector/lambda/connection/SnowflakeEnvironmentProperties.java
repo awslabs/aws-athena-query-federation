@@ -21,29 +21,26 @@ package com.amazonaws.athena.connector.lambda.connection;
 
 import java.util.Map;
 
-public class SqlServerEnvironmentProperties extends JdbcEnvironmentProperties
+public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
 {
+    private static final String WAREHOUSE = "WAREHOUSE";
+    private static final String SCHEMA = "SCHEMA";
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "sqlserver://jdbc:sqlserver://";
+        return "snowflake://jdbc:snowflake://";
     }
 
     @Override
     protected String getDatabase(Map<String, String> connectionProperties)
     {
-        return ";databaseName=" + connectionProperties.get(DATABASE);
-    }
+        if (!connectionProperties.containsKey(SCHEMA)) {
+            logger.debug("No schema specified in connection string");
+        }
 
-    @Override
-    protected String getJdbcParametersSeparator()
-    {
-        return ";";
-    }
-
-    @Override
-    protected String getDelimiter()
-    {
-        return ";";
+        String databaseString = "/?warehouse=" + connectionProperties.get(WAREHOUSE)
+                + "&db=" + connectionProperties.get(DATABASE)
+                + "&schema=" + connectionProperties.get(SCHEMA);
+        return databaseString;
     }
 }

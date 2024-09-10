@@ -22,7 +22,7 @@
 
 package com.amazonaws.athena.connectors.snowflake;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.connection.SnowflakeEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -36,6 +36,6 @@ public class SnowflakeCompositeHandler
 {
     public SnowflakeCompositeHandler()
     {
-        super(new SnowflakeMetadataHandler(GlueConnectionUtils.getGlueConnection()), new SnowflakeRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new SnowflakeMetadataHandler(new SnowflakeEnvironmentProperties().createEnvironment()), new SnowflakeRecordHandler(new SnowflakeEnvironmentProperties().createEnvironment()));
     }
 }

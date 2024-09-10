@@ -21,29 +21,11 @@ package com.amazonaws.athena.connector.lambda.connection;
 
 import java.util.Map;
 
-public class SqlServerEnvironmentProperties extends JdbcEnvironmentProperties
+public class DataLakeGen2EnvironmentProperties extends SqlServerEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "sqlserver://jdbc:sqlserver://";
-    }
-
-    @Override
-    protected String getDatabase(Map<String, String> connectionProperties)
-    {
-        return ";databaseName=" + connectionProperties.get(DATABASE);
-    }
-
-    @Override
-    protected String getJdbcParametersSeparator()
-    {
-        return ";";
-    }
-
-    @Override
-    protected String getDelimiter()
-    {
-        return ";";
+        return "datalakegentwo://jdbc:sqlserver://";
     }
 }

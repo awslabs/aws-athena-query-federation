@@ -30,13 +30,20 @@ public class OracleEnvironmentProperties extends JdbcEnvironmentProperties
         if (connectionProperties.containsKey(SECRET_NAME)) {
             prefix = prefix + "${" + connectionProperties.get(SECRET_NAME) + "}";
         }
+        prefix = prefix + "@//";
 
         return prefix;
     }
 
     @Override
-    protected String getConnectionStringSuffix(Map<String, String> connectionProperties)
+    protected String getDatabase(Map<String, String> connectionProperties)
     {
         return "/" + connectionProperties.get(DATABASE);
+    }
+
+    @Override
+    protected String getJdbcParameters(Map<String, String> connectionProperties)
+    {
+        return "";
     }
 }

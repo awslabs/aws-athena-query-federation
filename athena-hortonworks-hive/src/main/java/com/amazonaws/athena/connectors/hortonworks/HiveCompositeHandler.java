@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.hortonworks;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.connection.HortonworksEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -33,6 +33,6 @@ public class HiveCompositeHandler
 {
     public HiveCompositeHandler()
     {
-        super(new HiveMetadataHandler(GlueConnectionUtils.getGlueConnection()), new HiveRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new HiveMetadataHandler(new HortonworksEnvironmentProperties().createEnvironment()), new HiveRecordHandler(new HortonworksEnvironmentProperties().createEnvironment()));
     }
 }

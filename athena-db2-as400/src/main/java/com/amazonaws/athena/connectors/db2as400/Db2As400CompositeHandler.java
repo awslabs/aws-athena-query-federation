@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.db2as400;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.connection.Db2As400EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -32,6 +32,6 @@ public class Db2As400CompositeHandler extends CompositeHandler
 {
     public Db2As400CompositeHandler()
     {
-        super(new Db2As400MetadataHandler(GlueConnectionUtils.getGlueConnection()), new Db2As400RecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new Db2As400MetadataHandler(new Db2As400EnvironmentProperties().createEnvironment()), new Db2As400RecordHandler(new Db2As400EnvironmentProperties().createEnvironment()));
     }
 }

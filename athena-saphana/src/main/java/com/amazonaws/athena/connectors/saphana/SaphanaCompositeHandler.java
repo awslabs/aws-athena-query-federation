@@ -22,7 +22,7 @@
 
 package com.amazonaws.athena.connectors.saphana;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.connection.SaphanaEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -36,6 +36,6 @@ public class SaphanaCompositeHandler
 {
     public SaphanaCompositeHandler()
     {
-        super(new SaphanaMetadataHandler(GlueConnectionUtils.getGlueConnection()), new SaphanaRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new SaphanaMetadataHandler(new SaphanaEnvironmentProperties().createEnvironment()), new SaphanaRecordHandler(new SaphanaEnvironmentProperties().createEnvironment()));
     }
 }

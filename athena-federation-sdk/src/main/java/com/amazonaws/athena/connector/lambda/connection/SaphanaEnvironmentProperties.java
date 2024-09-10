@@ -21,29 +21,17 @@ package com.amazonaws.athena.connector.lambda.connection;
 
 import java.util.Map;
 
-public class SqlServerEnvironmentProperties extends JdbcEnvironmentProperties
+public class SaphanaEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "sqlserver://jdbc:sqlserver://";
+        return "saphana://jdbc:sap://";
     }
 
     @Override
     protected String getDatabase(Map<String, String> connectionProperties)
     {
-        return ";databaseName=" + connectionProperties.get(DATABASE);
-    }
-
-    @Override
-    protected String getJdbcParametersSeparator()
-    {
-        return ";";
-    }
-
-    @Override
-    protected String getDelimiter()
-    {
-        return ";";
+        return "/";
     }
 }

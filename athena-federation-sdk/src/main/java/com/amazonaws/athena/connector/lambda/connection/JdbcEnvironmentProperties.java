@@ -35,28 +35,46 @@ public abstract class JdbcEnvironmentProperties extends EnvironmentProperties
 
         // now construct jdbc string
         String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get("HOST")
-                + ":" + connectionProperties.get("PORT") + getConnectionStringSuffix(connectionProperties);
+                + ":" + connectionProperties.get("PORT") + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
 
+        logger.debug("Constructed connection string: {}", connectionString);
         environment.put(DEFAULT, connectionString);
         return environment;
     }
 
     protected abstract String getConnectionStringPrefix(Map<String, String> connectionProperties);
 
-    protected String getConnectionStringSuffix(Map<String, String> connectionProperties)
+    protected String getDatabase(Map<String, String> connectionProperties)
     {
-        String suffix = "/" + connectionProperties.get(DATABASE) + "?"
-                + connectionProperties.getOrDefault(JDBC_PARAMS, "");
+        return getDatabaseSeparator() + connectionProperties.get(DATABASE);
+    }
+
+    protected String getJdbcParameters(Map<String, String> connectionProperties)
+    {
+        String params = getJdbcParametersSeparator() + connectionProperties.getOrDefault(JDBC_PARAMS, "");
 
         if (connectionProperties.containsKey(SECRET_NAME)) {
             if (connectionProperties.containsKey(JDBC_PARAMS)) { // need to add delimiter
-                suffix = suffix + "&${" + connectionProperties.get(SECRET_NAME) + "}";
+                params = params + getDelimiter();
             }
-            else {
-                suffix = suffix + "${" + connectionProperties.get(SECRET_NAME) + "}";
-            }
+            params = params + "${" + connectionProperties.get(SECRET_NAME) + "}";
         }
 
-        return suffix;
+        return params;
+    }
+
+    protected String getDatabaseSeparator()
+    {
+        return "/";
+    }
+
+    protected String getJdbcParametersSeparator()
+    {
+        return "?";
+    }
+
+    protected String getDelimiter()
+    {
+        return "&";
     }
 }

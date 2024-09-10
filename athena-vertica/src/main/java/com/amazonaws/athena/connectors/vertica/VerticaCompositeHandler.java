@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.vertica;
 
-import com.amazonaws.athena.connector.lambda.GlueConnectionUtils;
+import com.amazonaws.athena.connector.lambda.connection.VerticaEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 import java.io.IOException;
@@ -39,7 +39,7 @@ public class VerticaCompositeHandler
 {
     public VerticaCompositeHandler() throws CertificateEncodingException, IOException, NoSuchAlgorithmException, KeyStoreException
     {
-        super(new VerticaMetadataHandler(GlueConnectionUtils.getGlueConnection()), new VerticaRecordHandler(GlueConnectionUtils.getGlueConnection()));
+        super(new VerticaMetadataHandler(new VerticaEnvironmentProperties().createEnvironment()), new VerticaRecordHandler(new VerticaEnvironmentProperties().createEnvironment()));
         installCaCertificate();
         setupNativeEnvironmentVariables();
     }

@@ -41,7 +41,7 @@ public class EnvironmentProperties
     protected static final String SECRET_NAME = "secret_name";
     protected static final String SPILL_KMS_KEY_ID = "spill_kms_key_id";
     protected static final String KMS_KEY_ID = "kms_key_id";
-    private static final Logger logger = LoggerFactory.getLogger(EnvironmentProperties.class);
+    protected static final Logger logger = LoggerFactory.getLogger(EnvironmentProperties.class);
 
     public Map<String, String> createEnvironment() throws RuntimeException
     {
