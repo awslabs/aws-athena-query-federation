@@ -29,26 +29,25 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
-import com.amazonaws.services.cloudwatch.model.Dimension;
-import com.amazonaws.services.cloudwatch.model.GetMetricDataRequest;
-import com.amazonaws.services.cloudwatch.model.GetMetricDataResult;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.cloudwatch.model.MetricDataQuery;
-import com.amazonaws.services.cloudwatch.model.MetricDataResult;
-import com.amazonaws.services.cloudwatch.model.MetricStat;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.Dimension;
+import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
+import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataResponse;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
+import software.amazon.awssdk.services.cloudwatch.model.MetricDataResult;
+import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -97,22 +96,22 @@ public class MetricsRecordHandler
     private final ThrottlingInvoker invoker;
 
     private final S3Client amazonS3;
-    private final AmazonCloudWatch metrics;
+    private final CloudWatchClient cloudwatchClient;
 
     public MetricsRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(S3Client.create(),
                 SecretsManagerClient.create(),
                 AthenaClient.create(),
-                AmazonCloudWatchClientBuilder.standard().build(), configOptions);
+                CloudWatchClient.create(), configOptions);
     }
 
     @VisibleForTesting
-    protected MetricsRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, AmazonCloudWatch metrics, java.util.Map<String, String> configOptions)
+    protected MetricsRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, CloudWatchClient metrics, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
-        this.metrics = metrics;
+        this.cloudwatchClient = metrics;
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions)
             .withInitialDelayMs(THROTTLING_INITIAL_DELAY)
             .withIncrease(THROTTLING_INCREMENTAL_INCREASE)
@@ -143,37 +142,39 @@ public class MetricsRecordHandler
     private void readMetricsWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
             throws TimeoutException
     {
-        ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
-        MetricUtils.pushDownPredicate(request.getConstraints(), listMetricsRequest);
+        ListMetricsRequest.Builder listMetricsRequestBuilder = ListMetricsRequest.builder();
+        MetricUtils.pushDownPredicate(request.getConstraints(), listMetricsRequestBuilder);
         String prevToken;
+        String nextToken;
         Set<String> requiredFields = new HashSet<>();
         request.getSchema().getFields().stream().forEach(next -> requiredFields.add(next.getName()));
         ValueSet dimensionNameConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
         ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_VALUE_FIELD);
         do {
-            prevToken = listMetricsRequest.getNextToken();
-            ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
-            for (Metric nextMetric : result.getMetrics()) {
+            ListMetricsRequest listMetricsRequest = listMetricsRequestBuilder.build();
+            prevToken = listMetricsRequest.nextToken();
+            ListMetricsResponse result = invoker.invoke(() -> cloudwatchClient.listMetrics(listMetricsRequest));
+            for (Metric nextMetric : result.metrics()) {
                 blockSpiller.writeRows((Block block, int row) -> {
                     boolean matches = MetricUtils.applyMetricConstraints(blockSpiller.getConstraintEvaluator(), nextMetric, null);
                     if (matches) {
-                        matches &= block.offerValue(METRIC_NAME_FIELD, row, nextMetric.getMetricName());
-                        matches &= block.offerValue(NAMESPACE_FIELD, row, nextMetric.getNamespace());
+                        matches &= block.offerValue(METRIC_NAME_FIELD, row, nextMetric.metricName());
+                        matches &= block.offerValue(NAMESPACE_FIELD, row, nextMetric.namespace());
                         matches &= block.offerComplexValue(STATISTIC_FIELD, row, DEFAULT, STATISTICS);
 
                         matches &= block.offerComplexValue(DIMENSIONS_FIELD,
                                 row,
                                 (Field field, Object val) -> {
                                     if (field.getName().equals(DIMENSION_NAME_FIELD)) {
-                                        return ((Dimension) val).getName();
+                                        return ((Dimension) val).name();
                                     }
                                     else if (field.getName().equals(DIMENSION_VALUE_FIELD)) {
-                                        return ((Dimension) val).getValue();
+                                        return ((Dimension) val).value();
                                     }
 
                                     throw new RuntimeException("Unexpected field " + field.getName());
                                 },
-                                nextMetric.getDimensions());
+                                nextMetric.dimensions());
 
                         //This field is 'faked' in that we just use it as a convenient way to filter single dimensions. As such
                         //we always populate it with the value of the filter if the constraint passed and the filter was singleValue
@@ -190,9 +191,10 @@ public class MetricsRecordHandler
                     return matches ? 1 : 0;
                 });
             }
-            listMetricsRequest.setNextToken(result.getNextToken());
+            nextToken = result.nextToken();
+            listMetricsRequestBuilder.nextToken(nextToken);
         }
-        while (listMetricsRequest.getNextToken() != null && !listMetricsRequest.getNextToken().equalsIgnoreCase(prevToken) && queryStatusChecker.isQueryRunning());
+        while (nextToken != null && !nextToken.equalsIgnoreCase(prevToken) && queryStatusChecker.isQueryRunning());
     }
 
     /**
@@ -201,46 +203,49 @@ public class MetricsRecordHandler
     private void readMetricSamplesWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
             throws TimeoutException
     {
-        GetMetricDataRequest dataRequest = MetricUtils.makeGetMetricDataRequest(request);
+        GetMetricDataRequest originalDataRequest = MetricUtils.makeGetMetricDataRequest(request);
         Map<String, MetricDataQuery> queries = new HashMap<>();
-        for (MetricDataQuery query : dataRequest.getMetricDataQueries()) {
-            queries.put(query.getId(), query);
+        for (MetricDataQuery query : originalDataRequest.metricDataQueries()) {
+            queries.put(query.id(), query);
         }
+        GetMetricDataRequest.Builder dataRequestBuilder = originalDataRequest.toBuilder();
 
         String prevToken;
+        String nextToken;
         ValueSet dimensionNameConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
         ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_VALUE_FIELD);
         do {
-            prevToken = dataRequest.getNextToken();
-            GetMetricDataResult result = invoker.invoke(() -> metrics.getMetricData(dataRequest));
-            for (MetricDataResult nextMetric : result.getMetricDataResults()) {
-                MetricStat metricStat = queries.get(nextMetric.getId()).getMetricStat();
-                List<Date> timestamps = nextMetric.getTimestamps();
-                List<Double> values = nextMetric.getValues();
-                for (int i = 0; i < nextMetric.getValues().size(); i++) {
+            GetMetricDataRequest dataRequest = dataRequestBuilder.build();
+            prevToken = dataRequest.nextToken();
+            GetMetricDataResponse result = invoker.invoke(() -> cloudwatchClient.getMetricData(dataRequest));
+            for (MetricDataResult nextMetric : result.metricDataResults()) {
+                MetricStat metricStat = queries.get(nextMetric.id()).metricStat();
+                List<Instant> timestamps = nextMetric.timestamps();
+                List<Double> values = nextMetric.values();
+                for (int i = 0; i < nextMetric.values().size(); i++) {
                     int sampleNum = i;
                     blockSpiller.writeRows((Block block, int row) -> {
                         /**
                          * Most constraints were already applied at split generation so we only need to apply
                          * a subset.
                          */
-                        block.offerValue(METRIC_NAME_FIELD, row, metricStat.getMetric().getMetricName());
-                        block.offerValue(NAMESPACE_FIELD, row, metricStat.getMetric().getNamespace());
-                        block.offerValue(STATISTIC_FIELD, row, metricStat.getStat());
+                        block.offerValue(METRIC_NAME_FIELD, row, metricStat.metric().metricName());
+                        block.offerValue(NAMESPACE_FIELD, row, metricStat.metric().namespace());
+                        block.offerValue(STATISTIC_FIELD, row, metricStat.stat());
 
                         block.offerComplexValue(DIMENSIONS_FIELD,
                                 row,
                                 (Field field, Object val) -> {
                                     if (field.getName().equals(DIMENSION_NAME_FIELD)) {
-                                        return ((Dimension) val).getName();
+                                        return ((Dimension) val).name();
                                     }
                                     else if (field.getName().equals(DIMENSION_VALUE_FIELD)) {
-                                        return ((Dimension) val).getValue();
+                                        return ((Dimension) val).value();
                                     }
 
                                     throw new RuntimeException("Unexpected field " + field.getName());
                                 },
-                                metricStat.getMetric().getDimensions());
+                                metricStat.metric().dimensions());
 
                         //This field is 'faked' in that we just use it as a convenient way to filter single dimensions. As such
                         //we always populate it with the value of the filter if the constraint passed and the filter was singleValue
@@ -254,19 +259,20 @@ public class MetricsRecordHandler
                                 ? null : dimensionValueConstraint.getSingleValue().toString();
                         block.offerValue(DIMENSION_VALUE_FIELD, row, dimVal);
 
-                        block.offerValue(PERIOD_FIELD, row, metricStat.getPeriod());
+                        block.offerValue(PERIOD_FIELD, row, metricStat.period());
 
                         boolean matches = true;
                         block.offerValue(VALUE_FIELD, row, values.get(sampleNum));
-                        long timestamp = timestamps.get(sampleNum).getTime() / 1000;
+                        long timestamp = timestamps.get(sampleNum).getEpochSecond() / 1000;
                         block.offerValue(TIMESTAMP_FIELD, row, timestamp);
 
                         return matches ? 1 : 0;
                     });
                 }
             }
-            dataRequest.setNextToken(result.getNextToken());
+            nextToken = result.nextToken();
+            dataRequestBuilder.nextToken(result.nextToken());
         }
-        while (dataRequest.getNextToken() != null && !dataRequest.getNextToken().equalsIgnoreCase(prevToken) && queryStatusChecker.isQueryRunning());
+        while (nextToken != null && !nextToken.equalsIgnoreCase(prevToken) && queryStatusChecker.isQueryRunning());
     }
 }

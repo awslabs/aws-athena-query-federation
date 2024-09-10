@@ -43,10 +43,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
-import com.amazonaws.services.cloudwatch.model.Metric;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -59,6 +55,10 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
@@ -92,7 +92,7 @@ public class MetricsMetadataHandlerTest
     private BlockAllocator allocator;
 
     @Mock
-    private AmazonCloudWatch mockMetrics;
+    private CloudWatchClient mockMetrics;
 
     @Mock
     private SecretsManagerClient mockSecretsManager;
@@ -273,17 +273,20 @@ public class MetricsMetadataHandlerTest
             ListMetricsRequest request = invocation.getArgument(0, ListMetricsRequest.class);
 
             //assert that the namespace filter was indeed pushed down
-            assertEquals(namespaceFilter, request.getNamespace());
-            String nextToken = (request.getNextToken() == null) ? "valid" : null;
+            assertEquals(namespaceFilter, request.namespace());
+            String nextToken = (request.nextToken() == null) ? "valid" : null;
             List<Metric> metrics = new ArrayList<>();
 
             for (int i = 0; i < numMetrics; i++) {
                 //first page does not match constraints, but second page should
-                String mockNamespace = (request.getNextToken() == null) ? "NotMyNameSpace" : namespaceFilter;
-                metrics.add(new Metric().withNamespace(mockNamespace).withMetricName("metric-" + i));
+                String mockNamespace = (request.nextToken() == null) ? "NotMyNameSpace" : namespaceFilter;
+                metrics.add(Metric.builder()
+                        .namespace(mockNamespace)
+                        .metricName("metric-" + i)
+                        .build());
             }
 
-            return new ListMetricsResult().withNextToken(nextToken).withMetrics(metrics);
+            return ListMetricsResponse.builder().nextToken(nextToken).metrics(metrics).build();
         });
 
         Schema schema = SchemaBuilder.newBuilder().addIntField("partitionId").build();
@@ -356,9 +359,12 @@ public class MetricsMetadataHandlerTest
         when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             List<Metric> metrics = new ArrayList<>();
             for (int i = 0; i < numMetrics; i++) {
-                metrics.add(new Metric().withNamespace(namespace).withMetricName("metric-" + i));
+                metrics.add(Metric.builder()
+                        .namespace(namespace)
+                        .metricName("metric-" + i)
+                        .build());
             }
-            return new ListMetricsResult().withNextToken(null).withMetrics(metrics);
+            return ListMetricsResponse.builder().nextToken(null).metrics(metrics).build();
         });
 
         Schema schema = SchemaBuilder.newBuilder().addIntField("partitionId").build();
