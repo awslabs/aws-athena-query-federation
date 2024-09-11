@@ -143,7 +143,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
     {
         return Optional.of(PolicyDocument.Builder.create()
                 .statements(ImmutableList.of(PolicyStatement.Builder.create()
-                        .actions(ImmutableList.of("dynamodb:DescribeTable", "dynamodb:ListSchemas",
+                        .actions(ImmutableList.of("dynamodb:DescribeTable", 
                                 "dynamodb:ListTables", "dynamodb:Query", "dynamodb:Scan"))
                         .resources(ImmutableList.of("*"))
                         .effect(Effect.ALLOW)
