@@ -24,7 +24,7 @@ Parameters:
   GlueConnection:
     Description: "Name of glue connection storing connection details for Federated Data source."
     Type: String
-  SecretManagerGcpCredsName:
+  SecretName:
     Description: 'Secret key name in the AWS Secrets Manager.'
     Type: String
   KmsKeyId:
@@ -103,7 +103,7 @@ Resources:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretManagerGcpCredsName}*'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}*'
           - Action:
               - s3:GetObject
               - s3:ListBucket

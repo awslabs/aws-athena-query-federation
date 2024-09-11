@@ -18,7 +18,7 @@ Parameters:
     Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
-  SecretsManagerSecret:
+  SecretName:
     Description: "The secret name within AWS Secrets Manager that contains your aws key and secret Credentials(Not Required for IAM AUTH)"
     Default: ""
     Type: String
@@ -98,7 +98,7 @@ Resources:
           - Action:
               - secretsmanager:GetSecretValue
             Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretsManagerSecret}*'
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*'
           - Action:
               - logs:CreateLogGroup
             Effect: Allow
