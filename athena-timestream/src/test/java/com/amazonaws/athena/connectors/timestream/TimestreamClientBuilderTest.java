@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.timestream;
 
-import com.amazonaws.ClientConfiguration;
 import org.junit.Test;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
@@ -32,6 +31,6 @@ public class TimestreamClientBuilderTest {
   public void testUserAgentField()
   {
     ClientOverrideConfiguration clientConfiguration = TimestreamClientBuilder.buildClientConfiguration("timestream");
-    assertEquals("aws-athena-timestream-connector", clientConfiguration.advancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX).stream().findFirst().get());
+    assertEquals("aws-athena-timestream-connector", clientConfiguration.advancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX).get());
   }
 }
