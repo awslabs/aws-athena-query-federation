@@ -123,7 +123,6 @@ Resources:
           - Effect: Allow
             Action:
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
             Resource: '*'
           - Effect: Allow
             Action:

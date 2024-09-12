@@ -70,7 +70,6 @@ Resources:
         - Statement:
             - Action:
                 - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
                 - glue:GetTableVersions
                 - glue:GetPartitions
                 - glue:GetTables

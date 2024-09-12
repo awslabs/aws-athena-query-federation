@@ -158,7 +158,7 @@ export class RdsGenericStack extends cdk.Stack {
     // for some reason, I can't just pass the below in as a property. So we have to just keep
     // a switch here until that's resolved.
     if (db_type == 'mysql') {
-      return rds.DatabaseClusterEngine.auroraMysql({version:rds.AuroraMysqlEngineVersion.VER_3_01_0});
+      return rds.DatabaseClusterEngine.auroraMysql({version:rds.AuroraMysqlEngineVersion.VER_3_04_1});
     } else if (db_type == 'postgresql') {
       return rds.DatabaseClusterEngine.auroraPostgres({version:rds.AuroraPostgresEngineVersion.VER_13_7});
     } else {

@@ -53,7 +53,7 @@ public class GlueFieldLexer
 
     private static final BaseTypeMapper DEFAULT_TYPE_MAPPER = (String type) -> DefaultGlueType.toArrowType(type);
 
-    public static final boolean MAP_DISABLED = true;
+    public static final boolean MAP_DISABLED = false;
 
     private GlueFieldLexer() {}
 

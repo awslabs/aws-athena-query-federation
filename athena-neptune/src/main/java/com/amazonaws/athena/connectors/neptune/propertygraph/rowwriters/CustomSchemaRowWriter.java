@@ -40,29 +40,35 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class CustomSchemaRowWriter 
+public final class CustomSchemaRowWriter
 {
-    private CustomSchemaRowWriter() 
+    private static final Logger logger = LoggerFactory.getLogger(CustomSchemaRowWriter.class);
+    private CustomSchemaRowWriter()
     {
         // Empty private constructor
     }
 
-    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field, java.util.Map<String, String> configOptions) 
+    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field, java.util.Map<String, String> configOptions)
     {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
+        logger.debug("writeRowTemplate*" + field.getName() + "*" + minorType + "*");
         Boolean enableCaseinsensitivematch = (configOptions.get(Constants.SCHEMA_CASE_INSEN) == null) ? true : Boolean.parseBoolean(configOptions.get(Constants.SCHEMA_CASE_INSEN));
 
+        try {
         switch (minorType) {
             case BIT:
                 rowWriterBuilder.withExtractor(field.getName(),
@@ -72,19 +78,22 @@ public final class CustomSchemaRowWriter
                             value.isSet = 0;
 
                             Object fieldValue = obj.get(fieldName);
-                            if (fieldValue.getClass().equals(Boolean.class)) {                              
+                            logger.debug("writeRowTemplate BIT*" + field.getName() + "*" + minorType + "*"
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+
+                            if (fieldValue.getClass().equals(Boolean.class)) {
                                 Boolean booleanValue = Boolean.parseBoolean(fieldValue.toString());
                                 value.value = booleanValue ? 1 : 0;
                                 value.isSet = 1;
                             }
-                            else {       
+                            else if (fieldValue instanceof ArrayList) {
                                 ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
                                 if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                     Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
                                     value.value = booleanValue ? 1 : 0;
                                     value.isSet = 1;
                                 }
-                            }       
+                            }
                         });
                 break;
 
@@ -102,23 +111,36 @@ public final class CustomSchemaRowWriter
                                     value.value = fieldValue.toString();
                                     value.isSet = 1;
                                 }
-                            } 
+                            }
                             else {
                                 Object fieldValue = obj.get(fieldName);
+                                logger.debug("writeRowTemplate VARCHAR*" + field.getName() + "*" + minorType + "*"
+                                        + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
 
                                 if (fieldValue != null) {
                                     if (fieldValue.getClass().equals(String.class)) {
                                         value.value = fieldValue.toString();
                                         value.isSet = 1;
                                     }
-                                    else {       
+                                    else if (fieldValue instanceof ArrayList) {
                                         ArrayList<Object> objValues = (ArrayList) fieldValue;
                                         if (objValues != null && objValues.get(0) != null) {
-                                            value.value = objValues.get(0).toString();
+                                            if (objValues.size() > 1) {
+                                                value.value = String.join(";", objValues.stream()
+                                                        .map(Object::toString)
+                                                        .collect(Collectors.toList()));
+                                            }
+                                            else {
+                                                value.value = objValues.get(0).toString();
+                                            }
                                             value.isSet = 1;
                                         }
                                     }
-                                }   
+                                    else {
+                                        value.value = "" + fieldValue;
+                                        value.isSet = 1;
+                                    }
+                                }
                             }
                         });
                 break;
@@ -131,11 +153,13 @@ public final class CustomSchemaRowWriter
                             value.isSet = 0;
 
                             Object fieldValue = obj.get(fieldName);
-                            if (fieldValue.getClass().equals(Date.class)) {                              
+                            logger.debug("writeRowTemplate DATEMILLI*" + field.getName() + "*" + minorType + "*"
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                            if (fieldValue.getClass().equals(Date.class)) {
                                 value.value = ((Date) fieldValue).getTime();
                                 value.isSet = 1;
                             }
-                            else {    
+                            else if (fieldValue instanceof ArrayList) {
                                 ArrayList<Object> objValues = (ArrayList) fieldValue;
                                 if (objValues != null && (objValues.get(0) != null) && !(objValues.get(0).toString().trim().isEmpty())) {
                                     value.value = ((Date) objValues.get(0)).getTime();
@@ -153,11 +177,13 @@ public final class CustomSchemaRowWriter
                             value.isSet = 0;
 
                             Object fieldValue = obj.get(fieldName);
-                            if (fieldValue.getClass().equals(Integer.class)) {                              
+                            logger.debug("writeRowTemplate INT*" + field.getName() + "*" + minorType + "*"
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                            if (fieldValue.getClass().equals(Integer.class)) {
                                 value.value = Integer.parseInt(fieldValue.toString());
                                 value.isSet = 1;
                             }
-                            else {  
+                            else if (fieldValue instanceof ArrayList) {
                                 ArrayList<Object> objValues = (ArrayList) fieldValue;
                                 if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                     value.value = Integer.parseInt(objValues.get(0).toString());
@@ -175,11 +201,13 @@ public final class CustomSchemaRowWriter
                             value.isSet = 0;
 
                             Object fieldValue = obj.get(fieldName);
-                            if (fieldValue.getClass().equals(Long.class)) {                              
+                            logger.debug("writeRowTemplate BIGINT*" + field.getName() + "*" + minorType + "*"
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                            if (fieldValue.getClass().equals(Long.class)) {
                                 value.value = Long.parseLong(fieldValue.toString());
                                 value.isSet = 1;
                             }
-                            else { 
+                            else if (fieldValue instanceof ArrayList) {
                                 ArrayList<Object> objValues = (ArrayList) fieldValue;
                                 if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                     value.value = Long.parseLong(objValues.get(0).toString());
@@ -197,11 +225,13 @@ public final class CustomSchemaRowWriter
                             value.isSet = 0;
 
                             Object fieldValue = obj.get(fieldName);
-                            if (fieldValue.getClass().equals(Float.class)) {                              
+                            logger.debug("writeRowTemplate FLOAT4*" + field.getName() + "*" + minorType + "*"
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                            if (fieldValue.getClass().equals(Float.class)) {
                                 value.value = Float.parseFloat(fieldValue.toString());
                                 value.isSet = 1;
                             }
-                            else { 
+                            else if (fieldValue instanceof ArrayList) {
                                 ArrayList<Object> objValues = (ArrayList) fieldValue;
                                 if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                     value.value = Float.parseFloat(objValues.get(0).toString());
@@ -218,12 +248,14 @@ public final class CustomSchemaRowWriter
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
                             value.isSet = 0;
 
-                            Object fieldValue = obj.get(field.getName());
-                            if (fieldValue.getClass().equals(Double.class)) {                              
+                            Object fieldValue = obj.get(fieldName);
+                            logger.debug("writeRowTemplate FLOAT8*" + field.getName() + "*" + minorType + "*"
+                                    + (fieldValue == null ? "" : fieldValue.getClass()) + "*");
+                            if (fieldValue.getClass().equals(Double.class)) {
                                 value.value = Double.parseDouble(fieldValue.toString());
                                 value.isSet = 1;
                             }
-                            else { 
+                            else if (fieldValue instanceof ArrayList) {
                                 ArrayList<Object> objValues = (ArrayList) fieldValue;
                                 if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                     value.value = Double.parseDouble(objValues.get(0).toString());
@@ -234,9 +266,14 @@ public final class CustomSchemaRowWriter
 
                 break;
         }
+        }
+        catch (Throwable e) {
+            logger.error("writeRowTemplate exception for *" + field.getName() + "*" + minorType + "*", e);
+            throw new RuntimeException(e);
+        }
     }
 
-    private static Map<String, Object> contextAsMap(Object context, boolean caseInsensitive) 
+    private static Map<String, Object> contextAsMap(Object context, boolean caseInsensitive)
     {
         Map<String, Object> contextAsMap = (Map<String, Object>) context;
         Object fieldValueID = contextAsMap.get(T.id);

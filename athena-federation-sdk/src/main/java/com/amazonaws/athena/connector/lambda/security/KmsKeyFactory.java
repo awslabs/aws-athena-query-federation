@@ -53,7 +53,7 @@ public class KmsKeyFactory
                 kmsClient.generateDataKey(
                         new GenerateDataKeyRequest()
                                 .withKeyId(masterKeyId)
-                                .withKeySpec(DataKeySpec.AES_128));
+                                .withKeySpec(DataKeySpec.AES_256));
 
         GenerateRandomRequest randomRequest = new GenerateRandomRequest()
                 .withNumberOfBytes(AesGcmBlockCrypto.NONCE_BYTES);

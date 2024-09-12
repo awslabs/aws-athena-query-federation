@@ -258,9 +258,15 @@ public class MetricsMetadataHandler
                 }
             }
 
+            String continuationToken = null;
+            if (result.getNextToken() != null &&
+                    !result.getNextToken().equalsIgnoreCase(listMetricsRequest.getNextToken())) {
+                continuationToken = result.getNextToken();
+            }
+
             if (CollectionUtils.isNullOrEmpty(metricStats)) {
                 logger.info("No metric stats present after filtering predicates.");
-                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);
             }
 
             List<List<MetricStat>> partitions = Lists.partition(metricStats, calculateSplitSize(metricStats.size()));
@@ -269,12 +275,6 @@ public class MetricsMetadataHandler
                 splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
                         .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, serializedMetricStats)
                         .build());
-            }
-
-            String continuationToken = null;
-            if (result.getNextToken() != null &&
-                    !result.getNextToken().equalsIgnoreCase(listMetricsRequest.getNextToken())) {
-                continuationToken = result.getNextToken();
             }
 
             return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);

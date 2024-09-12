@@ -20,9 +20,9 @@
 package com.amazonaws.athena.connectors.dynamodb.throttling;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.services.dynamodbv2.model.LimitExceededException;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughputExceededException;
-import com.amazonaws.services.dynamodbv2.model.RequestLimitExceededException;
+import software.amazon.awssdk.services.dynamodb.model.LimitExceededException;
+import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughputExceededException;
+import software.amazon.awssdk.services.dynamodb.model.RequestLimitExceededException;
 
 /**
  * Used by {@link ThrottlingInvoker} to determine which DynamoDB exceptions are thrown for throttling.

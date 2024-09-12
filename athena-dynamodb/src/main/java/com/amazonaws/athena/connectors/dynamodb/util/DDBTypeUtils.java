@@ -31,8 +31,6 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecima
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.types.Types;
@@ -43,20 +41,32 @@ import org.apache.arrow.vector.util.Text;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.BigDecimalAttributeConverter;
+import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.BooleanAttributeConverter;
+import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.ByteArrayAttributeConverter;
+import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.EnhancedAttributeValue;
+import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.StringAttributeConverter;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.utils.ImmutableMap;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * Provides utility methods relating to type handling.
@@ -86,53 +96,69 @@ public final class DDBTypeUtils
      * @param value the value of the field
      * @return the inferred Arrow field
      */
-    public static Field inferArrowField(String key, Object value)
+    public static Field inferArrowField(String key, AttributeValue value)
     {
         logger.debug("inferArrowField invoked for key {} of class {}", key,
-                value != null ? value.getClass() : null);
-        if (value == null) {
+                value != null ? value.toString() : null);
+
+        EnhancedAttributeValue enhancedAttributeValue = EnhancedAttributeValue.fromAttributeValue(value);
+        if (enhancedAttributeValue == null || enhancedAttributeValue.isNull()) {
             return null;
         }
 
-        if (value instanceof String) {
+        if (enhancedAttributeValue.isString()) {
             return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
         }
-        else if (value instanceof byte[]) {
+        else if (enhancedAttributeValue.isBytes()) {
             return new Field(key, FieldType.nullable(Types.MinorType.VARBINARY.getType()), null);
         }
-        else if (value instanceof Boolean) {
+        else if (enhancedAttributeValue.isBoolean()) {
             return new Field(key, FieldType.nullable(Types.MinorType.BIT.getType()), null);
         }
-        else if (value instanceof BigDecimal) {
+        else if (enhancedAttributeValue.isNumber()) {
             return new Field(key, FieldType.nullable(new ArrowType.Decimal(38, 9)), null);
         }
-        else if (value instanceof List || value instanceof Set) {
+        else if (enhancedAttributeValue.isSetOfBytes()) {
+            Field child = new Field(key, FieldType.nullable(Types.MinorType.VARBINARY.getType()), null);
+            return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),  Collections.singletonList(child));
+        }
+        else if (enhancedAttributeValue.isSetOfNumbers()) {
+            Field child = new Field(key, FieldType.nullable(Types.MinorType.DECIMAL.getType()), null);
+            return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),  Collections.singletonList(child));
+        }
+        else if (enhancedAttributeValue.isSetOfStrings()) {
+            Field child = new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+            return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()), Collections.singletonList(child));
+        }
+        else if (enhancedAttributeValue.isListOfAttributeValues()) { 
             Field child = null;
-            if (((Collection) value).isEmpty()) {
+            List<AttributeValue> listOfAttributes = enhancedAttributeValue.asListOfAttributeValues();
+
+            if (listOfAttributes.isEmpty()) {
                 logger.warn("Automatic schema inference encountered empty List or Set {}. Unable to determine element types. Falling back to VARCHAR representation", key);
-                child = inferArrowField("", "");
+                child = inferArrowField("", EnhancedAttributeValue.nullValue().toAttributeValue());
             }
             else {
-                Iterator iterator = ((Collection) value).iterator();
-                Object previousValue = iterator.next();
+                Iterator<AttributeValue> iterator = listOfAttributes.iterator();
+                EnhancedAttributeValue previousValue = EnhancedAttributeValue.fromAttributeValue(iterator.next());
                 boolean allElementsAreSameType = true;
                 while (iterator.hasNext()) {
-                    Object currentValue = iterator.next();
+                    EnhancedAttributeValue currentValue = EnhancedAttributeValue.fromAttributeValue(iterator.next());
                     // null is considered the same as any prior type
-                    if (previousValue != null && currentValue != null && !previousValue.getClass().equals(currentValue.getClass())) {
+                    if (!previousValue.isNull() && !currentValue.isNull() && !previousValue.type().equals(currentValue.type())) {
                         allElementsAreSameType = false;
                         break;
                     }
                     // only update the previousValue if the currentValue is not null otherwise we will end
                     // up inferring the type as null if the currentValue is null and is the last value.
-                    previousValue = (currentValue == null) ? previousValue : currentValue;
+                    previousValue = (currentValue.isNull()) ? previousValue : currentValue;
                 }
                 if (allElementsAreSameType) {
-                    child = inferArrowField(key + ".element", previousValue);
+                    child = inferArrowField(key + ".element", previousValue.toAttributeValue());
                 }
                 else {
                     logger.warn("Automatic schema inference encountered List or Set {} containing multiple element types. Falling back to VARCHAR representation of elements", key);
-                    child = inferArrowField("", "");
+                    child = inferArrowField("", AttributeValue.builder().s("").build());
                 }
             }
             return child == null
@@ -140,12 +166,12 @@ public final class DDBTypeUtils
                     : new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),
                                 Collections.singletonList(child));
         }
-        else if (value instanceof Map) {
+        else if (enhancedAttributeValue.isMap()) {
             List<Field> children = new ArrayList<>();
             // keys are always Strings in DDB's case
-            Map<String, Object> doc = (Map<String, Object>) value;
+            Map<String, AttributeValue> doc = value.m();
             for (String childKey : doc.keySet()) {
-                Object childVal = doc.get(childKey);
+                AttributeValue childVal = doc.get(childKey);
                 Field child = inferArrowField(childKey, childVal);
                 if (child != null) {
                     children.add(child);
@@ -161,8 +187,8 @@ public final class DDBTypeUtils
             return new Field(key, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
         }
 
-        String className = (value == null || value.getClass() == null) ? "null" : value.getClass().getName();
-        throw new RuntimeException("Unknown type[" + className + "] for field[" + key + "]");
+        String attributeTypeName = (value == null || value.getClass() == null) ? "null" : enhancedAttributeValue.type().name();
+        throw new RuntimeException("Unknown Attribute Value Type[" + attributeTypeName + "] for field[" + key + "]");
     }
 
     /**
@@ -401,7 +427,7 @@ public final class DDBTypeUtils
             case DECIMAL:
                 return Optional.of((DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {
-                    Object value = ItemUtils.toSimpleValue(contextAsMap(context, caseInsensitive).get(field.getName()));
+                    Object value = toSimpleValue(contextAsMap(context, caseInsensitive).get(field.getName()));
                     if (value != null) {
                         dst.isSet = 1;
                         dst.value = (BigDecimal) value;
@@ -414,7 +440,7 @@ public final class DDBTypeUtils
                 return Optional.of((VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
                 {
                     Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
-                    Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                    Object value = toSimpleValue(item.get(field.getName()));
                     value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
 
                     if (value != null) {
@@ -431,7 +457,7 @@ public final class DDBTypeUtils
                     AttributeValue attributeValue = (contextAsMap(context, caseInsensitive)).get(field.getName());
                     if (attributeValue != null) {
                         dst.isSet = 1;
-                        dst.value = attributeValue.getBOOL() ? 1 : 0;
+                        dst.value = attributeValue.bool() ? 1 : 0;
                     }
                     else {
                         dst.isSet = 0;
@@ -459,28 +485,19 @@ public final class DDBTypeUtils
                         (FieldWriter) (Object context, int rowNum) ->
                         {
                             Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
-                            Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                            Object value = toSimpleValue(item.get(field.getName()));
                             List valueAsList = value != null ? DDBTypeUtils.coerceListToExpectedType(value, field, recordMetadata) : null;
                             BlockUtils.setComplexValue(vector, rowNum, resolver, valueAsList);
 
                             return true;
                         };
             case STRUCT:
-                return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
-                        (FieldWriter) (Object context, int rowNum) ->
-                        {
-                            Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
-                            Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
-                            value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
-                            BlockUtils.setComplexValue(vector, rowNum, resolver, value);
-                            return true;
-                        };
             case MAP:
                 return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                         (FieldWriter) (Object context, int rowNum) ->
                         {
                             Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
-                            Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                            Object value = toSimpleValue(item.get(field.getName()));
                             value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
                             BlockUtils.setComplexValue(vector, rowNum, resolver, value);
                             return true;
@@ -491,11 +508,172 @@ public final class DDBTypeUtils
                         (FieldWriter) (Object context, int rowNum) ->
                         {
                             Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
-                            Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                            Object value = toSimpleValue(item.get(field.getName()));
                             value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
                             BlockUtils.setValue(vector, rowNum, value);
                             return true;
                         };
         }
+    }
+
+    // Partially Adapted From aws-java-sdk-dynamodb/src/main/java/com/amazonaws/services/dynamodbv2/document/ItemUtils.java
+    public static <T> T toSimpleValue(AttributeValue value)
+    {
+        if (value == null) {
+            return null;
+        }
+        EnhancedAttributeValue enhancedAttributeValue = EnhancedAttributeValue.fromAttributeValue(value);
+        T result = null;
+        Object child = null;
+
+        switch (enhancedAttributeValue.type()) {
+            case NULL:
+                break;
+            case BOOL:
+                result = (T) Boolean.valueOf(enhancedAttributeValue.asBoolean());
+                break;
+            case S:
+                result = (T) StringAttributeConverter.create().transformTo(value);
+                break;
+            case N:
+                result = (T) BigDecimalAttributeConverter.create().transformTo(value);
+                break;
+            case B:
+                result = (T) enhancedAttributeValue.asBytes().asByteArray();
+                break;
+            case SS:
+                result = (T) enhancedAttributeValue.asSetOfStrings();
+                break;
+            case NS:
+                result = (T) value.ns().stream().map(BigDecimal::new).collect(Collectors.toList());
+                break;
+            case BS:
+                result = (T) value.bs().stream().map(sdkBytes -> sdkBytes.asByteArray()).collect(Collectors.toList());
+                break;
+            case L:
+                result = handleListAttribute(enhancedAttributeValue);
+                break;
+            case M:
+                result = handleMapAttribute(enhancedAttributeValue);
+                break;
+        }
+        return result;
+    }
+
+    private static <T> T handleMapAttribute(EnhancedAttributeValue enhancedAttributeValue)
+    {
+        Map<String, AttributeValue> valueMap = enhancedAttributeValue.asMap();
+        if (valueMap.isEmpty()) {
+            return (T) Collections.emptyMap();
+        }
+        Map<String, Object> result = new HashMap<>(valueMap.size());
+        for (Map.Entry<String, AttributeValue> entry : valueMap.entrySet()) {
+            String key = entry.getKey();
+            AttributeValue attributeValue = entry.getValue();
+            result.put(key, toSimpleValue(attributeValue));
+        }
+        return (T) result;
+    }
+
+    private static <T> T handleListAttribute(EnhancedAttributeValue enhancedAttributeValue)
+    {
+        List<Object> result =
+                enhancedAttributeValue.asListOfAttributeValues().stream().map(attributeValue -> toSimpleValue(attributeValue)).collect(Collectors.toList());
+        return (T) result;
+    }
+
+    // Partially Adapted From aws-java-sdk-dynamodb/src/main/java/com/amazonaws/services/dynamodbv2/document/ItemUtils.java
+    public static AttributeValue toAttributeValue(Object value)
+    {
+        if (value == null) {
+            return AttributeValue.builder().nul(true).build();
+        }
+        else if (value instanceof String) {
+            return StringAttributeConverter.create().transformFrom((String) value);
+        }
+        else if (value instanceof Boolean) {
+            return BooleanAttributeConverter.create().transformFrom((Boolean) value);
+        }
+        else if (value instanceof BigDecimal) {
+            return BigDecimalAttributeConverter.create().transformFrom((BigDecimal) value);
+        }
+        else if (value instanceof Number) {
+            // For other numbers, we can convert them to BigDecimal first
+            return BigDecimalAttributeConverter.create().transformFrom(BigDecimal.valueOf(((Number) value).doubleValue()));
+        }
+        else if (value instanceof byte[]) {
+            return ByteArrayAttributeConverter.create().transformFrom((byte[]) value);
+        }
+        else if (value instanceof ByteBuffer) {
+            SdkBytes b = SdkBytes.fromByteBuffer((ByteBuffer) value);
+            return AttributeValue.builder().b(b).build();
+        }
+        else if (value instanceof Set<?>) {
+            return handleSetType((Set<?>) value);
+        }
+        else if (value instanceof List<?>) {
+            return handleListType((List<?>) value);
+        }
+        else if (value instanceof Map<?, ?>) {
+            return handleMapType((Map<String, Object>) value);
+        }
+        else {
+            throw new UnsupportedOperationException("Unsupported value type: " + value.getClass());
+        }
+    }
+
+    public static String attributeToJson(AttributeValue attributeValue, String key)
+    {
+        EnhancedDocument enhancedDocument = EnhancedDocument.fromAttributeValueMap(ImmutableMap.of(key, attributeValue));
+        return enhancedDocument.toJson();
+    }
+
+    public static AttributeValue jsonToAttributeValue(String jsonString, String key)
+    {
+        EnhancedDocument enhancedDocument = EnhancedDocument.fromJson(jsonString);
+        if (!enhancedDocument.isPresent(key)) {
+            throw new RuntimeException("Unknown attribute Key");
+        }
+        return enhancedDocument.toMap().get(key);
+    }
+
+    private static AttributeValue handleSetType(Set<?> value)
+    {
+        // Check the type of the first element as a sample
+        Object firstElement = value.iterator().next();
+        if (firstElement instanceof String) {
+            // Handle String Set
+            Set<String> stringSet = value.stream().map(e -> (String) e).collect(Collectors.toSet());
+            return AttributeValue.builder().ss(stringSet).build();
+        }
+        else if (firstElement instanceof Number) {
+            // Handle Number Set
+            Set<String> numberSet = value.stream()
+                    .map(e -> String.valueOf(((Number) e).doubleValue())) // Convert numbers to strings
+                    .collect(Collectors.toSet());
+            return AttributeValue.builder().ns(numberSet).build();
+        } // Add other types if needed
+
+        // Fallback for unsupported set types
+        throw new UnsupportedOperationException("Unsupported Set element type: " + firstElement.getClass());
+    }
+
+    private static AttributeValue handleListType(List<?> value)
+    {
+        List<AttributeValue> attributeList = new ArrayList<>();
+        for (Object element : value) {
+            attributeList.add(toAttributeValue(element));
+        }
+        return AttributeValue.builder().l(attributeList).build();
+    }
+
+    private static AttributeValue handleMapType(Map<String, Object> value)
+    {
+        Map<String, AttributeValue> attributeMap = new HashMap<>();
+        for (Map.Entry<String, Object> entry : value.entrySet()) {
+            // Convert each value in the map to an AttributeValue
+            attributeMap.put(entry.getKey(), toAttributeValue(entry.getValue()));
+        }
+        return AttributeValue.builder().m(attributeMap).build();
     }
 }

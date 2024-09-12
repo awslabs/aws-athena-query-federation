@@ -59,6 +59,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.microsoft.sqlserver.jdbc.SQLServerException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -71,6 +72,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -128,7 +130,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "WHERE t.object_id = (select object_id from sys.objects o where o.name = ? " +
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
-    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT t.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.tables t INNER JOIN sys.schemas s ON t.schema_id = s.schema_id ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT o.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('U', 'V') and s.name = ? ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
 
     public SqlServerMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -166,8 +168,9 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int token, int limit) throws SQLException
     {
         PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
-        preparedStatement.setInt(1, token);
-        preparedStatement.setInt(2, limit);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setInt(2, token);
+        preparedStatement.setInt(3, limit);
         LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
@@ -203,6 +206,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
 
+        jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
@@ -225,12 +229,12 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         List<String> params = Arrays.asList(getTableLayoutRequest.getTableName().getTableName(), getTableLayoutRequest.getTableName().getSchemaName());
 
         //check whether the input table is a view or not
-        String viewFlag = "N";
+        boolean viewFlag = false;
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(params).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
-                viewFlag = "VIEW".equalsIgnoreCase(resultSet.getString("TYPE_DESC")) ? "Y" : "N";
+                viewFlag = "VIEW".equalsIgnoreCase(resultSet.getString("TYPE_DESC"));
             }
             LOGGER.info("viewFlag: {}", viewFlag);
         }
@@ -250,14 +254,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 }
 
                 // create a single split for view/non-partition table
-                if ("Y".equals(viewFlag) || rowCount == 0) {
-                    LOGGER.debug("Getting as single Partition: ");
-                    blockWriter.writeRows((Block block, int rowNum) ->
-                    {
-                        block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
-                        //we wrote 1 row so we return 1
-                        return 1;
-                    });
+                if (viewFlag || rowCount == 0) {
+                    handleSinglePartition(blockWriter);
                 }
                 else {
                     LOGGER.debug("Getting data with diff Partitions: ");
@@ -288,7 +286,26 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                     }
                 }
             }
+            catch (SQLServerException e) {
+                // for permission denied sqlServer exception retuning single partition
+                if (e.getMessage().contains("VIEW DATABASE STATE permission denied")) {
+                    LOGGER.warn("Permission denied to view database state for {}", e.getMessage());
+                    handleSinglePartition(blockWriter);
+                }
+                else {
+                    throw e;
+                }
+            }
         }
+    }
+
+    private static void handleSinglePartition(BlockWriter blockWriter)
+    {
+        LOGGER.debug("Getting as single Partition: ");
+        blockWriter.writeRows((Block block, int rowNum) -> {
+            block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
+            return 1;
+        });
     }
 
     /**
@@ -300,6 +317,10 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+        if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
+            LOGGER.info("QPT Split Requested");
+            return setupQueryPassthroughSplit(getSplitsRequest);
+        }
 
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         LOGGER.info("partitionContd: {}", partitionContd);
@@ -388,6 +409,18 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         }
     }
 
+    @Override
+    protected ArrowType convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
+    {
+        String dataType = metadata.getColumnTypeName(columnIndex);
+        LOGGER.info("In convertDatasourceTypeToArrow: converting {}", dataType);
+        if (dataType != null && SqlServerDataType.isSupported(dataType)) {
+            LOGGER.debug("Sql Server  Datatype is support: {}", dataType);
+            return SqlServerDataType.fromType(dataType); 
+        }
+        return super.convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
+    }
+
     /**
      * Appropriate datatype to arrow type conversions will be done by fetching data types of columns
      * @param jdbcConnection
@@ -436,48 +469,13 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
 
-                /**
-                 * Converting date data type into DATEDAY since framework is unable to do it by default
-                 */
-                if ("date".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.DATEDAY.getType();
-                }
-                /**
-                 * Converting bit data type into TINYINT because BIT type is showing 0 as false and 1 as true.
-                 * we can avoid it by changing to TINYINT.
-                 */
-                if ("bit".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.TINYINT.getType();
-                }
-                /**
-                 * Converting tinyint data type into SMALLINT.
-                 * TINYINT range is 0 to 255 in SQL Server, usage of TINYINT(ArrowType) leads to data loss
-                 * as its using 1 bit as signed flag.
-                 */
-                if ("tinyint".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.SMALLINT.getType();
-                }
-                /**
-                 * Converting numeric, smallmoney data types into FLOAT8 to avoid data loss
-                 * (ex: 123.45 is shown as 123 (loosing its scale))
-                 */
-                if ("numeric".equalsIgnoreCase(dataType) || "smallmoney".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.FLOAT8.getType();
-                }
-                /**
-                 * Converting time data type(s) into DATEMILLI since framework is unable to map it by default
-                 */
-                if ("datetime".equalsIgnoreCase(dataType) || "datetime2".equalsIgnoreCase(dataType)
-                        || "smalldatetime".equalsIgnoreCase(dataType) || "datetimeoffset".equalsIgnoreCase(dataType)) {
-                    columnType = Types.MinorType.DATEMILLI.getType();
+                if (dataType != null && SqlServerDataType.isSupported(dataType)) {
+                    columnType = SqlServerDataType.fromType(dataType);
                 }
                 /**
                  * converting into VARCHAR for non supported data types.
                  */
-                if (columnType == null) {
-                    columnType = Types.MinorType.VARCHAR.getType();
-                }
-                if (columnType != null && !SupportedTypes.isSupported(columnType)) {
+                if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
                     columnType = Types.MinorType.VARCHAR.getType();
                 }
 
@@ -524,9 +522,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             throws SQLException
     {
         String queryToListUserCreatedSchemas = "select s.name as schema_name from " +
-                "sys.schemas s inner join sys.sysusers u on u.uid = s.principal_id " +
-                "where u.issqluser = 1 " +
-                "and u.name not in ('sys', 'guest', 'INFORMATION_SCHEMA') " +
+                "sys.schemas s " +
+                "where s.name not in ('sys', 'guest', 'INFORMATION_SCHEMA', 'db_accessadmin', 'db_backupoperator', 'db_datareader', 'db_datawriter', 'db_ddladmin', 'db_denydatareader', 'db_denydatawriter', 'db_owner', 'db_securityadmin') " +
                 "order by s.name";
         try (Statement st = jdbcConnection.createStatement();
                 ResultSet resultSet = st.executeQuery(queryToListUserCreatedSchemas)) {

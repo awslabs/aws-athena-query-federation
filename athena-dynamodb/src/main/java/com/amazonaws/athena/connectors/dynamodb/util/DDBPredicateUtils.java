@@ -26,11 +26,10 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -168,7 +167,7 @@ public class DDBPredicateUtils
      */
     private static void bindValue(String columnName, Object value, List<AttributeValue> accumulator, DDBRecordMetadata recordMetadata)
     {
-        accumulator.add(ItemUtils.toAttributeValue(DDBTypeUtils.convertArrowTypeIfNecessary(columnName, value, recordMetadata)));
+        accumulator.add(DDBTypeUtils.toAttributeValue(DDBTypeUtils.convertArrowTypeIfNecessary(columnName, value, recordMetadata)));
     }
 
     /*

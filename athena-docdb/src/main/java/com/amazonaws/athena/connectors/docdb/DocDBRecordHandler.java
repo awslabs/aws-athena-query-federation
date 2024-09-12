@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -74,6 +75,8 @@ public class DocDBRecordHandler
     private static final String DISABLE_PROJECTION_AND_CASING_ENV = "disable_projection_and_casing";
 
     private final DocDBConnectionFactory connectionFactory;
+
+    private final DocDBQueryPassthrough queryPassthrough = new DocDBQueryPassthrough();
 
     public DocDBRecordHandler(java.util.Map<String, String> configOptions)
     {
@@ -138,14 +141,25 @@ public class DocDBRecordHandler
             SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
 
         logger.info("Resolved tableName to: {}", tableName);
-
         Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
 
         MongoClient client = getOrCreateConn(recordsRequest.getSplit());
-        MongoDatabase db = client.getDatabase(schemaName);
-        MongoCollection<Document> table = db.getCollection(tableName);
+        MongoDatabase db;
+        MongoCollection<Document> table;
+        Document query;
 
-        Document query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            queryPassthrough.verify(qptArguments);
+            db = client.getDatabase(qptArguments.get(DocDBQueryPassthrough.DATABASE));
+            table = db.getCollection(qptArguments.get(DocDBQueryPassthrough.COLLECTION));
+            query = QueryUtils.parseFilter(qptArguments.get(DocDBQueryPassthrough.FILTER));
+        }
+        else {
+            db =  client.getDatabase(schemaName);
+            table = db.getCollection(tableName);
+            query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+        }
 
         String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
         boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
@@ -157,7 +171,6 @@ public class DocDBRecordHandler
         // Once AWS DocumentDB supports collation, then projections do not have to be disabled anymore because case
         // insensitive indexes allows for case insensitive projections.
         Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
-
         logger.info("readWithConstraint: query[{}] projection[{}]", query, projection);
 
         final MongoCursor<Document> iterable = table

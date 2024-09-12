@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
-import com.amazonaws.athena.connector.credentials.CrossAccountCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -31,6 +30,8 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -41,11 +42,14 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
+import com.amazonaws.athena.connectors.dynamodb.credentials.CrossAccountCredentialsProviderV2;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
+import com.amazonaws.athena.connectors.dynamodb.qpt.DDBQueryPassthrough;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBTableResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
@@ -53,22 +57,24 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementResponse;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -100,6 +106,7 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExceptionFilter.EXCEPTION_FILTER;
+import static com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils.SCHEMA_INFERENCE_NUM_RECORDS;
 
 /**
  * Handles metadata requests for the Athena DynamoDB Connector.
@@ -133,15 +140,17 @@ public class DynamoDBMetadataHandler
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DYNAMO_DB_FLAG));
 
     private final ThrottlingInvoker invoker;
-    private final AmazonDynamoDB ddbClient;
+    private final DynamoDbClient ddbClient;
     private final AWSGlue glueClient;
     private final DynamoDBTableResolver tableResolver;
+
+    private final DDBQueryPassthrough queryPassthrough;
 
     public DynamoDBMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
-        this.ddbClient = AmazonDynamoDBClientBuilder.standard()
-                .withCredentials(CrossAccountCredentialsProvider.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
+        this.ddbClient = DynamoDbClient.builder() 
+                .credentialsProvider(CrossAccountCredentialsProviderV2.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBMetadataHandler_CrossAccountRoleSession"))
                 .build();
         this.glueClient = getAwsGlue();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
@@ -153,6 +162,7 @@ public class DynamoDBMetadataHandler
         }
 
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient, allowedTables);
+        this.queryPassthrough = new DDBQueryPassthrough();
     }
 
     @VisibleForTesting
@@ -162,7 +172,7 @@ public class DynamoDBMetadataHandler
             AmazonAthena athena,
             String spillBucket,
             String spillPrefix,
-            AmazonDynamoDB ddbClient,
+            DynamoDbClient ddbClient,
             AWSGlue glueClient,
             java.util.Map<String, String> configOptions)
     {
@@ -171,6 +181,16 @@ public class DynamoDBMetadataHandler
         this.ddbClient = ddbClient;
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient, new ArrayList<>());
+        this.queryPassthrough = new DDBQueryPassthrough();
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        this.queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, this.configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     /**
@@ -240,6 +260,27 @@ public class DynamoDBMetadataHandler
         return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), token);
     }
 
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+        }
+
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String partiQLStatement = request.getQueryPassthroughArguments().get(DDBQueryPassthrough.QUERY);
+        ExecuteStatementRequest executeStatementRequest =
+                ExecuteStatementRequest.builder()
+                        .statement(partiQLStatement)
+                        .limit(SCHEMA_INFERENCE_NUM_RECORDS)
+                        .build();
+        //PartiQL on DynamoDB Doesn't allow a dry run; therefore, we look "Peek" over the first few records
+        ExecuteStatementResponse response = ddbClient.executeStatement(executeStatementRequest);
+        SchemaBuilder schemaBuilder = DDBTableUtils.buildSchemaFromItems(response.items());
+
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schemaBuilder.build(), Collections.emptySet());
+    }
+
     /**
      * Fetches a table's schema from Glue DataCatalog if present and not disabled, otherwise falls
      * back to doing a small table scan derives a schema from that.
@@ -278,6 +319,10 @@ public class DynamoDBMetadataHandler
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
+        if (request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
+            //Query passthrough does not support partition
+            return;
+        }
         // use the source table name from the schema if available (in case Glue table name != actual table name)
         String tableName = getSourceTableName(request.getSchema());
         if (tableName == null) {
@@ -409,8 +454,9 @@ public class DynamoDBMetadataHandler
             for (AttributeValue value : accumulator) {
                 expressionValueMapping.put(valueNameProducer2.getNext(), value);
             }
+
             partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, Jackson.toJsonString(aliasedColumns));
-            partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, Jackson.toJsonString(expressionValueMapping));
+            partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValueMapping).toJson());
         }
     }
 
@@ -423,6 +469,11 @@ public class DynamoDBMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
+        if (request.getConstraints().isQueryPassThrough()) {
+            logger.info("QPT Split Requested");
+            return setupQueryPassthroughSplit(request);
+        }
+
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();
         Block partitions = request.getPartitions();
@@ -445,8 +496,7 @@ public class DynamoDBMetadataHandler
                 Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
 
                 Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
-                String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
-                splitMetadata.put(hashKeyName, hashKeyValueJSON);
+                splitMetadata.put(hashKeyName, DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue(hashKeyValue), hashKeyName));
 
                 splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
 
@@ -518,5 +568,22 @@ public class DynamoDBMetadataHandler
     private String encodeContinuationToken(int partition)
     {
         return String.valueOf(partition);
+    }
+
+    /**
+     * Helper function that provides a single partition for Query Pass-Through
+     *
+     */
+    private GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
+    {
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
+
+        //Since this is QPT query we return a fixed split.
+        Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+        return new GetSplitsResponse(request.getCatalogName(),
+                Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .applyProperties(qptArguments)
+                        .build());
     }
 }

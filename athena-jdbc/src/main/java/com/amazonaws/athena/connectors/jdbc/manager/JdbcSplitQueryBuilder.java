@@ -108,14 +108,26 @@ public abstract class JdbcSplitQueryBuilder
             final Split split)
             throws SQLException
     {
-        StringBuilder sql = new StringBuilder();
-
         String columnNames = tableSchema.getFields().stream()
                 .map(Field::getName)
                 .filter(c -> !split.getProperties().containsKey(c))
                 .map(this::quote)
                 .collect(Collectors.joining(", "));
+        return prepareStatementWithSql(jdbcConnection, catalog, schema, table, tableSchema, constraints, split, columnNames);
+    }
 
+    protected PreparedStatement prepareStatementWithSql(
+            final Connection jdbcConnection,
+            final String catalog,
+            final String schema,
+            final String table,
+            final Schema tableSchema,
+            final Constraints constraints,
+            final Split split,
+            final String columnNames)
+            throws SQLException
+    {
+        StringBuilder sql = new StringBuilder();
         sql.append("SELECT ");
         sql.append(columnNames);
 
@@ -324,7 +336,7 @@ public abstract class JdbcSplitQueryBuilder
         return "(" + Joiner.on(" OR ").join(disjuncts) + ")";
     }
 
-    private String toPredicate(String columnName, String operator, Object value, ArrowType type,
+    protected String toPredicate(String columnName, String operator, Object value, ArrowType type,
             List<TypeAndValue> accumulator)
     {
         accumulator.add(new TypeAndValue(type, value));

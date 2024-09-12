@@ -39,9 +39,11 @@ import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.DynamicMessage;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -97,8 +99,8 @@ public class KafkaUtils
     private static final String KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG = "max.partition.fetch.bytes";
     private static final String KAFKA_KEY_DESERIALIZER_CLASS_CONFIG = "key.deserializer";
     private static final String KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG = "value.deserializer";
+    private static final String KAFKA_SCHEMA_REGISTRY_URL = "schema.registry.url";
 
-    private static GlueRegistryReader glueRegistryReader;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private KafkaUtils() {}
@@ -112,6 +114,7 @@ public class KafkaUtils
     {
         Properties properties;
         properties = getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         return new KafkaConsumer<>(properties);
     }
@@ -130,6 +133,7 @@ public class KafkaUtils
     public static Consumer<String, TopicResultSet> getKafkaConsumer(Schema schema, java.util.Map<String, String> configOptions) throws Exception
     {
         Properties properties = KafkaUtils.getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         // Get the topic data type, while we had built the schema we had put it in schema's metadata
         String dataFormat = schema.getCustomMetadata().get("dataFormat");
@@ -153,6 +157,22 @@ public class KafkaUtils
         );
     }
 
+    public static Consumer<String, GenericRecord> getAvroKafkaConsumer(java.util.Map<String, String> configOptions) throws Exception
+    {
+        Properties properties = getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, io.confluent.kafka.serializers.KafkaAvroDeserializer.class.getName());
+        properties.setProperty(KAFKA_SCHEMA_REGISTRY_URL, getRequiredConfig(KafkaConstants.KAFKA_SCHEMA_REGISTRY_URL, configOptions));
+        return new KafkaConsumer<>(properties);
+    }
+
+    public static Consumer<String, DynamicMessage> getProtobufKafkaConsumer(java.util.Map<String, String> configOptions) throws Exception
+    {
+        Properties properties = getKafkaProperties(configOptions);
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer.class.getName());
+        properties.setProperty(KAFKA_SCHEMA_REGISTRY_URL, getRequiredConfig(KafkaConstants.KAFKA_SCHEMA_REGISTRY_URL, configOptions));
+        return new KafkaConsumer<>(properties);
+    }
+
     /**
      * Creates the required settings for kafka consumer.
      *
@@ -171,7 +191,6 @@ public class KafkaUtils
         properties.setProperty(KAFKA_MAX_POLL_RECORDS_CONFIG, "10000");
         properties.setProperty(KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG, "1048576");
         properties.setProperty(KAFKA_KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         //fetch authentication type for the kafka cluster
         AuthType authType = AuthType.valueOf(getRequiredConfig(KafkaConstants.AUTH_TYPE, configOptions).toUpperCase().trim());
@@ -407,17 +426,22 @@ public class KafkaUtils
     {
         switch (dataType.trim().toUpperCase()) {
             case "BOOLEAN":
+            case "BOOL":
                 return new ArrowType.Bool();
             case "TINYINT":
                 return Types.MinorType.TINYINT.getType();
             case "SMALLINT":
                 return Types.MinorType.SMALLINT.getType();
             case "INT":
+            case "INT32":
             case "INTEGER":
                 return Types.MinorType.INT.getType();
+            case "LONG":
             case "BIGINT":
+            case "INT64":
                 return Types.MinorType.BIGINT.getType();
             case "FLOAT":
+                return Types.MinorType.FLOAT4.getType();
             case "DOUBLE":
             case "DECIMAL":
                 return Types.MinorType.FLOAT8.getType();

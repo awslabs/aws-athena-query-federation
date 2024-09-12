@@ -37,8 +37,8 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.EntityNotFoundException;
@@ -67,6 +67,8 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -248,14 +250,14 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_6", "col_6");
-        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(0), ":v1", toAttributeValue(1));
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(0), ":v1", DDBTypeUtils.toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(SEGMENT_ID_PROPERTY, "0")
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .add(NON_KEY_FILTER_METADATA, "NOT #col_6 IN (:v0,:v1)")
                 .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -285,14 +287,14 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
-        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(toAttributeValue("test_str_0")))
+                .add("col_0", DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue("test_str_0"), "col_0"))
                 .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
                 .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -322,14 +324,14 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
-        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(toAttributeValue("test_str_0")))
+                .add("col_0", DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue("test_str_0"), "col_0"))
                 .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
                 .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -359,14 +361,14 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
-        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(toAttributeValue("test_str_999999")))
+                .add("col_0", DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue("test_str_999999"), "col_0"))
                 .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
                 .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(

@@ -30,15 +30,21 @@ import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.CustomSchemaRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.EdgeRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.VertexRowWriter;
+import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Result;
+import org.apache.tinkerpop.gremlin.groovy.jsr223.GremlinGroovyScriptEngine;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.script.Bindings;
+import javax.script.ScriptEngine;
+import javax.script.ScriptException;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -67,6 +73,7 @@ public class PropertyGraphHandler
      */
 
     private final NeptuneConnection neptuneConnection;
+    private final NeptuneQueryPassthrough queryPassthrough = new NeptuneQueryPassthrough();
 
     @VisibleForTesting
     public PropertyGraphHandler(NeptuneConnection neptuneConnection) 
@@ -105,7 +112,20 @@ public class PropertyGraphHandler
         Client client = neptuneConnection.getNeptuneClientConnection();
         GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
         GraphTraversal graphTraversal = null;
-        String labelName = recordsRequest.getTableName().getTableName();
+        String labelName;
+        String gremlinQuery = null;
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            queryPassthrough.verify(qptArguments);
+            labelName = qptArguments.get(NeptuneQueryPassthrough.COLLECTION);
+            gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
+
+            Object object = getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
+            graphTraversal = (GraphTraversal) object;
+        }
+        else {
+            labelName = recordsRequest.getTableName().getTableName();
+        }
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
         String type = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_COMPONENT_TYPE);
         String glabel = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_GLABEL);
@@ -121,8 +141,10 @@ public class PropertyGraphHandler
         if (tableSchemaMetaType != null) {
             switch (tableSchemaMetaType) {
                 case VERTEX:
-                    graphTraversal = graphTraversalSource.V().hasLabel(labelName);
-                    graphTraversal = graphTraversal.valueMap().with(WithOptions.tokens);
+                    if (!recordsRequest.getConstraints().isQueryPassThrough()) {
+                        graphTraversal = graphTraversalSource.V().hasLabel(labelName);
+                        graphTraversal = graphTraversal.valueMap().with(WithOptions.tokens);
+                    }
 
                     for (final Field nextField : recordsRequest.getSchema().getFields()) {
                         VertexRowWriter.writeRowTemplate(builder, nextField, configOptions);
@@ -133,8 +155,10 @@ public class PropertyGraphHandler
                     break;
 
                 case EDGE:
-                    graphTraversal = graphTraversalSource.E().hasLabel(labelName);
-                    graphTraversal = graphTraversal.elementMap();
+                    if (!recordsRequest.getConstraints().isQueryPassThrough()) {
+                        graphTraversal = graphTraversalSource.E().hasLabel(labelName);
+                        graphTraversal = graphTraversal.elementMap();
+                    }
 
                     for (final Field nextField : recordsRequest.getSchema().getFields()) {
                         EdgeRowWriter.writeRowTemplate(builder, nextField, configOptions);
@@ -144,8 +168,15 @@ public class PropertyGraphHandler
 
                     break;
                     
-                case VIEW: 
-                    String query = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_QUERY);
+                case VIEW:
+                    String query;
+                    if (recordsRequest.getConstraints().isQueryPassThrough()) {
+                        query = gremlinQuery;
+                    }
+                    else {
+                        query = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_QUERY);
+                    }
+
                     Iterator<Result> resultIterator = client.submit(query).iterator();
 
                     for (final Field nextField : recordsRequest.getSchema().getFields()) {
@@ -164,6 +195,14 @@ public class PropertyGraphHandler
                     break;
             }
         }
+    }
+
+    public Object getResponseFromGremlinQuery(GraphTraversalSource graphTraversalSource, String gremlinQuery) throws ScriptException
+    {
+        ScriptEngine engine = new GremlinGroovyScriptEngine();
+        Bindings bindings = engine.createBindings();
+        bindings.put("g", graphTraversalSource);
+        return engine.eval(gremlinQuery, bindings);
     }
 
     private void parseNodeOrEdge(final QueryStatusChecker queryStatusChecker, final BlockSpiller spiller, long numRows,

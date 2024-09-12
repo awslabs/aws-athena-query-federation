@@ -43,6 +43,7 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.booleanThat;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -365,6 +366,71 @@ public class HBaseConnectionTest
         verify(mockConnection, atLeastOnce()).getTable(any());
         verify(mockTable, atLeastOnce()).getScanner(nullable(Scan.class));
         logger.info("scanTable: exit");
+    }
+
+    @Test
+    public void tableExists()
+            throws IOException
+    {
+        logger.info("tableExists: enter");
+        when(mockConnection.getAdmin()).thenReturn(mockAdmin);
+        when(mockAdmin.tableExists(any())).thenReturn(true);
+
+        boolean result = connection.tableExists(null);
+        assertNotNull(result);
+        assertTrue(connection.isHealthy());
+        assertEquals(0, connection.getRetries());
+        verify(mockConnection, atLeastOnce()).getAdmin();
+        verify(mockAdmin, atLeastOnce()).tableExists(any());
+        logger.info("tableExists: exit");
+    }
+
+    @Test
+    public void tableExistsWithRetry()
+            throws IOException
+    {
+        logger.info("tableExistsWithRetry: enter");
+        when(mockConnection.getAdmin()).thenAnswer(new Answer()
+        {
+            private int count = 0;
+
+            public Object answer(InvocationOnMock invocation)
+            {
+                if (++count == 1) {
+                    //first invocation should throw
+                    return new RuntimeException("Retryable");
+                }
+
+                return mockAdmin;
+            }
+        });
+        when(mockAdmin.tableExists(any())).thenReturn(false);
+
+        boolean result = connection.tableExists(null);
+        assertNotNull(result);
+        assertTrue(connection.isHealthy());
+        assertEquals(1, connection.getRetries());
+        verify(mockConnection, atLeastOnce()).getAdmin();
+        verify(mockAdmin, atLeastOnce()).tableExists(any());
+        logger.info("tableExistsWithRetry: exit");
+    }
+
+    @Test
+    public void tableExistsRetryExhausted()
+            throws IOException
+    {
+        logger.info("tableExistsRetryExhausted: enter");
+        when(mockConnection.getAdmin()).thenThrow(new RuntimeException("Retryable"));
+        try {
+            connection.tableExists(null);
+            fail("Should not reach this line because retries should be exhausted.");
+        }
+        catch (RuntimeException ex) {
+            logger.info("tableExistsRetryExhausted: Encountered expected exception.", ex);
+        }
+        assertFalse(connection.isHealthy());
+        assertEquals(3, connection.getRetries());
+        logger.info("tableExistsRetryExhausted: exit");
     }
 
     @Test
