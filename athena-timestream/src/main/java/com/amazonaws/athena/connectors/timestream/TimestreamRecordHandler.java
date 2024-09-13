@@ -40,12 +40,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.timestream.qpt.TimestreamQueryPassthrough;
 import com.amazonaws.athena.connectors.timestream.query.QueryFactory;
 import com.amazonaws.athena.connectors.timestream.query.SelectQueryBuilder;
-import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
-import com.amazonaws.services.timestreamquery.model.Datum;
-import com.amazonaws.services.timestreamquery.model.QueryRequest;
-import com.amazonaws.services.timestreamquery.model.QueryResult;
-import com.amazonaws.services.timestreamquery.model.Row;
-import com.amazonaws.services.timestreamquery.model.TimeSeriesDataPoint;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -59,6 +53,12 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient;
+import software.amazon.awssdk.services.timestreamquery.model.Datum;
+import software.amazon.awssdk.services.timestreamquery.model.QueryRequest;
+import software.amazon.awssdk.services.timestreamquery.model.QueryResponse;
+import software.amazon.awssdk.services.timestreamquery.model.Row;
+import software.amazon.awssdk.services.timestreamquery.model.TimeSeriesDataPoint;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -85,7 +85,7 @@ public class TimestreamRecordHandler
     private static final String SOURCE_TYPE = "timestream";
 
     private final QueryFactory queryFactory = new QueryFactory();
-    private final AmazonTimestreamQuery tsQuery;
+    private final TimestreamQueryClient tsQuery;
     private final TimestreamQueryPassthrough queryPassthrough = new TimestreamQueryPassthrough();
 
     public TimestreamRecordHandler(java.util.Map<String, String> configOptions)
@@ -99,7 +99,7 @@ public class TimestreamRecordHandler
     }
 
     @VisibleForTesting
-    protected TimestreamRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, AmazonTimestreamQuery tsQuery, java.util.Map<String, String> configOptions)
+    protected TimestreamRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, TimestreamQueryClient tsQuery, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.tsQuery = tsQuery;
@@ -135,15 +135,15 @@ public class TimestreamRecordHandler
         long numRows = 0;
 
         do {
-            QueryResult queryResult = tsQuery.query(new QueryRequest().withQueryString(query).withNextToken(nextToken));
-            List<Row> data = queryResult.getRows();
+            QueryResponse queryResult = tsQuery.query(QueryRequest.builder().queryString(query).nextToken(nextToken).build());
+            List<Row> data = queryResult.rows();
             if (data != null) {
                 numRows += data.size();
                 for (Row nextRow : data) {
                     spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, nextRow) ? 1 : 0);
                 }
             }
-            nextToken = queryResult.getNextToken();
+            nextToken = queryResult.nextToken();
             logger.info("readWithConstraint: numRows[{}]", numRows);
         } while (nextToken != null && !nextToken.isEmpty());
     }
@@ -158,7 +158,7 @@ public class TimestreamRecordHandler
             switch (Types.getMinorTypeForArrowType(nextField.getType())) {
                 case VARCHAR:
                     builder.withExtractor(nextField.getName(), (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
-                        String stringValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        String stringValue = ((Row) context).data().get(curFieldNum).scalarValue();
                         if (stringValue != null) {
                             value.isSet = 1;
                             value.value = stringValue;
@@ -170,7 +170,7 @@ public class TimestreamRecordHandler
                     break;
                 case FLOAT8:
                     builder.withExtractor(nextField.getName(), (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
-                        String doubleValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        String doubleValue = ((Row) context).data().get(curFieldNum).scalarValue();
                         if (doubleValue != null) {
                             value.isSet = 1;
                             value.value = Double.valueOf(doubleValue);
@@ -183,12 +183,12 @@ public class TimestreamRecordHandler
                 case BIT:
                     builder.withExtractor(nextField.getName(), (BitExtractor) (Object context, NullableBitHolder value) -> {
                         value.isSet = 1;
-                        value.value = Boolean.valueOf(((Row) context).getData().get(curFieldNum).getScalarValue()) == false ? 0 : 1;
+                        value.value = Boolean.valueOf(((Row) context).data().get(curFieldNum).scalarValue()) == false ? 0 : 1;
                     });
                     break;
                 case BIGINT:
                     builder.withExtractor(nextField.getName(), (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
-                        String longValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        String longValue = ((Row) context).data().get(curFieldNum).scalarValue();
                         if (longValue != null) {
                             value.isSet = 1;
                             value.value = Long.valueOf(longValue);
@@ -200,7 +200,7 @@ public class TimestreamRecordHandler
                     break;
                 case DATEMILLI:
                     builder.withExtractor(nextField.getName(), (DateMilliExtractor) (Object context, NullableDateMilliHolder value) -> {
-                        String dateMilliValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        String dateMilliValue = ((Row) context).data().get(curFieldNum).scalarValue();
                         if (dateMilliValue != null) {
                             value.isSet = 1;
                             value.value = Instant.from(TIMESTAMP_FORMATTER.parse(dateMilliValue)).toEpochMilli();
@@ -230,30 +230,30 @@ public class TimestreamRecordHandler
                 (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                         (Object context, int rowNum) -> {
                             Row row = (Row) context;
-                            Datum datum = row.getData().get(curFieldNum);
+                            Datum datum = row.data().get(curFieldNum);
                             Field timeField = field.getChildren().get(0).getChildren().get(0);
                             Field valueField = field.getChildren().get(0).getChildren().get(1);
 
-                            if (datum.getTimeSeriesValue() != null) {
+                            if (datum.timeSeriesValue() != null) {
                                 List<Map<String, Object>> values = new ArrayList<>();
-                                for (TimeSeriesDataPoint nextDatum : datum.getTimeSeriesValue()) {
+                                for (TimeSeriesDataPoint nextDatum : datum.timeSeriesValue()) {
                                     Map<String, Object> eventMap = new HashMap<>();
 
-                                    eventMap.put(timeField.getName(), Instant.from(TIMESTAMP_FORMATTER.parse(nextDatum.getTime())).toEpochMilli());
+                                    eventMap.put(timeField.getName(), Instant.from(TIMESTAMP_FORMATTER.parse(nextDatum.time())).toEpochMilli());
 
                                     switch (Types.getMinorTypeForArrowType(valueField.getType())) {
                                         case FLOAT8:
-                                            eventMap.put(valueField.getName(), Double.valueOf(nextDatum.getValue().getScalarValue()));
+                                            eventMap.put(valueField.getName(), Double.valueOf(nextDatum.value().scalarValue()));
                                             break;
                                         case BIGINT:
-                                            eventMap.put(valueField.getName(), Long.valueOf(nextDatum.getValue().getScalarValue()));
+                                            eventMap.put(valueField.getName(), Long.valueOf(nextDatum.value().scalarValue()));
                                             break;
                                         case INT:
-                                            eventMap.put(valueField.getName(), Integer.valueOf(nextDatum.getValue().getScalarValue()));
+                                            eventMap.put(valueField.getName(), Integer.valueOf(nextDatum.value().scalarValue()));
                                             break;
                                         case BIT:
                                             eventMap.put(valueField.getName(),
-                                                    Boolean.valueOf(((Row) context).getData().get(curFieldNum).getScalarValue()) == false ? 0 : 1);
+                                                    Boolean.valueOf(((Row) context).data().get(curFieldNum).scalarValue()) == false ? 0 : 1);
                                             break;
                                     }
                                     values.add(eventMap);

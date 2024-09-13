@@ -21,10 +21,6 @@ package com.amazonaws.athena.connectors.timestream.integ;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.athena.connectors.timestream.TimestreamClientBuilder;
-import com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite;
-import com.amazonaws.services.timestreamwrite.model.CreateTableRequest;
-import com.amazonaws.services.timestreamwrite.model.DeleteTableRequest;
-import com.amazonaws.services.timestreamwrite.model.MeasureValueType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
@@ -38,6 +34,10 @@ import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.timestream.CfnDatabase;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.timestreamwrite.TimestreamWriteClient;
+import software.amazon.awssdk.services.timestreamwrite.model.CreateTableRequest;
+import software.amazon.awssdk.services.timestreamwrite.model.DeleteTableRequest;
+import software.amazon.awssdk.services.timestreamwrite.model.MeasureValueType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +58,7 @@ public class TimestreamIntegTest extends IntegrationTestBase
     private final String jokePunchline;
     private final String lambdaFunctionName;
     private final long[] timeStream;
-    private final AmazonTimestreamWrite timestreamWriteClient;
+    private final TimestreamWriteClient timestreamWriteClient;
 
     public TimestreamIntegTest()
     {
@@ -123,9 +123,9 @@ public class TimestreamIntegTest extends IntegrationTestBase
         logger.info("Creating the Timestream table: {}", timestreamTableName);
         logger.info("----------------------------------------------------");
 
-        timestreamWriteClient.createTable(new CreateTableRequest()
-                .withDatabaseName(timestreamDbName)
-                .withTableName(timestreamTableName));
+        timestreamWriteClient.createTable(CreateTableRequest.builder()
+                .databaseName(timestreamDbName)
+                .tableName(timestreamTableName).build());
     }
 
     /**
@@ -138,16 +138,16 @@ public class TimestreamIntegTest extends IntegrationTestBase
         logger.info("----------------------------------------------------");
 
         try {
-            timestreamWriteClient.deleteTable(new DeleteTableRequest()
-                    .withDatabaseName(timestreamDbName)
-                    .withTableName(timestreamTableName));
+            timestreamWriteClient.deleteTable(DeleteTableRequest.builder()
+                    .databaseName(timestreamDbName)
+                    .tableName(timestreamTableName).build());
         }
         catch (Exception e) {
             // Do not rethrow here.
             logger.error("Unable to delete Timestream table: " + e.getMessage(), e);
         }
         finally {
-            timestreamWriteClient.shutdown();
+            timestreamWriteClient.close();
         }
     }
 
