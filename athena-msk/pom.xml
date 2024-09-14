@@ -49,7 +49,7 @@
             <dependency>
                 <groupId>com.squareup.wire</groupId>
                 <artifactId>wire-runtime-jvm</artifactId>
-                <version>4.9.0</version>
+                <version>5.0.0</version>
                 <scope>runtime</scope>
             </dependency>
             <dependency>
