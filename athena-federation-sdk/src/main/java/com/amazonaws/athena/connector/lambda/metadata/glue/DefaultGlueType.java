@@ -20,6 +20,9 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
@@ -105,7 +108,7 @@ public class DefaultGlueType
     {
         ArrowType result = toArrowType(id);
         if (result == null) {
-            throw new IllegalArgumentException("Unknown DefaultGlueType for id: " + id);
+            throw new AthenaConnectorException("Unknown DefaultGlueType for id: " + id, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return result;
     }

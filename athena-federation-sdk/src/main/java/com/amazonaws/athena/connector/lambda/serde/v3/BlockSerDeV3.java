@@ -22,9 +22,12 @@ package com.amazonaws.athena.connector.lambda.serde.v3;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorRegistry;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -144,7 +147,7 @@ public class BlockSerDeV3
                 return allocatorRegistry.getOrCreateAllocator(allocatorId);
             }
             else {
-                throw new IllegalStateException("allocator and allocatorRegistry are both null");
+                throw new AthenaConnectorException("allocator and allocatorRegistry are both null", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
         }
 

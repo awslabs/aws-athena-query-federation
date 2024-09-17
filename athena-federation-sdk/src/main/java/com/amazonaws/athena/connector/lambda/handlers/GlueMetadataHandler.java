@@ -24,6 +24,7 @@ import com.amazonaws.ClientConfiguration;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -38,6 +39,8 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Database;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.glue.model.GetDatabasesRequest;
 import com.amazonaws.services.glue.model.GetDatabasesResult;
 import com.amazonaws.services.glue.model.GetTableResult;
@@ -396,7 +399,7 @@ public abstract class GlueMetadataHandler
         Table table = result.getTable();
 
         if (filter != null && !filter.filter(table)) {
-            throw new RuntimeException("No matching table found " + request.getTableName());
+            throw new AthenaConnectorException("No matching table found " + request.getTableName(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -475,7 +478,7 @@ public abstract class GlueMetadataHandler
             return GlueFieldLexer.lex(name, glueType);
         }
         catch (RuntimeException ex) {
-            throw new RuntimeException("Error converting field[" + name + "] with type[" + glueType + "]", ex);
+            throw new AthenaConnectorException(ex, "Error converting field[" + name + "] with type[" + glueType + "]", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
         }
     }
 

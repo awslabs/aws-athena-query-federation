@@ -37,6 +37,9 @@ import com.amazonaws.athena.connector.lambda.data.ArrowTypeComparator;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
@@ -150,7 +153,7 @@ public class Marker
     public Object getValue()
     {
         if (nullValue) {
-            throw new IllegalStateException("No value to get");
+            throw new AthenaConnectorException("No value to get", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return value;
     }
@@ -188,7 +191,7 @@ public class Marker
     public Block getValueBlock()
     {
         if (valueBlock.getRowCount() > 1) {
-            throw new RuntimeException("Attempting to get batch for a marker that appears to have a shared block");
+            throw new AthenaConnectorException("Attempting to get batch for a marker that appears to have a shared block", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
         return valueBlock;
     }
@@ -227,7 +230,7 @@ public class Marker
     public Marker greaterAdjacent()
     {
         if (nullValue) {
-            throw new IllegalStateException("No marker adjacent to unbounded");
+            throw new AthenaConnectorException("No marker adjacent to unbounded", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         switch (bound) {
             case BELOW:
@@ -235,7 +238,7 @@ public class Marker
             case EXACTLY:
                 return new Marker(valueBlock, valuePosition, Bound.ABOVE, nullValue);
             case ABOVE:
-                throw new IllegalStateException("No greater marker adjacent to an ABOVE bound");
+                throw new AthenaConnectorException("No greater marker adjacent to an ABOVE bound", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             default:
                 throw new AssertionError("Unsupported type: " + bound);
         }
@@ -244,11 +247,11 @@ public class Marker
     public Marker lesserAdjacent()
     {
         if (nullValue) {
-            throw new IllegalStateException("No marker adjacent to unbounded");
+            throw new AthenaConnectorException("No marker adjacent to unbounded", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         switch (bound) {
             case BELOW:
-                throw new IllegalStateException("No lesser marker adjacent to a BELOW bound");
+                throw new AthenaConnectorException("No lesser marker adjacent to a BELOW bound", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             case EXACTLY:
                 return new Marker(valueBlock, valuePosition, Bound.BELOW, nullValue);
             case ABOVE:

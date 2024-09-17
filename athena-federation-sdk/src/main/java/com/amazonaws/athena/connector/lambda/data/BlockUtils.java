@@ -20,6 +20,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
@@ -151,7 +154,7 @@ public class BlockUtils
                 setValue(block.getFieldVector(columnName), count++, next);
             }
             catch (Exception ex) {
-                throw new RuntimeException("Error for " + type + " " + columnName + " " + next, ex);
+                throw new AthenaConnectorException("Error for " + type + " " + columnName + " " + next, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()).withErrorMessage(ex.getMessage()));
             }
         }
         block.setRowCount(count);
@@ -217,8 +220,8 @@ public class BlockUtils
                     resolver);
         }
         else {
-            throw new RuntimeException("Unsupported 'Complex' vector " +
-                    vector.getClass().getSimpleName() + " for field " + vector.getField().getName());
+            throw new AthenaConnectorException("Unsupported 'Complex' vector " +
+                    vector.getClass().getSimpleName() + " for field " + vector.getField().getName(), new ErrorDetails().withErrorMessage(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -391,14 +394,14 @@ public class BlockUtils
                     }
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
+                    throw new AthenaConnectorException("Unknown type " + vector.getMinorType(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
         }
         catch (RuntimeException ex) {
             String fieldName = (vector != null) ? vector.getField().getName() : "null_vector";
-            throw new RuntimeException("Unable to set value for field " + fieldName
+            throw new AthenaConnectorException("Unable to set value for field " + fieldName
                 + " using value " + value
-                + " of type " + vector.getMinorType(), ex);
+                + " of type " + vector.getMinorType(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()).withErrorMessage(ex.getMessage()));
         }
     }
 
@@ -413,7 +416,7 @@ public class BlockUtils
     public static String rowToString(Block block, int row)
     {
         if (row > block.getRowCount()) {
-            throw new IllegalArgumentException(row + " exceeds available rows " + block.getRowCount());
+            throw new AthenaConnectorException(row + " exceeds available rows " + block.getRowCount(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         StringBuilder sb = new StringBuilder();
@@ -430,7 +433,7 @@ public class BlockUtils
                 sb.append("]");
             }
             catch (RuntimeException ex) {
-                throw new RuntimeException("Error processing field " + nextReader.getField().getName(), ex);
+                throw new AthenaConnectorException("Error processing field " + nextReader.getField().getName(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()).withErrorMessage(ex.getMessage()));
             }
         }
 
@@ -527,8 +530,8 @@ public class BlockUtils
     public static int copyRows(Block srcBlock, Block dstBlock, int firstRow, int lastRow)
     {
         if (firstRow > lastRow || lastRow > srcBlock.getRowCount() - 1) {
-            throw new RuntimeException("src has " + srcBlock.getRowCount()
-                    + " but requested copy of " + firstRow + " to " + lastRow);
+            throw new AthenaConnectorException("src has " + srcBlock.getRowCount()
+                    + " but requested copy of " + firstRow + " to " + lastRow, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
 
         for (FieldReader src : srcBlock.getFieldReaders()) {
@@ -555,8 +558,8 @@ public class BlockUtils
     public static boolean isNullRow(Block block, int row)
     {
         if (row > block.getRowCount() - 1) {
-            throw new RuntimeException("block has " + block.getRowCount()
-                    + " rows but requested to check " + row);
+            throw new AthenaConnectorException("block has " + block.getRowCount()
+                    + " rows but requested to check " + row, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
 
         //If any column is non-null then return false
@@ -677,12 +680,12 @@ public class BlockUtils
         List<Field> children = field.getChildren();
         Field keyValueStructField;
         if (children.size() != 1) {
-            throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+            throw new AthenaConnectorException("Invalid Arrow Map schema: " + field, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         else {
             keyValueStructField = children.get(0);
             if (!MapVector.DATA_VECTOR_NAME.equals(keyValueStructField.getName()) || !(keyValueStructField.getType() instanceof ArrowType.Struct)) {
-                throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+                throw new AthenaConnectorException("Invalid Arrow Map schema: " + field, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
         }
 
@@ -690,13 +693,13 @@ public class BlockUtils
         Field keyField;
         Field valueField;
         if (keyValueChildren.size() != 2) {
-            throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+            throw new AthenaConnectorException("Invalid Arrow Map schema: " + field, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         else {
             keyField = keyValueChildren.get(0);
             valueField = keyValueChildren.get(1);
             if (!MapVector.KEY_NAME.equals(keyField.getName()) || !MapVector.VALUE_NAME.equals(valueField.getName())) {
-                throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+                throw new AthenaConnectorException("Invalid Arrow Map schema: " + field, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
         }
 
@@ -1011,13 +1014,13 @@ public class BlockUtils
                     }
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown type " + type);
+                    throw new AthenaConnectorException("Unknown type " + type, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
         }
         catch (RuntimeException ex) {
-            throw new RuntimeException("Unable to write value for field "
+            throw new AthenaConnectorException("Unable to write value for field "
                 + field.getName() + " using value " + value
-                + " with minor type " + Types.getMinorTypeForArrowType(type), ex);
+                + " with minor type " + Types.getMinorTypeForArrowType(type), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()).withErrorMessage(ex.getMessage()));
         }
     }
 
@@ -1085,7 +1088,7 @@ public class BlockUtils
                 ((BitVector) vector).setNull(pos);
                 break;
             default:
-                throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
+                throw new AthenaConnectorException("Unknown type " + vector.getMinorType(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -1169,7 +1172,7 @@ public class BlockUtils
                     ((MapVector) vector).setNull(row);
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
+                    throw new AthenaConnectorException("Unknown type " + vector.getMinorType(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
         }
     }
@@ -1220,7 +1223,7 @@ public class BlockUtils
             case STRUCT:
                 return Map.class;
             default:
-                throw new IllegalArgumentException("Unknown type " + minorType);
+                throw new AthenaConnectorException("Unknown type " + minorType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 

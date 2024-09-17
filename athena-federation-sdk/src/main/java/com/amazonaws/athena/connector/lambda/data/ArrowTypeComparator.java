@@ -20,6 +20,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -115,7 +118,7 @@ public class ArrowTypeComparator
             default:
                 //logging because throwing in a comparator gets swallowed in many unit tests that use equality asserts
                 logger.warn("compare: Unknown type " + type + " object: " + lhs.getClass());
-                throw new IllegalArgumentException("Unknown type " + type + " object: " + lhs.getClass());
+                throw new AthenaConnectorException("Unknown type " + type + " object: " + lhs.getClass(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }

@@ -19,10 +19,13 @@
  */
 package com.amazonaws.athena.connector.lambda;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
 import com.amazonaws.services.athena.model.GetQueryExecutionResult;
 import com.amazonaws.services.athena.model.InvalidRequestException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,7 +129,7 @@ public class QueryStatusChecker
             if (e instanceof InvalidRequestException) {
                 // query does not exist, so no need to keep calling Athena
                 logger.debug("Athena reports query {} not found. Interrupting checker thread", queryId);
-                throw new InterruptedException();
+                throw new AthenaConnectorException(e, e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
             }
         }
     }

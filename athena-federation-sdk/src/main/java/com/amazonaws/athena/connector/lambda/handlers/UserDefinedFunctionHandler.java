@@ -46,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecima
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
@@ -54,6 +55,8 @@ import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -124,8 +127,8 @@ public abstract class UserDefinedFunctionHandler
                 }
 
                 if (!(rawRequest instanceof UserDefinedFunctionRequest)) {
-                    throw new RuntimeException("Expected a UserDefinedFunctionRequest but found "
-                            + rawRequest.getClass());
+                    throw new AthenaConnectorException("Expected a UserDefinedFunctionRequest but found "
+                            + rawRequest.getClass(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                 }
 
                 doHandleRequest(allocator, objectMapper, (UserDefinedFunctionRequest) rawRequest, outputStream);
@@ -159,7 +162,7 @@ public abstract class UserDefinedFunctionHandler
             case SCALAR:
                 return processScalarFunction(allocator, req);
             default:
-                throw new UnsupportedOperationException("Unsupported function type " + functionType);
+                throw new AthenaConnectorException("Unsupported function type " + functionType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
         }
     }
 
@@ -252,12 +255,12 @@ public abstract class UserDefinedFunctionHandler
             String msg = "Failed to find UDF method. " + e.getMessage()
                     + " Please make sure the method name contains only lowercase and the method signature (name and"
                     + " argument types) in Lambda matches the function signature defined in SQL.";
-            throw new RuntimeException(msg, e);
+            throw new AthenaConnectorException(e, msg, new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
         }
 
         if (!returnType.equals(udfMethod.getReturnType())) {
-            throw new IllegalArgumentException("signature return type " + returnType +
-                    " does not match udf implementation return type " + udfMethod.getReturnType());
+            throw new AthenaConnectorException("signature return type " + returnType +
+                    " does not match udf implementation return type " + udfMethod.getReturnType(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         return udfMethod;
@@ -296,7 +299,7 @@ public abstract class UserDefinedFunctionHandler
     private void assertNotNull(FederationResponse response)
     {
         if (response == null) {
-            throw new RuntimeException("Response was null");
+            throw new AthenaConnectorException("Response was null", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -504,7 +507,7 @@ public abstract class UserDefinedFunctionHandler
                         };
 
             default:
-                throw new IllegalArgumentException("Unsupported type " + fieldType);
+                throw new AthenaConnectorException("Unsupported type " + fieldType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -521,20 +524,20 @@ public abstract class UserDefinedFunctionHandler
             return udfMethod.invoke(this, arguments);
         }
         catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
+            throw new AthenaConnectorException(e, e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.AccessDeniedException.toString()));
         }
         catch (InvocationTargetException e) {
             if (Objects.isNull(e)) {
-                throw new RuntimeException(e);
+                throw new AthenaConnectorException(e, e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
             }
-            throw new RuntimeException(e.getCause());
+            throw new AthenaConnectorException(e.getCause().getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
         catch (IllegalArgumentException e) {
             String msg = String.format("%s. Expected function types %s, got types %s",
                     e.getMessage(),
                     Arrays.stream(udfMethod.getParameterTypes()).map(clazz -> clazz.getName()).collect(Collectors.toList()),
                     Arrays.stream(arguments).map(arg -> arg.getClass().getName()).collect(Collectors.toList()));
-            throw new RuntimeException(msg, e);
+            throw new AthenaConnectorException(e, msg, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }
