@@ -267,7 +267,7 @@ public abstract class RecordHandler
     private void assertNotNull(FederationResponse response)
     {
         if (response == null) {
-            throw new AthenaConnectorException("Response was null", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+            throw new AthenaConnectorException("Response was null", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidResponseException.toString()));
         }
     }
 }
