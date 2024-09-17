@@ -19,6 +19,9 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 
@@ -38,7 +41,8 @@ public class StaticJdbcCredentialProvider
         this.jdbcCredential = Validate.notNull(jdbcCredential, "jdbcCredential must not be null.");
 
         if (StringUtils.isAnyBlank(jdbcCredential.getUser(), jdbcCredential.getPassword())) {
-            throw new RuntimeException("User or password must not be blank.");
+            throw new AthenaConnectorException("User or password must not be blank.",
+                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
