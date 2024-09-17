@@ -34,6 +34,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -60,6 +61,8 @@ import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
@@ -236,14 +239,14 @@ public abstract class MetadataHandler
                 }
 
                 if (!(rawReq instanceof MetadataRequest)) {
-                    throw new RuntimeException("Expected a MetadataRequest but found " + rawReq.getClass());
+                    throw new AthenaConnectorException("Expected a MetadataRequest but found " + rawReq.getClass(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                 }
                 ((MetadataRequest) rawReq).setContext(context);
                 doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
             }
             catch (Exception ex) {
                 logger.warn("handleRequest: Completed with an exception.", ex);
-                throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
+                throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
             }
         }
     }
@@ -302,7 +305,7 @@ public abstract class MetadataHandler
                 }
                 return;
             default:
-                throw new IllegalArgumentException("Unknown request type " + type);
+                throw new AthenaConnectorException("Unknown request type " + type, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -351,7 +354,7 @@ public abstract class MetadataHandler
             throws Exception
     {
         //todo; maybe we need a better name for this method,
-        throw new UnsupportedOperationException("Not implemented");
+        throw new AthenaConnectorException("Not implemented", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
     }
 
     /**
@@ -532,7 +535,7 @@ public abstract class MetadataHandler
     private void assertNotNull(FederationResponse response)
     {
         if (response == null) {
-            throw new RuntimeException("Response was null");
+            throw new AthenaConnectorException("Response was null", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 

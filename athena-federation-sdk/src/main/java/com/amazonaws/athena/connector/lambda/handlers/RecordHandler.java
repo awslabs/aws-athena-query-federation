@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordRequest;
@@ -42,6 +43,8 @@ import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3;
@@ -138,7 +141,7 @@ public abstract class RecordHandler
                 }
 
                 if (!(rawReq instanceof RecordRequest)) {
-                    throw new RuntimeException("Expected a RecordRequest but found " + rawReq.getClass());
+                    throw new AthenaConnectorException("Expected a RecordRequest but found " + rawReq.getClass(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
                 }
 
                 doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
@@ -167,7 +170,7 @@ public abstract class RecordHandler
                 }
                 return;
             default:
-                throw new IllegalArgumentException("Unknown request type " + type);
+                throw new AthenaConnectorException("Unknown request type " + type, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -264,7 +267,7 @@ public abstract class RecordHandler
     private void assertNotNull(FederationResponse response)
     {
         if (response == null) {
-            throw new RuntimeException("Response was null");
+            throw new AthenaConnectorException("Response was null", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }

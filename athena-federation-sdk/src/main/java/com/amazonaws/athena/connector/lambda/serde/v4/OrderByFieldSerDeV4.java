@@ -20,9 +20,12 @@
 package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -81,7 +84,7 @@ public class OrderByFieldSerDeV4
                     directionEnum = OrderByField.Direction.DESC_NULLS_LAST;
                     break;
                 default:
-                    throw new IllegalStateException("Unexpected value: " + direction);
+                    throw new AthenaConnectorException("Unexpected value: " + direction, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
             return new OrderByField(columnName, directionEnum);
         }

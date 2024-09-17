@@ -21,6 +21,9 @@
 package com.amazonaws.athena.connector.lambda.domain.spill;
 
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.HeadBucketRequest;
 import com.google.common.annotations.VisibleForTesting;
@@ -93,7 +96,7 @@ public class SpillLocationVerifier
                 state = BucketState.INVALID;
             }
             else {
-                throw new RuntimeException("Error while checking bucket ownership for " + bucket, ex);
+                throw new AthenaConnectorException(ex, "Error while checking bucket ownership for " + bucket, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
             }
         }
         finally {
@@ -110,9 +113,9 @@ public class SpillLocationVerifier
     {
         switch (state) {
             case UNCHECKED:
-                throw new RuntimeException("Bucket state should have been checked already.");
+                throw new AthenaConnectorException("Bucket state should have been checked already.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
             case INVALID:
-                throw new RuntimeException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket));
+                throw new AthenaConnectorException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
             default:
                 return;
         }

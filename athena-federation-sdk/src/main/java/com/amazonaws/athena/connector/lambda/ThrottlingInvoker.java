@@ -21,7 +21,9 @@ package com.amazonaws.athena.connector.lambda;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.base.MoreObjects;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
@@ -99,15 +101,15 @@ public class ThrottlingInvoker
             BlockSpiller spiller)
     {
         if (decrease > 1 || decrease < .001) {
-            throw new IllegalArgumentException("decrease was " + decrease + " but should be between .001 and 1");
+            throw new AthenaConnectorException("decrease was " + decrease + " but should be between .001 and 1", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         if (maxDelayMs < 1) {
-            throw new IllegalArgumentException("maxDelayMs was " + maxDelayMs + " but must be >= 1");
+            throw new AthenaConnectorException("maxDelayMs was " + maxDelayMs + " but must be >= 1", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         if (increase < 1) {
-            throw new IllegalArgumentException("increase was " + increase + " but must be >= 1");
+            throw new AthenaConnectorException("increase was " + increase + " but must be >= 1", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         this.initialDelayMs = initialDelayMs;
@@ -198,7 +200,7 @@ public class ThrottlingInvoker
         }
         while (!isTimedOut(startTime, timeoutMillis));
 
-        throw new TimeoutException("Timed out before call succeeded after " + (System.currentTimeMillis() - startTime) + " ms");
+        throw new AthenaConnectorException("Timed out before call succeeded after " + (System.currentTimeMillis() - startTime) + " ms", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationTimeoutException.toString()));
     }
 
     /**
@@ -254,7 +256,7 @@ public class ThrottlingInvoker
 
         if (spillerRef.get() != null && !spillerRef.get().spilled()) {
             //If no blocks have spilled, it is better to signal the Throttle to Athena by propagating.
-            throw new FederationThrottleException("ThrottlingInvoker requesting slow down due to " + ex, ex);
+            throw new AthenaConnectorException("ThrottlingInvoker requesting slow down due to " + ex, new ErrorDetails().withErrorCode(FederationSourceErrorCode.ThrottlingException.toString()));
         }
     }
 
@@ -281,7 +283,7 @@ public class ThrottlingInvoker
             }
             catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
-                throw new RuntimeException(ex);
+                throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
             }
         }
     }

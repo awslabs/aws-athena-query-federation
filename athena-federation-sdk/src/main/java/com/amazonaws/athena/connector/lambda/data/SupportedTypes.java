@@ -19,6 +19,9 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -126,8 +129,8 @@ public enum SupportedTypes
     public static void assertSupported(Field field)
     {
         if (!isSupported(field)) {
-            throw new RuntimeException("Detected unsupported type[" + field.getType() + " / " + Types.getMinorTypeForArrowType(field.getType()) +
-                    " for column[" + field.getName() + "]");
+            throw new AthenaConnectorException("Detected unsupported type[" + field.getType() + " / " + Types.getMinorTypeForArrowType(field.getType()) +
+                    " for column[" + field.getName() + "]", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }

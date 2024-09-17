@@ -21,10 +21,13 @@ package com.amazonaws.athena.connector.lambda.data;
  */
 
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.BlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.NoOpBlockCrypto;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
 import com.google.common.io.ByteStreams;
@@ -70,7 +73,7 @@ public class S3BlockSpillReader
             return block;
         }
         catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
         finally {
             if (fullObject != null) {
@@ -102,7 +105,7 @@ public class S3BlockSpillReader
             return blockCrypto.decrypt(key, ByteStreams.toByteArray(fullObject.getObjectContent()));
         }
         catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
         finally {
             if (fullObject != null) {

@@ -24,6 +24,9 @@ import com.amazonaws.athena.connector.lambda.data.ArrowTypeComparator;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.FieldVector;
@@ -243,7 +246,7 @@ public class EquatableValueSet
     public Object getSingleValue()
     {
         if (!isSingleValue()) {
-            throw new IllegalStateException("EquatableValueSet does not have just a single value");
+            throw new AthenaConnectorException("EquatableValueSet does not have just a single value", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         if (nullAllowed && valueBlock.getRowCount() == 0) {
@@ -444,11 +447,11 @@ public class EquatableValueSet
     private EquatableValueSet checkCompatibility(ValueSet other)
     {
         if (!getType().equals(other.getType())) {
-            throw new IllegalStateException(String.format("Mismatched types: %s vs %s",
-                    getType(), other.getType()));
+            throw new AthenaConnectorException(String.format("Mismatched types: %s vs %s",
+                    getType(), other.getType()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         if (!(other instanceof EquatableValueSet)) {
-            throw new IllegalStateException(String.format("ValueSet is not a EquatableValueSet: %s", other.getClass()));
+            throw new AthenaConnectorException(String.format("ValueSet is not a EquatableValueSet: %s", other.getClass()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return (EquatableValueSet) other;
     }
@@ -562,8 +565,8 @@ public class EquatableValueSet
     private void checkTypeCompatibility(Marker marker)
     {
         if (!getType().equals(marker.getType())) {
-            throw new IllegalStateException(String.format("Marker of %s does not match SortedRangeSet of %s",
-                    marker.getType(), getType()));
+            throw new AthenaConnectorException(String.format("Marker of %s does not match SortedRangeSet of %s",
+                    marker.getType(), getType()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }

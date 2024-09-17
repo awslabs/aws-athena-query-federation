@@ -20,11 +20,14 @@
 package com.amazonaws.athena.connector.lambda.serde;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.SerDeVersion;
 import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
 import com.amazonaws.athena.connector.lambda.serde.v3.ObjectMapperFactoryV3;
 import com.amazonaws.athena.connector.lambda.serde.v4.ObjectMapperFactoryV4;
 import com.amazonaws.athena.connector.lambda.serde.v5.ObjectMapperFactoryV5;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,7 +73,7 @@ public class VersionedObjectMapperFactory
             case 5:
                 return ObjectMapperFactoryV5.create(allocator);
             default:
-                throw new IllegalArgumentException("No serde version " + version);
+                throw new AthenaConnectorException("No serde version " + version, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }

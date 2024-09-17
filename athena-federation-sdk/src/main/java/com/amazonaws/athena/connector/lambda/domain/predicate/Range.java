@@ -21,6 +21,9 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -48,17 +51,17 @@ public class Range
         requireNonNull(low, "low value is null");
         requireNonNull(high, "high value is null");
         if (!low.getType().equals(high.getType())) {
-            throw new IllegalArgumentException(
-                    String.format("Marker types do not match: %s vs %s", low.getType(), high.getType()));
+            throw new AthenaConnectorException(
+                    String.format("Marker types do not match: %s vs %s", low.getType(), high.getType()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         if (low.getBound() == Marker.Bound.BELOW) {
-            throw new IllegalArgumentException("low bound must be EXACTLY or ABOVE");
+            throw new AthenaConnectorException("low bound must be EXACTLY or ABOVE", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         if (high.getBound() == Marker.Bound.ABOVE) {
-            throw new IllegalArgumentException("high bound must be EXACTLY or BELOW");
+            throw new AthenaConnectorException("high bound must be EXACTLY or BELOW", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         if (low.compareTo(high) > 0) {
-            throw new IllegalArgumentException("low must be less than or equal to high");
+            throw new AthenaConnectorException("low must be less than or equal to high", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         this.low = low;
         this.high = high;
@@ -128,7 +131,7 @@ public class Range
     public Object getSingleValue()
     {
         if (!isSingleValue()) {
-            throw new IllegalStateException("Range does not have just a single value");
+            throw new AthenaConnectorException("Range does not have just a single value", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return low.getValue();
     }
@@ -168,7 +171,7 @@ public class Range
     public Range intersect(Range other)
     {
         if (!this.overlaps(other)) {
-            throw new IllegalArgumentException("Cannot intersect non-overlapping ranges");
+            throw new AthenaConnectorException("Cannot intersect non-overlapping ranges", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         Marker lowMarker = Marker.max(low, other.getLow());
         Marker highMarker = Marker.min(high, other.getHigh());

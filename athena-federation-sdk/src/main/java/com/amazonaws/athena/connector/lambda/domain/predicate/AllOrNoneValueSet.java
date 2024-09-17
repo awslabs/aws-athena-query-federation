@@ -21,6 +21,9 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -153,7 +156,7 @@ public class AllOrNoneValueSet
     @Override
     public Object getSingleValue()
     {
-        throw new UnsupportedOperationException();
+        throw new AthenaConnectorException("Operation not supported", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
     }
 
     /**
@@ -254,12 +257,12 @@ public class AllOrNoneValueSet
     private AllOrNoneValueSet checkCompatibility(ValueSet other)
     {
         if (!getType().equals(other.getType())) {
-            throw new IllegalArgumentException(String.format("Mismatched types: %s vs %s",
-                    getType(), other.getType()));
+            throw new AthenaConnectorException(String.format("Mismatched types: %s vs %s",
+                    getType(), other.getType()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         if (!(other instanceof AllOrNoneValueSet)) {
-            throw new IllegalArgumentException(String.format("ValueSet is not a AllOrNoneValueSet: %s",
-                    other.getClass()));
+            throw new AthenaConnectorException(String.format("ValueSet is not a AllOrNoneValueSet: %s",
+                    other.getClass()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return (AllOrNoneValueSet) other;
     }
@@ -273,8 +276,8 @@ public class AllOrNoneValueSet
     private void checkTypeCompatibility(Marker marker)
     {
         if (!getType().equals(marker.getType())) {
-            throw new IllegalStateException(String.format("Marker of %s does not match SortedRangeSet of %s",
-                    marker.getType(), getType()));
+            throw new AthenaConnectorException(String.format("Marker of %s does not match SortedRangeSet of %s",
+                    marker.getType(), getType()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }

@@ -20,6 +20,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -54,7 +57,7 @@ public interface FieldResolver
             else if (minorType == Types.MinorType.LIST) {
                 return ((List) value).iterator();
             }
-            throw new RuntimeException("Expected LIST type but found " + minorType);
+            throw new AthenaConnectorException("Expected LIST type but found " + minorType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     };
 

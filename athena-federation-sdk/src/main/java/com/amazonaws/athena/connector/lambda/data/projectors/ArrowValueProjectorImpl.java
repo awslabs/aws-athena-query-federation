@@ -21,6 +21,9 @@ package com.amazonaws.athena.connector.lambda.data.projectors;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.util.Text;
@@ -104,7 +107,7 @@ public abstract class ArrowValueProjectorImpl
             case BIT:
                 return (fieldReader) -> fieldReader.readBoolean();
             default:
-                throw new IllegalArgumentException("Unsupported type " + minorType);
+                throw new AthenaConnectorException("Unsupported type " + minorType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -122,7 +125,7 @@ public abstract class ArrowValueProjectorImpl
                     return subStructProjector.doProject();
                 };
             default:
-                throw new IllegalArgumentException("Unsupported type " + minorType);
+                throw new AthenaConnectorException("Unsupported type " + minorType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
