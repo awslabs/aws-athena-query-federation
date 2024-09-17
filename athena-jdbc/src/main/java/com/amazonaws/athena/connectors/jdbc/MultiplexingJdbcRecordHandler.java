@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -31,6 +32,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
@@ -73,14 +76,16 @@ public class MultiplexingJdbcRecordHandler
         this.recordHandlerMap = Validate.notEmpty(recordHandlerMap, "recordHandlerMap must not be empty");
 
         if (this.recordHandlerMap.size() > MAX_CATALOGS_TO_MULTIPLEX) {
-            throw new RuntimeException("Max 100 catalogs supported in multiplexer.");
+            throw new AthenaConnectorException("Max 100 catalogs supported in multiplexer.",
+                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
     private void validateMultiplexer(final String catalogName)
     {
         if (this.recordHandlerMap.get(catalogName) == null) {
-            throw new RuntimeException(String.format(MultiplexingJdbcMetadataHandler.CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName));
+            throw new AthenaConnectorException(String.format(MultiplexingJdbcMetadataHandler.CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName),
+                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
