@@ -20,6 +20,9 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
@@ -76,8 +79,8 @@ public class ElasticsearchFieldResolver
             }
         }
         else {
-            throw new IllegalArgumentException("Invalid argument type. Expecting a Map, but got: " +
-                    originalValue.getClass().getTypeName());
+            throw new AthenaConnectorException("Invalid argument type. Expecting a Map, but got: " +
+                    originalValue.getClass().getTypeName(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         switch (fieldType) {
@@ -93,8 +96,8 @@ public class ElasticsearchFieldResolver
                 return coerceField(field, fieldValue);
         }
 
-        throw new RuntimeException("Invalid field value encountered in Document for field: " + field +
-                ",value: " + fieldValue);
+        throw new AthenaConnectorException("Invalid field value encountered in Document for field: " + field +
+                ",value: " + fieldValue, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
     }
 
     // Return the field value of a map key
@@ -151,8 +154,8 @@ public class ElasticsearchFieldResolver
                 break;
         }
 
-        throw new RuntimeException("Invalid field value encountered in Document for field: " + field.toString() +
-                ",value: " + fieldValue.toString());
+        throw new AthenaConnectorException("Invalid field value encountered in Document for field: " + field.toString() +
+                ",value: " + fieldValue.toString(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
     }
 
     /**

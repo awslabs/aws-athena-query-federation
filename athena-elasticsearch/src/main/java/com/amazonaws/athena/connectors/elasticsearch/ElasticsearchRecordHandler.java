@@ -24,11 +24,14 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -200,7 +203,7 @@ public class ElasticsearchRecordHandler
                     SearchScrollRequest scrollRequest = new SearchScrollRequest(searchResponse.getScrollId()).scroll(scroll);
                     searchResponse = client.scroll(scrollRequest, RequestOptions.DEFAULT);
                     if (searchResponse.isTimedOut()) {
-                        throw new RuntimeException("Request for index (" + index + ") " + shard + " timed out.");
+                        throw new AthenaConnectorException("Request for index (" + index + ") " + shard + " timed out.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationTimeoutException.toString()));
                     }
                 }
 
@@ -209,7 +212,7 @@ public class ElasticsearchRecordHandler
                 client.clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
             }
             catch (IOException error) {
-                throw new RuntimeException("Error sending search query: " + error.getMessage(), error);
+                throw new AthenaConnectorException("Error sending search query: " + error.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()).withErrorMessage(error.getMessage()));
             }
         }
 
