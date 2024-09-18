@@ -17,30 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.postgresql;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
+public class PostGreSqlEnvironmentProperties extends JdbcEnvironmentProperties
 {
-    private static final String WAREHOUSE = "WAREHOUSE";
-    private static final String SCHEMA = "SCHEMA";
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "snowflake://jdbc:snowflake://";
-    }
-
-    @Override
-    protected String getDatabase(Map<String, String> connectionProperties)
-    {
-        if (!connectionProperties.containsKey(SCHEMA)) {
-            logger.debug("No schema specified in connection string");
-        }
-
-        String databaseString = "/?warehouse=" + connectionProperties.get(WAREHOUSE)
-                + "&db=" + connectionProperties.get(DATABASE)
-                + "&schema=" + connectionProperties.get(SCHEMA);
-        return databaseString;
+        return "postgres://jdbc:postgresql://";
     }
 }

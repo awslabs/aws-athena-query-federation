@@ -17,27 +17,31 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.jdbc;
+
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.JDBC_PARAMS;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
+
 public abstract class JdbcEnvironmentProperties extends EnvironmentProperties
 {
-    protected static final String DEFAULT = "default";
-    protected static final String JDBC_PARAMS = "JDBC_PARAMS";
-    protected static final String DATABASE = "DATABASE";
-
     @Override
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
     {
         HashMap<String, String> environment = new HashMap<>();
 
         // now construct jdbc string
-        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get("HOST")
-                + ":" + connectionProperties.get("PORT") + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
+        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST)
+                + ":" + connectionProperties.get(PORT) + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
 
-        logger.debug("Constructed connection string: {}", connectionString);
         environment.put(DEFAULT, connectionString);
         return environment;
     }

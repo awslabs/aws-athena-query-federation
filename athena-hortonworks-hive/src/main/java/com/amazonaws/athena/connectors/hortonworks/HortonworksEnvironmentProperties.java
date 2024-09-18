@@ -17,27 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.hortonworks;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class Db2EnvironmentProperties extends JdbcEnvironmentProperties
+public class HortonworksEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "dbtwo://jdbc:db2://";
-    }
-
-    @Override
-    protected String getDatabase(Map<String, String> connectionProperties)
-    {
-        return ":" + connectionProperties.get(DATABASE);
-    }
-
-    @Override
-    protected String getDelimiter()
-    {
-        return ";";
+        return "hive://jdbc:hive2://";
     }
 }

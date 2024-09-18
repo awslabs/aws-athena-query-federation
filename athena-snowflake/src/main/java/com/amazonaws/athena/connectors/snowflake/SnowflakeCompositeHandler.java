@@ -22,7 +22,6 @@
 
 package com.amazonaws.athena.connectors.snowflake;
 
-import com.amazonaws.athena.connector.lambda.connection.SnowflakeEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**

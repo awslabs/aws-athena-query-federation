@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.postgresql;
 
-import com.amazonaws.athena.connector.lambda.connection.PostGreSqlEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**

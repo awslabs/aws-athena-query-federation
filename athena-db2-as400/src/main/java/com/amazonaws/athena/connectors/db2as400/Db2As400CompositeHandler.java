@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.db2as400;
 
-import com.amazonaws.athena.connector.lambda.connection.Db2As400EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**

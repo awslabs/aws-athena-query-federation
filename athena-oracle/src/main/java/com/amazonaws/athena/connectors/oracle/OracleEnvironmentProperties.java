@@ -17,21 +17,38 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.oracle;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class SaphanaEnvironmentProperties extends JdbcEnvironmentProperties
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
+
+public class OracleEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "saphana://jdbc:sap://";
+        String prefix = "oracle://jdbc:oracle:thin:";
+        if (connectionProperties.containsKey(SECRET_NAME)) {
+            prefix = prefix + "${" + connectionProperties.get(SECRET_NAME) + "}";
+        }
+        prefix = prefix + "@//";
+
+        return prefix;
     }
 
     @Override
     protected String getDatabase(Map<String, String> connectionProperties)
     {
-        return "/";
+        return "/" + connectionProperties.get(DATABASE);
+    }
+
+    @Override
+    protected String getJdbcParameters(Map<String, String> connectionProperties)
+    {
+        return "";
     }
 }

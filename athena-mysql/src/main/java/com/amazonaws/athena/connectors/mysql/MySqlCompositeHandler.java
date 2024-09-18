@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.mysql;
 
-import com.amazonaws.athena.connector.lambda.connection.MySqlEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**

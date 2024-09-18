@@ -17,33 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.vertica;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class OracleEnvironmentProperties extends JdbcEnvironmentProperties
+public class VerticaEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        String prefix = "oracle://jdbc:oracle:thin:";
-        if (connectionProperties.containsKey(SECRET_NAME)) {
-            prefix = prefix + "${" + connectionProperties.get(SECRET_NAME) + "}";
-        }
-        prefix = prefix + "@//";
-
-        return prefix;
-    }
-
-    @Override
-    protected String getDatabase(Map<String, String> connectionProperties)
-    {
-        return "/" + connectionProperties.get(DATABASE);
-    }
-
-    @Override
-    protected String getJdbcParameters(Map<String, String> connectionProperties)
-    {
-        return "";
+        return "vertica://jdbc:vertica://";
     }
 }

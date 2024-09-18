@@ -17,16 +17,20 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.synapse;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class SqlServerEnvironmentProperties extends JdbcEnvironmentProperties
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+
+public class SynapseEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "sqlserver://jdbc:sqlserver://";
+        return "synapse://jdbc:synapse://";
     }
 
     @Override

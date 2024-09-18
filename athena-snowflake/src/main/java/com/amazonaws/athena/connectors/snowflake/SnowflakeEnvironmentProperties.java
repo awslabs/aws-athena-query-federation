@@ -17,27 +17,34 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.snowflake;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class TeradataEnvironmentProperties extends JdbcEnvironmentProperties
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SCHEMA;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.WAREHOUSE;
+
+public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "teradata://jdbc:teradata://";
+        return "snowflake://jdbc:snowflake://";
     }
 
     @Override
     protected String getDatabase(Map<String, String> connectionProperties)
     {
-        return "/TMODE=ANSI,CHARSET=UTF8,DATABASE=" + connectionProperties.get(DATABASE);
-    }
+        if (!connectionProperties.containsKey(SCHEMA)) {
+            logger.debug("No schema specified in connection string");
+        }
 
-    @Override
-    protected String getJdbcParametersSeparator()
-    {
-        return ",";
+        String databaseString = "/?warehouse=" + connectionProperties.get(WAREHOUSE)
+                + "&db=" + connectionProperties.get(DATABASE)
+                + "&schema=" + connectionProperties.get(SCHEMA);
+        return databaseString;
     }
 }

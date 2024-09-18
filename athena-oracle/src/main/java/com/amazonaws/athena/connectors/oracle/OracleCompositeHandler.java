@@ -20,7 +20,6 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
-import com.amazonaws.athena.connector.lambda.connection.OracleEnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**

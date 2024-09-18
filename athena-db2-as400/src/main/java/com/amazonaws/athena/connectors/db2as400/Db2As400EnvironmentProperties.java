@@ -17,22 +17,27 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.db2as400;
+
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.JDBC_PARAMS;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
+
 public class Db2As400EnvironmentProperties extends EnvironmentProperties
 {
-    private static final String JDBC_PARAMS = "JDBC_PARAMS";
-    private static final String DEFAULT = "default";
     @Override
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
     {
         HashMap<String, String> environment = new HashMap<>();
 
         // now construct jdbc string
-        String connectionString = "db2as400://jdbc:as400://" + connectionProperties.get("HOST")
+        String connectionString = "db2as400://jdbc:as400://" + connectionProperties.get(HOST)
                 + ";" + connectionProperties.getOrDefault(JDBC_PARAMS, "");
 
         if (connectionProperties.containsKey(SECRET_NAME)) {

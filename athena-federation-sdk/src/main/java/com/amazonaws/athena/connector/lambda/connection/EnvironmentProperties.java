@@ -34,13 +34,14 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.CONNECT_TIMEOUT;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.KMS_KEY_ID;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SPILL_KMS_KEY_ID;
+
 public class EnvironmentProperties
 {
-    public static final String DEFAULT_GLUE_CONNECTION = "glue_connection";
-    private static final int CONNECT_TIMEOUT = 250;
-    protected static final String SECRET_NAME = "secret_name";
-    protected static final String SPILL_KMS_KEY_ID = "spill_kms_key_id";
-    protected static final String KMS_KEY_ID = "kms_key_id";
     protected static final Logger logger = LoggerFactory.getLogger(EnvironmentProperties.class);
 
     public Map<String, String> createEnvironment() throws RuntimeException

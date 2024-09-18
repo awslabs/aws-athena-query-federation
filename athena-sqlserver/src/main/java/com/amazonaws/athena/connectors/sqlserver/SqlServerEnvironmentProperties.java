@@ -17,15 +17,37 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.sqlserver;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class PostGreSqlEnvironmentProperties extends JdbcEnvironmentProperties
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+
+public class SqlServerEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "postgres://jdbc:postgresql://";
+        return "sqlserver://jdbc:sqlserver://";
+    }
+
+    @Override
+    protected String getDatabase(Map<String, String> connectionProperties)
+    {
+        return ";databaseName=" + connectionProperties.get(DATABASE);
+    }
+
+    @Override
+    protected String getJdbcParametersSeparator()
+    {
+        return ";";
+    }
+
+    @Override
+    protected String getDelimiter()
+    {
+        return ";";
     }
 }

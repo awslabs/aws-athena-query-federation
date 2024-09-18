@@ -17,15 +17,37 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.datalakegen2;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class DataLakeGen2EnvironmentProperties extends SqlServerEnvironmentProperties
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+
+public class DataLakeGen2EnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
         return "datalakegentwo://jdbc:sqlserver://";
+    }
+
+    @Override
+    protected String getDatabase(Map<String, String> connectionProperties)
+    {
+        return ";databaseName=" + connectionProperties.get(DATABASE);
+    }
+
+    @Override
+    protected String getJdbcParametersSeparator()
+    {
+        return ";";
+    }
+
+    @Override
+    protected String getDelimiter()
+    {
+        return ";";
     }
 }

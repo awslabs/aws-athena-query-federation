@@ -17,15 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.connection;
+package com.amazonaws.athena.connectors.mysql;
+
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
 import java.util.Map;
 
-public class ImpalaEnvironmentProperties extends SaphanaEnvironmentProperties
+public class MySqlEnvironmentProperties extends JdbcEnvironmentProperties
 {
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "impala://jdbc:impala://";
+        return "mysql://jdbc:mysql://";
     }
 }
