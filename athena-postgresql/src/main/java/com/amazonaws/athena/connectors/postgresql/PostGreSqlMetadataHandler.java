@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -47,6 +48,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -227,7 +230,8 @@ public class PostGreSqlMetadataHandler
                     splits.add(splitBuilder.build());
 
                     if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
-                        throw new RuntimeException("Max splits supported with splitter " + MAX_SPLITS_PER_REQUEST);
+                        throw new AthenaConnectorException("Max splits supported with splitter " + MAX_SPLITS_PER_REQUEST,
+                                new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                     }
 
                     splitterUsed = true;
@@ -297,7 +301,8 @@ public class PostGreSqlMetadataHandler
             if (resultSet.next()) {
                 resolvedName = resultSet.getString("table_name");
                 if (resultSet.next()) {
-                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
+                    throw new AthenaConnectorException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName),
+                            new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                 }
                 LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
             }
@@ -337,7 +342,8 @@ public class PostGreSqlMetadataHandler
     {
         String resolvedSchemaName = caseInsensitiveSchemaResolver(connection, databaseName);
         if (resolvedSchemaName == null) {
-            throw new RuntimeException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName));
+            throw new AthenaConnectorException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName),
+                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
         }
 
         String resolvedTableName;
@@ -350,7 +356,8 @@ public class PostGreSqlMetadataHandler
             preparedStatement = getMaterializedViewOrExternalTable(connection, tableName, resolvedSchemaName);
             resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
             if (resolvedTableName == null) {
-                throw new RuntimeException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName));
+                throw new AthenaConnectorException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName),
+                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
             }
         }
         return new TableName(resolvedSchemaName, resolvedTableName);
