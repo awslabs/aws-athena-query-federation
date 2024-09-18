@@ -221,7 +221,7 @@ public class BlockUtils
         }
         else {
             throw new AthenaConnectorException("Unsupported 'Complex' vector " +
-                    vector.getClass().getSimpleName() + " for field " + vector.getField().getName(), new ErrorDetails().withErrorMessage(FederationSourceErrorCode.InvalidInputException.toString()));
+                    vector.getClass().getSimpleName() + " for field " + vector.getField().getName(), new ErrorDetails().withErrorMessage(FederationSourceErrorCode.OperationNotSupportedException.toString()));
         }
     }
 

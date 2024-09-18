@@ -130,7 +130,7 @@ public enum SupportedTypes
     {
         if (!isSupported(field)) {
             throw new AthenaConnectorException("Detected unsupported type[" + field.getType() + " / " + Types.getMinorTypeForArrowType(field.getType()) +
-                    " for column[" + field.getName() + "]", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                    " for column[" + field.getName() + "]", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
         }
     }
 }
