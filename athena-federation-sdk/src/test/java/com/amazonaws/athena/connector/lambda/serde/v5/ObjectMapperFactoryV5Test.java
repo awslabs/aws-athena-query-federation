@@ -21,9 +21,9 @@ package com.amazonaws.athena.connector.lambda.serde.v5;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Test;
@@ -34,7 +34,7 @@ import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSIO
 
 public class ObjectMapperFactoryV5Test
 {
-    @Test(expected = JsonMappingException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testStrictSerializer()
             throws JsonProcessingException
     {
@@ -44,7 +44,7 @@ public class ObjectMapperFactoryV5Test
         }
     }
 
-    @Test(expected = JsonMappingException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testStrictDeserializer()
             throws IOException
     {
