@@ -43,15 +43,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
-import com.amazonaws.services.logs.AWSLogs;
-import com.amazonaws.services.logs.AWSLogsClientBuilder;
-import com.amazonaws.services.logs.model.DescribeLogGroupsRequest;
-import com.amazonaws.services.logs.model.DescribeLogGroupsResult;
-import com.amazonaws.services.logs.model.DescribeLogStreamsRequest;
-import com.amazonaws.services.logs.model.DescribeLogStreamsResult;
-import com.amazonaws.services.logs.model.GetQueryResultsResult;
-import com.amazonaws.services.logs.model.LogStream;
-import com.amazonaws.services.logs.model.ResultField;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -61,6 +52,14 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogStreamsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogStreamsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.LogStream;
+import software.amazon.awssdk.services.cloudwatchlogs.model.ResultField;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
@@ -123,7 +122,7 @@ public class CloudwatchMetadataHandler
                 .build();
     }
 
-    private final AWSLogs awsLogs;
+    private final CloudWatchLogsClient awsLogs;
     private final ThrottlingInvoker invoker;
     private final CloudwatchTableResolver tableResolver;
     private final CloudwatchQueryPassthrough queryPassthrough = new CloudwatchQueryPassthrough();
@@ -131,14 +130,14 @@ public class CloudwatchMetadataHandler
     public CloudwatchMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
-        this.awsLogs = AWSLogsClientBuilder.standard().build();
+        this.awsLogs = CloudWatchLogsClient.create();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
-        this.tableResolver = new CloudwatchTableResolver(this.invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
+        this.tableResolver =  new CloudwatchTableResolver(this.invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
     }
 
     @VisibleForTesting
     protected CloudwatchMetadataHandler(
-        AWSLogs awsLogs,
+        CloudWatchLogsClient awsLogs,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient secretsManager,
         AthenaClient athena,
@@ -161,19 +160,19 @@ public class CloudwatchMetadataHandler
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
             throws TimeoutException
     {
-        DescribeLogGroupsRequest request = new DescribeLogGroupsRequest();
-        DescribeLogGroupsResult result;
+        DescribeLogGroupsRequest.Builder requestBuilder = DescribeLogGroupsRequest.builder();
+        DescribeLogGroupsResponse response;
         List<String> schemas = new ArrayList<>();
         do {
             if (schemas.size() > MAX_RESULTS) {
                 throw new RuntimeException("Too many log groups, exceeded max metadata results for schema count.");
             }
-            result = invoker.invoke(() -> awsLogs.describeLogGroups(request));
-            result.getLogGroups().forEach(next -> schemas.add(next.getLogGroupName()));
-            request.setNextToken(result.getNextToken());
-            logger.info("doListSchemaNames: Listing log groups {} {}", result.getNextToken(), schemas.size());
+            response = invoker.invoke(() -> awsLogs.describeLogGroups(requestBuilder.build()));
+            response.logGroups().forEach(next -> schemas.add(next.logGroupName()));
+            requestBuilder.nextToken(response.nextToken());
+            logger.info("doListSchemaNames: Listing log groups {} {}", response.nextToken(), schemas.size());
         }
-        while (result.getNextToken() != null);
+        while (response.nextToken() != null);
 
         return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
     }
@@ -189,28 +188,28 @@ public class CloudwatchMetadataHandler
     {
         String nextToken = null;
         String logGroupName = tableResolver.validateSchema(listTablesRequest.getSchemaName());
-        DescribeLogStreamsRequest request = new DescribeLogStreamsRequest(logGroupName);
-        DescribeLogStreamsResult result;
+        DescribeLogStreamsRequest.Builder requestBuilder = DescribeLogStreamsRequest.builder().logGroupName(logGroupName);
+        DescribeLogStreamsResponse response;
         List<TableName> tables = new ArrayList<>();
         if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
             do {
                 if (tables.size() > MAX_RESULTS) {
                     throw new RuntimeException("Too many log streams, exceeded max metadata results for table count.");
                 }
-                result = invoker.invoke(() -> awsLogs.describeLogStreams(request));
-                result.getLogStreams().forEach(next -> tables.add(toTableName(listTablesRequest, next)));
-                request.setNextToken(result.getNextToken());
-                logger.info("doListTables: Listing log streams  with token {} and size {}", result.getNextToken(), tables.size());
+                response = invoker.invoke(() -> awsLogs.describeLogStreams(requestBuilder.build()));
+                response.logStreams().forEach(next -> tables.add(toTableName(listTablesRequest, next)));
+                requestBuilder.nextToken(response.nextToken());
+                logger.info("doListTables: Listing log streams  with token {} and size {}", response.nextToken(), tables.size());
             }
-            while (result.getNextToken() != null);
+            while (response.nextToken() != null);
         }
         else {
-            request.setNextToken(listTablesRequest.getNextToken());
-            request.setLimit(listTablesRequest.getPageSize());
-            result = invoker.invoke(() -> awsLogs.describeLogStreams(request));
-            result.getLogStreams().forEach(next -> tables.add(toTableName(listTablesRequest, next)));
-            nextToken = result.getNextToken();
-            logger.info("doListTables: Listing log streams with token {} and size {}", result.getNextToken(), tables.size());
+            requestBuilder.nextToken(listTablesRequest.getNextToken());
+            requestBuilder.limit(listTablesRequest.getPageSize());
+            response = invoker.invoke(() -> awsLogs.describeLogStreams(requestBuilder.build()));
+            response.logStreams().forEach(next -> tables.add(toTableName(listTablesRequest, next)));
+            nextToken = response.nextToken();
+            logger.info("doListTables: Listing log streams with token {} and size {}", response.nextToken(), tables.size());
         }
 
         // Don't add the ALL_LOG_STREAMS_TABLE unless we're at the end of listing out all the tables.
@@ -276,26 +275,26 @@ public class CloudwatchMetadataHandler
 
         CloudwatchTableName cwTableName = tableResolver.validateTable(request.getTableName());
 
-        DescribeLogStreamsRequest cwRequest = new DescribeLogStreamsRequest(cwTableName.getLogGroupName());
+        DescribeLogStreamsRequest.Builder cwRequestBuilder = DescribeLogStreamsRequest.builder().logGroupName(cwTableName.getLogGroupName());
         if (!ALL_LOG_STREAMS_TABLE.equals(cwTableName.getLogStreamName())) {
-            cwRequest.setLogStreamNamePrefix(cwTableName.getLogStreamName());
+            cwRequestBuilder.logStreamNamePrefix(cwTableName.getLogStreamName());
         }
 
-        DescribeLogStreamsResult result;
+        DescribeLogStreamsResponse response;
         do {
-            result = invoker.invoke(() -> awsLogs.describeLogStreams(cwRequest));
-            for (LogStream next : result.getLogStreams()) {
+            response = invoker.invoke(() -> awsLogs.describeLogStreams(cwRequestBuilder.build()));
+            for (LogStream next : response.logStreams()) {
                 //Each log stream that matches any possible partition pruning should be added to the partition list.
                 blockWriter.writeRows((Block block, int rowNum) -> {
-                    boolean matched = block.setValue(LOG_GROUP_FIELD, rowNum, cwRequest.getLogGroupName());
-                    matched &= block.setValue(LOG_STREAM_FIELD, rowNum, next.getLogStreamName());
-                    matched &= block.setValue(LOG_STREAM_SIZE_FIELD, rowNum, next.getStoredBytes());
+                    boolean matched = block.setValue(LOG_GROUP_FIELD, rowNum, cwRequestBuilder.build().logGroupName());
+                    matched &= block.setValue(LOG_STREAM_FIELD, rowNum, next.logStreamName());
+                    matched &= block.setValue(LOG_STREAM_SIZE_FIELD, rowNum, next.storedBytes());
                     return matched ? 1 : 0;
                 });
             }
-            cwRequest.setNextToken(result.getNextToken());
+            cwRequestBuilder.nextToken(response.nextToken());
         }
-        while (result.getNextToken() != null && queryStatusChecker.isQueryRunning());
+        while (response.nextToken() != null && queryStatusChecker.isQueryRunning());
     }
 
     /**
@@ -367,11 +366,11 @@ public class CloudwatchMetadataHandler
             throw new IllegalArgumentException("No Query passed through [{}]" + request);
         }
         // to get column names with limit 1
-        GetQueryResultsResult getQueryResultsResult = getResult(invoker, awsLogs, request.getQueryPassthroughArguments(), 1);
+        GetQueryResultsResponse getQueryResultsResponse = getResult(invoker, awsLogs, request.getQueryPassthroughArguments(), 1);
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        if (!getQueryResultsResult.getResults().isEmpty()) {
-            for (ResultField field : getQueryResultsResult.getResults().get(0)) {
-                schemaBuilder.addField(field.getField(), Types.MinorType.VARCHAR.getType());
+        if (!getQueryResultsResponse.results().isEmpty()) {
+            for (ResultField field : getQueryResultsResponse.results().get(0)) {
+                schemaBuilder.addField(field.field(), Types.MinorType.VARCHAR.getType());
             }
         }
 
@@ -415,6 +414,6 @@ public class CloudwatchMetadataHandler
      */
     private TableName toTableName(ListTablesRequest request, LogStream logStream)
     {
-        return new TableName(request.getSchemaName(), logStream.getLogStreamName());
+        return new TableName(request.getSchemaName(), logStream.logStreamName());
     }
 }
