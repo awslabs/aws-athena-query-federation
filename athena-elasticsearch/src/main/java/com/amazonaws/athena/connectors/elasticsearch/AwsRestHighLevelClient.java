@@ -19,8 +19,11 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.base.Splitter;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -123,7 +126,7 @@ public class AwsRestHighLevelClient
             Map.Entry<String, MappingMetadata> dsmapping = mappingsResponse.mappings().entrySet()
                     .stream()
                     .findFirst()
-                    .orElseThrow(() -> new RuntimeException(String.format("Could not find mapping for data stream name: %s", index)));
+                    .orElseThrow(() -> new AthenaConnectorException(String.format("Could not find mapping for data stream name: %s", index), new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString())));
             mappingMetadata = dsmapping.getValue();
         }
 
@@ -150,17 +153,17 @@ public class AwsRestHighLevelClient
         ClusterHealthResponse response = cluster().health(request, RequestOptions.DEFAULT);
 
         if (response.isTimedOut()) {
-            throw new RuntimeException("Request timed out for index (" + index + ").");
+            throw new AthenaConnectorException("Request timed out for index (" + index + ").", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationTimeoutException.toString()));
         }
         else if (response.getActiveShards() == 0) {
-            throw new RuntimeException("There are no active shards for index (" + index + ").");
+            throw new AthenaConnectorException("There are no active shards for index (" + index + ").", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
         else if (response.getStatus() == ClusterHealthStatus.RED) {
-            throw new RuntimeException("Request aborted for index (" + index +
-                    ") due to cluster's status (RED) - One or more primary shards are unassigned.");
+            throw new AthenaConnectorException("Request aborted for index (" + index +
+                    ") due to cluster's status (RED) - One or more primary shards are unassigned.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
         else if (!response.getIndices().containsKey(index)) {
-            throw new RuntimeException("Request has an invalid index (" + index + ").");
+            throw new AthenaConnectorException("Request has an invalid index (" + index + ").", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         return response.getIndices().get(index).getShards().keySet();

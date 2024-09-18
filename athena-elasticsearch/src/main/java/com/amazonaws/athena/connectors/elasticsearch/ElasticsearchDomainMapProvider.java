@@ -19,11 +19,14 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.services.elasticsearch.AWSElasticsearch;
 import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsRequest;
 import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsResult;
 import com.amazonaws.services.elasticsearch.model.ListDomainNamesRequest;
 import com.amazonaws.services.elasticsearch.model.ListDomainNamesResult;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.base.Splitter;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
@@ -129,13 +132,13 @@ public class ElasticsearchDomainMapProvider
             }
 
             if (domainMap.isEmpty()) {
-                throw new RuntimeException("Amazon Elasticsearch Service has no domain information for user.");
+                throw new AthenaConnectorException("Amazon Elasticsearch Service has no domain information for user.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
             }
 
             return domainMap;
         }
         catch (Exception error) {
-            throw new RuntimeException("Unable to create domain map: " + error.getMessage(), error);
+            throw new AthenaConnectorException("Unable to create domain map: " + error.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()).withErrorMessage(error.getMessage()));
         }
         finally {
             awsEsClient.shutdown();
@@ -153,7 +156,7 @@ public class ElasticsearchDomainMapProvider
     private Map<String, String> getDomainMapFromEnvironmentVar(String domainMapping)
     {
         if (domainMapping == null || domainMapping.isEmpty()) {
-            throw new RuntimeException("Unable to create domain map: Empty or null value found in DomainMapping.");
+            throw new AthenaConnectorException("Unable to create domain map: Empty or null value found in DomainMapping.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
         }
         Map<String, String> domainMap;
         try {
@@ -161,12 +164,12 @@ public class ElasticsearchDomainMapProvider
         }
         catch (Exception error) {
             // Intentional obfuscation of error message as it may contain sensitive info (e.g. username/password).
-            throw new RuntimeException("Unable to create domain map: DomainMapping Parsing error.");
+            throw new AthenaConnectorException("Unable to create domain map: DomainMapping Parsing error.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
 
         if (domainMap.isEmpty()) {
             // Intentional obfuscation of error message: domainMapping contains sensitive info (e.g. username/password).
-            throw new RuntimeException("Unable to create domain map: Invalid DomainMapping value.");
+            throw new AthenaConnectorException("Unable to create domain map: Invalid DomainMapping value.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidResponseException.toString()));
         }
 
         return domainMap;
