@@ -24,8 +24,11 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -189,7 +192,7 @@ public class DDBPredicateUtils
                 case EXACTLY:
                     break;
                 case BELOW:
-                    throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                    throw new AthenaConnectorException("Low marker should never use BELOW bound", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                 default:
                     throw new AssertionError("Unhandled lower bound: " + range.getLow().getBound());
             }
@@ -197,7 +200,7 @@ public class DDBPredicateUtils
         if (!range.getHigh().isUpperUnbounded()) {
             switch (range.getHigh().getBound()) {
                 case ABOVE:
-                    throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                    throw new AthenaConnectorException("High marker should never use ABOVE bound", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                 case EXACTLY:
                     break;
                 case BELOW:

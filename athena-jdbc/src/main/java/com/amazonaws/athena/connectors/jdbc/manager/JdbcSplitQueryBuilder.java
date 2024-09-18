@@ -25,6 +25,9 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -214,7 +217,8 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
                     break;
                 default:
-                    throw new UnsupportedOperationException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), minorTypeForArrowType));
+                    throw new AthenaConnectorException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), minorTypeForArrowType),
+                            new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
             }
         }
 
@@ -295,15 +299,18 @@ public abstract class JdbcSplitQueryBuilder
                                 rangeConjuncts.add(toPredicate(columnName, ">=", range.getLow().getValue(), type, accumulator));
                                 break;
                             case BELOW:
-                                throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                                throw new AthenaConnectorException("Low marker should never use BELOW bound",
+                                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                             default:
-                                throw new AssertionError("Unhandled bound: " + range.getLow().getBound());
+                                throw new AthenaConnectorException("Unhandled bound: " + range.getLow().getBound(),
+                                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
                         }
                     }
                     if (!range.getHigh().isUpperUnbounded()) {
                         switch (range.getHigh().getBound()) {
                             case ABOVE:
-                                throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                                throw new AthenaConnectorException("High marker should never use ABOVE bound",
+                                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                             case EXACTLY:
                                 rangeConjuncts.add(toPredicate(columnName, "<=", range.getHigh().getValue(), type, accumulator));
                                 break;
@@ -311,7 +318,8 @@ public abstract class JdbcSplitQueryBuilder
                                 rangeConjuncts.add(toPredicate(columnName, "<", range.getHigh().getValue(), type, accumulator));
                                 break;
                             default:
-                                throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
+                                throw new AthenaConnectorException("Unhandled bound: " + range.getHigh().getBound(),
+                                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
                         }
                     }
                     // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
