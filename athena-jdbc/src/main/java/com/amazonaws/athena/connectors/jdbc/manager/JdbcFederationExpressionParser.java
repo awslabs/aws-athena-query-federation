@@ -157,7 +157,6 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
             default:
                 throw new AthenaConnectorException("The function " + functionName.getFunctionName() + " does not have an implementation",
                         new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
-
         }
         if (clause == null) {
           return "";
