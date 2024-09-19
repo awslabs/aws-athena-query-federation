@@ -110,17 +110,17 @@ public class RdsTableProviderTest
         final AtomicLong requestCount = new AtomicLong(0);
         when(mockRds.describeDBInstances(nullable(DescribeDbInstancesRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
-                    DescribeDbInstancesResponse mockResult = mock(DescribeDbInstancesResponse.class);
                     List<DBInstance> values = new ArrayList<>();
                     values.add(makeValue(getIdValue()));
                     values.add(makeValue(getIdValue()));
                     values.add(makeValue("fake-id"));
-                    when(mockResult.dbInstances()).thenReturn(values);
+                    DescribeDbInstancesResponse.Builder resultBuilder = DescribeDbInstancesResponse.builder();
+                    resultBuilder.dbInstances(values);
 
                     if (requestCount.incrementAndGet() < 3) {
-                        when(mockResult.marker()).thenReturn(String.valueOf(requestCount.get()));
+                        resultBuilder.marker(String.valueOf(requestCount.get()));
                     }
-                    return mockResult;
+                    return resultBuilder.build();
                 });
     }
 
