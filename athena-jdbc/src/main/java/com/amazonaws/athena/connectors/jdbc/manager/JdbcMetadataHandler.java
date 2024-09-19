@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -57,6 +58,8 @@ import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
@@ -254,7 +257,8 @@ public abstract class JdbcMetadataHandler
             throws Exception
     {
         if (!getTableRequest.isQueryPassthrough()) {
-            throw new IllegalArgumentException("No Query passed through [{}]" + getTableRequest);
+            throw new AthenaConnectorException("No Query passed through [{}]" + getTableRequest,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         jdbcQueryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
@@ -264,7 +268,8 @@ public abstract class JdbcMetadataHandler
             PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
             ResultSetMetaData metadata = preparedStatement.getMetaData();
             if (metadata == null) {
-                throw new UnsupportedOperationException("Query not supported: ResultSetMetaData not available for query: " + customerPassedQuery);
+                throw new AthenaConnectorException("Query not supported: ResultSetMetaData not available for query: " + customerPassedQuery,
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
             }
             SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
@@ -372,7 +377,8 @@ public abstract class JdbcMetadataHandler
             }
 
             if (!found) {
-                throw new RuntimeException(String.format("Could not find table %s in %s", tableName.getTableName(), tableName.getSchemaName()));
+                throw new AthenaConnectorException(String.format("Could not find table %s in %s", tableName.getTableName(), tableName.getSchemaName()),
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
 
             // add partition columns

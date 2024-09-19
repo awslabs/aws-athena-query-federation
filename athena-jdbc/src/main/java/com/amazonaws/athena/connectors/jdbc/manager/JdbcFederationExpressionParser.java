@@ -23,9 +23,11 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Variabl
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.OperatorType;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.base.Joiner;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.List;
 
@@ -59,23 +61,27 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
         OperatorType operatorType = functionEnum.getOperatorType();
 
         if (arguments == null || arguments.size() == 0) {
-            throw new IllegalArgumentException("Arguments cannot be null or empty.");
+            throw new AthenaConnectorException("Arguments cannot be null or empty.",
+                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         switch (operatorType) {
             case UNARY:
                 if (arguments.size() != 1) {
-                    throw new IllegalArgumentException("Unary function type " + functionName.getFunctionName() + " was provided with " + arguments.size() + " arguments.");
+                    throw new AthenaConnectorException("Unary function type " + functionName.getFunctionName() + " was provided with " + arguments.size() + " arguments.",
+                            new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                 }
                 break;
             case BINARY:
                 if (arguments.size() != 2) {
-                    throw new IllegalArgumentException("Binary function type " + functionName.getFunctionName() + " was provided with " + arguments.size() + " arguments.");
+                    throw new AthenaConnectorException("Binary function type " + functionName.getFunctionName() + " was provided with " + arguments.size() + " arguments.",
+                            new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
                 }
                 break;
             case VARARG:
                 break;
             default:
-                throw new RuntimeException("A new operator type was introduced without adding support for it.");
+                throw new AthenaConnectorException("A new operator type was introduced without adding support for it.",
+                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
         }
 
         String clause = "";
@@ -149,7 +155,8 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
                 clause = Joiner.on(" - ").join(arguments);
                 break;
             default:
-                throw new NotImplementedException("The function " + functionName.getFunctionName() + " does not have an implementation");
+                throw new AthenaConnectorException("The function " + functionName.getFunctionName() + " does not have an implementation",
+                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
         }
         if (clause == null) {
           return "";
