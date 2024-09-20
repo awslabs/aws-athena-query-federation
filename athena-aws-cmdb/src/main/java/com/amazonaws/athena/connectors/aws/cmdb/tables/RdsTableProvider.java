@@ -116,7 +116,7 @@ public class RdsTableProvider
 
             requestBuilder.marker(response.marker());
         }
-        while (response.marker() == null || !queryStatusChecker.isQueryRunning());
+        while (response.marker() != null && queryStatusChecker.isQueryRunning());
     }
 
     /**
