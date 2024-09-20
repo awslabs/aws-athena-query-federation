@@ -103,7 +103,7 @@ Resources:
           query_scroll_timeout: !Ref QueryScrollTimeout
       FunctionName: !Sub "${AthenaCatalogName}"
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/prod-athena-federation-repository-elasticsearch:2022.47.1'
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-elasticsearch:2022.47.1'
       Description: "The Elasticsearch Lambda Connector provides Athena users the ability to query data stored on Elasticsearch clusters."
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory

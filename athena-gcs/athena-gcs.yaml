@@ -60,7 +60,7 @@ Resources:
           secret_manager_gcp_creds_name: !Ref GCSSecretName
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/prod-athena-federation-repository-gcs:2022.47.1'
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-gcs:2022.47.1'
       Description: "Amazon Athena GCS Connector"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
