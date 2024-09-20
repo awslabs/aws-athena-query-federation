@@ -80,7 +80,7 @@ Resources:
           GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/prod-athena-federation-repository-google-bigquery:2022.47.1'
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-google-bigquery:2022.47.1'
       Description: "Enables Amazon Athena to communicate with BigQuery using Google SDK"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory

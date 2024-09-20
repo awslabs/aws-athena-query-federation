@@ -45,10 +45,9 @@ Resources:
         Variables:
           glue_connection: !Ref GlueConnection
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsCompositeHandler"
-      CodeUri: "./target/athena-cloudwatch-metrics-2022.47.1.jar"
+      PackageType: "Image"
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-cloudwatch-metrics:2022.47.1'
       Description: "Enables Amazon Athena to communicate with Cloudwatch Metrics, making your metrics data accessible via SQL"
-      Runtime: java11
       Timeout: 900
       MemorySize: 3008
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn]

@@ -61,10 +61,9 @@ Resources:
         Variables:
           glue_connection: !Ref GlueConnection
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.db2as400.Db2As400MuxCompositeHandler"
-      CodeUri: "./target/athena-db2-as400-2022.47.1.jar"
+      PackageType: "Image"
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-db2-as400:2022.47.1'
       Description: "Enables Amazon Athena to communicate with DB2 on iSeries (AS400) using JDBC"
-      Runtime: java11
       Timeout: 900
       MemorySize: 3008
       Role: !If [ NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn ]

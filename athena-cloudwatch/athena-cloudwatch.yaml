@@ -67,7 +67,7 @@ Resources:
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/prod-athena-federation-repository-cloudwatch:2022.47.1'
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-cloudwatch:2022.47.1'
       Description: "Enables Amazon Athena to communicate with Cloudwatch, making your log accessible via SQL"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
