@@ -66,7 +66,6 @@ Resources:
       PackageType: "Image"
       ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-postgresql:2022.47.1'
       Description: "Enables Amazon Athena to communicate with PostgreSQL using JDBC"
-      Runtime: java11
       Timeout: 900
       MemorySize: 3008
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn]
