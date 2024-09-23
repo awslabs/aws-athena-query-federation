@@ -73,6 +73,8 @@ Resources:
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-datalakegen2:2022.47.1'
+      ImageConfig:
+        Command: [ "com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2MuxCompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with DataLake Gen2 using JDBC"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
