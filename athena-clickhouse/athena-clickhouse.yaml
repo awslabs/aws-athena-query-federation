@@ -71,7 +71,7 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/prod-athena-federation-repository-clickhouse:2022.47.1'
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-clickhouse:2022.47.1'
       Description: "Enables Amazon Athena to communicate with ClickHouse using JDBC"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
