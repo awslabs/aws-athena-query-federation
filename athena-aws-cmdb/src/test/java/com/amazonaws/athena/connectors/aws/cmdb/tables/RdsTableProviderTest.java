@@ -21,16 +21,6 @@ package com.amazonaws.athena.connectors.aws.cmdb.tables;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
-import com.amazonaws.services.elasticmapreduce.model.Application;
-import com.amazonaws.services.elasticmapreduce.model.Cluster;
-import com.amazonaws.services.elasticmapreduce.model.ClusterStateChangeReason;
-import com.amazonaws.services.elasticmapreduce.model.ClusterStatus;
-import com.amazonaws.services.elasticmapreduce.model.ClusterSummary;
-import com.amazonaws.services.elasticmapreduce.model.DescribeClusterRequest;
-import com.amazonaws.services.elasticmapreduce.model.DescribeClusterResult;
-import com.amazonaws.services.elasticmapreduce.model.ListClustersRequest;
-import com.amazonaws.services.elasticmapreduce.model.ListClustersResult;
 import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.DBInstanceStatusInfo;
