@@ -45,9 +45,11 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.oracle.OracleConstants.ORACLE_NAME;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -97,6 +99,7 @@ public class OracleRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol6", Types.MinorType.TINYINT.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol7", Types.MinorType.FLOAT8.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol8", Types.MinorType.BIT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("testCol9", Types.MinorType.DATEDAY.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
@@ -120,6 +123,8 @@ public class OracleRecordHandlerTest
         ValueSet valueSet6 = getSingleValueSet(0);
         ValueSet valueSet7 = getSingleValueSet(1.2d);
         ValueSet valueSet8 = getSingleValueSet(true);
+        final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf("1969-02-02").getTime());
+        ValueSet valueSet9 = getSingleValueSet(dateDays);
 
         Constraints constraints = Mockito.mock(Constraints.class);
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
@@ -131,11 +136,12 @@ public class OracleRecordHandlerTest
                 .put("testCol6", valueSet6)
                 .put("testCol7", valueSet7)
                 .put("testCol8", valueSet8)
+                .put("testCol9", valueSet9)
                 .build());
 
         Mockito.when(constraints.getLimit()).thenReturn(5L);
 
-        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?)";
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -152,6 +158,9 @@ public class OracleRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setByte(9, (byte) 0);
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(10, 1.2d);
         Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(11, true);
+        // year = 1969 1900 | month Feb (starts from zero), and day (starts from one)
+        Date expectedDate = new Date(69, 1, 2);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDate(12, expectedDate);
     }
 
     private ValueSet getSingleValueSet(Object value) {
