@@ -43,7 +43,6 @@ import software.amazon.awscdk.services.redshift.Cluster;
 import software.amazon.awscdk.services.redshift.ClusterType;
 import software.amazon.awscdk.services.redshift.Login;
 import software.amazon.awscdk.services.redshift.NodeType;
-import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.athena.model.Row;
 import software.amazon.awssdk.services.redshift.RedshiftClient;
 import software.amazon.awssdk.services.redshift.model.DescribeClustersRequest;
@@ -188,9 +187,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
      */
     private Endpoint getClusterData()
     {
-        RedshiftClient redshiftClient = RedshiftClient.builder()
-                .region(DefaultAwsRegionProviderChain.builder().build().getRegion())
-                .build();;
+        RedshiftClient redshiftClient = RedshiftClient.create();
         try {
             DescribeClustersResponse clustersResult = redshiftClient.describeClusters(DescribeClustersRequest.builder()
                     .clusterIdentifier(clusterName).build());
