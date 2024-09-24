@@ -37,7 +37,6 @@ import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.AmazonRDSClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
-import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.emr.EmrClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -59,7 +58,7 @@ public class TableProviderFactory
     {
         this(
             AmazonEC2ClientBuilder.standard().build(),
-            EmrClient.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build(),
+            EmrClient.create(),
             AmazonRDSClientBuilder.standard().build(),
             S3Client.create(),
             configOptions);

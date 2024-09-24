@@ -37,7 +37,6 @@ import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.emr.CfnCluster;
 import software.amazon.awscdk.services.iam.PolicyDocument;
-import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.athena.model.Row;
 import software.amazon.awssdk.services.emr.EmrClient;
 import software.amazon.awssdk.services.emr.model.Application;
@@ -179,7 +178,7 @@ public class HbaseIntegTest extends IntegrationTestBase
      */
     private String getClusterData()
     {
-        EmrClient emrClient = EmrClient.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build();
+        EmrClient emrClient = EmrClient.create();
         try {
             ListClustersResponse listClustersResult;
             String marker = null;
