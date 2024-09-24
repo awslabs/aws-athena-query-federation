@@ -72,6 +72,8 @@ Resources:
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-mysql:2022.47.1'
+      ImageConfig:
+        Command: [ "com.amazonaws.athena.connectors.mysql.MySqlMuxCompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with MySQL using JDBC"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory

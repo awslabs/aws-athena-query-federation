@@ -5,5 +5,5 @@ COPY target/athena-saphana.zip ${LAMBDA_TASK_ROOT}
 # Unpack the jar
 RUN jar xf athena-saphana.zip
 
-# Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
-CMD [ "com.amazonaws.athena.connectors.saphana.SaphanaMuxCompositeHandler" ]
+# Command can be overwritten by providing a different command in the template directly.
+# No need to specify here (already defined in .yaml file because legacy and connections use different)

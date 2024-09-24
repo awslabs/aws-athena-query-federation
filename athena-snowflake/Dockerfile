@@ -5,5 +5,5 @@ COPY target/athena-snowflake.zip ${LAMBDA_TASK_ROOT}
 # Unpack the jar
 RUN jar xf athena-snowflake.zip
 
-# Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
-CMD [ "com.amazonaws.athena.connectors.snowflake.SnowflakeMuxCompositeHandler" ]
+# Command can be overwritten by providing a different command in the template directly.
+# No need to specify here (already defined in .yaml file because legacy and connections use different)
