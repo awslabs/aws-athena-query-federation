@@ -26,14 +26,8 @@ import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.integ.JdbcTableUtils;
-import com.amazonaws.services.redshift.AmazonRedshift;
-import com.amazonaws.services.redshift.AmazonRedshiftClientBuilder;
-import com.amazonaws.services.redshift.model.DescribeClustersRequest;
-import com.amazonaws.services.redshift.model.DescribeClustersResult;
-import com.amazonaws.services.redshift.model.Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.AssertJUnit;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -50,6 +44,10 @@ import software.amazon.awscdk.services.redshift.ClusterType;
 import software.amazon.awscdk.services.redshift.Login;
 import software.amazon.awscdk.services.redshift.NodeType;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.redshift.RedshiftClient;
+import software.amazon.awssdk.services.redshift.model.DescribeClustersRequest;
+import software.amazon.awssdk.services.redshift.model.DescribeClustersResponse;
+import software.amazon.awssdk.services.redshift.model.Endpoint;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -189,14 +187,14 @@ public class RedshiftIntegTest extends IntegrationTestBase
      */
     private Endpoint getClusterData()
     {
-        AmazonRedshift redshiftClient = AmazonRedshiftClientBuilder.defaultClient();
+        RedshiftClient redshiftClient = RedshiftClient.create();
         try {
-            DescribeClustersResult clustersResult = redshiftClient.describeClusters(new DescribeClustersRequest()
-                    .withClusterIdentifier(clusterName));
-            return clustersResult.getClusters().get(0).getEndpoint();
+            DescribeClustersResponse clustersResult = redshiftClient.describeClusters(DescribeClustersRequest.builder()
+                    .clusterIdentifier(clusterName).build());
+            return clustersResult.clusters().get(0).endpoint();
         }
         finally {
-            redshiftClient.shutdown();
+            redshiftClient.close();
         }
     }
 
@@ -207,7 +205,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
     private void setEnvironmentVars(Endpoint endpoint)
     {
         String connectionString = String.format("redshift://jdbc:redshift://%s:%s/public?user=%s&password=%s",
-                endpoint.getAddress(), endpoint.getPort(), username, password);
+                endpoint.address(), endpoint.port(), username, password);
         String connectionStringTag = lambdaFunctionName + "_connection_string";
         environmentVars.put("default", connectionString);
         environmentVars.put(connectionStringTag, connectionString);
