@@ -39,10 +39,6 @@ import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.logs.AWSLogs;
-import com.amazonaws.services.logs.model.GetLogEventsRequest;
-import com.amazonaws.services.logs.model.GetLogEventsResult;
-import com.amazonaws.services.logs.model.OutputLogEvent;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
@@ -59,6 +55,10 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.OutputLogEvent;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -95,7 +95,7 @@ public class CloudwatchRecordHandlerTest
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
 
     @Mock
-    private AWSLogs mockAwsLogs;
+    private CloudWatchLogsClient mockAwsLogs;
 
     @Mock
     private S3Client mockS3;
@@ -144,39 +144,40 @@ public class CloudwatchRecordHandlerTest
             GetLogEventsRequest request = (GetLogEventsRequest) invocationOnMock.getArguments()[0];
 
             //Check that predicate pushdown was propagated to cloudwatch
-            assertNotNull(request.getStartTime());
-            assertNotNull(request.getEndTime());
+            assertNotNull(request.startTime());
+            assertNotNull(request.endTime());
 
-            GetLogEventsResult result = new GetLogEventsResult();
+            GetLogEventsResponse.Builder responseBuilder = GetLogEventsResponse.builder();
 
             Integer nextToken;
-            if (request.getNextToken() == null) {
+            if (request.nextToken() == null) {
                 nextToken = 1;
             }
-            else if (Integer.valueOf(request.getNextToken()) < 3) {
-                nextToken = Integer.valueOf(request.getNextToken()) + 1;
+            else if (Integer.valueOf(request.nextToken()) < 3) {
+                nextToken = Integer.valueOf(request.nextToken()) + 1;
             }
             else {
                 nextToken = null;
             }
 
             List<OutputLogEvent> logEvents = new ArrayList<>();
-            if (request.getNextToken() == null || Integer.valueOf(request.getNextToken()) < 3) {
-                long continuation = request.getNextToken() == null ? 0 : Integer.valueOf(request.getNextToken());
+            if (request.nextToken() == null || Integer.valueOf(request.nextToken()) < 3) {
+                long continuation = request.nextToken() == null ? 0 : Integer.valueOf(request.nextToken());
                 for (int i = 0; i < 100_000; i++) {
-                    OutputLogEvent outputLogEvent = new OutputLogEvent();
-                    outputLogEvent.setMessage("message-" + (continuation * i));
-                    outputLogEvent.setTimestamp(i * 100L);
+                    OutputLogEvent outputLogEvent = OutputLogEvent.builder()
+                            .message("message-" + (continuation * i))
+                            .timestamp(i * 100L)
+                            .build();
                     logEvents.add(outputLogEvent);
                 }
             }
 
-            result.withEvents(logEvents);
+            responseBuilder.events(logEvents);
             if (nextToken != null) {
-                result.setNextForwardToken(String.valueOf(nextToken));
+                responseBuilder.nextForwardToken(String.valueOf(nextToken));
             }
 
-            return result;
+            return responseBuilder.build();
         });
     }
 

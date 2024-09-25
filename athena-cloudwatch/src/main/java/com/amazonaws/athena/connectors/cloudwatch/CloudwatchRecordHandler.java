@@ -32,17 +32,16 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
-import com.amazonaws.services.logs.AWSLogs;
-import com.amazonaws.services.logs.AWSLogsClientBuilder;
-import com.amazonaws.services.logs.model.GetLogEventsRequest;
-import com.amazonaws.services.logs.model.GetLogEventsResult;
-import com.amazonaws.services.logs.model.GetQueryResultsResult;
-import com.amazonaws.services.logs.model.OutputLogEvent;
-import com.amazonaws.services.logs.model.ResultField;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.OutputLogEvent;
+import software.amazon.awssdk.services.cloudwatchlogs.model.ResultField;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -75,7 +74,7 @@ public class CloudwatchRecordHandler
     //Used to handle Throttling events and apply AIMD congestion control
     private final ThrottlingInvoker invoker;
     private final AtomicLong count = new AtomicLong(0);
-    private final AWSLogs awsLogs;
+    private final CloudWatchLogsClient awsLogs;
     private final CloudwatchQueryPassthrough queryPassthrough = new CloudwatchQueryPassthrough();
 
     public CloudwatchRecordHandler(java.util.Map<String, String> configOptions)
@@ -84,12 +83,12 @@ public class CloudwatchRecordHandler
                 S3Client.create(),
                 SecretsManagerClient.create(),
                 AthenaClient.create(),
-                AWSLogsClientBuilder.defaultClient(),
+                CloudWatchLogsClient.create(),
                 configOptions);
     }
 
     @VisibleForTesting
-    protected CloudwatchRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, AWSLogs awsLogs, java.util.Map<String, String> configOptions)
+    protected CloudwatchRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, CloudWatchLogsClient awsLogs, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.awsLogs = awsLogs;
@@ -115,37 +114,38 @@ public class CloudwatchRecordHandler
             invoker.setBlockSpiller(spiller);
             do {
                 final String actualContinuationToken = continuationToken;
-                GetLogEventsResult logEventsResult = invoker.invoke(() -> awsLogs.getLogEvents(
+                GetLogEventsResponse logEventsResponse = invoker.invoke(() -> awsLogs.getLogEvents(
                         pushDownConstraints(recordsRequest.getConstraints(),
-                                new GetLogEventsRequest()
-                                        .withLogGroupName(split.getProperty(LOG_GROUP_FIELD))
+                                GetLogEventsRequest.builder()
+                                        .logGroupName(split.getProperty(LOG_GROUP_FIELD))
                                         //We use the property instead of the table name because of the special all_streams table
-                                        .withLogStreamName(split.getProperty(LOG_STREAM_FIELD))
-                                        .withNextToken(actualContinuationToken)
+                                        .logStreamName(split.getProperty(LOG_STREAM_FIELD))
+                                        .nextToken(actualContinuationToken)
                                         // must be set to use nextToken correctly
-                                        .withStartFromHead(true)
+                                        .startFromHead(true)
+                                        .build()
                         )));
 
-                if (continuationToken == null || !continuationToken.equals(logEventsResult.getNextForwardToken())) {
-                    continuationToken = logEventsResult.getNextForwardToken();
+                if (continuationToken == null || !continuationToken.equals(logEventsResponse.nextForwardToken())) {
+                    continuationToken = logEventsResponse.nextForwardToken();
                 }
                 else {
                     continuationToken = null;
                 }
 
-                for (OutputLogEvent ole : logEventsResult.getEvents()) {
+                for (OutputLogEvent ole : logEventsResponse.events()) {
                     spiller.writeRows((Block block, int rowNum) -> {
                         boolean matched = true;
                         matched &= block.offerValue(LOG_STREAM_FIELD, rowNum, split.getProperty(LOG_STREAM_FIELD));
-                        matched &= block.offerValue(LOG_TIME_FIELD, rowNum, ole.getTimestamp());
-                        matched &= block.offerValue(LOG_MSG_FIELD, rowNum, ole.getMessage());
+                        matched &= block.offerValue(LOG_TIME_FIELD, rowNum, ole.timestamp());
+                        matched &= block.offerValue(LOG_MSG_FIELD, rowNum, ole.message());
                         return matched ? 1 : 0;
                     });
                 }
 
                 logger.info("readWithConstraint: LogGroup[{}] LogStream[{}] Continuation[{}] rows[{}]",
                         tableName.getSchemaName(), tableName.getTableName(), continuationToken,
-                        logEventsResult.getEvents().size());
+                        logEventsResponse.events().size());
             }
             while (continuationToken != null && queryStatusChecker.isQueryRunning());
         }
@@ -155,13 +155,13 @@ public class CloudwatchRecordHandler
     {
         Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
         queryPassthrough.verify(qptArguments);
-        GetQueryResultsResult getQueryResultsResult = getResult(invoker, awsLogs, qptArguments, Integer.parseInt(qptArguments.get(CloudwatchQueryPassthrough.LIMIT)));
+        GetQueryResultsResponse getQueryResultsResponse = getResult(invoker, awsLogs, qptArguments, Integer.parseInt(qptArguments.get(CloudwatchQueryPassthrough.LIMIT)));
 
-        for (List<ResultField> resultList : getQueryResultsResult.getResults()) {
+        for (List<ResultField> resultList : getQueryResultsResponse.results()) {
             spiller.writeRows((Block block, int rowNum) -> {
                 for (ResultField resultField : resultList) {
                     boolean matched = true;
-                    matched &= block.offerValue(resultField.getField(), rowNum, resultField.getValue());
+                    matched &= block.offerValue(resultField.field(), rowNum, resultField.value());
                     if (!matched) {
                         return 0;
                     }
@@ -181,6 +181,7 @@ public class CloudwatchRecordHandler
      */
     private GetLogEventsRequest pushDownConstraints(Constraints constraints, GetLogEventsRequest request)
     {
+        GetLogEventsRequest.Builder requestBuilder = request.toBuilder();
         ValueSet timeConstraint = constraints.getSummary().get(LOG_TIME_FIELD);
         if (timeConstraint instanceof SortedRangeSet && !timeConstraint.isNullAllowed()) {
             //SortedRangeSet is how >, <, between is represented which are easiest and most common when
@@ -192,15 +193,15 @@ public class CloudwatchRecordHandler
 
             if (!basicPredicate.getLow().isNullValue()) {
                 Long lowerBound = (Long) basicPredicate.getLow().getValue();
-                request.setStartTime(lowerBound);
+                requestBuilder.startTime(lowerBound);
             }
 
             if (!basicPredicate.getHigh().isNullValue()) {
                 Long upperBound = (Long) basicPredicate.getHigh().getValue();
-                request.setEndTime(upperBound);
+                requestBuilder.endTime(upperBound);
             }
         }
 
-        return request;
+        return requestBuilder.build();
     }
 }
