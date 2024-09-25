@@ -83,7 +83,7 @@ Resources:
 
       FunctionName: !Sub "${AthenaCatalogName}"
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/prod-athena-federation-repository-vertica:2022.47.1'
+      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-vertica:2022.47.1'
       Description: "Amazon Athena Vertica Connector"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
