@@ -30,22 +30,22 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.rds.AmazonRDS;
-import com.amazonaws.services.rds.model.DBInstance;
-import com.amazonaws.services.rds.model.DBInstanceStatusInfo;
-import com.amazonaws.services.rds.model.DBParameterGroupStatus;
-import com.amazonaws.services.rds.model.DBSecurityGroupMembership;
-import com.amazonaws.services.rds.model.DBSubnetGroup;
-import com.amazonaws.services.rds.model.DescribeDBInstancesRequest;
-import com.amazonaws.services.rds.model.DescribeDBInstancesResult;
-import com.amazonaws.services.rds.model.DomainMembership;
-import com.amazonaws.services.rds.model.Endpoint;
-import com.amazonaws.services.rds.model.Subnet;
-import com.amazonaws.services.rds.model.Tag;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.rds.RdsClient;
+import software.amazon.awssdk.services.rds.model.DBInstance;
+import software.amazon.awssdk.services.rds.model.DBInstanceStatusInfo;
+import software.amazon.awssdk.services.rds.model.DBParameterGroupStatus;
+import software.amazon.awssdk.services.rds.model.DBSecurityGroupMembership;
+import software.amazon.awssdk.services.rds.model.DBSubnetGroup;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
+import software.amazon.awssdk.services.rds.model.DomainMembership;
+import software.amazon.awssdk.services.rds.model.Endpoint;
+import software.amazon.awssdk.services.rds.model.Subnet;
+import software.amazon.awssdk.services.rds.model.Tag;
 
 import java.util.stream.Collectors;
 
@@ -56,9 +56,9 @@ public class RdsTableProvider
         implements TableProvider
 {
     private static final Schema SCHEMA;
-    private AmazonRDS rds;
+    private RdsClient rds;
 
-    public RdsTableProvider(AmazonRDS rds)
+    public RdsTableProvider(RdsClient rds)
     {
         this.rds = rds;
     }
@@ -99,27 +99,24 @@ public class RdsTableProvider
     @Override
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        boolean done = false;
-        DescribeDBInstancesRequest request = new DescribeDBInstancesRequest();
+        DescribeDbInstancesRequest.Builder requestBuilder = DescribeDbInstancesRequest.builder();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("instance_id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
-            request.setDBInstanceIdentifier(idConstraint.getSingleValue().toString());
+            requestBuilder.dbInstanceIdentifier(idConstraint.getSingleValue().toString());
         }
 
-        while (!done) {
-            DescribeDBInstancesResult response = rds.describeDBInstances(request);
+        DescribeDbInstancesResponse response;
+        do {
+            response = rds.describeDBInstances(requestBuilder.build());
 
-            for (DBInstance instance : response.getDBInstances()) {
+            for (DBInstance instance : response.dbInstances()) {
                 instanceToRow(instance, spiller);
             }
 
-            request.setMarker(response.getMarker());
-
-            if (response.getMarker() == null || !queryStatusChecker.isQueryRunning()) {
-                done = true;
-            }
+            requestBuilder.marker(response.marker());
         }
+        while (response.marker() != null && queryStatusChecker.isQueryRunning());
     }
 
     /**
@@ -136,145 +133,145 @@ public class RdsTableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("instance_id", row, instance.getDBInstanceIdentifier());
-            matched &= block.offerValue("primary_az", row, instance.getAvailabilityZone());
-            matched &= block.offerValue("storage_gb", row, instance.getAllocatedStorage());
-            matched &= block.offerValue("is_encrypted", row, instance.getStorageEncrypted());
-            matched &= block.offerValue("storage_type", row, instance.getStorageType());
-            matched &= block.offerValue("backup_retention_days", row, instance.getBackupRetentionPeriod());
-            matched &= block.offerValue("auto_upgrade", row, instance.getAutoMinorVersionUpgrade());
-            matched &= block.offerValue("instance_class", row, instance.getDBInstanceClass());
-            matched &= block.offerValue("port", row, instance.getDbInstancePort());
-            matched &= block.offerValue("status", row, instance.getDBInstanceStatus());
-            matched &= block.offerValue("dbi_resource_id", row, instance.getDbiResourceId());
-            matched &= block.offerValue("name", row, instance.getDBName());
-            matched &= block.offerValue("engine", row, instance.getEngine());
-            matched &= block.offerValue("engine_version", row, instance.getEngineVersion());
-            matched &= block.offerValue("license_model", row, instance.getLicenseModel());
-            matched &= block.offerValue("secondary_az", row, instance.getSecondaryAvailabilityZone());
-            matched &= block.offerValue("backup_window", row, instance.getPreferredBackupWindow());
-            matched &= block.offerValue("maint_window", row, instance.getPreferredMaintenanceWindow());
-            matched &= block.offerValue("read_replica_source_id", row, instance.getReadReplicaSourceDBInstanceIdentifier());
-            matched &= block.offerValue("create_time", row, instance.getInstanceCreateTime());
-            matched &= block.offerValue("public_access", row, instance.getPubliclyAccessible());
-            matched &= block.offerValue("iops", row, instance.getIops());
-            matched &= block.offerValue("is_multi_az", row, instance.getMultiAZ());
+            matched &= block.offerValue("instance_id", row, instance.dbInstanceIdentifier());
+            matched &= block.offerValue("primary_az", row, instance.availabilityZone());
+            matched &= block.offerValue("storage_gb", row, instance.allocatedStorage());
+            matched &= block.offerValue("is_encrypted", row, instance.storageEncrypted());
+            matched &= block.offerValue("storage_type", row, instance.storageType());
+            matched &= block.offerValue("backup_retention_days", row, instance.backupRetentionPeriod());
+            matched &= block.offerValue("auto_upgrade", row, instance.autoMinorVersionUpgrade());
+            matched &= block.offerValue("instance_class", row, instance.dbInstanceClass());
+            matched &= block.offerValue("port", row, instance.dbInstancePort());
+            matched &= block.offerValue("status", row, instance.dbInstanceStatus());
+            matched &= block.offerValue("dbi_resource_id", row, instance.dbiResourceId());
+            matched &= block.offerValue("name", row, instance.dbName());
+            matched &= block.offerValue("engine", row, instance.engine());
+            matched &= block.offerValue("engine_version", row, instance.engineVersion());
+            matched &= block.offerValue("license_model", row, instance.licenseModel());
+            matched &= block.offerValue("secondary_az", row, instance.secondaryAvailabilityZone());
+            matched &= block.offerValue("backup_window", row, instance.preferredBackupWindow());
+            matched &= block.offerValue("maint_window", row, instance.preferredMaintenanceWindow());
+            matched &= block.offerValue("read_replica_source_id", row, instance.readReplicaSourceDBInstanceIdentifier());
+            matched &= block.offerValue("create_time", row, instance.instanceCreateTime());
+            matched &= block.offerValue("public_access", row, instance.publiclyAccessible());
+            matched &= block.offerValue("iops", row, instance.iops());
+            matched &= block.offerValue("is_multi_az", row, instance.multiAZ());
 
             matched &= block.offerComplexValue("domains", row, (Field field, Object val) -> {
                         if (field.getName().equals("domain")) {
-                            return ((DomainMembership) val).getDomain();
+                            return ((DomainMembership) val).domain();
                         }
                         else if (field.getName().equals("fqdn")) {
-                            return ((DomainMembership) val).getFQDN();
+                            return ((DomainMembership) val).fqdn();
                         }
                         else if (field.getName().equals("iam_role")) {
-                            return ((DomainMembership) val).getIAMRoleName();
+                            return ((DomainMembership) val).iamRoleName();
                         }
                         else if (field.getName().equals("status")) {
-                            return ((DomainMembership) val).getStatus();
+                            return ((DomainMembership) val).status();
                         }
 
                         throw new RuntimeException("Unexpected field " + field.getName());
                     },
-                    instance.getDomainMemberships());
+                    instance.domainMemberships());
 
             matched &= block.offerComplexValue("param_groups", row, (Field field, Object val) -> {
                         if (field.getName().equals("name")) {
-                            return ((DBParameterGroupStatus) val).getDBParameterGroupName();
+                            return ((DBParameterGroupStatus) val).dbParameterGroupName();
                         }
                         else if (field.getName().equals("status")) {
-                            return ((DBParameterGroupStatus) val).getParameterApplyStatus();
+                            return ((DBParameterGroupStatus) val).parameterApplyStatus();
                         }
                         throw new RuntimeException("Unexpected field " + field.getName());
                     },
-                    instance.getDBParameterGroups());
+                    instance.dbParameterGroups());
 
             matched &= block.offerComplexValue("db_security_groups",
                     row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("name")) {
-                            return ((DBSecurityGroupMembership) val).getDBSecurityGroupName();
+                            return ((DBSecurityGroupMembership) val).dbSecurityGroupName();
                         }
                         else if (field.getName().equals("status")) {
-                            return ((DBSecurityGroupMembership) val).getStatus();
+                            return ((DBSecurityGroupMembership) val).status();
                         }
                         throw new RuntimeException("Unexpected field " + field.getName());
                     },
-                    instance.getDBSecurityGroups());
+                    instance.dbSecurityGroups());
 
             matched &= block.offerComplexValue("subnet_group",
                     row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("description")) {
-                            return ((DBSubnetGroup) val).getDBSubnetGroupDescription();
+                            return ((DBSubnetGroup) val).dbSubnetGroupDescription();
                         }
                         else if (field.getName().equals("name")) {
-                            return ((DBSubnetGroup) val).getDBSubnetGroupName();
+                            return ((DBSubnetGroup) val).dbSubnetGroupName();
                         }
                         else if (field.getName().equals("status")) {
-                            return ((DBSubnetGroup) val).getSubnetGroupStatus();
+                            return ((DBSubnetGroup) val).subnetGroupStatus();
                         }
                         else if (field.getName().equals("vpc")) {
-                            return ((DBSubnetGroup) val).getVpcId();
+                            return ((DBSubnetGroup) val).vpcId();
                         }
                         else if (field.getName().equals("subnets")) {
-                            return ((DBSubnetGroup) val).getSubnets().stream()
-                                    .map(next -> next.getSubnetIdentifier()).collect(Collectors.toList());
+                            return ((DBSubnetGroup) val).subnets().stream()
+                                    .map(next -> next.subnetIdentifier()).collect(Collectors.toList());
                         }
                         else if (val instanceof Subnet) {
-                            return ((Subnet) val).getSubnetIdentifier();
+                            return ((Subnet) val).subnetIdentifier();
                         }
                         throw new RuntimeException("Unexpected field " + field.getName());
                     },
-                    instance.getDBSubnetGroup());
+                    instance.dbSubnetGroup());
 
             matched &= block.offerComplexValue("endpoint",
                     row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("address")) {
-                            return ((Endpoint) val).getAddress();
+                            return ((Endpoint) val).address();
                         }
                         else if (field.getName().equals("port")) {
-                            return ((Endpoint) val).getPort();
+                            return ((Endpoint) val).port();
                         }
                         else if (field.getName().equals("zone")) {
-                            return ((Endpoint) val).getHostedZoneId();
+                            return ((Endpoint) val).hostedZoneId();
                         }
                         throw new RuntimeException("Unexpected field " + field.getName());
                     },
-                    instance.getEndpoint());
+                    instance.endpoint());
 
             matched &= block.offerComplexValue("status_infos",
                     row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("message")) {
-                            return ((DBInstanceStatusInfo) val).getMessage();
+                            return ((DBInstanceStatusInfo) val).message();
                         }
                         else if (field.getName().equals("is_normal")) {
-                            return ((DBInstanceStatusInfo) val).getNormal();
+                            return ((DBInstanceStatusInfo) val).normal();
                         }
                         else if (field.getName().equals("status")) {
-                            return ((DBInstanceStatusInfo) val).getStatus();
+                            return ((DBInstanceStatusInfo) val).status();
                         }
                         else if (field.getName().equals("type")) {
-                            return ((DBInstanceStatusInfo) val).getStatusType();
+                            return ((DBInstanceStatusInfo) val).statusType();
                         }
                         throw new RuntimeException("Unexpected field " + field.getName());
                     },
-                    instance.getStatusInfos());
+                    instance.statusInfos());
 
             matched &= block.offerComplexValue("tags", row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("key")) {
-                            return ((Tag) val).getKey();
+                            return ((Tag) val).key();
                         }
                         else if (field.getName().equals("value")) {
-                            return ((Tag) val).getValue();
+                            return ((Tag) val).value();
                         }
 
                         throw new RuntimeException("Unexpected field " + field.getName());
                     },
-                    instance.getTagList());
+                    instance.tagList());
 
             return matched ? 1 : 0;
         });
