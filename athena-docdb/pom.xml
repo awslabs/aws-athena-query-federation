@@ -28,11 +28,11 @@
             <version>2022.47.1</version>
             <scope>test</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-docdb -->
+        <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/docdb -->
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-docdb</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>docdb</artifactId>
+            <version>${aws-sdk-v2.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/docdb -->
