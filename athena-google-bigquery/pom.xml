@@ -23,14 +23,20 @@
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
-            <version>5.14.0</version>
+            <version>5.15.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
         <dependency>
-            <groupId>software.amazon.awscdk</groupId>
+            <groupId>software.amazon.awssdk</groupId>
             <artifactId>rds</artifactId>
-            <version>${aws-cdk.version}</version>
+            <version>${aws-sdk-v2.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Google Bigquery SDK Dependencies-->
         <dependency>

@@ -40,9 +40,6 @@ import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
-import com.amazonaws.services.timestreamquery.model.QueryRequest;
-import com.amazonaws.services.timestreamquery.model.QueryResult;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
@@ -68,6 +65,9 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient;
+import software.amazon.awssdk.services.timestreamquery.model.QueryRequest;
+import software.amazon.awssdk.services.timestreamquery.model.QueryResponse;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -115,7 +115,7 @@ public class TimestreamRecordHandlerTest
     public TestName testName = new TestName();
 
     @Mock
-    private AmazonTimestreamQuery mockClient;
+    private TimestreamQueryClient mockClient;
 
     @Mock
     private SecretsManagerClient mockSecretsManager;
@@ -198,11 +198,11 @@ public class TimestreamRecordHandlerTest
         int numRowsGenerated = 1_000;
         String expectedQuery = "SELECT measure_name, measure_value::double, az, time, hostname, region FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
 
-        QueryResult mockResult = makeMockQueryResult(schemaForRead, numRowsGenerated);
+        QueryResponse mockResult = makeMockQueryResult(schemaForRead, numRowsGenerated);
         when(mockClient.query(nullable(QueryRequest.class)))
-                .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
+                            assertEquals(expectedQuery, request.queryString().replace("\n", ""));
                             return mockResult;
                         }
                 );
@@ -253,11 +253,11 @@ public class TimestreamRecordHandlerTest
     {
         String expectedQuery = "SELECT measure_name, measure_value::double, az, time, hostname, region FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
 
-        QueryResult mockResult = makeMockQueryResult(schemaForRead, 100_000);
+        QueryResponse mockResult = makeMockQueryResult(schemaForRead, 100_000);
         when(mockClient.query(nullable(QueryRequest.class)))
-                .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
+                            assertEquals(expectedQuery, request.queryString().replace("\n", ""));
                             return mockResult;
                         }
                 );
@@ -327,11 +327,11 @@ public class TimestreamRecordHandlerTest
 
         String expectedQuery = "WITH t1 AS ( select measure_name, az,sum(\"measure_value::double\") as value, count(*) as num_samples from \"my_schema\".\"my_table\" group by measure_name, az )  SELECT measure_name, az, value, num_samples FROM t1 WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
 
-        QueryResult mockResult = makeMockQueryResult(schemaForReadView, 1_000);
+        QueryResponse mockResult = makeMockQueryResult(schemaForReadView, 1_000);
         when(mockClient.query(nullable(QueryRequest.class)))
-                .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
+                            assertEquals(expectedQuery, request.queryString().replace("\n", ""));
                             return mockResult;
                         }
                 );
@@ -394,11 +394,11 @@ public class TimestreamRecordHandlerTest
 
         String expectedQuery = "WITH t1 AS ( select az, hostname, region,  CREATE_TIME_SERIES(time, measure_value::double) as cpu_utilization from \"my_schema\".\"my_table\" WHERE measure_name = 'cpu_utilization' GROUP BY measure_name, az, hostname, region )  SELECT region, az, hostname, cpu_utilization FROM t1 WHERE (\"az\" IN ('us-east-1a','us-east-1b'))";
 
-        QueryResult mockResult = makeMockQueryResult(schemaForReadView, 1_000);
+        QueryResponse mockResult = makeMockQueryResult(schemaForReadView, 1_000);
         when(mockClient.query(nullable(QueryRequest.class)))
-                .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals("actual: " + request.getQueryString(), expectedQuery, request.getQueryString().replace("\n", ""));
+                            assertEquals("actual: " + request.queryString(), expectedQuery, request.queryString().replace("\n", ""));
                             return mockResult;
                         }
                 );
@@ -449,11 +449,11 @@ public class TimestreamRecordHandlerTest
         int numRows = 10;
         String expectedQuery = "SELECT measure_name, measure_value::double, az, time, hostname, region FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a'))";
 
-        QueryResult mockResult = makeMockQueryResult(schemaForRead, numRows, numRows, false);
+        QueryResponse mockResult = makeMockQueryResult(schemaForRead, numRows, numRows, false);
         when(mockClient.query(nullable(QueryRequest.class)))
-                .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
+                .thenAnswer((Answer<QueryResponse>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
+                            assertEquals(expectedQuery, request.queryString().replace("\n", ""));
                             return mockResult;
                         }
                 );

@@ -26,14 +26,6 @@ import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduceClientBuilder;
-import com.amazonaws.services.elasticmapreduce.model.Application;
-import com.amazonaws.services.elasticmapreduce.model.ClusterSummary;
-import com.amazonaws.services.elasticmapreduce.model.DescribeClusterRequest;
-import com.amazonaws.services.elasticmapreduce.model.DescribeClusterResult;
-import com.amazonaws.services.elasticmapreduce.model.ListClustersRequest;
-import com.amazonaws.services.elasticmapreduce.model.ListClustersResult;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +38,13 @@ import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.emr.CfnCluster;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.emr.EmrClient;
+import software.amazon.awssdk.services.emr.model.Application;
+import software.amazon.awssdk.services.emr.model.ClusterSummary;
+import software.amazon.awssdk.services.emr.model.DescribeClusterRequest;
+import software.amazon.awssdk.services.emr.model.DescribeClusterResponse;
+import software.amazon.awssdk.services.emr.model.ListClustersRequest;
+import software.amazon.awssdk.services.emr.model.ListClustersResponse;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvocationType;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
@@ -145,10 +144,10 @@ public class HbaseIntegTest extends IntegrationTestBase
                 .name(dbClusterName)
                 .visibleToAllUsers(Boolean.TRUE)
                 .applications(ImmutableList.of(
-                        new Application().withName("HBase"),
-                        new Application().withName("Hive"),
-                        new Application().withName("Hue"),
-                        new Application().withName("Phoenix")))
+                        Application.builder().name("HBase").build(),
+                        Application.builder().name("Hive").build(),
+                        Application.builder().name("Hue").build(),
+                        Application.builder().name("Phoenix").build()))
                 .instances(CfnCluster.JobFlowInstancesConfigProperty.builder()
                         .emrManagedMasterSecurityGroup(vpcAttributes.getSecurityGroupId())
                         .emrManagedSlaveSecurityGroup(vpcAttributes.getSecurityGroupId())
@@ -179,27 +178,27 @@ public class HbaseIntegTest extends IntegrationTestBase
      */
     private String getClusterData()
     {
-        AmazonElasticMapReduce emrClient = AmazonElasticMapReduceClientBuilder.defaultClient();
+        EmrClient emrClient = EmrClient.create();
         try {
-            ListClustersResult listClustersResult;
+            ListClustersResponse listClustersResult;
             String marker = null;
             Optional<String> dbClusterId;
             do { // While cluster Id has not yet been found and there are more paginated results.
                 // Get paginated list of EMR clusters.
-                listClustersResult = emrClient.listClusters(new ListClustersRequest().withMarker(marker));
+                listClustersResult = emrClient.listClusters(ListClustersRequest.builder().marker(marker).build());
                 // Get the cluster id.
                 dbClusterId = getClusterId(listClustersResult);
                 // Get the marker for the next paginated request.
-                marker = listClustersResult.getMarker();
+                marker = listClustersResult.marker();
             } while (!dbClusterId.isPresent() && marker != null);
             // Get the cluster description using the cluster id.
-            DescribeClusterResult clusterResult = emrClient.describeCluster(new DescribeClusterRequest()
-                    .withClusterId(dbClusterId.orElseThrow(() ->
-                            new RuntimeException("Unable to get cluster description for: " + dbClusterName))));
-            return clusterResult.getCluster().getMasterPublicDnsName();
+            DescribeClusterResponse clusterResult = emrClient.describeCluster(DescribeClusterRequest.builder()
+                    .clusterId(dbClusterId.orElseThrow(() ->
+                            new RuntimeException("Unable to get cluster description for: " + dbClusterName))).build());
+            return clusterResult.cluster().masterPublicDnsName();
         }
         finally {
-            emrClient.shutdown();
+            emrClient.close();
         }
     }
 
@@ -209,12 +208,12 @@ public class HbaseIntegTest extends IntegrationTestBase
      * @return Optional String containing the cluster Id that matches the cluster name, or Optional.empty() if match
      * was not found.
      */
-    private Optional<String> getClusterId(ListClustersResult listClustersResult)
+    private Optional<String> getClusterId(ListClustersResponse listClustersResult)
     {
-        for (ClusterSummary clusterSummary : listClustersResult.getClusters()) {
-            if (clusterSummary.getName().equals(dbClusterName)) {
+        for (ClusterSummary clusterSummary : listClustersResult.clusters()) {
+            if (clusterSummary.name().equals(dbClusterName)) {
                 // Found match for cluster name - return cluster id.
-                String clusterId = clusterSummary.getId();
+                String clusterId = clusterSummary.id();
                 logger.info("Found Cluster Id for {}: {}", dbClusterName, clusterId);
                 return Optional.of(clusterId);
             }

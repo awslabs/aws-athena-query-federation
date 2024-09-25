@@ -40,17 +40,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
-import com.amazonaws.services.timestreamquery.model.Datum;
-import com.amazonaws.services.timestreamquery.model.QueryRequest;
-import com.amazonaws.services.timestreamquery.model.QueryResult;
-import com.amazonaws.services.timestreamquery.model.Row;
-import com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite;
-import com.amazonaws.services.timestreamwrite.model.Database;
-import com.amazonaws.services.timestreamwrite.model.ListDatabasesRequest;
-import com.amazonaws.services.timestreamwrite.model.ListDatabasesResult;
-import com.amazonaws.services.timestreamwrite.model.ListTablesResult;
-import com.amazonaws.services.timestreamwrite.model.Table;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -68,6 +57,16 @@ import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.StorageDescriptor;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient;
+import software.amazon.awssdk.services.timestreamquery.model.Datum;
+import software.amazon.awssdk.services.timestreamquery.model.QueryRequest;
+import software.amazon.awssdk.services.timestreamquery.model.QueryResponse;
+import software.amazon.awssdk.services.timestreamquery.model.Row;
+import software.amazon.awssdk.services.timestreamwrite.TimestreamWriteClient;
+import software.amazon.awssdk.services.timestreamwrite.model.Database;
+import software.amazon.awssdk.services.timestreamwrite.model.ListDatabasesRequest;
+import software.amazon.awssdk.services.timestreamwrite.model.ListDatabasesResponse;
+import software.amazon.awssdk.services.timestreamwrite.model.Table;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,9 +76,9 @@ import java.util.List;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -99,9 +98,9 @@ public class TimestreamMetadataHandlerTest
     @Mock
     protected AthenaClient mockAthena;
     @Mock
-    protected AmazonTimestreamQuery mockTsQuery;
+    protected TimestreamQueryClient mockTsQuery;
     @Mock
-    protected AmazonTimestreamWrite mockTsMeta;
+    protected TimestreamWriteClient mockTsMeta;
     @Mock
     protected GlueClient mockGlue;
 
@@ -140,26 +139,26 @@ public class TimestreamMetadataHandlerTest
 
             String newNextToken = null;
             List<Database> databases = new ArrayList<>();
-            if (request.getNextToken() == null) {
+            if (request.nextToken() == null) {
                 for (int i = 0; i < 10; i++) {
-                    databases.add(new Database().withDatabaseName("database_" + i));
+                    databases.add(Database.builder().databaseName("database_" + i).build());
                 }
                 newNextToken = "1";
             }
-            else if (request.getNextToken().equals("1")) {
+            else if (request.nextToken().equals("1")) {
                 for (int i = 10; i < 100; i++) {
-                    databases.add(new Database().withDatabaseName("database_" + i));
+                    databases.add(Database.builder().databaseName("database_" + i).build());
                 }
                 newNextToken = "2";
             }
-            else if (request.getNextToken().equals("2")) {
+            else if (request.nextToken().equals("2")) {
                 for (int i = 100; i < 1000; i++) {
-                    databases.add(new Database().withDatabaseName("database_" + i));
+                    databases.add(Database.builder().databaseName("database_" + i).build());
                 }
                 newNextToken = null;
             }
 
-            return new ListDatabasesResult().withDatabases(databases).withNextToken(newNextToken);
+            return ListDatabasesResponse.builder().databases(databases).nextToken(newNextToken).build();
         });
 
         ListSchemasRequest req = new ListSchemasRequest(identity, "queryId", "default");
@@ -182,33 +181,33 @@ public class TimestreamMetadataHandlerTest
     {
         logger.info("doListTables - enter");
 
-        when(mockTsMeta.listTables(nullable(com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class)))
+        when(mockTsMeta.listTables(nullable(software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
-                    com.amazonaws.services.timestreamwrite.model.ListTablesRequest request =
-                            invocation.getArgument(0, com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class);
+                    software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest request =
+                            invocation.getArgument(0, software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class);
 
                     String newNextToken = null;
                     List<Table> tables = new ArrayList<>();
-                    if (request.getNextToken() == null) {
+                    if (request.nextToken() == null) {
                         for (int i = 0; i < 10; i++) {
-                            tables.add(new Table().withDatabaseName(request.getDatabaseName()).withTableName("table_" + i));
+                            tables.add(Table.builder().databaseName(request.databaseName()).tableName("table_" + i).build());
                         }
                         newNextToken = "1";
                     }
-                    else if (request.getNextToken().equals("1")) {
+                    else if (request.nextToken().equals("1")) {
                         for (int i = 10; i < 100; i++) {
-                            tables.add(new Table().withDatabaseName(request.getDatabaseName()).withTableName("table_" + i));
+                            tables.add(Table.builder().databaseName(request.databaseName()).tableName("table_" + i).build());
                         }
                         newNextToken = "2";
                     }
-                    else if (request.getNextToken().equals("2")) {
+                    else if (request.nextToken().equals("2")) {
                         for (int i = 100; i < 1000; i++) {
-                            tables.add(new Table().withDatabaseName(request.getDatabaseName()).withTableName("table_" + i));
+                            tables.add(Table.builder().databaseName(request.databaseName()).tableName("table_" + i).build());
                         }
                         newNextToken = null;
                     }
 
-                    return new ListTablesResult().withTables(tables).withNextToken(newNextToken);
+                    return software.amazon.awssdk.services.timestreamwrite.model.ListTablesResponse.builder().tables(tables).nextToken(newNextToken).build();
                 });
 
         ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema,
@@ -218,7 +217,7 @@ public class TimestreamMetadataHandlerTest
 
         assertEquals(1000, res.getTables().size());
         verify(mockTsMeta, times(3))
-                .listTables(nullable(com.amazonaws.services.timestreamwrite.model.ListTablesRequest.class));
+                .listTables(nullable(software.amazon.awssdk.services.timestreamwrite.model.ListTablesRequest.class));
 
         Iterator<TableName> schemaItr = res.getTables().iterator();
         for (int i = 0; i < 1000; i++) {
@@ -241,24 +240,24 @@ public class TimestreamMetadataHandlerTest
 
         when(mockTsQuery.query(nullable(QueryRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             QueryRequest request = invocation.getArgument(0, QueryRequest.class);
-            assertEquals("DESCRIBE \"default\".\"table1\"", request.getQueryString());
+            assertEquals("DESCRIBE \"default\".\"table1\"", request.queryString());
             List<Row> rows = new ArrayList<>();
 
             //TODO: Add types here
-            rows.add(new Row().withData(new Datum().withScalarValue("availability_zone"),
-                    new Datum().withScalarValue("varchar"),
-                    new Datum().withScalarValue("dimension")));
-            rows.add(new Row().withData(new Datum().withScalarValue("measure_value"),
-                    new Datum().withScalarValue("double"),
-                    new Datum().withScalarValue("measure_value")));
-            rows.add(new Row().withData(new Datum().withScalarValue("measure_name"),
-                    new Datum().withScalarValue("varchar"),
-                    new Datum().withScalarValue("measure_name")));
-            rows.add(new Row().withData(new Datum().withScalarValue("time"),
-                    new Datum().withScalarValue("timestamp"),
-                    new Datum().withScalarValue("timestamp")));
+            rows.add(Row.builder().data(Datum.builder().scalarValue("availability_zone").build(),
+                    Datum.builder().scalarValue("varchar").build(),
+                    Datum.builder().scalarValue("dimension").build()).build());
+            rows.add(Row.builder().data(Datum.builder().scalarValue("measure_value").build(),
+                    Datum.builder().scalarValue("double").build(),
+                    Datum.builder().scalarValue("measure_value").build()).build());
+            rows.add(Row.builder().data(Datum.builder().scalarValue("measure_name").build(),
+                    Datum.builder().scalarValue("varchar").build(),
+                    Datum.builder().scalarValue("measure_name").build()).build());
+            rows.add(Row.builder().data(Datum.builder().scalarValue("time").build(),
+                    Datum.builder().scalarValue("timestamp").build(),
+                    Datum.builder().scalarValue("timestamp").build()).build());
 
-            return new QueryResult().withRows(rows);
+            return QueryResponse.builder().rows(rows).build();
         });
 
         GetTableRequest req = new GetTableRequest(identity,
