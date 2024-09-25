@@ -48,11 +48,6 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -62,6 +57,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -80,6 +80,9 @@ import java.util.UUID;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_DRIVER_CLASS;
 import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_NAME;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_EXPORT_BUCKET;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_OBJECT_KEY;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_QUERY_ID;
 import static com.amazonaws.athena.connectors.vertica.VerticaSchemaUtils.convertToArrowType;
 
 
@@ -100,7 +103,7 @@ public class VerticaMetadataHandler
     private static final String[] TABLE_TYPES = {"TABLE"};
     private final QueryFactory queryFactory = new QueryFactory();
     private final VerticaSchemaUtils verticaSchemaUtils;
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
 
     private final JdbcQueryPassthrough queryPassthrough = new JdbcQueryPassthrough();
 
@@ -117,11 +120,11 @@ public class VerticaMetadataHandler
     public VerticaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, Map<String, String> configOptions)
     {
         super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
-        amazonS3 = AmazonS3ClientBuilder.defaultClient();
+        amazonS3 = S3Client.create();
         verticaSchemaUtils = new VerticaSchemaUtils();
     }
     @VisibleForTesting
-    public VerticaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, Map<String, String> configOptions, AmazonS3 amazonS3, VerticaSchemaUtils verticaSchemaUtils)
+    public VerticaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, Map<String, String> configOptions, S3Client amazonS3, VerticaSchemaUtils verticaSchemaUtils)
     {
         super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.amazonS3 = amazonS3;
@@ -298,8 +301,8 @@ public class VerticaMetadataHandler
         }
 
         logger.info("Vertica Export Statement: {}", preparedSQLStmt);
-        // Build the Set AWS Region SQL
-        String awsRegionSql = queryBuilder.buildSetAwsRegionSql(amazonS3.getRegion().toString());
+        // Build the Set AWS Region SQL - Assumes using the default region provider chain
+        String awsRegionSql = queryBuilder.buildSetAwsRegionSql(DefaultAwsRegionProviderChain.builder().build().getRegion().toString());
 
         // write the prepared SQL statement to the partition column created in enhancePartitionSchema
         blockWriter.writeRows((Block block, int rowNum) ->{
@@ -374,16 +377,16 @@ public class VerticaMetadataHandler
          * For each generated S3 object, create a split and add data to the split.
          */
         Split split;
-        List<S3ObjectSummary> s3ObjectSummaries = getlistExportedObjects(exportBucket, queryId);
+        List<S3Object> s3ObjectsList = getlistExportedObjects(exportBucket, queryId);
 
-        if(!s3ObjectSummaries.isEmpty())
+        if(!s3ObjectsList.isEmpty())
         {
-            for (S3ObjectSummary objectSummary : s3ObjectSummaries)
+            for (S3Object s3Object : s3ObjectsList)
             {
                 split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                        .add("query_id", queryID)
-                        .add("exportBucket", exportBucket)
-                        .add("s3ObjectKey", objectSummary.getKey())
+                        .add(VERTICA_SPLIT_QUERY_ID, queryID)
+                        .add(VERTICA_SPLIT_EXPORT_BUCKET, exportBucket)
+                        .add(VERTICA_SPLIT_OBJECT_KEY, s3Object.key())
                         .build();
                 splits.add(split);
 
@@ -395,9 +398,9 @@ public class VerticaMetadataHandler
             //No records were exported by Vertica for the issued query, creating a "empty" split
             logger.info("No records were exported by Vertica");
             split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                    .add("query_id", queryID)
-                    .add("exportBucket", exportBucket)
-                    .add("s3ObjectKey", EMPTY_STRING)
+                    .add(VERTICA_SPLIT_QUERY_ID, queryID)
+                    .add(VERTICA_SPLIT_EXPORT_BUCKET, exportBucket)
+                    .add(VERTICA_SPLIT_OBJECT_KEY, EMPTY_STRING)
                     .build();
             splits.add(split);
             return new GetSplitsResponse(catalogName,split);
@@ -428,17 +431,20 @@ public class VerticaMetadataHandler
     /*
      * Get the list of all the exported S3 objects
      */
-    private List<S3ObjectSummary> getlistExportedObjects(String s3ExportBucket, String queryId){
-        ObjectListing objectListing;
+    private List<S3Object> getlistExportedObjects(String s3ExportBucket, String queryId){
+        ListObjectsResponse listObjectsResponse;
         try
         {
-            objectListing = amazonS3.listObjects(new ListObjectsRequest().withBucketName(s3ExportBucket).withPrefix(queryId));
+            listObjectsResponse = amazonS3.listObjects(ListObjectsRequest.builder()
+                    .bucket(s3ExportBucket)
+                    .prefix(queryId)
+                    .build());
         }
         catch (SdkClientException e)
         {
             throw new RuntimeException("Exception listing the exported objects : " + e.getMessage(), e);
         }
-        return objectListing.getObjectSummaries();
+        return listObjectsResponse.contents();
     }
 
     private void testAccess(Connection conn, TableName table) {

@@ -42,19 +42,18 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.cloudwatch.model.MetricStat;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.CollectionUtils;
 import com.google.common.collect.Lists;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -107,7 +106,7 @@ public class MetricsMetadataHandler
     //Used to handle throttling events by applying AIMD congestion control
     private final ThrottlingInvoker invoker;
 
-    private final AmazonCloudWatch metrics;
+    private final CloudWatchClient metrics;
 
     static {
         //The statistics supported by Cloudwatch Metrics by default
@@ -133,16 +132,16 @@ public class MetricsMetadataHandler
     public MetricsMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(SOURCE_TYPE, configOptions);
-        this.metrics = AmazonCloudWatchClientBuilder.standard().build();
+        this.metrics = CloudWatchClient.create();
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
     }
 
     @VisibleForTesting
     protected MetricsMetadataHandler(
-        AmazonCloudWatch metrics,
+        CloudWatchClient metrics,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         String spillBucket,
         String spillPrefix,
         java.util.Map<String, String> configOptions)
@@ -235,33 +234,36 @@ public class MetricsMetadataHandler
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(blockAllocator,
                 METRIC_DATA_TABLE.getSchema(),
                 getSplitsRequest.getConstraints())) {
-            ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
-            MetricUtils.pushDownPredicate(getSplitsRequest.getConstraints(), listMetricsRequest);
-            listMetricsRequest.setNextToken(getSplitsRequest.getContinuationToken());
+            ListMetricsRequest.Builder listMetricsRequestBuilder = ListMetricsRequest.builder();
+            MetricUtils.pushDownPredicate(getSplitsRequest.getConstraints(), listMetricsRequestBuilder);
+            listMetricsRequestBuilder.nextToken(getSplitsRequest.getContinuationToken());
 
             String period = getPeriodFromConstraint(getSplitsRequest.getConstraints());
             Set<Split> splits = new HashSet<>();
-            ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
+            ListMetricsRequest listMetricsRequest = listMetricsRequestBuilder.build();
+            ListMetricsResponse result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
 
             List<MetricStat> metricStats = new ArrayList<>(100);
-            for (Metric nextMetric : result.getMetrics()) {
+            for (Metric nextMetric : result.metrics()) {
                 for (String nextStatistic : STATISTICS) {
                     if (MetricUtils.applyMetricConstraints(constraintEvaluator, nextMetric, nextStatistic)) {
-                        metricStats.add(new MetricStat()
-                                .withMetric(new Metric()
-                                        .withNamespace(nextMetric.getNamespace())
-                                        .withMetricName(nextMetric.getMetricName())
-                                        .withDimensions(nextMetric.getDimensions()))
-                                .withPeriod(Integer.valueOf(period))
-                                .withStat(nextStatistic));
+                        metricStats.add(MetricStat.builder()
+                                .metric(Metric.builder()
+                                        .namespace(nextMetric.namespace())
+                                        .metricName(nextMetric.metricName())
+                                        .dimensions(nextMetric.dimensions())
+                                        .build())
+                                .period(Integer.valueOf(period))
+                                .stat(nextStatistic)
+                                .build());
                     }
                 }
             }
 
             String continuationToken = null;
-            if (result.getNextToken() != null &&
-                    !result.getNextToken().equalsIgnoreCase(listMetricsRequest.getNextToken())) {
-                continuationToken = result.getNextToken();
+            if (result.nextToken() != null &&
+                    !result.nextToken().equalsIgnoreCase(listMetricsRequest.nextToken())) {
+                continuationToken = result.nextToken();
             }
 
             if (CollectionUtils.isNullOrEmpty(metricStats)) {

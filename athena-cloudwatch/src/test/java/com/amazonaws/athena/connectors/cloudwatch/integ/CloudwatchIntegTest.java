@@ -20,12 +20,6 @@
 package com.amazonaws.athena.connectors.cloudwatch.integ;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
-import com.amazonaws.services.athena.model.Row;
-import com.amazonaws.services.logs.AWSLogs;
-import com.amazonaws.services.logs.AWSLogsClientBuilder;
-import com.amazonaws.services.logs.model.DeleteLogGroupRequest;
-import com.amazonaws.services.logs.model.InputLogEvent;
-import com.amazonaws.services.logs.model.PutLogEventsRequest;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +32,10 @@ import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.LogStream;
+import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.InputLogEvent;
+import software.amazon.awssdk.services.cloudwatchlogs.model.PutLogEventsRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -134,20 +132,21 @@ public class CloudwatchIntegTest extends IntegrationTestBase
         logger.info("Setting up Log Group: {}, Log Stream: {}", logGroupName, logStreamName);
         logger.info("----------------------------------------------------");
 
-        AWSLogs logsClient = AWSLogsClientBuilder.defaultClient();
+        CloudWatchLogsClient logsClient = CloudWatchLogsClient.create();
 
         try {
-            logsClient.putLogEvents(new PutLogEventsRequest()
-                    .withLogGroupName(logGroupName)
-                    .withLogStreamName(logStreamName)
-                    .withLogEvents(
-                            new InputLogEvent().withTimestamp(currentTimeMillis).withMessage("Space, the final frontier."),
-                            new InputLogEvent().withTimestamp(fromTimeMillis).withMessage(logMessage),
-                            new InputLogEvent().withTimestamp(toTimeMillis + 5000)
-                                    .withMessage("To boldly go where no man has gone before!")));
+            logsClient.putLogEvents(PutLogEventsRequest.builder()
+                    .logGroupName(logGroupName)
+                    .logStreamName(logStreamName)
+                    .logEvents(
+                            InputLogEvent.builder().timestamp(currentTimeMillis).message("Space, the final frontier.").build(),
+                            InputLogEvent.builder().timestamp(fromTimeMillis).message(logMessage).build(),
+                            InputLogEvent.builder().timestamp(toTimeMillis + 5000)
+                                    .message("To boldly go where no man has gone before!").build())
+                    .build());
         }
         finally {
-            logsClient.shutdown();
+            logsClient.close();
         }
     }
 
@@ -268,13 +267,13 @@ public class CloudwatchIntegTest extends IntegrationTestBase
 
         String query = String.format("select message from %s.\"%s\".\"%s\" where time between %d and %d;",
                 lambdaFunctionName, logGroupName, logStreamName, fromTimeMillis, toTimeMillis);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> messages = new ArrayList<>();
-        rows.forEach(row -> messages.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> messages.add(row.data().get(0).varCharValue()));
         logger.info("Messages: {}", messages);
         assertEquals("Wrong number of log messages found.", 1, messages.size());
         assertTrue("Expecting log message: " + logMessage, messages.contains(logMessage));

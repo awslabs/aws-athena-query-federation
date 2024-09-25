@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connectors.hortonworks.ImpalaFederationExpressionParser;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;

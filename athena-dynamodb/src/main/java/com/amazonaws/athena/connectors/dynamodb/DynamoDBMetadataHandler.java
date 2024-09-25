@@ -56,11 +56,6 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -71,10 +66,15 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementResponse;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -131,15 +131,15 @@ public class DynamoDBMetadataHandler
     // defines the value that should be present in the Glue Database URI to enable the DB for DynamoDB.
     static final String DYNAMO_DB_FLAG = "dynamo-db-flag";
     // used to filter out Glue tables which lack indications of being used for DDB.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(DYNAMODB)
-            || (table.getParameters() != null && DYNAMODB.equals(table.getParameters().get("classification")))
-            || (table.getStorageDescriptor().getParameters() != null && DYNAMODB.equals(table.getStorageDescriptor().getParameters().get("classification")));
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.storageDescriptor().location().contains(DYNAMODB)
+            || (table.parameters() != null && DYNAMODB.equals(table.parameters().get("classification")))
+            || (table.storageDescriptor().parameters() != null && DYNAMODB.equals(table.storageDescriptor().parameters().get("classification")));
     // used to filter out Glue databases which lack the DYNAMO_DB_FLAG in the URI.
-    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DYNAMO_DB_FLAG));
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(DYNAMO_DB_FLAG));
 
     private final ThrottlingInvoker invoker;
     private final DynamoDbClient ddbClient;
-    private final AWSGlue glueClient;
+    private final GlueClient glueClient;
     private final DynamoDBTableResolver tableResolver;
 
     private final DDBQueryPassthrough queryPassthrough;
@@ -159,12 +159,12 @@ public class DynamoDBMetadataHandler
     @VisibleForTesting
     DynamoDBMetadataHandler(
             EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
+            SecretsManagerClient secretsManager,
+            AthenaClient athena,
             String spillBucket,
             String spillPrefix,
             DynamoDbClient ddbClient,
-            AWSGlue glueClient,
+            GlueClient glueClient,
             java.util.Map<String, String> configOptions)
     {
         super(glueClient, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);

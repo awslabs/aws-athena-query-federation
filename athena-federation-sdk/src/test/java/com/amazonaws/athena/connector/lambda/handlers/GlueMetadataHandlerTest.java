@@ -41,20 +41,22 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.GetDatabasesRequest;
-import com.amazonaws.services.glue.model.GetDatabasesResult;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetTablesRequest;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.GetDatabaseResponse;
+import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
+import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResponse;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.paginators.GetDatabasesIterable;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -114,11 +116,11 @@ public class GlueMetadataHandlerTest
     // consider the order of the tables deterministic (i.e. pagination will work irrespective of the order that the
     // tables are returned from the source).
     private final List<Table> unPaginatedTables = new ImmutableList.Builder<Table>()
-            .add(new Table().withName("table3"))
-            .add(new Table().withName("table2"))
-            .add(new Table().withName("table5"))
-            .add(new Table().withName("table4"))
-            .add(new Table().withName("table1"))
+            .add(Table.builder().name("table3").build())
+            .add(Table.builder().name("table2").build())
+            .add(Table.builder().name("table5").build())
+            .add(Table.builder().name("table4").build())
+            .add(Table.builder().name("table1").build())
             .build();
 
     // The following response is expected be returned from doListTables when the pagination pageSize is greater than
@@ -136,7 +138,7 @@ public class GlueMetadataHandlerTest
     public TestName testName = new TestName();
 
     @Mock
-    private AWSGlue mockGlue;
+    private GlueClient mockGlue;
 
     @Mock
     private Context mockContext;
@@ -149,8 +151,8 @@ public class GlueMetadataHandlerTest
 
         handler = new GlueMetadataHandler(mockGlue,
                 new LocalKeyFactory(),
-                mock(AWSSecretsManager.class),
-                mock(AmazonAthena.class),
+                mock(SecretsManagerClient.class),
+                mock(AthenaClient.class),
                 "glue-test",
                 "spill-bucket",
                 "spill-prefix",
@@ -187,33 +189,39 @@ public class GlueMetadataHandlerTest
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     GetTablesRequest request = (GetTablesRequest) invocationOnMock.getArguments()[0];
-                    String nextToken = request.getNextToken();
-                    int pageSize = request.getMaxResults() == null ? UNLIMITED_PAGE_SIZE_VALUE : request.getMaxResults();
-                    assertEquals(accountId, request.getCatalogId());
-                    assertEquals(schema, request.getDatabaseName());
-                    GetTablesResult mockResult = mock(GetTablesResult.class);
+                    String nextToken = request.nextToken();
+                    int pageSize = request.maxResults() == null ? UNLIMITED_PAGE_SIZE_VALUE : request.maxResults();
+                    assertEquals(accountId, request.catalogId());
+                    assertEquals(schema, request.databaseName());
+                    GetTablesResponse response;
                     if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
                         // Simulate full list of tables returned from Glue.
-                        when(mockResult.getTableList()).thenReturn(unPaginatedTables);
-                        when(mockResult.getNextToken()).thenReturn(null);
+                        response = GetTablesResponse.builder()
+                                .tableList(unPaginatedTables)
+                                .nextToken(null)
+                                .build();
                     }
                     else {
                         // Simulate paginated list of tables returned from Glue.
                         List<Table> paginatedTables = unPaginatedTables.stream()
-                                .sorted(Comparator.comparing(Table::getName))
-                                .filter(table -> nextToken == null || table.getName().compareTo(nextToken) >= 0)
+                                .sorted(Comparator.comparing(Table::name))
+                                .filter(table -> nextToken == null || table.name().compareTo(nextToken) >= 0)
                                 .limit(pageSize + 1)
                                 .collect(Collectors.toList());
                         if (paginatedTables.size() > pageSize) {
-                            when(mockResult.getNextToken()).thenReturn(paginatedTables.get(pageSize).getName());
-                            when(mockResult.getTableList()).thenReturn(paginatedTables.subList(0, pageSize));
+                            response = GetTablesResponse.builder()
+                                    .tableList(paginatedTables.subList(0, pageSize))
+                                    .nextToken(paginatedTables.get(pageSize).name())
+                                    .build();
                         }
                         else {
-                            when(mockResult.getNextToken()).thenReturn(null);
-                            when(mockResult.getTableList()).thenReturn(paginatedTables);
+                            response = GetTablesResponse.builder()
+                                    .tableList(paginatedTables)
+                                    .nextToken(null)
+                                    .build();
                         }
                     }
-                    return mockResult;
+                    return response;
                 });
     }
 
@@ -222,6 +230,7 @@ public class GlueMetadataHandlerTest
             throws Exception
     {
         allocator.close();
+        mockGlue.close();
         logger.info("{}: exit ", testName.getMethodName());
     }
 
@@ -230,25 +239,18 @@ public class GlueMetadataHandlerTest
             throws Exception
     {
         List<Database> databases = new ArrayList<>();
-        databases.add(new Database().withName("db1"));
-        databases.add(new Database().withName("db2"));
+        databases.add(Database.builder().name("db1").build());
+        databases.add(Database.builder().name("db2").build());
 
-        when(mockGlue.getDatabases(nullable(GetDatabasesRequest.class)))
+        when(mockGlue.getDatabasesPaginator(nullable(GetDatabasesRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     GetDatabasesRequest request = (GetDatabasesRequest) invocationOnMock.getArguments()[0];
-                    assertEquals(accountId, request.getCatalogId());
-                    GetDatabasesResult mockResult = mock(GetDatabasesResult.class);
-                    if (request.getNextToken() == null) {
-                        when(mockResult.getDatabaseList()).thenReturn(databases);
-                        when(mockResult.getNextToken()).thenReturn("next");
-                    }
-                    else {
-                        //only return real info on 1st call
-                        when(mockResult.getDatabaseList()).thenReturn(new ArrayList<>());
-                        when(mockResult.getNextToken()).thenReturn(null);
-                    }
-                    return mockResult;
+                    assertEquals(accountId, request.catalogId());
+                    GetDatabasesIterable mockIterable = mock(GetDatabasesIterable.class);
+                    GetDatabasesResponse response = GetDatabasesResponse.builder().databaseList(databases).build();
+                    when(mockIterable.stream()).thenReturn(Collections.singletonList(response).stream());
+                    return mockIterable;
                 });
 
         ListSchemasRequest req = new ListSchemasRequest(IdentityUtil.fakeIdentity(), queryId, catalog);
@@ -256,10 +258,8 @@ public class GlueMetadataHandlerTest
 
         logger.info("doListSchemas - {}", res.getSchemas());
 
-        assertEquals(databases.stream().map(next -> next.getName()).collect(Collectors.toList()),
+        assertEquals(databases.stream().map(next -> next.name()).collect(Collectors.toList()),
                 new ArrayList<>(res.getSchemas()));
-
-        verify(mockGlue, times(2)).getDatabases(nullable(GetDatabasesRequest.class));
     }
 
     @Test
@@ -330,38 +330,32 @@ public class GlueMetadataHandlerTest
         expectedParams.put(DATETIME_FORMAT_MAPPING_PROPERTY, "col2=someformat2, col1=someformat1 ");
 
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col1").withType("int").withComment("comment"));
-        columns.add(new Column().withName("col2").withType("bigint").withComment("comment"));
-        columns.add(new Column().withName("col3").withType("string").withComment("comment"));
-        columns.add(new Column().withName("col4").withType("timestamp").withComment("comment"));
-        columns.add(new Column().withName("col5").withType("date").withComment("comment"));
-        columns.add(new Column().withName("col6").withType("timestamptz").withComment("comment"));
-        columns.add(new Column().withName("col7").withType("timestamptz").withComment("comment"));
+        columns.add(Column.builder().name("col1").type("int").comment("comment").build());
+        columns.add(Column.builder().name("col2").type("bigint").comment("comment").build());
+        columns.add(Column.builder().name("col3").type("string").comment("comment").build());
+        columns.add(Column.builder().name("col4").type("timestamp").comment("comment").build());
+        columns.add(Column.builder().name("col5").type("date").comment("comment").build());
+        columns.add(Column.builder().name("col6").type("timestamptz").comment("comment").build());
+        columns.add(Column.builder().name("col7").type("timestamptz").comment("comment").build());
+        columns.add(Column.builder().name("partition_col1").type("int").comment("comment").build());
+        
+        StorageDescriptor sd = StorageDescriptor.builder().columns(columns).build();
+        Table returnTable = Table.builder().storageDescriptor(sd).name(table).parameters(expectedParams).build();
 
-        List<Column> partitionKeys = new ArrayList<>();
-        columns.add(new Column().withName("partition_col1").withType("int").withComment("comment"));
-
-        Table mockTable = mock(Table.class);
-        StorageDescriptor mockSd = mock(StorageDescriptor.class);
-
-        Mockito.lenient().when(mockTable.getName()).thenReturn(table);
-        when(mockTable.getStorageDescriptor()).thenReturn(mockSd);
-        when(mockTable.getParameters()).thenReturn(expectedParams);
-        when(mockSd.getColumns()).thenReturn(columns);
-
-        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class)))
+        when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
-                    com.amazonaws.services.glue.model.GetTableRequest request =
-                            (com.amazonaws.services.glue.model.GetTableRequest) invocationOnMock.getArguments()[0];
+                        software.amazon.awssdk.services.glue.model.GetTableRequest request =
+                            (software.amazon.awssdk.services.glue.model.GetTableRequest) invocationOnMock.getArguments()[0];
 
-                    assertEquals(accountId, request.getCatalogId());
-                    assertEquals(schema, request.getDatabaseName());
-                    assertEquals(table, request.getName());
+                    assertEquals(accountId, request.catalogId());
+                    assertEquals(schema, request.databaseName());
+                    assertEquals(table, request.name());
 
-                    GetTableResult mockResult = mock(GetTableResult.class);
-                    when(mockResult.getTable()).thenReturn(mockTable);
-                    return mockResult;
+                    software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder()
+                        .table(returnTable)
+                        .build();
+                    return tableResponse;
                 });
 
         GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table), Collections.emptyMap());
@@ -401,8 +395,13 @@ public class GlueMetadataHandlerTest
         Map<String, String> params = new HashMap<>();
         List<String> partitions = Arrays.asList("aws", "aws-cn", "aws-us-gov");
         for (String partition : partitions) {
-            StorageDescriptor storageDescriptor = new StorageDescriptor().withLocation(String.format("arn:%s:dynamodb:us-east-1:012345678910:table/My-Table", partition));
-            Table table = new Table().withParameters(params).withStorageDescriptor(storageDescriptor);
+            StorageDescriptor storageDescriptor = StorageDescriptor.builder()
+                        .location(String.format("arn:%s:dynamodb:us-east-1:012345678910:table/My-Table", partition))
+                        .build();
+            Table table = Table.builder()
+                        .parameters(params)
+                        .storageDescriptor(storageDescriptor)
+                        .build();
             SchemaBuilder schemaBuilder = new SchemaBuilder();
             populateSourceTableNameIfAvailable(table, schemaBuilder);
             Schema schema = schemaBuilder.build();
@@ -422,29 +421,25 @@ public class GlueMetadataHandlerTest
         expectedParams.put("col1", "col1");
 
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col1").withType("int").withComment(" "));
+        columns.add(Column.builder().name("col1").type("int").comment(" ").build());
 
-        Table mockTable = mock(Table.class);
-        StorageDescriptor mockSd = mock(StorageDescriptor.class);
+        StorageDescriptor sd = StorageDescriptor.builder().columns(columns).build();
+        Table resultTable = Table.builder().storageDescriptor(sd).parameters(expectedParams).build();
 
-        Mockito.lenient().when(mockTable.getName()).thenReturn(table);
-        when(mockTable.getStorageDescriptor()).thenReturn(mockSd);
-        when(mockTable.getParameters()).thenReturn(expectedParams);
-        when(mockSd.getColumns()).thenReturn(columns);
-
-        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class)))
+        when(mockGlue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
-                    com.amazonaws.services.glue.model.GetTableRequest request =
-                            (com.amazonaws.services.glue.model.GetTableRequest) invocationOnMock.getArguments()[0];
+                    software.amazon.awssdk.services.glue.model.GetTableRequest request =
+                            (software.amazon.awssdk.services.glue.model.GetTableRequest) invocationOnMock.getArguments()[0];
 
-                    assertEquals(accountId, request.getCatalogId());
-                    assertEquals(schema, request.getDatabaseName());
-                    assertEquals(table, request.getName());
+                    assertEquals(accountId, request.catalogId());
+                    assertEquals(schema, request.databaseName());
+                    assertEquals(table, request.name());
 
-                    GetTableResult mockResult = mock(GetTableResult.class);
-                    when(mockResult.getTable()).thenReturn(mockTable);
-                    return mockResult;
+                    software.amazon.awssdk.services.glue.model.GetTableResponse response = software.amazon.awssdk.services.glue.model.GetTableResponse.builder()
+                            .table(resultTable)
+                            .build();
+                    return response;
                 });
 
         GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table), Collections.emptyMap());
