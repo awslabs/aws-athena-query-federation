@@ -57,8 +57,8 @@ public class TableProviderFactory
     {
         this(
             AmazonEC2ClientBuilder.standard().build(),
-            RdsClient.create(),
             EmrClient.create(),
+            RdsClient.create(),
             S3Client.create(),
             configOptions);
     }
