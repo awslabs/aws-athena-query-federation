@@ -19,12 +19,12 @@
  */
 package com.amazonaws.athena.connector.credentials;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
@@ -39,7 +39,7 @@ public class CrossAccountCredentialsProvider
 
     private CrossAccountCredentialsProvider() {}
 
-    public static AWSCredentialsProvider getCrossAccountCredentialsIfPresent(Map<String, String> configOptions, String roleSessionName)
+    public static AwsCredentialsProvider getCrossAccountCredentialsIfPresent(Map<String, String> configOptions, String roleSessionName)
     {
         if (configOptions.containsKey(CROSS_ACCOUNT_ROLE_ARN_CONFIG)) {
             logger.debug("Found cross-account role arn to assume.");
@@ -50,9 +50,9 @@ public class CrossAccountCredentialsProvider
                 .build();
             AssumeRoleResponse assumeRoleResponse = stsClient.assumeRole(assumeRoleRequest);
             Credentials credentials = assumeRoleResponse.credentials();
-            BasicSessionCredentials basicSessionCredentials = new BasicSessionCredentials(credentials.accessKeyId(), credentials.secretAccessKey(), credentials.sessionToken());
-            return new AWSStaticCredentialsProvider(basicSessionCredentials);
+            AwsSessionCredentials awsSessionCredentials = AwsSessionCredentials.builder().accessKeyId(credentials.accessKeyId()).secretAccessKey(credentials.secretAccessKey()).sessionToken(credentials.sessionToken()).build();
+            return StaticCredentialsProvider.create(awsSessionCredentials);
         }
-        return DefaultAWSCredentialsProviderChain.getInstance();
+        return DefaultCredentialsProvider.create();
     }
 }

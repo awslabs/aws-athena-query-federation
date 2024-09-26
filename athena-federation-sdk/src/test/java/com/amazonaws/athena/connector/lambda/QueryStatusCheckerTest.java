@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connector.lambda;
 
-import com.amazonaws.AmazonServiceException;
 import com.google.common.collect.ImmutableList;
 
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.GetQueryExecutionRequest;
 import software.amazon.awssdk.services.athena.model.GetQueryExecutionResponse;
@@ -111,7 +111,7 @@ public class QueryStatusCheckerTest
     {
         String queryId = "query3";
         GetQueryExecutionRequest request = GetQueryExecutionRequest.builder().queryExecutionId(queryId).build();
-        when(athena.getQueryExecution(request)).thenThrow(new AmazonServiceException(""));
+        when(athena.getQueryExecution(request)).thenThrow(AwsServiceException.builder().message("").build());
         try (QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, queryId)) {
             assertTrue(queryStatusChecker.isQueryRunning());
             Thread.sleep(3000);
