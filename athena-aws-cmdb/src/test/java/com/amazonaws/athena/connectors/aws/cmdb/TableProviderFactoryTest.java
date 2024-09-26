@@ -21,13 +21,13 @@ package com.amazonaws.athena.connectors.aws.cmdb;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.rds.AmazonRDS;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.emr.EmrClient;
+import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
@@ -48,7 +48,7 @@ public class TableProviderFactoryTest
     private EmrClient mockEmr;
 
     @Mock
-    private AmazonRDS mockRds;
+    private RdsClient mockRds;
 
     @Mock
     private S3Client amazonS3;

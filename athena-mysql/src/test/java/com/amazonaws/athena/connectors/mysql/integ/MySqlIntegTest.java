@@ -26,11 +26,6 @@ import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.integ.JdbcTableUtils;
-import com.amazonaws.services.rds.AmazonRDS;
-import com.amazonaws.services.rds.AmazonRDSClientBuilder;
-import com.amazonaws.services.rds.model.DescribeDBInstancesRequest;
-import com.amazonaws.services.rds.model.DescribeDBInstancesResult;
-import com.amazonaws.services.rds.model.Endpoint;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +48,10 @@ import software.amazon.awscdk.services.rds.MysqlEngineVersion;
 import software.amazon.awscdk.services.rds.StorageType;
 import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.rds.RdsClient;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
+import software.amazon.awssdk.services.rds.model.Endpoint;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -195,14 +194,14 @@ public class MySqlIntegTest extends IntegrationTestBase
      */
     private Endpoint getInstanceData()
     {
-        AmazonRDS rdsClient = AmazonRDSClientBuilder.defaultClient();
+        RdsClient rdsClient = RdsClient.create();
         try {
-            DescribeDBInstancesResult instancesResult = rdsClient.describeDBInstances(new DescribeDBInstancesRequest()
-                    .withDBInstanceIdentifier(dbInstanceName));
-            return instancesResult.getDBInstances().get(0).getEndpoint();
+            DescribeDbInstancesResponse instancesResponse = rdsClient.describeDBInstances(DescribeDbInstancesRequest.builder()
+                    .dbInstanceIdentifier(dbInstanceName).build());
+            return instancesResponse.dbInstances().get(0).endpoint();
         }
         finally {
-            rdsClient.shutdown();
+            rdsClient.close();
         }
     }
 
@@ -213,7 +212,7 @@ public class MySqlIntegTest extends IntegrationTestBase
     private void setEnvironmentVars(Endpoint endpoint)
     {
         String connectionString = String.format("mysql://jdbc:mysql://%s:%s/mysql?user=%s&password=%s",
-                endpoint.getAddress(), endpoint.getPort(), username, password);
+                endpoint.address(), endpoint.port(), username, password);
         String connectionStringTag = lambdaFunctionName + "_connection_string";
         environmentVars.put("default", connectionString);
         environmentVars.put(connectionStringTag, connectionString);

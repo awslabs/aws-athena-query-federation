@@ -27,11 +27,6 @@ import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
-import com.amazonaws.services.docdb.AmazonDocDB;
-import com.amazonaws.services.docdb.AmazonDocDBClientBuilder;
-import com.amazonaws.services.docdb.model.DBCluster;
-import com.amazonaws.services.docdb.model.DescribeDBClustersRequest;
-import com.amazonaws.services.docdb.model.DescribeDBClustersResult;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +48,10 @@ import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ec2.VpcAttributes;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.docdb.DocDbClient;
+import software.amazon.awssdk.services.docdb.model.DBCluster;
+import software.amazon.awssdk.services.docdb.model.DescribeDbClustersRequest;
+import software.amazon.awssdk.services.docdb.model.DescribeDbClustersResponse;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvocationType;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
@@ -191,15 +190,16 @@ public class DocDbIntegTest extends IntegrationTestBase {
      * Lambda. All exceptions thrown here will be caught in the calling function.
      */
     private Endpoint getClusterData() {
-        AmazonDocDB docDbClient = AmazonDocDBClientBuilder.defaultClient();
+        DocDbClient docDbClient = DocDbClient.create();
         try {
-            DescribeDBClustersResult dbClustersResult = docDbClient.describeDBClusters(new DescribeDBClustersRequest()
-                    .withDBClusterIdentifier(dbClusterName));
-            DBCluster cluster = dbClustersResult.getDBClusters().get(0);
-            return new Endpoint(cluster.getEndpoint(), cluster.getPort());
+            DescribeDbClustersResponse dbClustersResponse = docDbClient.describeDBClusters(DescribeDbClustersRequest.builder()
+                    .dbClusterIdentifier(dbClusterName)
+                    .build());
+            DBCluster cluster = dbClustersResponse.dbClusters().get(0);
+            return new Endpoint(cluster.endpoint(), cluster.port());
         }
         finally {
-            docDbClient.shutdown();
+            docDbClient.close();
         }
     }
 
