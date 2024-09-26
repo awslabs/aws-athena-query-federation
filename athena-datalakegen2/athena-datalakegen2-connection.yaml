@@ -65,8 +65,8 @@ Resources:
       ImageConfig:
         Command: [ "com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2CompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with DataLake Gen2 using JDBC"
-      Timeout: !Ref 900
-      MemorySize: !Ref 3008
+      Timeout: 900
+      MemorySize: 3008
       Role: !If [ NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn ]
       VpcConfig:
         SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
