@@ -31,12 +31,12 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
-import com.amazonaws.services.ec2.model.Subnet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeSubnetsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSubnetsResponse;
+import software.amazon.awssdk.services.ec2.model.Subnet;
 
 import java.util.Collections;
 import java.util.List;
@@ -49,9 +49,9 @@ public class SubnetTableProvider
         implements TableProvider
 {
     private static final Schema SCHEMA;
-    private AmazonEC2 ec2;
+    private Ec2Client ec2;
 
-    public SubnetTableProvider(AmazonEC2 ec2)
+    public SubnetTableProvider(Ec2Client ec2)
     {
         this.ec2 = ec2;
     }
@@ -92,15 +92,15 @@ public class SubnetTableProvider
     @Override
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        DescribeSubnetsRequest request = new DescribeSubnetsRequest();
+        DescribeSubnetsRequest.Builder request = DescribeSubnetsRequest.builder();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
-            request.setSubnetIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
+            request.subnetIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }
 
-        DescribeSubnetsResult response = ec2.describeSubnets(request);
-        for (Subnet subnet : response.getSubnets()) {
+        DescribeSubnetsResponse response = ec2.describeSubnets(request.build());
+        for (Subnet subnet : response.subnets()) {
             instanceToRow(subnet, spiller);
         }
     }
@@ -119,19 +119,18 @@ public class SubnetTableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("id", row, subnet.getSubnetId());
-            matched &= block.offerValue("availability_zone", row, subnet.getAvailabilityZone());
-            matched &= block.offerValue("available_ip_count", row, subnet.getAvailableIpAddressCount());
-            matched &= block.offerValue("cidr_block", row, subnet.getCidrBlock());
-            matched &= block.offerValue("default_for_az", row, subnet.getDefaultForAz());
-            matched &= block.offerValue("map_public_ip", row, subnet.getMapPublicIpOnLaunch());
-            matched &= block.offerValue("owner", row, subnet.getOwnerId());
-            matched &= block.offerValue("state", row, subnet.getState());
-            matched &= block.offerValue("vpc", row, subnet.getVpcId());
-            matched &= block.offerValue("vpc", row, subnet.getVpcId());
+            matched &= block.offerValue("id", row, subnet.subnetId());
+            matched &= block.offerValue("availability_zone", row, subnet.availabilityZone());
+            matched &= block.offerValue("available_ip_count", row, subnet.availableIpAddressCount());
+            matched &= block.offerValue("cidr_block", row, subnet.cidrBlock());
+            matched &= block.offerValue("default_for_az", row, subnet.defaultForAz());
+            matched &= block.offerValue("map_public_ip", row, subnet.mapPublicIpOnLaunch());
+            matched &= block.offerValue("owner", row, subnet.ownerId());
+            matched &= block.offerValue("state", row, subnet.stateAsString());
+            matched &= block.offerValue("vpc", row, subnet.vpcId());
 
-            List<String> tags = subnet.getTags().stream()
-                    .map(next -> next.getKey() + ":" + next.getValue()).collect(Collectors.toList());
+            List<String> tags = subnet.tags().stream()
+                    .map(next -> next.key() + ":" + next.value()).collect(Collectors.toList());
             matched &= block.offerComplexValue("tags", row, FieldResolver.DEFAULT, tags);
 
             return matched ? 1 : 0;
