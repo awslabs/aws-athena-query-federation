@@ -35,8 +35,8 @@ import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
-import com.amazonaws.util.json.Jackson;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -321,7 +321,8 @@ public class DynamoDBRecordHandler
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
         if (rangeKeyFilter != null || nonKeyFilter != null) {
             try {
-                expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
+                ObjectMapper objectMapper = new ObjectMapper();
+                expressionAttributeNames.putAll(objectMapper.readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
                 expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {
@@ -388,7 +389,8 @@ public class DynamoDBRecordHandler
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
         if (rangeKeyFilter != null || nonKeyFilter != null) {
             try {
-                expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
+                ObjectMapper objectMapper = new ObjectMapper();
+                expressionAttributeNames.putAll(objectMapper.readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
                 expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {

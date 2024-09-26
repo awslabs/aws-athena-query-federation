@@ -56,7 +56,7 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer;
-import com.amazonaws.util.json.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -446,7 +446,14 @@ public class DynamoDBMetadataHandler
                 expressionValueMapping.put(valueNameProducer2.getNext(), value);
             }
 
-            partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, Jackson.toJsonString(aliasedColumns));
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, objectMapper.writeValueAsString(aliasedColumns));
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            
             partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValueMapping).toJson());
         }
     }
