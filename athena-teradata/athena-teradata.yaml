@@ -30,9 +30,6 @@ Parameters:
     Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
     Default: athena-spill
-  LambdaJDBCLayername:
-    Description: 'Lambda JDBC layer Name. Must be ARN of layer'
-    Type: String
   LambdaTimeout:
     Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
     Default: 900
@@ -77,8 +74,6 @@ Resources:
           default: !Ref DefaultConnectionString
           partitioncount: !Ref PartitionCount
       FunctionName: !Ref LambdaFunctionName
-      Layers:
-        - !Ref LambdaJDBCLayername
       PackageType: "Image"
       ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-teradata:2022.47.1'
       ImageConfig:

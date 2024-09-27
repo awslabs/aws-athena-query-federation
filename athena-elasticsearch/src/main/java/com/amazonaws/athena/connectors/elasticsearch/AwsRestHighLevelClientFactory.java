@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -113,7 +113,7 @@ public class AwsRestHighLevelClientFactory
         if (useAwsCredentials) {
             logger.debug("Creating Client using Aws Credentials.");
             return new AwsRestHighLevelClient.Builder(endpoint)
-                    .withCredentials(new DefaultAWSCredentialsProviderChain()).build();
+                    .withCredentials(DefaultCredentialsProvider.create()).build();
         }
         else {
             Matcher credentials = credentialsPattern.matcher(endpoint);

@@ -21,9 +21,6 @@ package com.amazonaws.athena.connectors.kafka;
 
 import com.amazonaws.athena.connectors.kafka.dto.SplitParameters;
 import com.amazonaws.athena.connectors.kafka.dto.TopicResultSet;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
@@ -42,6 +39,10 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
+
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -81,13 +82,13 @@ public class KafkaUtilsTest {
     GetSecretValueResponse secretValueResponse;
 
     @Mock
-    DefaultAWSCredentialsProviderChain chain;
+    DefaultCredentialsProvider chain;
 
     @Mock
-    AWSStaticCredentialsProvider credentialsProvider;
+    StaticCredentialsProvider credentialsProvider;
 
     @Mock
-    BasicAWSCredentials credentials;
+    AwsBasicCredentials credentials;
 
     @Mock
     S3Client amazonS3Client;
@@ -100,7 +101,7 @@ public class KafkaUtilsTest {
         "certificates_s3_reference", "s3://kafka-connector-test-bucket/kafkafiles/",
         "secrets_manager_secret", "Kafka_afq");
 
-    private MockedConstruction<DefaultAWSCredentialsProviderChain> mockedDefaultCredentials;
+    private MockedConstruction<DefaultCredentialsProvider> mockedDefaultCredentials;
     private MockedStatic<S3Client> mockedS3ClientBuilder;
     private MockedStatic<SecretsManagerClient> mockedSecretsManagerClient;
 
@@ -126,9 +127,9 @@ public class KafkaUtilsTest {
         Mockito.when(secretValueResponse.secretString()).thenReturn(creds);
         Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResponse);
 
-        mockedDefaultCredentials = Mockito.mockConstruction(DefaultAWSCredentialsProviderChain.class,
+        mockedDefaultCredentials = Mockito.mockConstruction(DefaultCredentialsProvider.class,
                 (mock, context) -> {
-                    Mockito.when(mock.getCredentials()).thenReturn(credentials);
+                    Mockito.when(mock.resolveCredentials()).thenReturn(credentials);
                 });
         mockedS3ClientBuilder = Mockito.mockStatic(S3Client.class);
         mockedS3ClientBuilder.when(()-> S3Client.create()).thenReturn(amazonS3Client);
