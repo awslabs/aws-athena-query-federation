@@ -29,7 +29,6 @@ import software.amazon.awssdk.services.glue.model.Connection;
 import software.amazon.awssdk.services.glue.model.GetConnectionRequest;
 import software.amazon.awssdk.services.glue.model.GetConnectionResponse;
 
-import java.net.URI;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
