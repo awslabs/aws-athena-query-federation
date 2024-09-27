@@ -59,11 +59,6 @@
                 <scope>runtime</scope>
             </dependency>
             <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-sts</artifactId>
-                <version>1.12.772</version>
-            </dependency>
-            <dependency>
                 <groupId>software.amazon.msk</groupId>
                 <artifactId>aws-msk-iam-auth</artifactId>
                 <version>2.1.1</version>
