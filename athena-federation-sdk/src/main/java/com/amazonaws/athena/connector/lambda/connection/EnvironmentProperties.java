@@ -67,7 +67,6 @@ public class EnvironmentProperties
     {
         try {
             GlueClient awsGlue = GlueClient.builder()
-                    .endpointOverride(new URI("https://glue-gamma.us-west-2.amazonaws.com"))
                     .httpClientBuilder(ApacheHttpClient
                             .builder()
                             .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
