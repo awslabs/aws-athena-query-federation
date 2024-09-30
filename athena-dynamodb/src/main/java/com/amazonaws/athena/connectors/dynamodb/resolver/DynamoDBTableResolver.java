@@ -20,9 +20,12 @@
 package com.amazonaws.athena.connectors.dynamodb.resolver;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -118,7 +121,7 @@ public class DynamoDBTableResolver
                 return DDBTableUtils.peekTableForSchema(caseInsensitiveMatch.get(), invoker, ddbClient);
             }
             else {
-                throw e;
+                throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
             }
         }
     }
