@@ -27,6 +27,7 @@ import java.util.Map;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SCHEMA;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.WAREHOUSE;
 
@@ -38,8 +39,11 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
         HashMap<String, String> environment = new HashMap<>();
 
         // now construct jdbc string
-        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST)
-                + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
+        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST);
+        if (connectionProperties.containsKey(PORT)) {
+            connectionString = connectionString + ":" + connectionProperties.get(PORT);
+        }
+        connectionString = connectionString + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
 
         environment.put(DEFAULT, connectionString);
         return environment;
