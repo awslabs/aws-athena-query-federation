@@ -27,11 +27,11 @@
         <assertj.version>3.26.3</assertj.version>
         <testng.version>7.10.2</testng.version>
          <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.17.2</fasterxml.jackson.version>
+        <fasterxml.jackson.version>2.18.0</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.0</surefire.failsafe.version>
-        <log4j2Version>2.24.0</log4j2Version>
+        <log4j2Version>2.24.1</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
-        <guava.version>33.3.0-jre</guava.version>
+        <guava.version>33.3.1-jre</guava.version>
         <protobuf3.version>3.25.3</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
@@ -53,7 +53,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.11.0</version>
+                <version>5.11.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -432,7 +432,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.6</version>
+                        <version>3.2.7</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
