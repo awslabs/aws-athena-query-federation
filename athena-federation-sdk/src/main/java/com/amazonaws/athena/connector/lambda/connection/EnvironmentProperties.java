@@ -89,7 +89,7 @@ public class EnvironmentProperties
             String[] splitArn = auth.secretArn().split(":");
             String[] secretNameWithRandom = splitArn[splitArn.length - 1].split("-"); // 6 random characters at end. at least length of 2
             String[] secretNameArray = Arrays.copyOfRange(secretNameWithRandom, 0, secretNameWithRandom.length - 1);
-            String secretName = String.join("", String.join("", secretNameArray));
+            String secretName = String.join("-", secretNameArray); // add back the dashes
             authMap.put(SECRET_NAME, secretName);
         }
         return authMap;
