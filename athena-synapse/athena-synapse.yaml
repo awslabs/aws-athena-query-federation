@@ -143,5 +143,24 @@ Resources:
               - autoscaling:CompleteLifecycleAction
             Effect: Allow
             Resource: '*'
+          - Action:
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                - arn:${AWS::Partition}:s3:::${bucketName}
+                - bucketName:
+                    Ref: SpillBucket
+              - Fn::Sub:
+                - arn:${AWS::Partition}:s3:::${bucketName}/*
+                - bucketName:
+                    Ref: SpillBucket
       Roles:
         - !Ref FunctionRole
