@@ -21,14 +21,34 @@ package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SCHEMA;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.WAREHOUSE;
 
 public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
 {
+    @Override
+    public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
+    {
+        HashMap<String, String> environment = new HashMap<>();
+
+        // now construct jdbc string
+        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST);
+        if (connectionProperties.containsKey(PORT)) {
+            connectionString = connectionString + ":" + connectionProperties.get(PORT);
+        }
+        connectionString = connectionString + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
+
+        environment.put(DEFAULT, connectionString);
+        return environment;
+    }
+
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
@@ -46,5 +66,11 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
                 + "&db=" + connectionProperties.get(DATABASE)
                 + "&schema=" + connectionProperties.get(SCHEMA);
         return databaseString;
+    }
+
+    @Override
+    protected String getJdbcParametersSeparator()
+    {
+        return "&";
     }
 }

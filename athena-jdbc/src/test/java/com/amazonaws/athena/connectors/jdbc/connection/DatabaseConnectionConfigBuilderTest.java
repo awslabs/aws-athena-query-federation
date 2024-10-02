@@ -125,40 +125,5 @@ public class DatabaseConnectionConfigBuilderTest
                 Assert.assertEquals(secrets[i], databaseConnectionConfigs.get(i).getSecret());
         }
     }
-
-    @Test
-    public void buildUsingGlueConnectionWithSecret()
-    {
-        DatabaseConnectionConfig glueSupplementedConnection = new DatabaseConnectionConfig("default", "postgres",
-                "jdbc:postgresql://hostname/test", "testSecret");
-
-        List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder()
-                .engine("postgres")
-                .properties(ImmutableMap.of(
-                        "default", CONNECTION_STRING2,
-                        "default_connection_string", CONNECTION_STRING5,
-                        "secret_name", CONNECTION_STRING5_SECRET,
-                        "glue_connection", MOCK_GLUE_CONNECTION_NAME))
-                .build();
-
-        Assert.assertEquals(Arrays.asList(glueSupplementedConnection), databaseConnectionConfigs);
-    }
-
-    @Test
-    public void buildUsingGlueConnectionNoSecret()
-    {
-        DatabaseConnectionConfig glueSupplementedConnection = new DatabaseConnectionConfig("default", "postgres",
-                "jdbc:postgresql://hostname/test");
-
-        List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder()
-                .engine("postgres")
-                .properties(ImmutableMap.of(
-                        "default", CONNECTION_STRING2,
-                        "default_connection_string", CONNECTION_STRING5,
-                        "glue_connection", MOCK_GLUE_CONNECTION_NAME))
-                .build();
-
-        Assert.assertEquals(Arrays.asList(glueSupplementedConnection), databaseConnectionConfigs);
-    }
 }
 

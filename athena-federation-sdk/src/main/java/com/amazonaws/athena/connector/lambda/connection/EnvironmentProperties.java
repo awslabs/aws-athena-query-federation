@@ -30,6 +30,7 @@ import software.amazon.awssdk.services.glue.model.GetConnectionRequest;
 import software.amazon.awssdk.services.glue.model.GetConnectionResponse;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,7 +52,7 @@ public class EnvironmentProperties
         HashMap<String, String> connectionEnvironment = new HashMap<>();
         if (StringUtils.isNotBlank(glueConnectionName)) {
             Connection connection = getGlueConnection(glueConnectionName);
-            Map<String, String> connectionProperties = connection.connectionPropertiesAsStrings();
+            Map<String, String> connectionProperties = new HashMap<>(connection.connectionPropertiesAsStrings());
             connectionProperties.putAll(authenticationConfigurationToMap(connection.authenticationConfiguration()));
 
             connectionEnvironment.putAll(connectionPropertiesToEnvironment(connectionProperties));
@@ -86,7 +87,10 @@ public class EnvironmentProperties
 
         if (StringUtils.isNotBlank(auth.secretArn())) {
             String[] splitArn = auth.secretArn().split(":");
-            authMap.put(SECRET_NAME, splitArn[splitArn.length - 1]);
+            String[] secretNameWithRandom = splitArn[splitArn.length - 1].split("-"); // 6 random characters at end. at least length of 2
+            String[] secretNameArray = Arrays.copyOfRange(secretNameWithRandom, 0, secretNameWithRandom.length - 1);
+            String secretName = String.join("-", secretNameArray); // add back the dashes
+            authMap.put(SECRET_NAME, secretName);
         }
         return authMap;
     }
