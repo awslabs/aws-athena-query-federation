@@ -27,16 +27,10 @@
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
+            <groupId>software.amazon.awscdk</groupId>
             <artifactId>rds</artifactId>
-            <version>${aws-sdk-v2.version}</version>
+            <version>${aws-cdk.version}</version>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>netty-nio-client</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <!-- Google Bigquery SDK Dependencies-->
         <dependency>
