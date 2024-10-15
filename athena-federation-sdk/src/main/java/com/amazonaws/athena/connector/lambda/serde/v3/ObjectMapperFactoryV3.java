@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
@@ -58,6 +59,8 @@ import com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionRequestSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -131,7 +134,7 @@ public class ObjectMapperFactoryV3
                     return (JsonSerializer<Object>) ser;
                 }
             }
-            throw new IllegalArgumentException("No explicitly configured serializer for " + origType);
+            throw new AthenaConnectorException("No explicitly configured serializer for " + origType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -165,7 +168,7 @@ public class ObjectMapperFactoryV3
                     return (JsonDeserializer<Object>) deser;
                 }
             }
-            throw new IllegalArgumentException("No explicitly configured deserializer for " + type);
+            throw new AthenaConnectorException("No explicitly configured deserializer for " + type, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 

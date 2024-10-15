@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.UnitTestBlockUtils;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
@@ -62,7 +63,9 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType.SCALAR;
 import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class UserDefinedFunctionHandlerTest
 {
@@ -219,7 +222,7 @@ public class UserDefinedFunctionHandlerTest
             fail("Expected function to fail due to method not found, but succeeded.");
         }
         catch (Exception e) {
-            assertTrue(e.getCause() instanceof NoSuchMethodException);
+            assertTrue(e instanceof AthenaConnectorException);
         }
     }
 

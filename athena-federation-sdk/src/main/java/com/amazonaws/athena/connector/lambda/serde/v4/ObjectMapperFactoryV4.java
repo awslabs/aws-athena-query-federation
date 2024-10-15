@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
@@ -60,6 +61,8 @@ import com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionRequestSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -133,7 +136,7 @@ public class ObjectMapperFactoryV4
                     return (JsonSerializer<Object>) ser;
                 }
             }
-            throw new IllegalArgumentException("No explicitly configured serializer for " + origType);
+            throw new AthenaConnectorException("No explicitly configured serializer for " + origType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -167,7 +170,7 @@ public class ObjectMapperFactoryV4
                     return (JsonDeserializer<Object>) deser;
                 }
             }
-            throw new IllegalArgumentException("No explicitly configured deserializer for " + type);
+            throw new AthenaConnectorException("No explicitly configured deserializer for " + type, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
