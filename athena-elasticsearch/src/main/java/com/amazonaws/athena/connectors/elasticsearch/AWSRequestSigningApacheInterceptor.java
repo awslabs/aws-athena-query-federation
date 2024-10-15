@@ -20,9 +20,12 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.DefaultRequest;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.Signer;
 import com.amazonaws.http.HttpMethodName;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.http.Header;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
@@ -95,7 +98,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
             uriBuilder = new URIBuilder(request.getRequestLine().getUri());
         }
         catch (URISyntaxException e) {
-            throw new IOException("Invalid URI", e);
+            throw new AthenaConnectorException("Invalid URI", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()).withErrorMessage(e.getMessage()));
         }
 
         // Copy Apache HttpRequest to AWS DefaultRequest
@@ -112,7 +115,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
             signableRequest.setResourcePath(uriBuilder.build().getRawPath());
         }
         catch (URISyntaxException e) {
-            throw new IOException("Invalid URI", e);
+            throw new AthenaConnectorException("Invalid URI", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()).withErrorMessage(e.getMessage()));
         }
 
         if (request instanceof HttpEntityEnclosingRequest) {
