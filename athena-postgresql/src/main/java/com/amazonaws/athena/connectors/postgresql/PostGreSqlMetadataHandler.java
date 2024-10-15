@@ -366,8 +366,10 @@ public class PostGreSqlMetadataHandler
             preparedStatement = getMaterializedViewOrExternalTable(connection, tableName, resolvedSchemaName);
             resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
             if (resolvedTableName == null) {
+
                 throw new AthenaConnectorException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName),
                         ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
+
             }
         }
         return new TableName(resolvedSchemaName, resolvedTableName);
