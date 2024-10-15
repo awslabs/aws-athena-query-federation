@@ -61,14 +61,17 @@ public class SqlServerQueryStringBuilder extends JdbcSplitQueryBuilder
     @Override
     protected List<String> getPartitionWhereClauses(Split split)
     {
-        //example query: select * from MyPartitionTable where $PARTITION.myRangePF(col1) =2
-        LOGGER.debug("PARTITION_FUNCTION: {}", split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION));
-        LOGGER.debug("PARTITIONING_COLUMN: {}", split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN));
+        String partitionFunction = split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION);
+        String partitioningColumn = split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN);
+        String partitionNumber = split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER);
 
-        if (split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER) != null && !split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER).equals("0")) {
+        //example query: select * from MyPartitionTable where $PARTITION.myRangePF(col1) =2
+        LOGGER.debug("PARTITION_FUNCTION: {}", partitionFunction);
+        LOGGER.debug("PARTITIONING_COLUMN: {}", partitioningColumn);
+
+        if (partitionFunction != null && partitioningColumn != null && partitionNumber != null && !partitionNumber.equals("0")) {
             LOGGER.info("Fetching data using Partition");
-            return Collections.singletonList(" $PARTITION." + split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)
-                    + "(" + split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN) + ") = " + split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER));
+            return Collections.singletonList(" $PARTITION." + partitionFunction + "(" + partitioningColumn + ") = " + partitionNumber);
         }
         else {
             LOGGER.info("Fetching data without Partition");
