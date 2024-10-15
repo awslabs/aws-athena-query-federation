@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DDBQueryPassthrough implements QueryPassthroughSignature
 {
@@ -86,10 +88,21 @@ public class DDBQueryPassthrough implements QueryPassthroughSignature
         // List of disallowed keywords
         Set<String> disallowedKeywords = ImmutableSet.of("INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER");
 
-        // Check if the statement contains any disallowed keywords
-        for (String keyword : disallowedKeywords) {
-            if (upperCaseStatement.contains(keyword)) {
-                throw new AthenaConnectorException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword, new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
+        // Regular expression pattern to match one or more word characters
+        Pattern WORD_PATTERN = Pattern.compile("\\w+");
+
+        // Create a Matcher object to find all word matches in the SQL statement
+        Matcher matcher = WORD_PATTERN.matcher(uppercaseStatement);
+
+        // Iterate through all the word matches found by the Matcher
+        while (matcher.find()) {
+            // Get the matched word
+            String word = matcher.group();
+
+            // Check if the matched word is present in the disallowed keywords set
+            if (disallowedKeywords.contains(word)) {
+                // If a disallowed keyword is found, throw exception
+                throw new AthenaConnectorException("Unaccepted operation; only SELECT statements are allowed. Found: " + word, new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
             }
         }
     }
