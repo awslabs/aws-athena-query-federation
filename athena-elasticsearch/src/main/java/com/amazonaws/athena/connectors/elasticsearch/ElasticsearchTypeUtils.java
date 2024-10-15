@@ -120,14 +120,8 @@ class ElasticsearchTypeUtils
             if (fieldValue instanceof String) {
                 dst.value = (String) fieldValue;
             }
-            else if (fieldValue instanceof List) {
-                Object value = ((List) fieldValue).get(0);
-                if (value instanceof String) {
-                    dst.value = (String) value;
-                }
-                else {
-                    dst.isSet = 0;
-                }
+            else if (fieldValue instanceof List || fieldValue instanceof Map) {
+                dst.value = fieldValue.toString();
             }
             else {
                 dst.isSet = 0;

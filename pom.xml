@@ -18,7 +18,7 @@
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.103.1</jsii.version>
+        <jsii.version>1.104.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.16</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
@@ -28,7 +28,7 @@
         <testng.version>7.10.2</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.18.0</fasterxml.jackson.version>
-        <surefire.failsafe.version>3.5.0</surefire.failsafe.version>
+        <surefire.failsafe.version>3.5.1</surefire.failsafe.version>
         <log4j2Version>2.24.1</log4j2Version>
         <apache.arrow.version>13.0.0</apache.arrow.version>
         <guava.version>33.3.1-jre</guava.version>
