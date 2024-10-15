@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -47,6 +48,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -350,7 +353,7 @@ public class PostGreSqlMetadataHandler
             preparedStatement = getMaterializedViewOrExternalTable(connection, tableName, resolvedSchemaName);
             resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
             if (resolvedTableName == null) {
-                throw new RuntimeException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName));
+                throw new AthenaConnectorException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName), new ErrorDetails().withErrorCode(FederationSourceErrorCode.AccessDeniedException.toString()));
             }
         }
         return new TableName(resolvedSchemaName, resolvedTableName);
