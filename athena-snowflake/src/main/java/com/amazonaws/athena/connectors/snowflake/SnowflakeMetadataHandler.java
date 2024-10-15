@@ -64,6 +64,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -457,6 +458,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                         new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
             }
             partitionSchema.getFields().forEach(schemaBuilder::addField);
+        }
+        catch (SnowflakeSQLException ex) {
+            throw new AthenaConnectorException(ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.AccessDeniedException.toString()));
         }
         LOGGER.debug(schemaBuilder.toString());
         return schemaBuilder.build();
