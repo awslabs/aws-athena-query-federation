@@ -20,8 +20,8 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.services.glue.model.Column;
 import com.google.common.collect.ImmutableMap;
+import software.amazon.awssdk.services.glue.model.Column;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVector;
@@ -163,9 +163,10 @@ public class GcsTestUtils {
 
     public static Column createColumn(String name, String type)
     {
-        Column column = new Column();
-        column.setName(name);
-        column.setType(type);
+        Column column = Column.builder()
+                .name(name)
+                .type(type)
+                .build();
         return column;
     }
     public static Map<String, ValueSet> createSummaryWithLValueRangeEqual(String fieldName, ArrowType fieldType, Object fieldValue)

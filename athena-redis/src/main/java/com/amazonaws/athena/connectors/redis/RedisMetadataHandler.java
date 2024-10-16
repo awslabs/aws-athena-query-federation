@@ -47,11 +47,6 @@ import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.athena.connectors.redis.qpt.RedisQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import io.lettuce.core.KeyScanCursor;
 import io.lettuce.core.Range;
@@ -64,6 +59,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -132,11 +132,11 @@ public class RedisMetadataHandler
     public static final String DEFAULT_REDIS_DB_NUMBER = "0";
 
     //Used to filter out Glue tables which lack a redis endpoint.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(REDIS_ENDPOINT_PROP);
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.parameters().containsKey(REDIS_ENDPOINT_PROP);
     //Used to filter out Glue databases which lack the REDIS_DB_FLAG in the URI.
-    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(REDIS_DB_FLAG));
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(REDIS_DB_FLAG));
 
-    private final AWSGlue awsGlue;
+    private final GlueClient awsGlue;
     private final RedisConnectionFactory redisConnectionFactory;
 
     private final RedisQueryPassthrough queryPassthrough = new RedisQueryPassthrough();
@@ -151,10 +151,10 @@ public class RedisMetadataHandler
 
     @VisibleForTesting
     protected RedisMetadataHandler(
-        AWSGlue awsGlue,
+        GlueClient awsGlue,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         RedisConnectionFactory redisConnectionFactory,
         String spillBucket,
         String spillPrefix,

@@ -23,11 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeVpcsRequest;
-import com.amazonaws.services.ec2.model.DescribeVpcsResult;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.Vpc;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -37,6 +32,11 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeVpcsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeVpcsResponse;
+import software.amazon.awssdk.services.ec2.model.Tag;
+import software.amazon.awssdk.services.ec2.model.Vpc;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +45,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -55,7 +54,7 @@ public class VpcTableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(VpcTableProviderTest.class);
 
     @Mock
-    private AmazonEC2 mockEc2;
+    private Ec2Client mockEc2;
 
     protected String getIdField()
     {
@@ -93,14 +92,12 @@ public class VpcTableProviderTest
         when(mockEc2.describeVpcs(nullable(DescribeVpcsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             DescribeVpcsRequest request = (DescribeVpcsRequest) invocation.getArguments()[0];
 
-            assertEquals(getIdValue(), request.getVpcIds().get(0));
-            DescribeVpcsResult mockResult = mock(DescribeVpcsResult.class);
+            assertEquals(getIdValue(), request.vpcIds().get(0));
             List<Vpc> values = new ArrayList<>();
             values.add(makeVpc(getIdValue()));
             values.add(makeVpc(getIdValue()));
             values.add(makeVpc("fake-id"));
-            when(mockResult.getVpcs()).thenReturn(values);
-            return mockResult;
+            return DescribeVpcsResponse.builder().vpcs(values).build();
         });
     }
 
@@ -156,15 +153,15 @@ public class VpcTableProviderTest
 
     private Vpc makeVpc(String id)
     {
-        Vpc vpc = new Vpc();
-        vpc.withVpcId(id)
-                .withCidrBlock("cidr_block")
-                .withDhcpOptionsId("dhcp_opts")
-                .withInstanceTenancy("tenancy")
-                .withOwnerId("owner")
-                .withState("state")
-                .withIsDefault(true)
-                .withTags(new Tag("key", "valye"));
+        Vpc vpc = Vpc.builder()
+                .vpcId(id)
+                .cidrBlock("cidr_block")
+                .dhcpOptionsId("dhcp_opts")
+                .instanceTenancy("tenancy")
+                .ownerId("owner")
+                .state("state")
+                .isDefault(true)
+                .tags(Tag.builder().key("key").value("valye").build()).build();
 
         return vpc;
     }

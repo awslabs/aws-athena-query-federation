@@ -19,13 +19,13 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
-import com.amazonaws.util.StringUtils;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.utils.StringUtils;
 
 import java.math.BigDecimal;
 import java.text.ParseException;
@@ -98,7 +98,7 @@ public class DateTimeFormatterUtil
     public static LocalDate stringToLocalDate(String value, String dateFormat,
                                               ZoneId defaultTimeZone)
     {
-        if (StringUtils.isNullOrEmpty(dateFormat)) {
+        if (StringUtils.isEmpty(dateFormat)) {
             logger.info("Unable to parse {} as Date type due to invalid dateformat", value);
             return null;
         }
@@ -143,7 +143,7 @@ public class DateTimeFormatterUtil
      */
     public static Object stringToDateTime(String value, String dateFormat, ZoneId defaultTimeZone)
     {
-        if (StringUtils.isNullOrEmpty(dateFormat)) {
+        if (StringUtils.isEmpty(dateFormat)) {
             logger.warn("Unable to parse {} as DateTime type due to invalid date format", value);
             return null;
         }

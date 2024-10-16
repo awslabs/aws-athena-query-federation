@@ -26,12 +26,6 @@ import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.integ.JdbcTableUtils;
-import com.amazonaws.services.athena.model.Row;
-import com.amazonaws.services.rds.AmazonRDS;
-import com.amazonaws.services.rds.AmazonRDSClientBuilder;
-import com.amazonaws.services.rds.model.DescribeDBInstancesRequest;
-import com.amazonaws.services.rds.model.DescribeDBInstancesResult;
-import com.amazonaws.services.rds.model.Endpoint;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +47,11 @@ import software.amazon.awscdk.services.rds.PostgresEngineVersion;
 import software.amazon.awscdk.services.rds.PostgresInstanceEngineProps;
 import software.amazon.awscdk.services.rds.StorageType;
 import software.amazon.awscdk.services.secretsmanager.Secret;
+import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.rds.RdsClient;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
+import software.amazon.awssdk.services.rds.model.Endpoint;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -195,14 +194,15 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      */
     private Endpoint getInstanceData()
     {
-        AmazonRDS rdsClient = AmazonRDSClientBuilder.defaultClient();
+        RdsClient rdsClient = RdsClient.create();
         try {
-            DescribeDBInstancesResult instancesResult = rdsClient.describeDBInstances(new DescribeDBInstancesRequest()
-                    .withDBInstanceIdentifier(dbInstanceName));
-            return instancesResult.getDBInstances().get(0).getEndpoint();
+            DescribeDbInstancesResponse instancesResponse = rdsClient.describeDBInstances(DescribeDbInstancesRequest.builder()
+                    .dbInstanceIdentifier(dbInstanceName)
+                    .build());
+            return instancesResponse.dbInstances().get(0).endpoint();
         }
         finally {
-            rdsClient.shutdown();
+            rdsClient.close();
         }
     }
 
@@ -213,7 +213,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     private void setEnvironmentVars(Endpoint endpoint)
     {
         String connectionString = String.format("postgres://jdbc:postgresql://%s:%s/postgres?user=%s&password=%s",
-                endpoint.getAddress(), endpoint.getPort(), username, password);
+                endpoint.address(), endpoint.port(), username, password);
         String connectionStringTag = lambdaFunctionName + "_connection_string";
         environmentVars.put("default", connectionString);
         environmentVars.put(connectionStringTag, connectionString);
@@ -439,13 +439,13 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
         String query = String.format("select title from %s.%s.%s where year > 2010;",
                 lambdaFunctionName, postgresDbName, postgresTableMovies);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> titles = new ArrayList<>();
-        rows.forEach(row -> titles.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> titles.add(row.data().get(0).varCharValue()));
         logger.info("Titles: {}", titles);
         assertEquals("Wrong number of DB records found.", 1, titles.size());
         assertTrue("Movie title not found: Interstellar.", titles.contains("Interstellar"));
@@ -462,13 +462,13 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
         String query = String.format(
                 "select first_name from %s.%s.%s where birthday between date('2005-10-01') and date('2005-10-31');",
                 lambdaFunctionName, postgresDbName, postgresTableBday);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> names = new ArrayList<>();
-        rows.forEach(row -> names.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> names.add(row.data().get(0).varCharValue()));
         logger.info("Names: {}", names);
         assertEquals("Wrong number of DB records found.", 1, names.size());
         assertTrue("Name not found: Jane.", names.contains("Jane"));

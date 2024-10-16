@@ -19,15 +19,6 @@
  */
 package com.amazonaws.athena.connector.integ.clients;
 
-import com.amazonaws.services.cloudformation.AmazonCloudFormation;
-import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder;
-import com.amazonaws.services.cloudformation.model.Capability;
-import com.amazonaws.services.cloudformation.model.CreateStackRequest;
-import com.amazonaws.services.cloudformation.model.CreateStackResult;
-import com.amazonaws.services.cloudformation.model.DeleteStackRequest;
-import com.amazonaws.services.cloudformation.model.DescribeStackEventsRequest;
-import com.amazonaws.services.cloudformation.model.DescribeStackEventsResult;
-import com.amazonaws.services.cloudformation.model.StackEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
@@ -35,6 +26,14 @@ import org.slf4j.LoggerFactory;
 import org.testng.internal.collections.Pair;
 import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.Stack;
+import software.amazon.awssdk.services.cloudformation.model.Capability;
+import software.amazon.awssdk.services.cloudformation.model.CreateStackRequest;
+import software.amazon.awssdk.services.cloudformation.model.CreateStackResponse;
+import software.amazon.awssdk.services.cloudformation.model.DeleteStackRequest;
+import software.amazon.awssdk.services.cloudformation.model.DescribeStackEventsRequest;
+import software.amazon.awssdk.services.cloudformation.model.DescribeStackEventsResponse;
+import software.amazon.awssdk.services.cloudformation.model.ResourceStatus;
+import software.amazon.awssdk.services.cloudformation.model.StackEvent;
 
 import java.util.List;
 
@@ -46,13 +45,11 @@ public class CloudFormationClient
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudFormationClient.class);
 
-    private static final String CF_CREATE_RESOURCE_IN_PROGRESS_STATUS = "CREATE_IN_PROGRESS";
-    private static final String CF_CREATE_RESOURCE_FAILED_STATUS = "CREATE_FAILED";
     private static final long sleepTimeMillis = 5000L;
 
     private final String stackName;
     private final String stackTemplate;
-    private final AmazonCloudFormation cloudFormationClient;
+    private final software.amazon.awssdk.services.cloudformation.CloudFormationClient cloudFormationClient;
 
     public CloudFormationClient(Pair<App, Stack> stackPair)
     {
@@ -66,7 +63,7 @@ public class CloudFormationClient
         stackTemplate = objectMapper
                 .valueToTree(theApp.synth().getStackArtifact(theStack.getArtifactId()).getTemplate())
                 .toPrettyString();
-        this.cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient();
+        this.cloudFormationClient = software.amazon.awssdk.services.cloudformation.CloudFormationClient.create();
     }
 
     /**
@@ -81,11 +78,12 @@ public class CloudFormationClient
         logger.info("------------------------------------------------------");
         // logger.info(stackTemplate);
 
-        CreateStackRequest createStackRequest = new CreateStackRequest()
-                .withStackName(stackName)
-                .withTemplateBody(stackTemplate)
-                .withDisableRollback(true)
-                .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
+        CreateStackRequest createStackRequest = CreateStackRequest.builder()
+                .stackName(stackName)
+                .templateBody(stackTemplate)
+                .disableRollback(true)
+                .capabilities(Capability.CAPABILITY_NAMED_IAM)
+                .build();
         processCreateStackRequest(createStackRequest);
     }
 
@@ -98,22 +96,23 @@ public class CloudFormationClient
             throws RuntimeException
     {
         // Create CloudFormation stack.
-        CreateStackResult result = cloudFormationClient.createStack(createStackRequest);
-        logger.info("Stack ID: {}", result.getStackId());
+        CreateStackResponse response = cloudFormationClient.createStack(createStackRequest);
+        logger.info("Stack ID: {}", response.stackId());
 
-        DescribeStackEventsRequest describeStackEventsRequest = new DescribeStackEventsRequest()
-                .withStackName(createStackRequest.getStackName());
-        DescribeStackEventsResult describeStackEventsResult;
+        DescribeStackEventsRequest describeStackEventsRequest = DescribeStackEventsRequest.builder()
+                .stackName(createStackRequest.stackName())
+                .build();
+        DescribeStackEventsResponse describeStackEventsResponse;
 
         // Poll status of stack until stack has been created or creation has failed
         while (true) {
-            describeStackEventsResult = cloudFormationClient.describeStackEvents(describeStackEventsRequest);
-            StackEvent event = describeStackEventsResult.getStackEvents().get(0);
-            String resourceId = event.getLogicalResourceId();
-            String resourceStatus = event.getResourceStatus();
+            describeStackEventsResponse = cloudFormationClient.describeStackEvents(describeStackEventsRequest);
+            StackEvent event = describeStackEventsResponse.stackEvents().get(0);
+            String resourceId = event.logicalResourceId();
+            ResourceStatus resourceStatus = event.resourceStatus();
             logger.info("Resource Id: {}, Resource status: {}", resourceId, resourceStatus);
-            if (!resourceId.equals(event.getStackName()) ||
-                    resourceStatus.equals(CF_CREATE_RESOURCE_IN_PROGRESS_STATUS)) {
+            if (!resourceId.equals(event.stackName()) ||
+                    resourceStatus.equals(ResourceStatus.CREATE_IN_PROGRESS)) {
                 try {
                     Thread.sleep(sleepTimeMillis);
                     continue;
@@ -122,8 +121,8 @@ public class CloudFormationClient
                     throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage(), e);
                 }
             }
-            else if (resourceStatus.equals(CF_CREATE_RESOURCE_FAILED_STATUS)) {
-                throw new RuntimeException(getCloudFormationErrorReasons(describeStackEventsResult.getStackEvents()));
+            else if (resourceStatus.equals(ResourceStatus.CREATE_FAILED)) {
+                throw new RuntimeException(getCloudFormationErrorReasons(describeStackEventsResponse.stackEvents()));
             }
             break;
         }
@@ -140,9 +139,9 @@ public class CloudFormationClient
                 new StringBuilder("CloudFormation stack creation failed due to the following reason(s):\n");
 
         stackEvents.forEach(stackEvent -> {
-            if (stackEvent.getResourceStatus().equals(CF_CREATE_RESOURCE_FAILED_STATUS)) {
+            if (stackEvent.resourceStatus().equals(ResourceStatus.CREATE_FAILED)) {
                 String errorMessage = String.format("Resource: %s, Reason: %s\n",
-                        stackEvent.getLogicalResourceId(), stackEvent.getResourceStatusReason());
+                        stackEvent.logicalResourceId(), stackEvent.resourceStatusReason());
                 errorMessageBuilder.append(errorMessage);
             }
         });
@@ -160,14 +159,14 @@ public class CloudFormationClient
         logger.info("------------------------------------------------------");
 
         try {
-            DeleteStackRequest request = new DeleteStackRequest().withStackName(stackName);
+            DeleteStackRequest request = DeleteStackRequest.builder().stackName(stackName).build();
             cloudFormationClient.deleteStack(request);
         }
         catch (Exception e) {
             logger.error("Something went wrong... Manual resource cleanup may be needed!!!", e);
         }
         finally {
-            cloudFormationClient.shutdown();
+            cloudFormationClient.close();
         }
     }
 }

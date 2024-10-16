@@ -19,12 +19,12 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Table;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Table;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -72,9 +72,9 @@ public class PartitionUtil
      */
     public static Map<String, String> getPartitionColumnData(Table table, String partitionFolder)
     {
-        List<Column> partitionKeys = table.getPartitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.getPartitionKeys();
+        List<Column> partitionKeys = table.partitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.partitionKeys();
         return getRegExExpression(table).map(folderNameRegEx ->
-            getPartitionColumnData(table.getParameters().get(PARTITION_PATTERN_KEY), partitionFolder, folderNameRegEx, partitionKeys))
+            getPartitionColumnData(table.parameters().get(PARTITION_PATTERN_KEY), partitionFolder, folderNameRegEx, partitionKeys))
             .orElse(com.google.common.collect.ImmutableMap.of());
     }
 
@@ -93,7 +93,7 @@ public class PartitionUtil
         Matcher partitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPattern);
         Matcher partitionFolderMatcher = Pattern.compile(folderNameRegEx).matcher(partitionFolder);
         java.util.TreeSet<String> partitionColumnsSet = partitionColumns.stream()
-                .map(c -> c.getName())
+                .map(c -> c.name())
                 .collect(Collectors.toCollection(() -> new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER)));
         while (partitionFolderMatcher.find()) {
             for (int j = 1; j <= partitionFolderMatcher.groupCount() && partitionPatternMatcher.find(); j++) {
@@ -117,8 +117,8 @@ public class PartitionUtil
     private static void validatePartitionColumnTypes(List<Column> columns)
     {
         for (Column column : columns) {
-            String columnType = column.getType().toLowerCase();
-            LOGGER.info("validatePartitionColumnTypes - Field type of {} is {}", column.getName(), columnType);
+            String columnType = column.type().toLowerCase();
+            LOGGER.info("validatePartitionColumnTypes - Field type of {} is {}", column.name(), columnType);
             switch (columnType) {
                 case "string":
                 case "varchar":
@@ -140,9 +140,9 @@ public class PartitionUtil
      */
     protected static Optional<String> getRegExExpression(Table table)
     {
-        List<Column> partitionColumns = table.getPartitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.getPartitionKeys();
+        List<Column> partitionColumns = table.partitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.partitionKeys();
         validatePartitionColumnTypes(partitionColumns);
-        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
+        String partitionPattern = table.parameters().get(PARTITION_PATTERN_KEY);
         // Check to see if there is a partition pattern configured for the Table by the user
         // if not, it returns empty value
         if (partitionPattern == null || StringUtils.isBlank(partitionPattern)) {
@@ -170,8 +170,8 @@ public class PartitionUtil
     public static URI getPartitionsFolderLocationUri(Table table, List<FieldVector> fieldVectors, int readerPosition) throws URISyntaxException
     {
         String locationUri;
-        String tableLocation = table.getStorageDescriptor().getLocation();
-        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
+        String tableLocation = table.storageDescriptor().location();
+        String partitionPattern = table.parameters().get(PARTITION_PATTERN_KEY);
         if (null != partitionPattern) {
             for (FieldVector fieldVector : fieldVectors) {
                 fieldVector.getReader().setPosition(readerPosition);

@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.junit.After;
 import org.junit.Assert;
@@ -31,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AmazonMskCompositeHandlerTest {
@@ -47,16 +46,13 @@ public class AmazonMskCompositeHandlerTest {
     @Mock
     KafkaConsumer<String, String> kafkaConsumer;
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
 
     private AmazonMskCompositeHandler amazonMskCompositeHandler;
     private MockedStatic<AmazonMskUtils> mockedMskUtils;
-    private MockedStatic<AWSSecretsManagerClientBuilder> mockedSecretsManagerClient;
 
     @Before
     public void setUp() throws Exception {
-        mockedSecretsManagerClient = Mockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-        mockedSecretsManagerClient.when(()-> AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
         mockedMskUtils = Mockito.mockStatic(AmazonMskUtils.class);
         mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(configOptions)).thenReturn(kafkaConsumer);
     }
@@ -64,7 +60,6 @@ public class AmazonMskCompositeHandlerTest {
     @After
     public void close() {
         mockedMskUtils.close();
-        mockedSecretsManagerClient.close();
     }
 
     @Test

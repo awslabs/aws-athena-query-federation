@@ -23,9 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.Bucket;
-import com.amazonaws.services.s3.model.Owner;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -33,12 +30,19 @@ import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Bucket;
+import software.amazon.awssdk.services.s3.model.GetBucketAclRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketAclResponse;
+import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
+import software.amazon.awssdk.services.s3.model.Owner;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 public class S3BucketsTableProviderTest
@@ -47,7 +51,7 @@ public class S3BucketsTableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(S3BucketsTableProviderTest.class);
 
     @Mock
-    private AmazonS3 mockS3;
+    private S3Client mockS3;
 
     protected String getIdField()
     {
@@ -87,7 +91,15 @@ public class S3BucketsTableProviderTest
             values.add(makeBucket(getIdValue()));
             values.add(makeBucket(getIdValue()));
             values.add(makeBucket("fake-id"));
-            return values;
+            return ListBucketsResponse.builder().buckets(values).build();
+        });
+        when(mockS3.getBucketAcl(any(GetBucketAclRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            return GetBucketAclResponse.builder()
+                    .owner(Owner.builder()
+                            .displayName("owner_name")
+                            .id("owner_id")
+                            .build())
+                    .build();
         });
     }
 
@@ -143,13 +155,10 @@ public class S3BucketsTableProviderTest
 
     private Bucket makeBucket(String id)
     {
-        Bucket bucket = new Bucket();
-        bucket.setName(id);
-        Owner owner = new Owner();
-        owner.setDisplayName("owner_name");
-        owner.setId("owner_id");
-        bucket.setOwner(owner);
-        bucket.setCreationDate(new Date(100_000));
+        Bucket bucket = Bucket.builder()
+            .name(id)
+            .creationDate(new Date(100_000).toInstant())
+            .build();
         return bucket;
     }
 }

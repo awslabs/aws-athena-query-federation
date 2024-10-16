@@ -31,14 +31,14 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeVolumesRequest;
-import com.amazonaws.services.ec2.model.DescribeVolumesResult;
-import com.amazonaws.services.ec2.model.Volume;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeVolumesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeVolumesResponse;
+import software.amazon.awssdk.services.ec2.model.Volume;
 
 import java.util.Collections;
 import java.util.List;
@@ -52,9 +52,9 @@ public class EbsTableProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(EbsTableProvider.class);
     private static final Schema SCHEMA;
-    private AmazonEC2 ec2;
+    private Ec2Client ec2;
 
-    public EbsTableProvider(AmazonEC2 ec2)
+    public EbsTableProvider(Ec2Client ec2)
     {
         this.ec2 = ec2;
     }
@@ -96,24 +96,24 @@ public class EbsTableProvider
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         boolean done = false;
-        DescribeVolumesRequest request = new DescribeVolumesRequest();
+        DescribeVolumesRequest.Builder request = DescribeVolumesRequest.builder();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
-            request.setVolumeIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
+            request.volumeIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }
 
         while (!done) {
-            DescribeVolumesResult response = ec2.describeVolumes(request);
+            DescribeVolumesResponse response = ec2.describeVolumes(request.build());
 
-            for (Volume volume : response.getVolumes()) {
+            for (Volume volume : response.volumes()) {
                 logger.info("readWithConstraint: {}", response);
                 instanceToRow(volume, spiller);
             }
 
-            request.setNextToken(response.getNextToken());
+            request.nextToken(response.nextToken());
 
-            if (response.getNextToken() == null || !queryStatusChecker.isQueryRunning()) {
+            if (response.nextToken() == null || !queryStatusChecker.isQueryRunning()) {
                 done = true;
             }
         }
@@ -133,26 +133,26 @@ public class EbsTableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("id", row, volume.getVolumeId());
-            matched &= block.offerValue("type", row, volume.getVolumeType());
-            matched &= block.offerValue("availability_zone", row, volume.getAvailabilityZone());
-            matched &= block.offerValue("created_time", row, volume.getCreateTime());
-            matched &= block.offerValue("is_encrypted", row, volume.getEncrypted());
-            matched &= block.offerValue("kms_key_id", row, volume.getKmsKeyId());
-            matched &= block.offerValue("size", row, volume.getSize());
-            matched &= block.offerValue("iops", row, volume.getIops());
-            matched &= block.offerValue("snapshot_id", row, volume.getSnapshotId());
-            matched &= block.offerValue("state", row, volume.getState());
+            matched &= block.offerValue("id", row, volume.volumeId());
+            matched &= block.offerValue("type", row, volume.volumeTypeAsString());
+            matched &= block.offerValue("availability_zone", row, volume.availabilityZone());
+            matched &= block.offerValue("created_time", row, volume.createTime());
+            matched &= block.offerValue("is_encrypted", row, volume.encrypted());
+            matched &= block.offerValue("kms_key_id", row, volume.kmsKeyId());
+            matched &= block.offerValue("size", row, volume.size());
+            matched &= block.offerValue("iops", row, volume.iops());
+            matched &= block.offerValue("snapshot_id", row, volume.snapshotId());
+            matched &= block.offerValue("state", row, volume.stateAsString());
 
-            if (volume.getAttachments().size() == 1) {
-                matched &= block.offerValue("target", row, volume.getAttachments().get(0).getInstanceId());
-                matched &= block.offerValue("attached_device", row, volume.getAttachments().get(0).getDevice());
-                matched &= block.offerValue("attachment_state", row, volume.getAttachments().get(0).getState());
-                matched &= block.offerValue("attachment_time", row, volume.getAttachments().get(0).getAttachTime());
+            if (volume.attachments().size() == 1) {
+                matched &= block.offerValue("target", row, volume.attachments().get(0).instanceId());
+                matched &= block.offerValue("attached_device", row, volume.attachments().get(0).device());
+                matched &= block.offerValue("attachment_state", row, volume.attachments().get(0).stateAsString());
+                matched &= block.offerValue("attachment_time", row, volume.attachments().get(0).attachTime());
             }
 
-            List<String> tags = volume.getTags().stream()
-                    .map(next -> next.getKey() + ":" + next.getValue()).collect(Collectors.toList());
+            List<String> tags = volume.tags().stream()
+                    .map(next -> next.key() + ":" + next.value()).collect(Collectors.toList());
             matched &= block.offerComplexValue("tags", row, FieldResolver.DEFAULT, tags);
 
             return matched ? 1 : 0;

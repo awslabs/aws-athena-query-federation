@@ -21,13 +21,14 @@ package com.amazonaws.athena.connectors.cloudwatch;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connectors.cloudwatch.qpt.CloudwatchQueryPassthrough;
-import com.amazonaws.services.logs.AWSLogs;
-import com.amazonaws.services.logs.model.GetQueryResultsRequest;
-import com.amazonaws.services.logs.model.GetQueryResultsResult;
-import com.amazonaws.services.logs.model.StartQueryRequest;
-import com.amazonaws.services.logs.model.StartQueryResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.QueryStatus;
+import software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -41,8 +42,8 @@ public final class CloudwatchUtils
     private CloudwatchUtils() {}
     public static StartQueryRequest startQueryRequest(Map<String, String> qptArguments)
     {
-        return new StartQueryRequest().withEndTime(Long.valueOf(qptArguments.get(CloudwatchQueryPassthrough.ENDTIME))).withStartTime(Long.valueOf(qptArguments.get(CloudwatchQueryPassthrough.STARTTIME)))
-                .withQueryString(qptArguments.get(CloudwatchQueryPassthrough.QUERYSTRING)).withLogGroupNames(getLogGroupNames(qptArguments));
+        return StartQueryRequest.builder().endTime(Long.valueOf(qptArguments.get(CloudwatchQueryPassthrough.ENDTIME))).startTime(Long.valueOf(qptArguments.get(CloudwatchQueryPassthrough.STARTTIME)))
+                .queryString(qptArguments.get(CloudwatchQueryPassthrough.QUERYSTRING)).logGroupNames(getLogGroupNames(qptArguments)).build();
     }
 
     private static String[] getLogGroupNames(Map<String, String> qptArguments)
@@ -55,25 +56,25 @@ public final class CloudwatchUtils
         return logGroupNames;
     }
 
-    public static StartQueryResult getQueryResult(AWSLogs awsLogs, StartQueryRequest startQueryRequest)
+    public static StartQueryResponse getQueryResult(CloudWatchLogsClient awsLogs, StartQueryRequest startQueryRequest)
     {
         return awsLogs.startQuery(startQueryRequest);
     }
 
-    public static GetQueryResultsResult getQueryResults(AWSLogs awsLogs, StartQueryResult startQueryResult)
+    public static GetQueryResultsResponse getQueryResults(CloudWatchLogsClient awsLogs, StartQueryResponse startQueryResponse)
     {
-        return awsLogs.getQueryResults(new GetQueryResultsRequest().withQueryId(startQueryResult.getQueryId()));
+        return awsLogs.getQueryResults(GetQueryResultsRequest.builder().queryId(startQueryResponse.queryId()).build());
     }
 
-    public static GetQueryResultsResult getResult(ThrottlingInvoker invoker, AWSLogs awsLogs, Map<String, String> qptArguments, int limit) throws TimeoutException, InterruptedException
+    public static GetQueryResultsResponse getResult(ThrottlingInvoker invoker, CloudWatchLogsClient awsLogs, Map<String, String> qptArguments, int limit) throws TimeoutException, InterruptedException
     {
-        StartQueryResult startQueryResult = invoker.invoke(() -> getQueryResult(awsLogs, startQueryRequest(qptArguments).withLimit(limit)));
-        String status = null;
-        GetQueryResultsResult getQueryResultsResult;
+        StartQueryResponse startQueryResponse = invoker.invoke(() -> getQueryResult(awsLogs, startQueryRequest(qptArguments).toBuilder().limit(limit).build()));
+        QueryStatus status = null;
+        GetQueryResultsResponse getQueryResultsResponse;
         Instant startTime = Instant.now(); // Record the start time
         do {
-            getQueryResultsResult = invoker.invoke(() -> getQueryResults(awsLogs, startQueryResult));
-            status = getQueryResultsResult.getStatus();
+            getQueryResultsResponse = invoker.invoke(() -> getQueryResults(awsLogs, startQueryResponse));
+            status = getQueryResultsResponse.status();
             Thread.sleep(1000);
 
             // Check if 10 minutes have passed
@@ -82,8 +83,8 @@ public final class CloudwatchUtils
             if (elapsedMinutes >= RESULT_TIMEOUT) {
                 throw new RuntimeException("Query execution timeout exceeded.");
             }
-        } while (!status.equalsIgnoreCase("Complete"));
+        } while (!status.equals(QueryStatus.COMPLETE));
 
-        return getQueryResultsResult;
+        return getQueryResultsResponse;
     }
 }

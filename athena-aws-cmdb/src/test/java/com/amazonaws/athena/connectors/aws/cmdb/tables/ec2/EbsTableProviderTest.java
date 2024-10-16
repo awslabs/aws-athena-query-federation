@@ -23,12 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeVolumesRequest;
-import com.amazonaws.services.ec2.model.DescribeVolumesResult;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.Volume;
-import com.amazonaws.services.ec2.model.VolumeAttachment;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -38,6 +32,12 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeVolumesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeVolumesResponse;
+import software.amazon.awssdk.services.ec2.model.Tag;
+import software.amazon.awssdk.services.ec2.model.Volume;
+import software.amazon.awssdk.services.ec2.model.VolumeAttachment;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -47,7 +47,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -57,7 +56,7 @@ public class EbsTableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(EbsTableProviderTest.class);
 
     @Mock
-    private AmazonEC2 mockEc2;
+    private Ec2Client mockEc2;
 
     protected String getIdField()
     {
@@ -95,14 +94,13 @@ public class EbsTableProviderTest
         when(mockEc2.describeVolumes(nullable(DescribeVolumesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             DescribeVolumesRequest request = (DescribeVolumesRequest) invocation.getArguments()[0];
 
-            assertEquals(getIdValue(), request.getVolumeIds().get(0));
-            DescribeVolumesResult mockResult = mock(DescribeVolumesResult.class);
+            assertEquals(getIdValue(), request.volumeIds().get(0));
+
             List<Volume> values = new ArrayList<>();
             values.add(makeVolume(getIdValue()));
             values.add(makeVolume(getIdValue()));
             values.add(makeVolume("fake-id"));
-            when(mockResult.getVolumes()).thenReturn(values);
-            return mockResult;
+            return DescribeVolumesResponse.builder().volumes(values).build();
         });
     }
 
@@ -158,23 +156,23 @@ public class EbsTableProviderTest
 
     private Volume makeVolume(String id)
     {
-        Volume volume = new Volume();
-        volume.withVolumeId(id)
-                .withVolumeType("type")
-                .withAttachments(new VolumeAttachment()
-                        .withInstanceId("target")
-                        .withDevice("attached_device")
-                        .withState("attachment_state")
-                        .withAttachTime(new Date(100_000)))
-                .withAvailabilityZone("availability_zone")
-                .withCreateTime(new Date(100_000))
-                .withEncrypted(true)
-                .withKmsKeyId("kms_key_id")
-                .withSize(100)
-                .withIops(100)
-                .withSnapshotId("snapshot_id")
-                .withState("state")
-                .withTags(new Tag("key", "value"));
+        Volume volume = Volume.builder()
+                .volumeId(id)
+                .volumeType("type")
+                .attachments(VolumeAttachment.builder()
+                        .instanceId("target")
+                        .device("attached_device")
+                        .state("attachment_state")
+                        .attachTime(new Date(100_000).toInstant()).build())
+                .availabilityZone("availability_zone")
+                .createTime(new Date(100_000).toInstant())
+                .encrypted(true)
+                .kmsKeyId("kms_key_id")
+                .size(100)
+                .iops(100)
+                .snapshotId("snapshot_id")
+                .state("state")
+                .tags(Tag.builder().key("key").value("value").build()).build();
 
         return volume;
     }

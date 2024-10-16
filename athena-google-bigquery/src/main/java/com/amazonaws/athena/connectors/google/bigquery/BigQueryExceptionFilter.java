@@ -21,8 +21,8 @@
 package com.amazonaws.athena.connectors.google.bigquery;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.services.athena.model.AmazonAthenaException;
 import com.google.cloud.bigquery.BigQueryException;
+import software.amazon.awssdk.services.athena.model.AthenaException;
 public class BigQueryExceptionFilter implements ThrottlingInvoker.ExceptionFilter
 {
     public static final ThrottlingInvoker.ExceptionFilter EXCEPTION_FILTER = new BigQueryExceptionFilter();
@@ -30,7 +30,7 @@ public class BigQueryExceptionFilter implements ThrottlingInvoker.ExceptionFilte
     @Override
     public boolean isMatch(Exception ex)
     {
-        if (ex instanceof AmazonAthenaException && ex.getMessage().contains("Rate exceeded")) {
+        if (ex instanceof AthenaException && ex.getMessage().contains("Rate exceeded")) {
             return true;
         }
         if (ex instanceof BigQueryException && ex.getMessage().contains("Exceeded rate limits")) {

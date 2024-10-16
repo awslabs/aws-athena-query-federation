@@ -40,15 +40,6 @@ import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.athena.connectors.redis.util.MockKeyScanCursor;
 import com.amazonaws.athena.connectors.redis.util.MockScoredValueScanCursor;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import io.lettuce.core.ScanArgs;
@@ -69,6 +60,17 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -105,7 +107,7 @@ public class RedisRecordHandlerTest
     private RedisRecordHandler handler;
     private BlockAllocator allocator;
     private List<ByteHolder> mockS3Storage = new ArrayList<>();
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
     private S3BlockSpillReader spillReader;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
 
@@ -119,13 +121,13 @@ public class RedisRecordHandlerTest
     private RedisCommandsWrapper<String, String> mockSyncCommands;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
     private RedisConnectionFactory mockFactory;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
@@ -137,42 +139,38 @@ public class RedisRecordHandlerTest
 
         allocator = new BlockAllocatorImpl();
 
-        amazonS3 = mock(AmazonS3.class);
+        amazonS3 = mock(S3Client.class);
 
-        Mockito.lenient().when(amazonS3.putObject(any()))
+        Mockito.lenient().when(amazonS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
+                    InputStream inputStream = ((RequestBody) invocationOnMock.getArguments()[1]).contentStreamProvider().newStream();
                     ByteHolder byteHolder = new ByteHolder();
                     byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                     synchronized (mockS3Storage) {
                         mockS3Storage.add(byteHolder);
                         logger.info("puObject: total size " + mockS3Storage.size());
                     }
-                    return mock(PutObjectResult.class);
+                    return PutObjectResponse.builder().build();
                 });
 
-        Mockito.lenient().when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
+        Mockito.lenient().when(amazonS3.getObject(any(GetObjectRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
                     synchronized (mockS3Storage) {
                         byteHolder = mockS3Storage.get(0);
                         mockS3Storage.remove(0);
                         logger.info("getObject: total size " + mockS3Storage.size());
                     }
-                    when(mockObject.getObjectContent()).thenReturn(
-                            new S3ObjectInputStream(
-                                    new ByteArrayInputStream(byteHolder.getBytes()), null));
-                    return mockObject;
+                return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
                 });
 
         when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
-                    if ("endpoint".equalsIgnoreCase(request.getSecretId())) {
-                        return new GetSecretValueResult().withSecretString(decodedEndpoint);
+                    if ("endpoint".equalsIgnoreCase(request.secretId())) {
+                        return GetSecretValueResponse.builder().secretString(decodedEndpoint).build();
                     }
-                    throw new RuntimeException("Unknown secret " + request.getSecretId());
+                    throw new RuntimeException("Unknown secret " + request.secretId());
                 });
 
         handler = new RedisRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockFactory, com.google.common.collect.ImmutableMap.of());

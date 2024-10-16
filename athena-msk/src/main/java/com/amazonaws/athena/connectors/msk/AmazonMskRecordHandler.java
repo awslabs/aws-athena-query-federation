@@ -28,16 +28,13 @@ import com.amazonaws.athena.connectors.msk.consumer.MskConsumer;
 import com.amazonaws.athena.connectors.msk.consumer.MskDefaultConsumer;
 import com.amazonaws.athena.connectors.msk.consumer.MskProtobufConsumer;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import static com.amazonaws.athena.connectors.msk.AmazonMskConstants.AVRO_DATA_FORMAT;
 import static com.amazonaws.athena.connectors.msk.AmazonMskConstants.PROTOBUF_DATA_FORMAT;
@@ -50,14 +47,14 @@ public class AmazonMskRecordHandler
     AmazonMskRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(
-            AmazonS3ClientBuilder.defaultClient(),
-            AWSSecretsManagerClientBuilder.defaultClient(),
-            AmazonAthenaClientBuilder.defaultClient(),
+            S3Client.create(),
+            SecretsManagerClient.create(),
+            AthenaClient.create(),
             configOptions);
     }
 
     @VisibleForTesting
-    public AmazonMskRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
+    public AmazonMskRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, AmazonMskConstants.MSK_SOURCE, configOptions);
     }

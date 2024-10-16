@@ -27,10 +27,6 @@ import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.BlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.NoOpBlockCrypto;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.ByteStreams;
@@ -38,10 +34,16 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -76,7 +78,7 @@ public class S3BlockSpiller
 
     private static final String SPILL_PUT_REQUEST_HEADERS_ENV = "spill_put_request_headers";
     //Used to write to S3
-    private final AmazonS3 amazonS3;
+    private final S3Client amazonS3;
     //Used to optionally encrypt Blocks.
     private final BlockCrypto blockCrypto;
     //Used to create new blocks.
@@ -125,7 +127,7 @@ public class S3BlockSpiller
      * @param constraintEvaluator The ConstraintEvaluator that should be used to constrain writes.
      */
     public S3BlockSpiller(
-        AmazonS3 amazonS3,
+        S3Client amazonS3,
         SpillConfig spillConfig,
         BlockAllocator allocator,
         Schema schema,
@@ -146,7 +148,7 @@ public class S3BlockSpiller
      * @param maxRowsPerCall The max number of rows to allow callers to write in one call.
      */
     public S3BlockSpiller(
-        AmazonS3 amazonS3,
+        S3Client amazonS3,
         SpillConfig spillConfig,
         BlockAllocator allocator,
         Schema schema,
@@ -318,29 +320,24 @@ public class S3BlockSpiller
     /**
      * Grabs the request headers from env and sets them on the request
      */
-    private void setRequestHeadersFromEnv(PutObjectRequest request)
+    private Map<String, String> getRequestHeadersFromEnv()
     {
         String headersFromEnvStr = configOptions.get(SPILL_PUT_REQUEST_HEADERS_ENV);
         if (headersFromEnvStr == null || headersFromEnvStr.isEmpty()) {
-            return;
+            return Collections.emptyMap();
         }
         try {
             ObjectMapper mapper = new ObjectMapper();
             TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>() {};
             Map<String, String> headers = mapper.readValue(headersFromEnvStr, typeRef);
-            for (Map.Entry<String, String> entry : headers.entrySet()) {
-                String oldValue = request.putCustomRequestHeader(entry.getKey(), entry.getValue());
-                if (oldValue != null) {
-                    logger.warn("Key: %s has been overwritten with: %s. Old value: %s",
-                            entry.getKey(), entry.getValue(), oldValue);
-                }
-            }
+            return headers;
         }
         catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             String message = String.format("Invalid value for environment variable: %s : %s",
                     SPILL_PUT_REQUEST_HEADERS_ENV, headersFromEnvStr);
             logger.error(message, e);
         }
+        return Collections.emptyMap();
     }
 
     /**
@@ -361,15 +358,13 @@ public class S3BlockSpiller
 
             // Set the contentLength otherwise the s3 client will buffer again since it
             // only sees the InputStream wrapper.
-            ObjectMetadata objMeta = new ObjectMetadata();
-            objMeta.setContentLength(bytes.length);
-            PutObjectRequest request = new PutObjectRequest(
-                    spillLocation.getBucket(),
-                    spillLocation.getKey(),
-                    new ByteArrayInputStream(bytes),
-                    objMeta);
-            setRequestHeadersFromEnv(request);
-            amazonS3.putObject(request);
+            PutObjectRequest request = PutObjectRequest.builder()
+                    .bucket(spillLocation.getBucket())
+                    .key(spillLocation.getKey())
+                    .contentLength((long) bytes.length)
+                    .metadata(getRequestHeadersFromEnv())
+                    .build();
+            amazonS3.putObject(request, RequestBody.fromBytes(bytes));
             logger.info("write: Completed spilling block of size {} bytes", bytes.length);
 
             return spillLocation;
@@ -393,9 +388,12 @@ public class S3BlockSpiller
     {
         try {
             logger.debug("write: Started reading block from S3");
-            S3Object fullObject = amazonS3.getObject(spillLocation.getBucket(), spillLocation.getKey());
+            ResponseInputStream<GetObjectResponse> responseStream = amazonS3.getObject(GetObjectRequest.builder()
+                    .bucket(spillLocation.getBucket())
+                    .key(spillLocation.getKey())
+                    .build());
             logger.debug("write: Completed reading block from S3");
-            Block block = blockCrypto.decrypt(key, ByteStreams.toByteArray(fullObject.getObjectContent()), schema);
+            Block block = blockCrypto.decrypt(key, ByteStreams.toByteArray(responseStream), schema);
             logger.debug("write: Completed decrypting block of size.");
             return block;
         }

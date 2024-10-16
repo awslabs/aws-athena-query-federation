@@ -77,6 +77,7 @@ import org.apache.commons.codec.Charsets;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -272,6 +273,9 @@ public class BlockUtils
                         ((DateMilliVector) vector).setSafe(
                                 pos,
                                 ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli());
+                    }
+                    else if (value instanceof Instant) {
+                        ((DateMilliVector) vector).setSafe(pos, ((Instant) value).toEpochMilli());
                     }
                     else {
                         ((DateMilliVector) vector).setSafe(pos, (long) value);

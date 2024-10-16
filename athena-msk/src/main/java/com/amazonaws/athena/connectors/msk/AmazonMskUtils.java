@@ -24,23 +24,10 @@ import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.athena.connectors.msk.serde.MskCsvDeserializer;
 import com.amazonaws.athena.connectors.msk.serde.MskJsonDeserializer;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryKafkaDeserializer;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
 import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
 import com.amazonaws.services.schemaregistry.utils.ProtobufMessageType;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.DynamicMessage;
@@ -55,6 +42,16 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -328,20 +325,24 @@ public class AmazonMskUtils
     {
         LOGGER.debug("Creating the connection with AWS S3 for copying certificates to Temp Folder");
         Path tempDir = getTempDirPath();
-        AWSCredentials credentials = new DefaultAWSCredentialsProviderChain().getCredentials();
-        AmazonS3 s3Client = AmazonS3ClientBuilder.standard().
-                withCredentials(new AWSStaticCredentialsProvider(credentials)).
-                build();
+        // create() Uses default credentials chain
+        S3Client s3Client = S3Client.create();
 
         String s3uri = getRequiredConfig(AmazonMskConstants.CERTIFICATES_S3_REFERENCE, configOptions);
         String[] s3Bucket = s3uri.split("s3://")[1].split("/");
 
-        ObjectListing objectListing = s3Client.listObjects(s3Bucket[0], s3Bucket[1]);
+        ListObjectsResponse response = s3Client.listObjects(ListObjectsRequest.builder()
+                .bucket(s3Bucket[0])
+                .prefix(s3Bucket[1])
+                .build());
 
-        for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
-            S3Object object = s3Client.getObject(new GetObjectRequest(s3Bucket[0], objectSummary.getKey()));
-            InputStream inputStream = new BufferedInputStream(object.getObjectContent());
-            String key = objectSummary.getKey();
+        for (S3Object objectSummary : response.contents()) {
+            ResponseInputStream<GetObjectResponse> responseStream = s3Client.getObject(GetObjectRequest.builder()
+                    .bucket(s3Bucket[0])
+                    .key(objectSummary.key())
+                    .build());
+            InputStream inputStream = new BufferedInputStream(responseStream);
+            String key = objectSummary.key();
             String fName = key.substring(key.indexOf('/') + 1);
             if (!fName.isEmpty()) {
                 File file = new File(tempDir + File.separator + fName);
@@ -376,11 +377,12 @@ public class AmazonMskUtils
      */
     private static Map<String, Object> getCredentialsAsKeyValue(java.util.Map<String, String> configOptions) throws Exception
     {
-        AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
-        GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
-        getSecretValueRequest.setSecretId(getRequiredConfig(AmazonMskConstants.SECRET_MANAGER_MSK_CREDS_NAME, configOptions));
-        GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
-        return objectMapper.readValue(response.getSecretString(), new TypeReference<Map<String, Object>>()
+        SecretsManagerClient secretsManager = SecretsManagerClient.create();
+        GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder()
+                .secretId(getRequiredConfig(AmazonMskConstants.SECRET_MANAGER_MSK_CREDS_NAME, configOptions))
+                .build();
+        GetSecretValueResponse response = secretsManager.getSecretValue(getSecretValueRequest);
+        return objectMapper.readValue(response.secretString(), new TypeReference<Map<String, Object>>()
         {
         });
     }

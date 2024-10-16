@@ -20,14 +20,13 @@
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
-import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Joiner;
+import software.amazon.awssdk.services.lambda.model.LambdaException;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -46,15 +45,15 @@ public class LambdaFunctionExceptionSerDe
 
     private LambdaFunctionExceptionSerDe() {}
 
-    public static final class Deserializer extends BaseDeserializer<LambdaFunctionException>
+    public static final class Deserializer extends BaseDeserializer<LambdaException>
     {
         public Deserializer()
         {
-            super(LambdaFunctionException.class);
+            super(LambdaException.class);
         }
 
         @Override
-        public LambdaFunctionException deserialize(JsonParser jparser, DeserializationContext ctxt)
+        public LambdaException deserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             validateObjectStart(jparser.getCurrentToken());
@@ -63,18 +62,18 @@ public class LambdaFunctionExceptionSerDe
         }
 
         @Override
-        public LambdaFunctionException doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public LambdaException doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             JsonNode root = jparser.getCodec().readTree(jparser);
             return recursiveParse(root);
         }
 
-        private LambdaFunctionException recursiveParse(JsonNode root)
+        private LambdaException recursiveParse(JsonNode root)
         {
             String errorType = getNullableStringValue(root, ERROR_TYPE_FIELD);
             String errorMessage = getNullableStringValue(root, ERROR_MESSAGE_FIELD);
-            LambdaFunctionException cause = null;
+            LambdaException cause = null;
             JsonNode causeNode = root.get(CAUSE_FIELD);
             if (causeNode != null) {
                 cause = recursiveParse(causeNode);
@@ -102,20 +101,7 @@ public class LambdaFunctionExceptionSerDe
                 }
             }
 
-            // HACK: LambdaFunctionException is only intended to be instantiated by Lambda server-side, so its constructors
-            // are package-private or deprecated. Thus the need for reflection here. If the signature of the preferred
-            // constructor does change, we fall back to the deprecated constructor (which requires us to append the stackTrace
-            // to the errorMessage to not lose it). If the deprecated constructor is removed then this will not compile
-            // and the appropriate adjustment can be made.
-            try {
-                Constructor<LambdaFunctionException> constructor = LambdaFunctionException.class.getDeclaredConstructor(
-                        String.class, String.class, LambdaFunctionException.class, List.class);
-                constructor.setAccessible(true);
-                return constructor.newInstance(errorType, errorMessage, cause, stackTraces);
-            }
-            catch (ReflectiveOperationException e) {
-                return new LambdaFunctionException(appendStackTrace(errorMessage, stackTraces), false, errorType);
-            }
+            return (LambdaException) LambdaException.builder().cause(cause).message(appendStackTrace(errorMessage, stackTraces) + "\nErrorType: " + errorType).build();
         }
 
         private String getNullableStringValue(JsonNode parent, String field)

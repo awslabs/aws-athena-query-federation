@@ -32,13 +32,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.msk.dto.*;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.GetSchemaResult;
-import com.amazonaws.services.glue.model.GetSchemaVersionResult;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors;
@@ -62,6 +55,14 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetSchemaRequest;
+import software.amazon.awssdk.services.glue.model.GetSchemaResponse;
+import software.amazon.awssdk.services.glue.model.GetSchemaVersionRequest;
+import software.amazon.awssdk.services.glue.model.GetSchemaVersionResponse;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -71,6 +72,7 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints
 import static com.amazonaws.athena.connectors.msk.AmazonMskConstants.AVRO_DATA_FORMAT;
 import static com.amazonaws.athena.connectors.msk.AmazonMskConstants.PROTOBUF_DATA_FORMAT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.*;
 
@@ -78,19 +80,19 @@ import static org.mockito.Mockito.*;
 public class AmazonMskRecordHandlerTest {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private MockedStatic<AWSGlueClientBuilder> awsGlueClientBuilder;
+    private MockedStatic<GlueClient> awsGlueClientBuilder;
 
     @Mock
-    AWSGlue awsGlue;
+    GlueClient awsGlue;
 
     @Mock
-    AmazonS3 amazonS3;
+    S3Client amazonS3;
 
     @Mock
-    AWSSecretsManager awsSecretsManager;
+    SecretsManagerClient awsSecretsManager;
 
     @Mock
-    private AmazonAthena athena;
+    private AthenaClient athena;
 
     @Mock
     FederatedIdentity federatedIdentity;
@@ -150,8 +152,8 @@ public class AmazonMskRecordHandlerTest {
         allocator = new BlockAllocatorImpl();
         mockedMskUtils = Mockito.mockStatic(AmazonMskUtils.class, Mockito.CALLS_REAL_METHODS);
         amazonMskRecordHandler = new AmazonMskRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
-        awsGlueClientBuilder = Mockito.mockStatic(AWSGlueClientBuilder.class);
-        awsGlueClientBuilder.when(()-> AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
+        awsGlueClientBuilder = Mockito.mockStatic(GlueClient.class);
+        awsGlueClientBuilder.when(()-> GlueClient.create()).thenReturn(awsGlue);
     }
 
     @After
@@ -177,8 +179,8 @@ public class AmazonMskRecordHandlerTest {
         mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
-        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
-        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getJsonSchemaVersionResult());
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getJsonSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -204,8 +206,8 @@ public class AmazonMskRecordHandlerTest {
         mockedMskUtils.when(() -> AmazonMskUtils.getAvroKafkaConsumer(com.google.common.collect.ImmutableMap.of())).thenReturn(avroConsumer);
         mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
-        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
-        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getAvroSchemaVersionResult());
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getAvroSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -233,8 +235,8 @@ public class AmazonMskRecordHandlerTest {
         mockedMskUtils.when(() -> AmazonMskUtils.getProtobufKafkaConsumer(com.google.common.collect.ImmutableMap.of())).thenReturn(protobufConsumer);
         mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
-        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
-        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getProtobufSchemaVersionResult());
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getProtobufSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -262,8 +264,8 @@ public class AmazonMskRecordHandlerTest {
         mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
-        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
-        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getJsonSchemaVersionResult());
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getJsonSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(false);
@@ -292,8 +294,8 @@ public class AmazonMskRecordHandlerTest {
         mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
-        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
-        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getJsonSchemaVersionResult());
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getJsonSchemaVersionResponse());
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         amazonMskRecordHandler.readWithConstraint(null, request, null);
@@ -318,8 +320,8 @@ public class AmazonMskRecordHandlerTest {
         mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
-        Mockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult());
-        Mockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getJsonSchemaVersionResult());
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse());
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getJsonSchemaVersionResponse());
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -490,49 +492,49 @@ public class AmazonMskRecordHandlerTest {
         return protobufSchema;
     }
 
-    private GetSchemaResult getSchemaResult() {
-
+    private GetSchemaResponse getSchemaResponse() {
         String arn = "defaultArn", schemaName = "defaultSchemaName";
         Long latestSchemaVersion = 123L;
-        GetSchemaResult getSchemaResult = new GetSchemaResult();
-        getSchemaResult.setSchemaArn(arn);
-        getSchemaResult.setSchemaName(schemaName);
-        getSchemaResult.setLatestSchemaVersion(latestSchemaVersion);
-        return getSchemaResult;
+        return GetSchemaResponse.builder()
+                .schemaArn(arn)
+                .schemaName(schemaName)
+                .latestSchemaVersion(latestSchemaVersion)
+                .build();
     }
 
-    private GetSchemaVersionResult getJsonSchemaVersionResult() {
+    private GetSchemaVersionResponse getJsonSchemaVersionResponse() {
         String arn = "defaultArn", schemaVersionId = "defaultVersionId";
-        GetSchemaVersionResult getJsonSchemaVersionResult = new GetSchemaVersionResult();
-        getJsonSchemaVersionResult.setSchemaArn(arn);
-        getJsonSchemaVersionResult.setSchemaVersionId(schemaVersionId);
-        getJsonSchemaVersionResult.setDataFormat("json");
-        getJsonSchemaVersionResult.setSchemaDefinition("{\"topicName\": \"testtable\", \"\"message\": {\"dataFormat\": \"json\", \"fields\": [{\"name\": \"intcol\", \"mapping\": \"intcol\", \"type\": \"INTEGER\"}]}\"}");
-        return getJsonSchemaVersionResult;
+        return GetSchemaVersionResponse.builder()
+                .schemaArn(arn)
+                .schemaVersionId(schemaVersionId)
+                .dataFormat("json")
+                .schemaDefinition("{\"topicName\": \"testtable\", \"\"message\": {\"dataFormat\": \"json\", \"fields\": [{\"name\": \"intcol\", \"mapping\": \"intcol\", \"type\": \"INTEGER\"}]}\"}")
+                .build();
     }
 
-    private GetSchemaVersionResult getAvroSchemaVersionResult() {
+    private GetSchemaVersionResponse getAvroSchemaVersionResponse() {
         String arn = "defaultArn", schemaVersionId = "defaultVersionId";
-        GetSchemaVersionResult getAvroSchemaVersionResult = new GetSchemaVersionResult();
-        getAvroSchemaVersionResult.setSchemaArn(arn);
-        getAvroSchemaVersionResult.setSchemaVersionId(schemaVersionId);
-        getAvroSchemaVersionResult.setDataFormat("avro");
-        getAvroSchemaVersionResult.setSchemaDefinition("{\"type\": \"record\",\"name\":\"greetings\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}");
-        return getAvroSchemaVersionResult;
+        return GetSchemaVersionResponse.builder()
+                .schemaArn(arn)
+                .schemaVersionId(schemaVersionId)
+                .dataFormat("avro")
+                .schemaDefinition("{\"type\": \"record\",\"name\":\"greetings\",\"fields\": [{\"name\": \"id\", \"type\": \"int\"},{\"name\": \"name\", \"type\": \"string\"},{\"name\": \"greeting\",\"type\": \"string\"}]}")
+                .build();
+
     }
 
-    private GetSchemaVersionResult getProtobufSchemaVersionResult() {
+    private GetSchemaVersionResponse getProtobufSchemaVersionResponse() {
         String arn = "defaultArn", schemaVersionId = "defaultVersionId";
-        GetSchemaVersionResult getProtobufSchemaVersionResult = new GetSchemaVersionResult();
-        getProtobufSchemaVersionResult.setSchemaArn(arn);
-        getProtobufSchemaVersionResult.setSchemaVersionId(schemaVersionId);
-        getProtobufSchemaVersionResult.setDataFormat("protobuf");
-        getProtobufSchemaVersionResult.setSchemaDefinition("syntax = \"proto3\";\n" +
-                "message protobuftest {\n" +
-                "string name = 1;\n" +
-                "int32 calories = 2;\n" +
-                "string colour = 3; \n" +
-                "}");
-        return getProtobufSchemaVersionResult;
+        return GetSchemaVersionResponse.builder()
+                .schemaArn(arn)
+                .schemaVersionId(schemaVersionId)
+                .dataFormat("protobuf")
+                .schemaDefinition("syntax = \"proto3\";\n" +
+                        "message protobuftest {\n" +
+                        "string name = 1;\n" +
+                        "int32 calories = 2;\n" +
+                        "string colour = 3; \n" +
+                        "}")
+                .build();
     }
 }

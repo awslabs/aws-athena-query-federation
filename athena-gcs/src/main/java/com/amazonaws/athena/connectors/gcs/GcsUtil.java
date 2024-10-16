@@ -22,16 +22,15 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.GetTableRequest;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.sun.jna.platform.unix.LibC;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetTableRequest;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -100,7 +99,7 @@ public class GcsUtil
      */
     public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions) throws IOException
     {
-        CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
+        CachableSecretsManager secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
         String gcsCredentialsJsonString = secretsManager.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
         File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
         boolean destinationDirExists = new File(destination.getParent()).mkdirs();
@@ -143,14 +142,15 @@ public class GcsUtil
      * @param awsGlue AWS Glue client
      * @return Table object
      */
-    public static Table getGlueTable(TableName tableName, AWSGlue awsGlue)
+    public static Table getGlueTable(TableName tableName, GlueClient awsGlue)
     {
-        GetTableRequest getTableRequest = new GetTableRequest();
-        getTableRequest.setDatabaseName(tableName.getSchemaName());
-        getTableRequest.setName(tableName.getTableName());
+        GetTableRequest getTableRequest = GetTableRequest.builder()
+                .databaseName(tableName.getSchemaName())
+                .name(tableName.getTableName())
+                .build();
 
-        GetTableResult result = awsGlue.getTable(getTableRequest);
-        return result.getTable();
+        software.amazon.awssdk.services.glue.model.GetTableResponse response = awsGlue.getTable(getTableRequest);
+        return response.table();
     }
 
     // The value returned here is going to block.offerValue, which eventually invokes BlockUtils.setValue()

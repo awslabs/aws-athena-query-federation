@@ -26,16 +26,8 @@ import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.integ.JdbcTableUtils;
-import com.amazonaws.services.athena.model.Datum;
-import com.amazonaws.services.athena.model.Row;
-import com.amazonaws.services.redshift.AmazonRedshift;
-import com.amazonaws.services.redshift.AmazonRedshiftClientBuilder;
-import com.amazonaws.services.redshift.model.DescribeClustersRequest;
-import com.amazonaws.services.redshift.model.DescribeClustersResult;
-import com.amazonaws.services.redshift.model.Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.AssertJUnit;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -51,6 +43,11 @@ import software.amazon.awscdk.services.redshift.Cluster;
 import software.amazon.awscdk.services.redshift.ClusterType;
 import software.amazon.awscdk.services.redshift.Login;
 import software.amazon.awscdk.services.redshift.NodeType;
+import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.redshift.RedshiftClient;
+import software.amazon.awssdk.services.redshift.model.DescribeClustersRequest;
+import software.amazon.awssdk.services.redshift.model.DescribeClustersResponse;
+import software.amazon.awssdk.services.redshift.model.Endpoint;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -190,14 +187,14 @@ public class RedshiftIntegTest extends IntegrationTestBase
      */
     private Endpoint getClusterData()
     {
-        AmazonRedshift redshiftClient = AmazonRedshiftClientBuilder.defaultClient();
+        RedshiftClient redshiftClient = RedshiftClient.create();
         try {
-            DescribeClustersResult clustersResult = redshiftClient.describeClusters(new DescribeClustersRequest()
-                    .withClusterIdentifier(clusterName));
-            return clustersResult.getClusters().get(0).getEndpoint();
+            DescribeClustersResponse clustersResult = redshiftClient.describeClusters(DescribeClustersRequest.builder()
+                    .clusterIdentifier(clusterName).build());
+            return clustersResult.clusters().get(0).endpoint();
         }
         finally {
-            redshiftClient.shutdown();
+            redshiftClient.close();
         }
     }
 
@@ -208,7 +205,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
     private void setEnvironmentVars(Endpoint endpoint)
     {
         String connectionString = String.format("redshift://jdbc:redshift://%s:%s/public?user=%s&password=%s",
-                endpoint.getAddress(), endpoint.getPort(), username, password);
+                endpoint.address(), endpoint.port(), username, password);
         String connectionStringTag = lambdaFunctionName + "_connection_string";
         environmentVars.put("default", connectionString);
         environmentVars.put(connectionStringTag, connectionString);
@@ -442,13 +439,13 @@ public class RedshiftIntegTest extends IntegrationTestBase
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
                 lambdaFunctionName, redshiftDbName, redshiftTableMovies);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> titles = new ArrayList<>();
-        rows.forEach(row -> titles.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> titles.add(row.data().get(0).varCharValue()));
         logger.info("Titles: {}", titles);
         assertEquals("Wrong number of DB records found.", 1, titles.size());
         assertTrue("Movie title not found: Interstellar.", titles.contains("Interstellar"));
@@ -465,13 +462,13 @@ public class RedshiftIntegTest extends IntegrationTestBase
         String query = String.format(
                 "select first_name from %s.%s.%s where birthday between date('2003-1-1') and date('2005-12-31');",
                 lambdaFunctionName, redshiftDbName, redshiftTableBday);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> names = new ArrayList<>();
-        rows.forEach(row -> names.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> names.add(row.data().get(0).varCharValue()));
         logger.info("Names: {}", names);
         assertEquals("Wrong number of DB records found.", 1, names.size());
         assertTrue("Name not found: Jane.", names.contains("Jane"));

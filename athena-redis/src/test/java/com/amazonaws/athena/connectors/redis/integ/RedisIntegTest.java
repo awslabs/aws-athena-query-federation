@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.redis.integ;
 
-import com.amazonaws.ClientConfiguration;
 import com.amazonaws.athena.connector.integ.ConnectorStackFactory;
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.athena.connector.integ.clients.CloudFormationClient;
@@ -28,25 +27,6 @@ import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
-import com.amazonaws.services.athena.model.Row;
-import com.amazonaws.services.elasticache.AmazonElastiCache;
-import com.amazonaws.services.elasticache.AmazonElastiCacheClientBuilder;
-import com.amazonaws.services.elasticache.model.DescribeCacheClustersRequest;
-import com.amazonaws.services.elasticache.model.DescribeCacheClustersResult;
-import com.amazonaws.services.elasticache.model.DescribeReplicationGroupsRequest;
-import com.amazonaws.services.elasticache.model.DescribeReplicationGroupsResult;
-import com.amazonaws.services.elasticache.model.Endpoint;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetTableRequest;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.TableInput;
-import com.amazonaws.services.glue.model.UpdateTableRequest;
-import com.amazonaws.services.lambda.AWSLambda;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.model.InvocationType;
-import com.amazonaws.services.lambda.model.InvokeRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -66,7 +46,23 @@ import software.amazon.awscdk.services.glue.Table;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.elasticache.ElastiCacheClient;
+import software.amazon.awssdk.services.elasticache.model.DescribeCacheClustersRequest;
+import software.amazon.awssdk.services.elasticache.model.DescribeCacheClustersResponse;
+import software.amazon.awssdk.services.elasticache.model.DescribeReplicationGroupsRequest;
+import software.amazon.awssdk.services.elasticache.model.DescribeReplicationGroupsResponse;
+import software.amazon.awssdk.services.elasticache.model.Endpoint;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.TableInput;
+import software.amazon.awssdk.services.glue.model.UpdateTableRequest;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -98,7 +94,7 @@ public class RedisIntegTest extends IntegrationTestBase
     private final String redisDbName;
     private final String redisTableNamePrefix;
     private final String lambdaFunctionName;
-    private final AWSGlue glue;
+    private final GlueClient glue;
     private final String redisStackName;
     private final Map<String, String> environmentVars;
 
@@ -120,8 +116,9 @@ public class RedisIntegTest extends IntegrationTestBase
         redisDbName = (String) userSettings.get("redis_db_name");
         redisTableNamePrefix = (String) userSettings.get("redis_table_name_prefix");
         lambdaFunctionName = getLambdaFunctionName();
-        glue = AWSGlueClientBuilder.standard()
-                .withClientConfiguration(new ClientConfiguration().withConnectionTimeout(GLUE_TIMEOUT))
+        glue = GlueClient.builder()
+                .httpClientBuilder(ApacheHttpClient.builder()
+                        .connectionTimeout(Duration.ofMillis(GLUE_TIMEOUT)))
                 .build();
         redisStackName = "integ-redis-instance-" + UUID.randomUUID();
         environmentVars = new HashMap<>();
@@ -144,12 +141,12 @@ public class RedisIntegTest extends IntegrationTestBase
             Endpoint standaloneEndpoint = getRedisInstanceData(redisStandaloneName, false);
             logger.info("Got Endpoint: " + standaloneEndpoint.toString());
             redisEndpoints.put(STANDALONE_KEY, String.format("%s:%s",
-                    standaloneEndpoint.getAddress(), standaloneEndpoint.getPort()));
+                    standaloneEndpoint.address(), standaloneEndpoint.port()));
 
             Endpoint clusterEndpoint = getRedisInstanceData(redisClusterName, true);
             logger.info("Got Endpoint: " + clusterEndpoint.toString());
             redisEndpoints.put(CLUSTER_KEY, String.format("%s:%s:%s",
-                    clusterEndpoint.getAddress(), clusterEndpoint.getPort(), redisPassword));
+                    clusterEndpoint.address(), clusterEndpoint.port(), redisPassword));
 
             // Get endpoint information and set the connection string environment var for Lambda.
             environmentVars.put("standalone_connection", redisEndpoints.get(STANDALONE_KEY));
@@ -177,7 +174,7 @@ public class RedisIntegTest extends IntegrationTestBase
         // Delete the CloudFormation stack for Redis.
         cloudFormationClient.deleteStack();
         // close glue client
-        glue.shutdown();
+        glue.close();
     }
 
     /**
@@ -191,20 +188,21 @@ public class RedisIntegTest extends IntegrationTestBase
         logger.info("----------------------------------------------------");
 
         String redisLambdaName = "integ-redis-helper-" + UUID.randomUUID();
-        AWSLambda lambdaClient = AWSLambdaClientBuilder.defaultClient();
+        LambdaClient lambdaClient = LambdaClient.create();
         CloudFormationClient cloudFormationRedisClient = new CloudFormationClient(getRedisLambdaStack(redisLambdaName));
         try {
             // Create the Lambda function.
             cloudFormationRedisClient.createStack();
             // Invoke the Lambda function.
-            lambdaClient.invoke(new InvokeRequest()
-                    .withFunctionName(redisLambdaName)
-                    .withInvocationType(InvocationType.RequestResponse));
+            lambdaClient.invoke(InvokeRequest.builder()
+                    .functionName(redisLambdaName)
+                    .invocationType(InvocationType.REQUEST_RESPONSE)
+                    .build());
         }
         finally {
             // Delete the Lambda function.
             cloudFormationRedisClient.deleteStack();
-            lambdaClient.shutdown();
+            lambdaClient.close();
         }
     }
 
@@ -346,21 +344,26 @@ public class RedisIntegTest extends IntegrationTestBase
      */
     private Endpoint getRedisInstanceData(String redisName, boolean isCluster)
     {
-        AmazonElastiCache elastiCacheClient = AmazonElastiCacheClientBuilder.defaultClient();
+        ElastiCacheClient elastiCacheClient = ElastiCacheClient.create();
         try {
             if (isCluster) {
-                DescribeReplicationGroupsResult describeResult = elastiCacheClient.describeReplicationGroups(new DescribeReplicationGroupsRequest()
-                        .withReplicationGroupId(redisName));
-                return describeResult.getReplicationGroups().get(0).getConfigurationEndpoint();
+                DescribeReplicationGroupsRequest describeRequest = DescribeReplicationGroupsRequest.builder()
+                        .replicationGroupId(redisName)
+                        .build();
+                DescribeReplicationGroupsResponse describeResponse = elastiCacheClient.describeReplicationGroups(describeRequest);
+                return describeResponse.replicationGroups().get(0).configurationEndpoint();
             }
             else {
-                DescribeCacheClustersResult describeResult = elastiCacheClient.describeCacheClusters(new DescribeCacheClustersRequest()
-                        .withCacheClusterId(redisName).withShowCacheNodeInfo(true));
-                return describeResult.getCacheClusters().get(0).getCacheNodes().get(0).getEndpoint();
+                DescribeCacheClustersRequest describeRequest = DescribeCacheClustersRequest.builder()
+                        .cacheClusterId(redisName)
+                        .showCacheNodeInfo(true)
+                        .build();
+                DescribeCacheClustersResponse describeResponse = elastiCacheClient.describeCacheClusters(describeRequest);
+                return describeResponse.cacheClusters().get(0).cacheNodes().get(0).endpoint();
             }
         }
         finally {
-            elastiCacheClient.shutdown();
+            elastiCacheClient.close();
         }
     }
 
@@ -371,15 +374,16 @@ public class RedisIntegTest extends IntegrationTestBase
      * @param tableName
      * @return Table
      */
-    private com.amazonaws.services.glue.model.Table getGlueTable(String databaseName, String tableName)
+    private software.amazon.awssdk.services.glue.model.Table getGlueTable(String databaseName, String tableName)
     {
-        com.amazonaws.services.glue.model.Table table;
-        GetTableRequest getTableRequest = new GetTableRequest();
-        getTableRequest.setDatabaseName(databaseName);
-        getTableRequest.setName(tableName);
+        software.amazon.awssdk.services.glue.model.Table table;
+        software.amazon.awssdk.services.glue.model.GetTableRequest getTableRequest = software.amazon.awssdk.services.glue.model.GetTableRequest.builder()
+            .databaseName(databaseName)
+            .name(tableName)
+            .build();
         try {
-            GetTableResult tableResult = glue.getTable(getTableRequest);
-            table = tableResult.getTable();
+            software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = glue.getTable(getTableRequest);
+            table = tableResponse.table();
         } catch (EntityNotFoundException e) {
             throw e;
         }
@@ -392,39 +396,39 @@ public class RedisIntegTest extends IntegrationTestBase
      * @param table
      * @return TableInput
      */
-    private TableInput createTableInput(com.amazonaws.services.glue.model.Table table) {
-        TableInput tableInput = new TableInput();
-        tableInput.setDescription(table.getDescription());
-        tableInput.setLastAccessTime(table.getLastAccessTime());
-        tableInput.setOwner(table.getOwner());
-        tableInput.setName(table.getName());
-        if (Optional.ofNullable(table.getStorageDescriptor()).isPresent()) {
-            tableInput.setStorageDescriptor(table.getStorageDescriptor());
-            if (Optional.ofNullable(table.getStorageDescriptor().getParameters()).isPresent())
-                tableInput.setParameters(table.getStorageDescriptor().getParameters());
+    private TableInput createTableInput(software.amazon.awssdk.services.glue.model.Table table) {
+        TableInput.Builder tableInput = TableInput.builder()
+                .description(table.description())
+                .lastAccessTime(table.lastAccessTime())
+                .owner(table.owner())
+                .name(table.name());
+        if (Optional.ofNullable(table.storageDescriptor()).isPresent()) {
+            tableInput.storageDescriptor(table.storageDescriptor());
+            if (Optional.ofNullable(table.storageDescriptor().parameters()).isPresent())
+                tableInput.parameters(table.storageDescriptor().parameters());
         }
-        tableInput.setPartitionKeys(table.getPartitionKeys());
-        tableInput.setTableType(table.getTableType());
-        tableInput.setViewExpandedText(table.getViewExpandedText());
-        tableInput.setViewOriginalText(table.getViewOriginalText());
-        tableInput.setParameters(table.getParameters());
-        return tableInput;
+        tableInput.partitionKeys(table.partitionKeys());
+        tableInput.tableType(table.tableType());
+        tableInput.viewExpandedText(table.viewExpandedText());
+        tableInput.viewOriginalText(table.viewOriginalText());
+        tableInput.parameters(table.parameters());
+        return tableInput.build();
     }
 
     private void selectHashValue()
     {
         String query = String.format("select * from \"%s\".\"%s\".\"%s\";",
                 lambdaFunctionName, redisDbName, redisTableNamePrefix + "_1");
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> names = new ArrayList<>();
         rows.forEach(row -> {
-            names.add(row.getData().get(1).getVarCharValue());
+            names.add(row.data().get(1).varCharValue());
             // redis key is added as an extra col by the connector. so expected #cols is #glue cols + 1
-            assertEquals("Wrong number of columns found", 4, row.getData().size());
+            assertEquals("Wrong number of columns found", 4, row.data().size());
         });
         logger.info("names: {}", names);
         assertEquals("Wrong number of DB records found.", 3, names.size());
@@ -437,15 +441,15 @@ public class RedisIntegTest extends IntegrationTestBase
     {
         String query = String.format("select * from \"%s\".\"%s\".\"%s\";",
                 lambdaFunctionName, redisDbName, redisTableNamePrefix + "_2");
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> names = new ArrayList<>();
         rows.forEach(row -> {
-            names.add(row.getData().get(0).getVarCharValue());
-            assertEquals("Wrong number of columns found", 2, row.getData().size());
+            names.add(row.data().get(0).varCharValue());
+            assertEquals("Wrong number of columns found", 2, row.data().size());
         });
         logger.info("names: {}", names);
         assertEquals("Wrong number of DB records found.", 3, names.size());
@@ -458,15 +462,15 @@ public class RedisIntegTest extends IntegrationTestBase
     {
         String query = String.format("select * from \"%s\".\"%s\".\"%s\";",
                 lambdaFunctionName, redisDbName, redisTableNamePrefix + "_2");
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> names = new ArrayList<>();
         rows.forEach(row -> {
-            names.add(row.getData().get(0).getVarCharValue());
-            assertEquals("Wrong number of columns found", 2, row.getData().size());
+            names.add(row.data().get(0).varCharValue());
+            assertEquals("Wrong number of columns found", 2, row.data().size());
         });
         logger.info("names: {}", names);
         assertEquals("Wrong number of DB records found.", 3, names.size());
@@ -541,8 +545,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-cluster-flag", "false");
         tableParams.put("redis-ssl-flag", "false");
         tableParams.put("redis-db-number", STANDALONE_REDIS_DB_NUMBER);
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_1")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_1")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectHashValue();
     }
@@ -562,8 +566,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-cluster-flag", "false");
         tableParams.put("redis-ssl-flag", "false");
         tableParams.put("redis-db-number", STANDALONE_REDIS_DB_NUMBER);
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_1")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_1")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectHashValue();
     }
@@ -582,8 +586,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-value-type", "hash"); // hash
         tableParams.put("redis-cluster-flag", "true");
         tableParams.put("redis-ssl-flag", "true");
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_1")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_1")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectHashValue();
     }
@@ -602,8 +606,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-value-type", "hash"); // hash
         tableParams.put("redis-cluster-flag", "true");
         tableParams.put("redis-ssl-flag", "true");
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_1")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_1")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectHashValue();
     }
@@ -623,8 +627,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-cluster-flag", "false");
         tableParams.put("redis-ssl-flag", "false");
         tableParams.put("redis-db-number", STANDALONE_REDIS_DB_NUMBER);
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectZsetValue();
     }
@@ -644,8 +648,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-cluster-flag", "false");
         tableParams.put("redis-ssl-flag", "false");
         tableParams.put("redis-db-number", STANDALONE_REDIS_DB_NUMBER);
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectZsetValue();
     }
@@ -664,8 +668,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-value-type", "zset"); // zset
         tableParams.put("redis-cluster-flag", "true");
         tableParams.put("redis-ssl-flag", "true");
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectZsetValue();
     }
@@ -684,8 +688,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-value-type", "zset"); // zset
         tableParams.put("redis-cluster-flag", "true");
         tableParams.put("redis-ssl-flag", "true");
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectZsetValue();
     }
@@ -705,8 +709,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-cluster-flag", "false");
         tableParams.put("redis-ssl-flag", "false");
         tableParams.put("redis-db-number", STANDALONE_REDIS_DB_NUMBER);
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectLiteralValue();
     }
@@ -726,8 +730,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-cluster-flag", "false");
         tableParams.put("redis-ssl-flag", "false");
         tableParams.put("redis-db-number", STANDALONE_REDIS_DB_NUMBER);
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectLiteralValue();
     }
@@ -746,8 +750,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-value-type", "literal"); // literal
         tableParams.put("redis-cluster-flag", "true");
         tableParams.put("redis-ssl-flag", "true");
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectLiteralValue();
     }
@@ -766,8 +770,8 @@ public class RedisIntegTest extends IntegrationTestBase
         tableParams.put("redis-value-type", "literal"); // literal
         tableParams.put("redis-cluster-flag", "true");
         tableParams.put("redis-ssl-flag", "true");
-        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).withParameters(tableParams);
-        glue.updateTable(new UpdateTableRequest().withDatabaseName(redisDbName).withTableInput(tableInput));
+        TableInput tableInput = createTableInput(getGlueTable(redisDbName, redisTableNamePrefix + "_2")).toBuilder().parameters(tableParams).build();
+        glue.updateTable(UpdateTableRequest.builder().databaseName(redisDbName).tableInput(tableInput).build());
 
         selectLiteralValue();
     }

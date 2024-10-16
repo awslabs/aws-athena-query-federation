@@ -31,18 +31,18 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.services.cloudwatch.model.Dimension;
-import com.amazonaws.services.cloudwatch.model.DimensionFilter;
-import com.amazonaws.services.cloudwatch.model.GetMetricDataRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.cloudwatch.model.MetricStat;
 import org.apache.arrow.vector.types.pojo.Schema;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import software.amazon.awssdk.services.cloudwatch.model.Dimension;
+import software.amazon.awssdk.services.cloudwatch.model.DimensionFilter;
+import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -100,33 +100,21 @@ public class MetricUtilsTest
 
         ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
 
-        Metric metric = new Metric()
-                .withNamespace("match1")
-                .withMetricName("match2")
-                .withDimensions(new Dimension().withName("match4").withValue("match5"));
+        Metric metric = Metric.builder()
+                .namespace("match1")
+                .metricName("match2")
+                .dimensions(Dimension.builder().name("match4").value("match5").build())
+                .build();
         String statistic = "match3";
         assertTrue(MetricUtils.applyMetricConstraints(constraintEvaluator, metric, statistic));
 
-        assertFalse(MetricUtils.applyMetricConstraints(constraintEvaluator, copyMetric(metric).withNamespace("no_match"), statistic));
-        assertFalse(MetricUtils.applyMetricConstraints(constraintEvaluator, copyMetric(metric).withMetricName("no_match"), statistic));
+        assertFalse(MetricUtils.applyMetricConstraints(constraintEvaluator, metric.toBuilder().namespace("no_match").build(), statistic));
+        assertFalse(MetricUtils.applyMetricConstraints(constraintEvaluator, metric.toBuilder().metricName("no_match").build(), statistic));
         assertFalse(MetricUtils.applyMetricConstraints(constraintEvaluator,
-                copyMetric(metric).withDimensions(Collections.singletonList(new Dimension().withName("no_match").withValue("match5"))), statistic));
+                metric.toBuilder().dimensions(Collections.singletonList(Dimension.builder().name("no_match").value("match5").build())).build(), statistic));
         assertFalse(MetricUtils.applyMetricConstraints(constraintEvaluator,
-                copyMetric(metric).withDimensions(Collections.singletonList(new Dimension().withName("match4").withValue("no_match"))), statistic));
-        assertFalse(MetricUtils.applyMetricConstraints(constraintEvaluator, copyMetric(metric), "no_match"));
-    }
-
-    private Metric copyMetric(Metric metric)
-    {
-        Metric newMetric = new Metric()
-                .withNamespace(metric.getNamespace())
-                .withMetricName(metric.getMetricName());
-
-        List<Dimension> dims = new ArrayList<>();
-        for (Dimension next : metric.getDimensions()) {
-            dims.add(new Dimension().withName(next.getName()).withValue(next.getValue()));
-        }
-        return newMetric.withDimensions(dims);
+                metric.toBuilder().dimensions(Collections.singletonList(Dimension.builder().name("match4").value("no_match").build())).build(), statistic));
+        assertFalse(MetricUtils.applyMetricConstraints(constraintEvaluator, metric, "no_match"));
     }
 
     @Test
@@ -139,13 +127,14 @@ public class MetricUtilsTest
         constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, "match4"));
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, "match5"));
 
-        ListMetricsRequest request = new ListMetricsRequest();
-        MetricUtils.pushDownPredicate(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), request);
+        ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
+        MetricUtils.pushDownPredicate(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), requestBuilder);
+        ListMetricsRequest request = requestBuilder.build();
 
-        assertEquals("match1", request.getNamespace());
-        assertEquals("match2", request.getMetricName());
-        assertEquals(1, request.getDimensions().size());
-        assertEquals(new DimensionFilter().withName("match4").withValue("match5"), request.getDimensions().get(0));
+        assertEquals("match1", request.namespace());
+        assertEquals("match2", request.metricName());
+        assertEquals(1, request.dimensions().size());
+        assertEquals(DimensionFilter.builder().name("match4").value("match5").build(), request.dimensions().get(0));
     }
 
     @Test
@@ -159,17 +148,19 @@ public class MetricUtilsTest
         String namespace = "namespace";
 
         List<Dimension> dimensions = new ArrayList<>();
-        dimensions.add(new Dimension().withName("dim_name1").withValue("dim_value1"));
-        dimensions.add(new Dimension().withName("dim_name2").withValue("dim_value2"));
+        dimensions.add(Dimension.builder().name("dim_name1").value("dim_value1").build());
+        dimensions.add(Dimension.builder().name("dim_name2").value("dim_value2").build());
 
         List<MetricStat> metricStats = new ArrayList<>();
-        metricStats.add(new MetricStat()
-                .withMetric(new Metric()
-                        .withNamespace(namespace)
-                        .withMetricName(metricName)
-                        .withDimensions(dimensions))
-                .withPeriod(60)
-                .withStat(statistic));
+        metricStats.add(MetricStat.builder()
+                .metric(Metric.builder()
+                        .namespace(namespace)
+                        .metricName(metricName)
+                        .dimensions(dimensions)
+                        .build())
+                .period(60)
+                .stat(statistic)
+                .build());
 
         Split split = Split.newBuilder(null, null)
                 .add(NAMESPACE_FIELD, namespace)
@@ -198,16 +189,16 @@ public class MetricUtilsTest
         );
 
         GetMetricDataRequest actual = MetricUtils.makeGetMetricDataRequest(request);
-        assertEquals(1, actual.getMetricDataQueries().size());
-        assertNotNull(actual.getMetricDataQueries().get(0).getId());
-        MetricStat metricStat = actual.getMetricDataQueries().get(0).getMetricStat();
+        assertEquals(1, actual.metricDataQueries().size());
+        assertNotNull(actual.metricDataQueries().get(0).id());
+        MetricStat metricStat = actual.metricDataQueries().get(0).metricStat();
         assertNotNull(metricStat);
-        assertEquals(metricName, metricStat.getMetric().getMetricName());
-        assertEquals(namespace, metricStat.getMetric().getNamespace());
-        assertEquals(statistic, metricStat.getStat());
-        assertEquals(period, metricStat.getPeriod());
-        assertEquals(2, metricStat.getMetric().getDimensions().size());
-        assertEquals(1000L, actual.getStartTime().getTime());
-        assertTrue(actual.getStartTime().getTime() <= System.currentTimeMillis() + 1_000);
+        assertEquals(metricName, metricStat.metric().metricName());
+        assertEquals(namespace, metricStat.metric().namespace());
+        assertEquals(statistic, metricStat.stat());
+        assertEquals(period, metricStat.period());
+        assertEquals(2, metricStat.metric().dimensions().size());
+        assertEquals(1000L, actual.startTime().toEpochMilli());
+        assertTrue(actual.startTime().toEpochMilli() <= System.currentTimeMillis() + 1_000);
     }
 }

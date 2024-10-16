@@ -20,23 +20,21 @@
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
-import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
 import com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.lambda.model.LambdaException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Constructor;
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
 public class LambdaFunctionExceptionSerDeTest
-        extends TypedSerDeTest<LambdaFunctionException>
+        extends TypedSerDeTest<LambdaException>
 {
     private static final Logger logger = LoggerFactory.getLogger(LambdaFunctionExceptionSerDeTest.class);
 
@@ -47,14 +45,10 @@ public class LambdaFunctionExceptionSerDeTest
         String errorType = "com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException";
         String errorMessage =
                 "Requested resource not found (Service: AmazonDynamoDBv2; Status Code: 400; Error Code: ResourceNotFoundException; Request ID: RIB6NOH4BNMAK6KQG88R5VE583VV4KQNSO5AEMVJF66Q9ASUAAJG)";
-        ImmutableList<String> stackTrace = ImmutableList.of(
-                "com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1701)",
-                "com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1356)");
-        Constructor<LambdaFunctionException> constructor = LambdaFunctionException.class.getDeclaredConstructor(
-                String.class, String.class, LambdaFunctionException.class, List.class);
-        constructor.setAccessible(true);
-        expected = constructor.newInstance(errorType, errorMessage, null, stackTrace);
-
+        ImmutableList<ImmutableList<String>> stackTrace = ImmutableList.of(
+                ImmutableList.of("com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1701)"),
+                ImmutableList.of("com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1356)"));
+        expected = (LambdaException) LambdaException.builder().message(errorMessage + ". Stack trace: " + stackTrace + "\nErrorType: " + errorType).build();
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "LambdaFunctionException.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
     }
@@ -73,11 +67,10 @@ public class LambdaFunctionExceptionSerDeTest
         logger.info("deserialize: enter");
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
 
-        LambdaFunctionException actual = mapper.readValue(input, LambdaFunctionException.class);
+        LambdaException actual = mapper.readValue(input, LambdaException.class);
 
         logger.info("deserialize: deserialized[{}]", actual.toString());
 
-        assertEquals(expected.getType(), actual.getType());
         assertEquals(expected.getMessage(), actual.getMessage());
         assertEquals(expected.getCause(), actual.getCause());
         expected.fillInStackTrace();

@@ -31,13 +31,13 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.IpPermission;
-import com.amazonaws.services.ec2.model.SecurityGroup;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
+import software.amazon.awssdk.services.ec2.model.IpPermission;
+import software.amazon.awssdk.services.ec2.model.SecurityGroup;
 
 import java.util.Collections;
 import java.util.List;
@@ -53,9 +53,9 @@ public class SecurityGroupsTableProvider
     private static final String EGRESS = "egress";
 
     private static final Schema SCHEMA;
-    private AmazonEC2 ec2;
+    private Ec2Client ec2;
 
-    public SecurityGroupsTableProvider(AmazonEC2 ec2)
+    public SecurityGroupsTableProvider(Ec2Client ec2)
     {
         this.ec2 = ec2;
     }
@@ -97,34 +97,34 @@ public class SecurityGroupsTableProvider
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         boolean done = false;
-        DescribeSecurityGroupsRequest request = new DescribeSecurityGroupsRequest();
+        DescribeSecurityGroupsRequest.Builder request = DescribeSecurityGroupsRequest.builder();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
-            request.setGroupIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
+            request.groupIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }
 
         ValueSet nameConstraint = recordsRequest.getConstraints().getSummary().get("name");
         if (nameConstraint != null && nameConstraint.isSingleValue()) {
-            request.setGroupNames(Collections.singletonList(nameConstraint.getSingleValue().toString()));
+            request.groupNames(Collections.singletonList(nameConstraint.getSingleValue().toString()));
         }
 
         while (!done) {
-            DescribeSecurityGroupsResult response = ec2.describeSecurityGroups(request);
+            DescribeSecurityGroupsResponse response = ec2.describeSecurityGroups(request.build());
 
             //Each rule is mapped to a row in the response. SGs have INGRESS and EGRESS rules.
-            for (SecurityGroup next : response.getSecurityGroups()) {
-                for (IpPermission nextPerm : next.getIpPermissions()) {
+            for (SecurityGroup next : response.securityGroups()) {
+                for (IpPermission nextPerm : next.ipPermissions()) {
                     instanceToRow(next, nextPerm, INGRESS, spiller);
                 }
 
-                for (IpPermission nextPerm : next.getIpPermissionsEgress()) {
+                for (IpPermission nextPerm : next.ipPermissionsEgress()) {
                     instanceToRow(next, nextPerm, EGRESS, spiller);
                 }
             }
 
-            request.setNextToken(response.getNextToken());
-            if (response.getNextToken() == null || !queryStatusChecker.isQueryRunning()) {
+            request.nextToken(response.nextToken());
+            if (response.nextToken() == null || !queryStatusChecker.isQueryRunning()) {
                 done = true;
             }
         }
@@ -148,28 +148,28 @@ public class SecurityGroupsTableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("id", row, securityGroup.getGroupId());
-            matched &= block.offerValue("name", row, securityGroup.getGroupName());
-            matched &= block.offerValue("description", row, securityGroup.getDescription());
-            matched &= block.offerValue("from_port", row, permission.getFromPort());
-            matched &= block.offerValue("to_port", row, permission.getFromPort());
-            matched &= block.offerValue("protocol", row, permission.getIpProtocol());
-            matched &= block.offerValue("direction", row, permission.getIpProtocol());
+            matched &= block.offerValue("id", row, securityGroup.groupId());
+            matched &= block.offerValue("name", row, securityGroup.groupName());
+            matched &= block.offerValue("description", row, securityGroup.description());
+            matched &= block.offerValue("from_port", row, permission.fromPort());
+            matched &= block.offerValue("to_port", row, permission.toPort());
+            matched &= block.offerValue("protocol", row, permission.ipProtocol());
+            matched &= block.offerValue("direction", row, direction);
 
-            List<String> ipv4Ranges = permission.getIpv4Ranges().stream()
-                    .map(next -> next.getCidrIp() + ":" + next.getDescription()).collect(Collectors.toList());
+            List<String> ipv4Ranges = permission.ipRanges().stream()
+                    .map(next -> next.cidrIp() + ":" + next.description()).collect(Collectors.toList());
             matched &= block.offerComplexValue("ipv4_ranges", row, FieldResolver.DEFAULT, ipv4Ranges);
 
-            List<String> ipv6Ranges = permission.getIpv6Ranges().stream()
-                    .map(next -> next.getCidrIpv6() + ":" + next.getDescription()).collect(Collectors.toList());
+            List<String> ipv6Ranges = permission.ipv6Ranges().stream()
+                    .map(next -> next.cidrIpv6() + ":" + next.description()).collect(Collectors.toList());
             matched &= block.offerComplexValue("ipv6_ranges", row, FieldResolver.DEFAULT, ipv6Ranges);
 
-            List<String> prefixLists = permission.getPrefixListIds().stream()
-                    .map(next -> next.getPrefixListId() + ":" + next.getDescription()).collect(Collectors.toList());
+            List<String> prefixLists = permission.prefixListIds().stream()
+                    .map(next -> next.prefixListId() + ":" + next.description()).collect(Collectors.toList());
             matched &= block.offerComplexValue("prefix_lists", row, FieldResolver.DEFAULT, prefixLists);
 
-            List<String> userIdGroups = permission.getUserIdGroupPairs().stream()
-                    .map(next -> next.getUserId() + ":" + next.getGroupId())
+            List<String> userIdGroups = permission.userIdGroupPairs().stream()
+                    .map(next -> next.userId() + ":" + next.groupId())
                     .collect(Collectors.toList());
             matched &= block.offerComplexValue("user_id_groups", row, FieldResolver.DEFAULT, userIdGroups);
 

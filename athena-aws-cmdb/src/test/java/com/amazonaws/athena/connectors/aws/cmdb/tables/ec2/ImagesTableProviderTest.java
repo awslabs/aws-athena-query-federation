@@ -23,13 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeImagesResult;
-import com.amazonaws.services.ec2.model.EbsBlockDevice;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Tag;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -39,6 +32,13 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
+import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeImagesResponse;
+import software.amazon.awssdk.services.ec2.model.EbsBlockDevice;
+import software.amazon.awssdk.services.ec2.model.Image;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +47,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -57,7 +56,7 @@ public class ImagesTableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(ImagesTableProviderTest.class);
 
     @Mock
-    private AmazonEC2 mockEc2;
+    private Ec2Client mockEc2;
 
     protected String getIdField()
     {
@@ -95,14 +94,12 @@ public class ImagesTableProviderTest
         when(mockEc2.describeImages(nullable(DescribeImagesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             DescribeImagesRequest request = (DescribeImagesRequest) invocation.getArguments()[0];
 
-            assertEquals(getIdValue(), request.getImageIds().get(0));
-            DescribeImagesResult mockResult = mock(DescribeImagesResult.class);
+            assertEquals(getIdValue(), request.imageIds().get(0));
             List<Image> values = new ArrayList<>();
             values.add(makeImage(getIdValue()));
             values.add(makeImage(getIdValue()));
             values.add(makeImage("fake-id"));
-            when(mockResult.getImages()).thenReturn(values);
-            return mockResult;
+            return DescribeImagesResponse.builder().images(values).build();
         });
     }
 
@@ -158,35 +155,35 @@ public class ImagesTableProviderTest
 
     private Image makeImage(String id)
     {
-        Image image = new Image();
-        image.withImageId(id)
-                .withArchitecture("architecture")
-                .withCreationDate("created")
-                .withDescription("description")
-                .withHypervisor("hypervisor")
-                .withImageLocation("location")
-                .withImageType("type")
-                .withKernelId("kernel")
-                .withName("name")
-                .withOwnerId("owner")
-                .withPlatform("platform")
-                .withRamdiskId("ramdisk")
-                .withRootDeviceName("root_device")
-                .withRootDeviceType("root_type")
-                .withSriovNetSupport("srvio_net")
-                .withState("state")
-                .withVirtualizationType("virt_type")
-                .withPublic(true)
-                .withTags(new Tag("key", "value"))
-                .withBlockDeviceMappings(new BlockDeviceMapping()
-                        .withDeviceName("dev_name")
-                        .withNoDevice("no_device")
-                        .withVirtualName("virt_name")
-                        .withEbs(new EbsBlockDevice()
-                                .withIops(100)
-                                .withKmsKeyId("ebs_kms_key")
-                                .withVolumeType("ebs_type")
-                                .withVolumeSize(100)));
+        Image image = Image.builder()
+                .imageId(id)
+                .architecture("architecture")
+                .creationDate("created")
+                .description("description")
+                .hypervisor("hypervisor")
+                .imageLocation("location")
+                .imageType("type")
+                .kernelId("kernel")
+                .name("name")
+                .ownerId("owner")
+                .platform("platform")
+                .ramdiskId("ramdisk")
+                .rootDeviceName("root_device")
+                .rootDeviceType("root_type")
+                .sriovNetSupport("srvio_net")
+                .state("state")
+                .virtualizationType("virt_type")
+                .publicLaunchPermissions(true)
+                .tags(Tag.builder().key("key").value("value").build())
+                .blockDeviceMappings(BlockDeviceMapping.builder()
+                        .deviceName("dev_name")
+                        .noDevice("no_device")
+                        .virtualName("virt_name")
+                        .ebs(EbsBlockDevice.builder()
+                                .iops(100)
+                                .kmsKeyId("ebs_kms_key")
+                                .volumeType("ebs_type")
+                                .volumeSize(100).build()).build()).build();
 
         return image;
     }

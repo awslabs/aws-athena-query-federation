@@ -26,15 +26,12 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.neptune.Enums.GraphType;
 import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
 import com.amazonaws.athena.connectors.neptune.rdf.RDFHandler;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a
@@ -65,18 +62,18 @@ public class NeptuneRecordHandler extends RecordHandler
     public NeptuneRecordHandler(java.util.Map<String, String> configOptions) 
     {
         this(
-            AmazonS3ClientBuilder.defaultClient(),
-            AWSSecretsManagerClientBuilder.defaultClient(),
-            AmazonAthenaClientBuilder.defaultClient(),
+            S3Client.create(),
+            SecretsManagerClient.create(),
+            AthenaClient.create(),
             NeptuneConnection.createConnection(configOptions),
             configOptions);
     }
 
     @VisibleForTesting
     protected NeptuneRecordHandler(
-        AmazonS3 amazonS3,
-        AWSSecretsManager secretsManager,
-        AmazonAthena amazonAthena,
+        S3Client amazonS3,
+        SecretsManagerClient secretsManager,
+        AthenaClient amazonAthena,
         NeptuneConnection neptuneConnection,
         java.util.Map<String, String> configOptions)
     {

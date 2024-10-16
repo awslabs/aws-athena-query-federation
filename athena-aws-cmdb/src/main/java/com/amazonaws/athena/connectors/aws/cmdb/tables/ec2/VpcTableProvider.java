@@ -31,12 +31,12 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeVpcsRequest;
-import com.amazonaws.services.ec2.model.DescribeVpcsResult;
-import com.amazonaws.services.ec2.model.Vpc;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeVpcsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeVpcsResponse;
+import software.amazon.awssdk.services.ec2.model.Vpc;
 
 import java.util.Collections;
 import java.util.List;
@@ -49,9 +49,9 @@ public class VpcTableProvider
         implements TableProvider
 {
     private static final Schema SCHEMA;
-    private AmazonEC2 ec2;
+    private Ec2Client ec2;
 
-    public VpcTableProvider(AmazonEC2 ec2)
+    public VpcTableProvider(Ec2Client ec2)
     {
         this.ec2 = ec2;
     }
@@ -92,15 +92,15 @@ public class VpcTableProvider
     @Override
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        DescribeVpcsRequest request = new DescribeVpcsRequest();
+        DescribeVpcsRequest.Builder request = DescribeVpcsRequest.builder();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
-            request.setVpcIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
+            request.vpcIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }
 
-        DescribeVpcsResult response = ec2.describeVpcs(request);
-        for (Vpc vpc : response.getVpcs()) {
+        DescribeVpcsResponse response = ec2.describeVpcs(request.build());
+        for (Vpc vpc : response.vpcs()) {
             instanceToRow(vpc, spiller);
         }
     }
@@ -119,16 +119,16 @@ public class VpcTableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("id", row, vpc.getVpcId());
-            matched &= block.offerValue("cidr_block", row, vpc.getCidrBlock());
-            matched &= block.offerValue("dhcp_opts", row, vpc.getDhcpOptionsId());
-            matched &= block.offerValue("tenancy", row, vpc.getInstanceTenancy());
-            matched &= block.offerValue("owner", row, vpc.getOwnerId());
-            matched &= block.offerValue("state", row, vpc.getState());
-            matched &= block.offerValue("is_default", row, vpc.getIsDefault());
+            matched &= block.offerValue("id", row, vpc.vpcId());
+            matched &= block.offerValue("cidr_block", row, vpc.cidrBlock());
+            matched &= block.offerValue("dhcp_opts", row, vpc.dhcpOptionsId());
+            matched &= block.offerValue("tenancy", row, vpc.instanceTenancyAsString());
+            matched &= block.offerValue("owner", row, vpc.ownerId());
+            matched &= block.offerValue("state", row, vpc.stateAsString());
+            matched &= block.offerValue("is_default", row, vpc.isDefault());
 
-            List<String> tags = vpc.getTags().stream()
-                    .map(next -> next.getKey() + ":" + next.getValue()).collect(Collectors.toList());
+            List<String> tags = vpc.tags().stream()
+                    .map(next -> next.key() + ":" + next.value()).collect(Collectors.toList());
             matched &= block.offerComplexValue("tags", row, FieldResolver.DEFAULT, tags);
 
             return matched ? 1 : 0;

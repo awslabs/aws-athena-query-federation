@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
-import com.amazonaws.auth.AWS4Signer;
-import com.amazonaws.auth.AWSCredentialsProvider;
 import com.google.common.base.Splitter;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -46,6 +44,9 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
+import software.amazon.awssdk.services.elasticsearch.ElasticsearchClient;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
@@ -196,7 +197,7 @@ public class AwsRestHighLevelClient
     {
         private final String endpoint;
         private final RestClientBuilder clientBuilder;
-        private final AWS4Signer signer;
+        private final AwsV4HttpSigner signer;
         private final Splitter domainSplitter;
 
         /**
@@ -207,7 +208,7 @@ public class AwsRestHighLevelClient
         {
             this.endpoint = endpoint;
             this.clientBuilder = RestClient.builder(HttpHost.create(this.endpoint));
-            this.signer = new AWS4Signer();
+            this.signer = AwsV4HttpSigner.create();
             this.domainSplitter = Splitter.on(".");
         }
 
@@ -216,7 +217,7 @@ public class AwsRestHighLevelClient
          * @param credentialsProvider is the AWS credentials provider.
          * @return self.
          */
-        public Builder withCredentials(AWSCredentialsProvider credentialsProvider)
+        public Builder withCredentials(AwsCredentialsProvider credentialsProvider)
         {
             /**
              * endpoint:
@@ -231,16 +232,13 @@ public class AwsRestHighLevelClient
              */
             List<String> domainSplits = domainSplitter.splitToList(endpoint);
 
+            HttpRequestInterceptor interceptor;
             if (domainSplits.size() > 1) {
-                signer.setRegionName(domainSplits.get(1));
-                signer.setServiceName("es");
+                interceptor = new AWSRequestSigningApacheInterceptor(ElasticsearchClient.SERVICE_NAME, signer, credentialsProvider, domainSplits.get(1));
+
+                clientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                        .addInterceptorLast(interceptor));
             }
-
-            HttpRequestInterceptor interceptor =
-                    new AWSRequestSigningApacheInterceptor(signer.getServiceName(), signer, credentialsProvider);
-
-            clientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
-                    .addInterceptorLast(interceptor));
 
             return this;
         }

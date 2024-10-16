@@ -23,14 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeRouteTablesRequest;
-import com.amazonaws.services.ec2.model.DescribeRouteTablesResult;
-import com.amazonaws.services.ec2.model.PropagatingVgw;
-import com.amazonaws.services.ec2.model.Route;
-import com.amazonaws.services.ec2.model.RouteTable;
-import com.amazonaws.services.ec2.model.RouteTableAssociation;
-import com.amazonaws.services.ec2.model.Tag;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -40,6 +32,14 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeRouteTablesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeRouteTablesResponse;
+import software.amazon.awssdk.services.ec2.model.PropagatingVgw;
+import software.amazon.awssdk.services.ec2.model.Route;
+import software.amazon.awssdk.services.ec2.model.RouteTable;
+import software.amazon.awssdk.services.ec2.model.RouteTableAssociation;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,7 +48,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -58,7 +57,7 @@ public class RouteTableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(RouteTableProviderTest.class);
 
     @Mock
-    private AmazonEC2 mockEc2;
+    private Ec2Client mockEc2;
 
     protected String getIdField()
     {
@@ -96,14 +95,12 @@ public class RouteTableProviderTest
         when(mockEc2.describeRouteTables(nullable(DescribeRouteTablesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             DescribeRouteTablesRequest request = (DescribeRouteTablesRequest) invocation.getArguments()[0];
 
-            assertEquals(getIdValue(), request.getRouteTableIds().get(0));
-            DescribeRouteTablesResult mockResult = mock(DescribeRouteTablesResult.class);
+            assertEquals(getIdValue(), request.routeTableIds().get(0));
             List<RouteTable> values = new ArrayList<>();
             values.add(makeRouteTable(getIdValue()));
             values.add(makeRouteTable(getIdValue()));
             values.add(makeRouteTable("fake-id"));
-            when(mockResult.getRouteTables()).thenReturn(values);
-            return mockResult;
+            return DescribeRouteTablesResponse.builder().routeTables(values).build();
         });
     }
 
@@ -159,28 +156,28 @@ public class RouteTableProviderTest
 
     private RouteTable makeRouteTable(String id)
     {
-        RouteTable routeTable = new RouteTable();
-        routeTable.withRouteTableId(id)
-                .withOwnerId("owner")
-                .withVpcId("vpc")
-                .withAssociations(new RouteTableAssociation().withSubnetId("subnet").withRouteTableId("route_table_id"))
-                .withTags(new Tag("key", "value"))
-                .withPropagatingVgws(new PropagatingVgw().withGatewayId("gateway_id"))
-                .withRoutes(new Route()
-                        .withDestinationCidrBlock("dst_cidr")
-                        .withDestinationIpv6CidrBlock("dst_cidr_v6")
-                        .withDestinationPrefixListId("dst_prefix_list")
-                        .withEgressOnlyInternetGatewayId("egress_igw")
-                        .withGatewayId("gateway")
-                        .withInstanceId("instance_id")
-                        .withInstanceOwnerId("instance_owner")
-                        .withNatGatewayId("nat_gateway")
-                        .withNetworkInterfaceId("interface")
-                        .withOrigin("origin")
-                        .withState("state")
-                        .withTransitGatewayId("transit_gateway")
-                        .withVpcPeeringConnectionId("vpc_peering_con")
-                );
+        RouteTable routeTable = RouteTable.builder()
+                .routeTableId(id)
+                .ownerId("owner")
+                .vpcId("vpc")
+                .associations(RouteTableAssociation.builder().subnetId("subnet").routeTableId("route_table_id").build())
+                .tags(Tag.builder().key("key").value("value").build())
+                .propagatingVgws(PropagatingVgw.builder().gatewayId("gateway_id").build())
+                .routes(Route.builder()
+                        .destinationCidrBlock("dst_cidr")
+                        .destinationIpv6CidrBlock("dst_cidr_v6")
+                        .destinationPrefixListId("dst_prefix_list")
+                        .egressOnlyInternetGatewayId("egress_igw")
+                        .gatewayId("gateway")
+                        .instanceId("instance_id")
+                        .instanceOwnerId("instance_owner")
+                        .natGatewayId("nat_gateway")
+                        .networkInterfaceId("interface")
+                        .origin("origin")
+                        .state("state")
+                        .transitGatewayId("transit_gateway")
+                        .vpcPeeringConnectionId("vpc_peering_con").build()
+                ).build();
 
         return routeTable;
     }

@@ -25,11 +25,6 @@ import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -44,6 +39,13 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -51,8 +53,6 @@ import java.io.InputStream;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -71,7 +71,7 @@ public class S3BlockSpillerTest
     private String splitId = "splitId";
 
     @Mock
-    private AmazonS3 mockS3;
+    private S3Client mockS3;
 
     private S3BlockSpiller blockWriter;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
@@ -130,18 +130,20 @@ public class S3BlockSpillerTest
 
         final ByteHolder byteHolder = new ByteHolder();
 
-        ArgumentCaptor<PutObjectRequest> argument = ArgumentCaptor.forClass(PutObjectRequest.class);
+        ArgumentCaptor<PutObjectRequest> requestArgument = ArgumentCaptor.forClass(PutObjectRequest.class);
+        ArgumentCaptor<RequestBody> bodyArgument = ArgumentCaptor.forClass(RequestBody.class);
 
-        when(mockS3.putObject(any()))
+        when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override
                     public Object answer(InvocationOnMock invocationOnMock)
                             throws Throwable
                     {
-                        InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
+                        PutObjectResponse response = PutObjectResponse.builder().build();
+                        InputStream inputStream = ((RequestBody) invocationOnMock.getArguments()[1]).contentStreamProvider().newStream();
                         byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
-                        return mock(PutObjectResult.class);
+                        return response;
                     }
                 });
 
@@ -151,9 +153,9 @@ public class S3BlockSpillerTest
             assertEquals(bucket, ((S3SpillLocation) blockLocation).getBucket());
             assertEquals(prefix + "/" + requestId + "/" + splitId + ".0", ((S3SpillLocation) blockLocation).getKey());
         }
-        verify(mockS3, times(1)).putObject(argument.capture());
-        assertEquals(argument.getValue().getBucketName(), bucket);
-        assertEquals(argument.getValue().getKey(), prefix + "/" + requestId + "/" + splitId + ".0");
+        verify(mockS3, times(1)).putObject(requestArgument.capture(), bodyArgument.capture());
+        assertEquals(requestArgument.getValue().bucket(), bucket);
+        assertEquals(requestArgument.getValue().key(), prefix + "/" + requestId + "/" + splitId + ".0");
 
         SpillLocation blockLocation2 = blockWriter.write(expected);
 
@@ -162,25 +164,23 @@ public class S3BlockSpillerTest
             assertEquals(prefix + "/" + requestId + "/" + splitId + ".1", ((S3SpillLocation) blockLocation2).getKey());
         }
 
-        verify(mockS3, times(2)).putObject(argument.capture());
-        assertEquals(argument.getValue().getBucketName(), bucket);
-        assertEquals(argument.getValue().getKey(), prefix + "/" + requestId + "/" + splitId + ".1");
+        verify(mockS3, times(2)).putObject(requestArgument.capture(), bodyArgument.capture());
+        assertEquals(requestArgument.getValue().bucket(), bucket);
+        assertEquals(requestArgument.getValue().key(), prefix + "/" + requestId + "/" + splitId + ".1");
 
         verifyNoMoreInteractions(mockS3);
         reset(mockS3);
 
         logger.info("spillTest: Starting read test.");
 
-        when(mockS3.getObject(eq(bucket), eq(prefix + "/" + requestId + "/" + splitId + ".1")))
+        when(mockS3.getObject(any(GetObjectRequest.class)))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override
                     public Object answer(InvocationOnMock invocationOnMock)
                             throws Throwable
                     {
-                        S3Object mockObject = mock(S3Object.class);
-                        when(mockObject.getObjectContent()).thenReturn(new S3ObjectInputStream(new ByteArrayInputStream(byteHolder.getBytes()), null));
-                        return mockObject;
+                        return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
                     }
                 });
 
@@ -189,7 +189,7 @@ public class S3BlockSpillerTest
         assertEquals(expected, block);
 
         verify(mockS3, times(1))
-                .getObject(eq(bucket), eq(prefix + "/" + requestId + "/" + splitId + ".1"));
+                .getObject(any(GetObjectRequest.class));
 
         verifyNoMoreInteractions(mockS3);
 

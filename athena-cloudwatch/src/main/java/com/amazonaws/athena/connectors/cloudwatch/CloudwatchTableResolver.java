@@ -21,18 +21,18 @@ package com.amazonaws.athena.connectors.cloudwatch;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.services.logs.AWSLogs;
-import com.amazonaws.services.logs.model.DescribeLogGroupsRequest;
-import com.amazonaws.services.logs.model.DescribeLogGroupsResult;
-import com.amazonaws.services.logs.model.DescribeLogStreamsRequest;
-import com.amazonaws.services.logs.model.DescribeLogStreamsResult;
-import com.amazonaws.services.logs.model.LogGroup;
-import com.amazonaws.services.logs.model.LogStream;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogStreamsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogStreamsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.LogGroup;
+import software.amazon.awssdk.services.cloudwatchlogs.model.LogStream;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -51,7 +51,7 @@ public class CloudwatchTableResolver
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudwatchTableResolver.class);
 
-    private AWSLogs awsLogs;
+    private CloudWatchLogsClient logsClient;
     //Used to handle Throttling events using an AIMD strategy for congestion control.
     private ThrottlingInvoker invoker;
     //The LogStream pattern that is capitalized by LAMBDA
@@ -67,14 +67,14 @@ public class CloudwatchTableResolver
      * Constructs an instance of the table resolver.
      *
      * @param invoker The ThrottlingInvoker to use to handle throttling events.
-     * @param awsLogs The AWSLogs client to use for cache misses.
+     * @param logsClient The AWSLogs client to use for cache misses.
      * @param maxSchemaCacheSize The max number of schemas to cache.
      * @param maxTableCacheSize The max tables to cache.
      */
-    public CloudwatchTableResolver(ThrottlingInvoker invoker, AWSLogs awsLogs, long maxSchemaCacheSize, long maxTableCacheSize)
+    public CloudwatchTableResolver(ThrottlingInvoker invoker, CloudWatchLogsClient logsClient, long maxSchemaCacheSize, long maxTableCacheSize)
     {
         this.invoker = invoker;
-        this.awsLogs = awsLogs;
+        this.logsClient = logsClient;
         this.tableCache = CacheBuilder.newBuilder()
                 .maximumSize(maxTableCacheSize)
                 .build(
@@ -119,12 +119,12 @@ public class CloudwatchTableResolver
 
         logger.info("loadLogStreams: Did not find a match for the table, falling back to LogGroup scan for  {}:{}",
                 logGroup, logStream);
-        DescribeLogStreamsRequest validateTableRequest = new DescribeLogStreamsRequest(logGroup);
-        DescribeLogStreamsResult validateTableResult;
+        DescribeLogStreamsRequest.Builder validateTableRequestBuilder = DescribeLogStreamsRequest.builder().logGroupName(logGroup);
+        DescribeLogStreamsResponse validateTableResponse;
         do {
-            validateTableResult = invoker.invoke(() -> awsLogs.describeLogStreams(validateTableRequest));
-            for (LogStream nextStream : validateTableResult.getLogStreams()) {
-                String logStreamName = nextStream.getLogStreamName();
+            validateTableResponse = invoker.invoke(() -> logsClient.describeLogStreams(validateTableRequestBuilder.build()));
+            for (LogStream nextStream : validateTableResponse.logStreams()) {
+                String logStreamName = nextStream.logStreamName();
                 CloudwatchTableName nextCloudwatch = new CloudwatchTableName(logGroup, logStreamName);
                 tableCache.put(nextCloudwatch.toTableName(), nextCloudwatch);
                 if (nextCloudwatch.getLogStreamName().equalsIgnoreCase(logStream)) {
@@ -134,9 +134,9 @@ public class CloudwatchTableResolver
                     return nextCloudwatch;
                 }
             }
-            validateTableRequest.setNextToken(validateTableResult.getNextToken());
+            validateTableRequestBuilder.nextToken(validateTableResponse.nextToken());
         }
-        while (validateTableResult.getNextToken() != null);
+        while (validateTableResponse.nextToken() != null);
 
         //We could not find a match
         throw new IllegalArgumentException("No such table " + logGroup + " " + logStream);
@@ -163,11 +163,11 @@ public class CloudwatchTableResolver
                     LAMBDA_PATTERN, effectiveTableName);
             effectiveTableName = effectiveTableName.replace(LAMBDA_PATTERN, LAMBDA_ACTUAL_PATTERN);
         }
-        DescribeLogStreamsRequest request = new DescribeLogStreamsRequest(logGroup)
-                .withLogStreamNamePrefix(effectiveTableName);
-        DescribeLogStreamsResult result = invoker.invoke(() -> awsLogs.describeLogStreams(request));
-        for (LogStream nextStream : result.getLogStreams()) {
-            String logStreamName = nextStream.getLogStreamName();
+        DescribeLogStreamsRequest request = DescribeLogStreamsRequest.builder().logGroupName(logGroup)
+                .logStreamNamePrefix(effectiveTableName).build();
+        DescribeLogStreamsResponse response = invoker.invoke(() -> logsClient.describeLogStreams(request));
+        for (LogStream nextStream : response.logStreams()) {
+            String logStreamName = nextStream.logStreamName();
             CloudwatchTableName nextCloudwatch = new CloudwatchTableName(logGroup, logStreamName);
             if (nextCloudwatch.getLogStreamName().equalsIgnoreCase(logStream)) {
                 logger.info("loadLogStream: Matched {} for {}:{}", nextCloudwatch, logGroup, logStream);
@@ -195,21 +195,21 @@ public class CloudwatchTableResolver
         }
 
         logger.info("loadLogGroups: Did not find a match for the schema, falling back to LogGroup scan for  {}", schemaName);
-        DescribeLogGroupsRequest validateSchemaRequest = new DescribeLogGroupsRequest();
-        DescribeLogGroupsResult validateSchemaResult;
+        DescribeLogGroupsRequest.Builder validateSchemaRequestBuilder = DescribeLogGroupsRequest.builder();
+        DescribeLogGroupsResponse validateSchemaResponse;
         do {
-            validateSchemaResult = invoker.invoke(() -> awsLogs.describeLogGroups(validateSchemaRequest));
-            for (LogGroup next : validateSchemaResult.getLogGroups()) {
-                String nextLogGroupName = next.getLogGroupName();
+            validateSchemaResponse = invoker.invoke(() -> logsClient.describeLogGroups(validateSchemaRequestBuilder.build()));
+            for (LogGroup next : validateSchemaResponse.logGroups()) {
+                String nextLogGroupName = next.logGroupName();
                 schemaCache.put(schemaName, nextLogGroupName);
                 if (nextLogGroupName.equalsIgnoreCase(schemaName)) {
                     logger.info("loadLogGroups: Matched {} for {}", nextLogGroupName, schemaName);
                     return nextLogGroupName;
                 }
             }
-            validateSchemaRequest.setNextToken(validateSchemaResult.getNextToken());
+            validateSchemaRequestBuilder.nextToken(validateSchemaResponse.nextToken());
         }
-        while (validateSchemaResult.getNextToken() != null);
+        while (validateSchemaResponse.nextToken() != null);
 
         //We could not find a match
         throw new IllegalArgumentException("No such schema " + schemaName);
@@ -224,10 +224,10 @@ public class CloudwatchTableResolver
     private String loadLogGroup(String schemaName)
             throws TimeoutException
     {
-        DescribeLogGroupsRequest request = new DescribeLogGroupsRequest().withLogGroupNamePrefix(schemaName);
-        DescribeLogGroupsResult result = invoker.invoke(() -> awsLogs.describeLogGroups(request));
-        for (LogGroup next : result.getLogGroups()) {
-            String nextLogGroupName = next.getLogGroupName();
+        DescribeLogGroupsRequest request = DescribeLogGroupsRequest.builder().logGroupNamePrefix(schemaName).build();
+        DescribeLogGroupsResponse response = invoker.invoke(() -> logsClient.describeLogGroups(request));
+        for (LogGroup next : response.logGroups()) {
+            String nextLogGroupName = next.logGroupName();
             if (nextLogGroupName.equalsIgnoreCase(schemaName)) {
                 logger.info("loadLogGroup: Matched {} for {}", nextLogGroupName, schemaName);
                 return nextLogGroupName;

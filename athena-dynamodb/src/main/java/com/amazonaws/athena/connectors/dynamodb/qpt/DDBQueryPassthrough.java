@@ -21,11 +21,11 @@ package com.amazonaws.athena.connectors.dynamodb.qpt;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Arrays;
 import java.util.List;
@@ -80,7 +80,7 @@ public class DDBQueryPassthrough implements QueryPassthroughSignature
 
         // Immediately check if the statement starts with "SELECT"
         if (!upperCaseStatement.startsWith("SELECT")) {
-            throw new AthenaConnectorException("Statement does not start with SELECT.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
+            throw new AthenaConnectorException("Statement does not start with SELECT.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
 
         // List of disallowed keywords
@@ -89,7 +89,7 @@ public class DDBQueryPassthrough implements QueryPassthroughSignature
         // Check if the statement contains any disallowed keywords
         for (String keyword : disallowedKeywords) {
             if (upperCaseStatement.contains(keyword)) {
-                throw new AthenaConnectorException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword, new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
+                throw new AthenaConnectorException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword, ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
             }
         }
     }

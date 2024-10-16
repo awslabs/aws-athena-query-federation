@@ -20,8 +20,8 @@
 package com.amazonaws.athena.connectors.cloudwatch;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.services.logs.model.AWSLogsException;
-import com.amazonaws.services.logs.model.LimitExceededException;
+import software.amazon.awssdk.services.cloudwatch.model.LimitExceededException;
+import software.amazon.awssdk.services.cloudwatchlogs.model.CloudWatchLogsException;
 
 /**
  * Used to identify Exceptions that are related to Cloudwatch Logs throttling events.
@@ -36,7 +36,7 @@ public class CloudwatchExceptionFilter
     @Override
     public boolean isMatch(Exception ex)
     {
-        if (ex instanceof AWSLogsException && ex.getMessage().startsWith("Rate exceeded")) {
+        if (ex instanceof CloudWatchLogsException && ex.getMessage().startsWith("Rate exceeded")) {
             return true;
         }
 

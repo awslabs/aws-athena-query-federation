@@ -19,19 +19,22 @@
  */
 package com.amazonaws.athena.connector.validation;
 
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
+import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.invoke.LambdaFunction;
-import com.amazonaws.services.lambda.invoke.LambdaFunctionNameResolver;
-import com.amazonaws.services.lambda.invoke.LambdaInvokerFactory;
-import com.amazonaws.services.lambda.invoke.LambdaInvokerFactoryConfig;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.model.InvokeRequest;
+import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 
-import java.lang.reflect.Method;
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,60 +48,58 @@ public class FederationServiceProvider
 
     private static final String VALIDATION_SUFFIX = "_validation";
 
-    private static final Map<String, FederationService> serviceCache = new ConcurrentHashMap<>();
+    private static final Map<String, Integer> serdeVersionCache = new ConcurrentHashMap<>();
+
+    private static final LambdaClient lambdaClient = LambdaClient.create();
 
     private FederationServiceProvider()
     {
         // Intentionally left blank.
     }
 
-    public static FederationService getService(String lambdaFunction, FederatedIdentity identity, String catalog)
+    private static <T, R> R invokeFunction(String lambdaFunction, T request, Class<R> responseClass, ObjectMapper objectMapper)
     {
-        FederationService service = serviceCache.get(lambdaFunction);
-        if (service != null) {
-            return service;
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(request);
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize request object", e);
         }
 
-        service = LambdaInvokerFactory.builder()
-                .lambdaClient(AWSLambdaClientBuilder.defaultClient())
-                .objectMapper(VersionedObjectMapperFactory.create(BLOCK_ALLOCATOR))
-                .lambdaFunctionNameResolver(new Mapper(lambdaFunction))
-                .build(FederationService.class);
+        InvokeRequest invokeRequest = InvokeRequest.builder()
+                .functionName(lambdaFunction)
+                .payload(SdkBytes.fromUtf8String(payload))
+                .build();
 
-        PingRequest pingRequest = new PingRequest(identity, catalog, generateQueryId());
-        PingResponse pingResponse = (PingResponse) service.call(pingRequest);
+        InvokeResponse invokeResponse = lambdaClient.invoke(invokeRequest);
 
-        int actualSerDeVersion = pingResponse.getSerDeVersion();
-        log.info("SerDe version for function {}, catalog {} is {}", lambdaFunction, catalog, actualSerDeVersion);
-
-        if (actualSerDeVersion != SERDE_VERSION) {
-            service = LambdaInvokerFactory.builder()
-                    .lambdaClient(AWSLambdaClientBuilder.defaultClient())
-                    .objectMapper(VersionedObjectMapperFactory.create(BLOCK_ALLOCATOR, actualSerDeVersion))
-                    .lambdaFunctionNameResolver(new Mapper(lambdaFunction))
-                    .build(FederationService.class);
+        String response = invokeResponse.payload().asUtf8String();
+        try {
+            return objectMapper.readValue(response, responseClass);
         }
-
-        serviceCache.put(lambdaFunction, service);
-        return service;
+        catch (IOException e) {
+            throw new RuntimeException("Failed to deserialize response payload", e);
+        }
     }
 
-    public static final class Mapper
-            implements LambdaFunctionNameResolver
+    public static FederationResponse callService(String lambdaFunction, FederatedIdentity identity, String catalog, FederationRequest request)
     {
-        private final String function;
-
-        private Mapper(String function)
-        {
-            this.function = function;
+        int serDeVersion = SERDE_VERSION;
+        if (serdeVersionCache.containsKey(lambdaFunction)) {
+            serDeVersion = serdeVersionCache.get(lambdaFunction);
+        }
+        else {
+            ObjectMapper objectMapper = VersionedObjectMapperFactory.create(BLOCK_ALLOCATOR);
+            PingRequest pingRequest = new PingRequest(identity, catalog, generateQueryId());
+            PingResponse pingResponse = invokeFunction(lambdaFunction, pingRequest, PingResponse.class, objectMapper);
+    
+            int actualSerDeVersion = pingResponse.getSerDeVersion();
+            log.info("SerDe version for function {}, catalog {} is {}", lambdaFunction, catalog, actualSerDeVersion);
+            serdeVersionCache.put(lambdaFunction, actualSerDeVersion);
         }
 
-        @Override
-        public String getFunctionName(Method method, LambdaFunction lambdaFunction,
-                LambdaInvokerFactoryConfig lambdaInvokerFactoryConfig)
-        {
-            return function;
-        }
+        return invokeFunction(lambdaFunction, request, FederationResponse.class, VersionedObjectMapperFactory.create(BLOCK_ALLOCATOR, serDeVersion));
     }
 
     public static String generateQueryId()

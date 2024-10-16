@@ -19,21 +19,21 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.lang.reflect.Field;
 
 public class GenericGcsTest
 {
-    protected MockedStatic<AmazonS3ClientBuilder> mockedS3Builder;
-    protected  MockedStatic<AWSSecretsManagerClientBuilder> mockedSecretManagerBuilder;
-    protected  MockedStatic<AmazonAthenaClientBuilder> mockedAthenaClientBuilder;
+    protected MockedStatic<S3Client> mockedS3Builder;
+    protected  MockedStatic<SecretsManagerClient> mockedSecretManagerBuilder;
+    protected  MockedStatic<AthenaClient> mockedAthenaClientBuilder;
     protected  MockedStatic<GoogleCredentials> mockedGoogleCredentials;
     protected  MockedStatic<GcsUtil> mockedGcsUtil;
 
@@ -41,9 +41,9 @@ public class GenericGcsTest
 
     protected void initCommonMockedStatic()
     {
-        mockedS3Builder = Mockito.mockStatic(AmazonS3ClientBuilder.class);
-        mockedSecretManagerBuilder = Mockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-        mockedAthenaClientBuilder = Mockito.mockStatic(AmazonAthenaClientBuilder.class);
+        mockedS3Builder = Mockito.mockStatic(S3Client.class);
+        mockedSecretManagerBuilder = Mockito.mockStatic(SecretsManagerClient.class);
+        mockedAthenaClientBuilder = Mockito.mockStatic(AthenaClient.class);
         mockedGoogleCredentials = Mockito.mockStatic(GoogleCredentials.class);
         mockedGcsUtil = Mockito.mockStatic(GcsUtil.class);
         mockedServiceAccountCredentials = Mockito.mockStatic(ServiceAccountCredentials.class);
