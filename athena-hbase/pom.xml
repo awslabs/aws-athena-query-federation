@@ -9,7 +9,7 @@
     <artifactId>athena-hbase</artifactId>
     <version>2022.47.1</version>
     <properties>
-        <jetty.version>11.0.16</jetty.version>
+        <jetty.version>11.0.24</jetty.version>
         <hbase.version>2.6.0-hadoop3</hbase.version>
     </properties>
     <dependencies>

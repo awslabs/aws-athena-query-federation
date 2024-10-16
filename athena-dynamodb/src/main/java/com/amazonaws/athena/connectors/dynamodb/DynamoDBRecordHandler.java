@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.dynamodb.credentials.CrossAccountCredentialsProviderV2;
@@ -55,6 +56,8 @@ import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -206,7 +209,7 @@ public class DynamoDBRecordHandler
     private void handleQueryPassthroughPartiQLQuery(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         if (!recordsRequest.getConstraints().isQueryPassThrough()) {
-            throw new RuntimeException("Attempting to readConstraints with Query Passthrough without PartiQL Query");
+            throw new AthenaConnectorException("Attempting to readConstraints with Query Passthrough without PartiQL Query", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         queryPassthrough.verify(recordsRequest.getConstraints().getQueryPassthroughArguments());
 
@@ -326,7 +329,7 @@ public class DynamoDBRecordHandler
                 expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             }
         }
 
@@ -394,7 +397,7 @@ public class DynamoDBRecordHandler
                 expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             }
         }
 
@@ -467,7 +470,7 @@ public class DynamoDBRecordHandler
                     }
                 }
                 catch (TimeoutException | ExecutionException e) {
-                    throw new RuntimeException(e);
+                    throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString()).build());
                 }
                 currentPageIterator.set(iterator);
                 if (iterator.hasNext()) {

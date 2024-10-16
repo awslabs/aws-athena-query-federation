@@ -24,12 +24,15 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -189,7 +192,7 @@ public class DDBPredicateUtils
                 case EXACTLY:
                     break;
                 case BELOW:
-                    throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                    throw new AthenaConnectorException("Low marker should never use BELOW bound", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                 default:
                     throw new AssertionError("Unhandled lower bound: " + range.getLow().getBound());
             }
@@ -197,7 +200,7 @@ public class DDBPredicateUtils
         if (!range.getHigh().isUpperUnbounded()) {
             switch (range.getHigh().getBound()) {
                 case ABOVE:
-                    throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                    throw new AthenaConnectorException("High marker should never use ABOVE bound", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                 case EXACTLY:
                     break;
                 case BELOW:

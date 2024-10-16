@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb.resolver;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
@@ -32,6 +33,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.ListTablesRequest;
 import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -118,7 +121,7 @@ public class DynamoDBTableResolver
                 return DDBTableUtils.peekTableForSchema(caseInsensitiveMatch.get(), invoker, ddbClient);
             }
             else {
-                throw e;
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
         }
     }
