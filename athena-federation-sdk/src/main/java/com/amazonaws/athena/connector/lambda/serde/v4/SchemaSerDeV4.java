@@ -19,9 +19,12 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v4;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -86,7 +89,7 @@ public final class SchemaSerDeV4 implements VersionedSerDe
                 throws IOException
         {
             if (!JsonToken.VALUE_STRING.equals(jparser.nextToken())) {
-                throw new IllegalStateException("Expected " + JsonToken.VALUE_STRING + " found " + jparser.getText());
+                throw new AthenaConnectorException("Expected " + JsonToken.VALUE_STRING + " found " + jparser.getText(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
             byte[] schemaBytes = jparser.getBinaryValue();
             ByteArrayInputStream in = new ByteArrayInputStream(schemaBytes);

@@ -23,6 +23,9 @@ package com.amazonaws.athena.connector.lambda.security;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.RecordBatchSerDe;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.ByteArrayOutputStream;
@@ -49,7 +52,7 @@ public class NoOpBlockCrypto
     public byte[] encrypt(EncryptionKey key, Block block)
     {
         if (key != null) {
-            throw new RuntimeException("Real key provided to NoOpBlockCrypto, likely indicates you wanted real crypto.");
+            throw new AthenaConnectorException("Real key provided to NoOpBlockCrypto, likely indicates you wanted real crypto.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -57,7 +60,7 @@ public class NoOpBlockCrypto
             return out.toByteArray();
         }
         catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
     }
 
@@ -69,7 +72,7 @@ public class NoOpBlockCrypto
             return resultBlock;
         }
         catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
         }
     }
 

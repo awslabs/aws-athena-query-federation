@@ -20,9 +20,13 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.amazonaws.services.secretsmanager.model.ResourceNotFoundException;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,15 +97,21 @@ public class CachableSecretsManager
      */
     public String getSecret(String secretName)
     {
-        CacheEntry cacheEntry = cache.get(secretName);
+        CacheEntry cacheEntry = null;
+        try {
+            cacheEntry = cache.get(secretName);
 
-        if (cacheEntry == null || cacheEntry.getAge() > MAX_CACHE_AGE_MS) {
-            logger.info("getSecret: Resolving secret[{}].", secretName);
-            GetSecretValueResult secretValueResult = secretsManager.getSecretValue(new GetSecretValueRequest()
-                    .withSecretId(secretName));
-            cacheEntry = new CacheEntry(secretName, secretValueResult.getSecretString());
-            evictCache(cache.size() >= MAX_CACHE_SIZE);
-            cache.put(secretName, cacheEntry);
+            if (cacheEntry == null || cacheEntry.getAge() > MAX_CACHE_AGE_MS) {
+                logger.info("getSecret: Resolving secret[{}].", secretName);
+                GetSecretValueResult secretValueResult = secretsManager.getSecretValue(new GetSecretValueRequest()
+                        .withSecretId(secretName));
+                cacheEntry = new CacheEntry(secretName, secretValueResult.getSecretString());
+                evictCache(cache.size() >= MAX_CACHE_SIZE);
+                cache.put(secretName, cacheEntry);
+            }
+        }
+        catch (ResourceNotFoundException e) {
+            throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
         }
 
         return cacheEntry.getValue();
