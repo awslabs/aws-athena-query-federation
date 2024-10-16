@@ -32,28 +32,34 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCha
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.*;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.arrow.dataset.file.FileFormat;
+import org.apache.arrow.dataset.file.FileSystemDatasetFactory;
+import org.apache.arrow.dataset.jni.NativeMemoryPool;
+import org.apache.arrow.dataset.scanner.ScanOptions;
+import org.apache.arrow.dataset.scanner.Scanner;
+import org.apache.arrow.dataset.source.Dataset;
+import org.apache.arrow.dataset.source.DatasetFactory;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.holders.*;
+import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-import java.io.BufferedReader;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_EXPORT_BUCKET;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_OBJECT_KEY;
+import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_SPLIT_QUERY_ID;
+
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -63,22 +69,18 @@ public class VerticaRecordHandler
         extends RecordHandler {
     private static final Logger logger = LoggerFactory.getLogger(VerticaRecordHandler.class);
     private static final String SOURCE_TYPE = "vertica";
-    private static final String VERTICA_QUOTE_CHARACTER = "\"";
-    private static final String QUERY = "select * from S3Object s";
-    private AmazonS3 amazonS3;
 
     public VerticaRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), configOptions);
+        this(S3Client.create(),
+                SecretsManagerClient.create(),
+                AthenaClient.create(), configOptions);
     }
 
     @VisibleForTesting
-    protected VerticaRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
+    protected VerticaRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient amazonAthena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
-        this.amazonS3 = amazonS3;
     }
 
     /**
@@ -102,9 +104,9 @@ public class VerticaRecordHandler
 
         Schema schemaName = recordsRequest.getSchema();
         Split split = recordsRequest.getSplit();
-        String id = split.getProperty("query_id");
-        String exportBucket = split.getProperty("exportBucket");
-        String s3ObjectKey = split.getProperty("s3ObjectKey");
+        String id = split.getProperty(VERTICA_SPLIT_QUERY_ID);
+        String exportBucket = split.getProperty(VERTICA_SPLIT_EXPORT_BUCKET);
+        String s3ObjectKey = split.getProperty(VERTICA_SPLIT_OBJECT_KEY);
 
         if(!s3ObjectKey.isEmpty()) {
             //get column name and type from the Schema
@@ -129,25 +131,25 @@ public class VerticaRecordHandler
             }
             GeneratedRowWriter rowWriter = builder.build();
 
-        /*
-         Using S3 Select to read the S3 Parquet file generated in the split
-         */
-            //Creating the read Request
-            SelectObjectContentRequest request = generateBaseParquetRequest(exportBucket, s3ObjectKey);
-            try (SelectObjectContentResult result = amazonS3.selectObjectContent(request)) {
-                InputStream resultInputStream = result.getPayload().getRecordsInputStream();
-                BufferedReader streamReader = new BufferedReader(new InputStreamReader(resultInputStream, StandardCharsets.UTF_8));
-                String inputStr;
-                while ((inputStr = streamReader.readLine()) != null) {
-                    HashMap<String, Object> map = new HashMap<>();
-                    //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerializatio
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    map = objectMapper.readValue(inputStr, HashMap.class);
-                    rowContext.setNameValue(map);
-
-                    //Passing the RowContext to BlockWriter;
-                    spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
+            /*
+            Using Arrow Dataset to read the S3 Parquet file generated in the split
+            */
+            try (ArrowReader reader = constructArrowReader(constructS3Uri(exportBucket, s3ObjectKey)))
+            {
+                while (reader.loadNextBatch()) {
+                    VectorSchemaRoot root = reader.getVectorSchemaRoot();
+                    for (int row = 0; row < root.getRowCount(); row++) {
+                        HashMap<String, Object> map = new HashMap<>();
+                        for (Field field : root.getSchema().getFields()) {
+                            map.put(field.getName(), root.getVector(field).getObject(row));
+                        }
+                        rowContext.setNameValue(map);
+    
+                        //Passing the RowContext to BlockWriter;
+                        spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
+                    }
                 }
+                reader.close();
             } catch (Exception e) {
                 throw new RuntimeException("Error in connecting to S3 and selecting the object content for object : " + s3ObjectKey, e);
             }
@@ -331,28 +333,24 @@ public class VerticaRecordHandler
         }
     }
 
-
-    /*
-    Method to create the Parquet read request
-     */
-    private static SelectObjectContentRequest generateBaseParquetRequest(String bucket, String key)
+    @VisibleForTesting
+    protected ArrowReader constructArrowReader(String uri)
     {
-        SelectObjectContentRequest request = new SelectObjectContentRequest();
-        request.setBucketName(bucket);
-        request.setKey(key);
-        request.setExpression(VerticaRecordHandler.QUERY);
-        request.setExpressionType(ExpressionType.SQL);
+        BufferAllocator allocator = new RootAllocator();
+        DatasetFactory datasetFactory = new FileSystemDatasetFactory(
+                allocator,
+                NativeMemoryPool.getDefault(),
+                FileFormat.PARQUET,
+                uri);
+        Dataset dataset = datasetFactory.finish();
+        ScanOptions options = new ScanOptions(/*batchSize*/ 32768);
+        Scanner scanner = dataset.newScan(options);
+        return scanner.scanBatches();
+    }
 
-        InputSerialization inputSerialization = new InputSerialization();
-        inputSerialization.setParquet(new ParquetInput());
-        inputSerialization.setCompressionType(CompressionType.NONE);
-        request.setInputSerialization(inputSerialization);
-
-        OutputSerialization outputSerialization = new OutputSerialization();
-        outputSerialization.setJson(new JSONOutput());
-        request.setOutputSerialization(outputSerialization);
-
-        return request;
+    private static String constructS3Uri(String bucket, String key)
+    {
+        return "s3://" + bucket + "/" + key;
     }
 
 }
