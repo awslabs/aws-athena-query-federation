@@ -30,6 +30,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -89,7 +90,19 @@ public class GenericJdbcConnectionFactory
         Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
 
         // create connection
-        return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+        Connection connection = null;
+        try {
+            connection = DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+        }
+        catch (SQLException e) {
+            if (e.getMessage().contains("Name or service not known")) {
+                throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+            }
+            else if (e.getMessage().contains("Incorrect username or password was specified.")) {
+                throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidCredentialsException.toString()));
+            }
+        }
+        return connection;
     }
 
     private String encodeValue(String value)

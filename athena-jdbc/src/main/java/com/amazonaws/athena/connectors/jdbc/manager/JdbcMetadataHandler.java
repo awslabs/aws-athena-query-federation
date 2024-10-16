@@ -168,6 +168,9 @@ public abstract class JdbcMetadataHandler
             }
             return schemaNames.build();
         }
+        catch (RuntimeException ex) {
+            throw new AthenaConnectorException("Invalid credentials was specified", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidCredentialsException.toString()));
+        }
     }
 
     @Override
