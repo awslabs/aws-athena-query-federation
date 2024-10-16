@@ -28,7 +28,7 @@ jobs:
         run: rm -rf com
 
       - name: Copy new files
-        run: cp -r target/site/apidocs/* .
+        run: cp -r target/reports/apidocs/* .
 
       - name: Commit files
         run: |

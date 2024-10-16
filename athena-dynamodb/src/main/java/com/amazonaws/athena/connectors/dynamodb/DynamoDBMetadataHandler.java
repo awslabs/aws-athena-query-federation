@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -59,6 +60,8 @@ import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProduc
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Database;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
@@ -255,7 +258,7 @@ public class DynamoDBMetadataHandler
     public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
         if (!request.isQueryPassthrough()) {
-            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+            throw new AthenaConnectorException("No Query passed through [{}]" + request, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()).withErrorMessage("No Query passed through [{}]" + request));
         }
 
         queryPassthrough.verify(request.getQueryPassthroughArguments());
@@ -324,7 +327,7 @@ public class DynamoDBMetadataHandler
             table = tableResolver.getTableMetadata(tableName);
         }
         catch (TimeoutException e) {
-            throw new RuntimeException(e);
+            throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationTimeoutException.toString()).withErrorMessage(e.getMessage()));
         }
         // add table name so we don't have to do case insensitive resolution again
         partitionSchemaBuilder.addMetadata(TABLE_METADATA, table.getName());
@@ -471,7 +474,7 @@ public class DynamoDBMetadataHandler
         Map<String, String> partitionMetadata = partitions.getSchema().getCustomMetadata();
         String partitionType = partitionMetadata.get(PARTITION_TYPE_METADATA);
         if (partitionType == null) {
-            throw new IllegalStateException(String.format("No metadata %s defined in Schema %s", PARTITION_TYPE_METADATA, partitions.getSchema()));
+            throw new AthenaConnectorException(String.format("No metadata %s defined in Schema %s", PARTITION_TYPE_METADATA, partitions.getSchema()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         if (QUERY_PARTITION_TYPE.equals(partitionType)) {
             String hashKeyName = partitionMetadata.get(HASH_KEY_NAME_METADATA);
@@ -527,7 +530,7 @@ public class DynamoDBMetadataHandler
             return new GetSplitsResponse(request.getCatalogName(), splits, null);
         }
         else {
-            throw new IllegalStateException("Unexpected partition type " + partitionType);
+            throw new AthenaConnectorException("Unexpected partition type " + partitionType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
