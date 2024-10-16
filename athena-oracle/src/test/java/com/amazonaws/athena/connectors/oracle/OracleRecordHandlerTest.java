@@ -45,8 +45,10 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.Collections;
 
 import static com.amazonaws.athena.connectors.oracle.OracleConstants.ORACLE_NAME;
@@ -97,6 +99,8 @@ public class OracleRecordHandlerTest
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol6", Types.MinorType.TINYINT.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol7", Types.MinorType.FLOAT8.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol8", Types.MinorType.BIT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("testCol9", Types.MinorType.DATEDAY.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("testCol10", Types.MinorType.DATEDAY.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
@@ -120,6 +124,10 @@ public class OracleRecordHandlerTest
         ValueSet valueSet6 = getSingleValueSet(0);
         ValueSet valueSet7 = getSingleValueSet(1.2d);
         ValueSet valueSet8 = getSingleValueSet(true);
+        final long epochDaysPrior1970 = LocalDate.parse("1967-07-27").toEpochDay();
+        ValueSet valueSet9 = getSingleValueSet(epochDaysPrior1970);
+        final long epochDaysPost1970 = LocalDate.parse("1971-01-01").toEpochDay();
+        ValueSet valueSet10 = getSingleValueSet(epochDaysPost1970);
 
         Constraints constraints = Mockito.mock(Constraints.class);
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
@@ -131,11 +139,13 @@ public class OracleRecordHandlerTest
                 .put("testCol6", valueSet6)
                 .put("testCol7", valueSet7)
                 .put("testCol8", valueSet8)
+                .put("testCol9", valueSet9)
+                .put("testCol10", valueSet10)
                 .build());
 
         Mockito.when(constraints.getLimit()).thenReturn(5L);
 
-        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?)";
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\", \"testCol10\" FROM \"testSchema\".\"testTable\" PARTITION (p0)  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?) AND (\"testCol10\" = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.oracleRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
@@ -152,6 +162,11 @@ public class OracleRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setByte(9, (byte) 0);
         Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(10, 1.2d);
         Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(11, true);
+        //year – the year minus 1900; must be 0 to 8099. (Note that 8099 is 9999 minus 1900.) month – 0 to 11 day – 1 to 31
+        Date expectedDatePrior1970 = new Date(67, 6, 27);//Date: 1967-07-27
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDate(12, expectedDatePrior1970);
+        Date expectedDatePost1970 = new Date(71, 0, 1);//Date: 1971-01-01
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDate(13, expectedDatePost1970);
     }
 
     private ValueSet getSingleValueSet(Object value) {
