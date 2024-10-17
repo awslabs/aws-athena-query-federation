@@ -54,7 +54,8 @@ Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
   CreateKMSPolicy: !And [!Condition HasKMSKeyId, !Condition NotHasLambdaRole]
-
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -67,7 +68,9 @@ Resources:
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-dynamodb:2022.47.1'
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-dynamodb:2022.47.1'
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       Description: "Enables Amazon Athena to communicate with DynamoDB, making your tables accessible via SQL"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
