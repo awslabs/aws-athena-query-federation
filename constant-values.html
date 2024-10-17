@@ -14,7 +14,7 @@
 <!--[if IE]>
 <script type="text/javascript" src="jquery/jszip-utils/dist/jszip-utils-ie.min.js"></script>
 <![endif]-->
-<script type="text/javascript" src="jquery/jquery-3.6.1.min.js"></script>
+<script type="text/javascript" src="jquery/jquery-3.7.1.min.js"></script>
 <script type="text/javascript" src="jquery/jquery-ui.min.js"></script>
 </head>
 <body>
@@ -2923,6 +2923,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html#GET_PARTITIONS_QUERY">GET_PARTITIONS_QUERY</a></code></th>
 <td class="colLast"><code>"SELECT nmsp_child.nspname AS child_schema, child.relname AS child FROM pg_inherits JOIN pg_class parent ON pg_inherits.inhparent = parent.oid JOIN pg_class child ON pg_inherits.inhrelid = child.oid JOIN pg_namespace nmsp_parent ON nmsp_parent.oid = parent.relnamespace JOIN pg_namespace nmsp_child ON nmsp_child.oid = child.relnamespace where nmsp_parent.nspname = ? AND parent.relname = ?"</code></td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler.NON_DEFAULT_COLLATE">
+<!--   -->
+</a><code>protected&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/postgresql/PostGreSqlMetadataHandler.html#NON_DEFAULT_COLLATE">NON_DEFAULT_COLLATE</a></code></th>
+<td class="colLast"><code>"non_default_collate"</code></td>
 </tr>
 </tbody>
 </table>
