@@ -19,17 +19,20 @@
  */
 package com.amazonaws.athena.connector.util;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class PaginatedRequestIteratorTest
 {
@@ -99,7 +102,7 @@ public class PaginatedRequestIteratorTest
         try {
             iterator.next();
             fail("Expected NoSuchElementException but did not get one");
-        } catch (NoSuchElementException ex) {
+        } catch (AthenaConnectorException ex) {
             // Expected
         }
 

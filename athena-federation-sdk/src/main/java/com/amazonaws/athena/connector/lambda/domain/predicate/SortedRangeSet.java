@@ -21,6 +21,9 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -235,7 +238,7 @@ public class SortedRangeSet
     public Object getSingleValue()
     {
         if (!isSingleValue()) {
-            throw new IllegalStateException("SortedRangeSet does not have just a single value");
+            throw new AthenaConnectorException("SortedRangeSet does not have just a single value", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         if (nullAllowed && lowIndexedRanges.isEmpty()) {
@@ -266,7 +269,7 @@ public class SortedRangeSet
         }
 
         if (marker.getBound() != Marker.Bound.EXACTLY) {
-            throw new RuntimeException("Expected Bound.EXACTLY but found " + marker.getBound());
+            throw new AthenaConnectorException("Expected Bound.EXACTLY but found " + marker.getBound(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         Map.Entry<ValueMarker, Range> floorEntry = lowIndexedRanges.floorEntry(marker);
@@ -318,7 +321,7 @@ public class SortedRangeSet
     public Range getSpan()
     {
         if (lowIndexedRanges.isEmpty()) {
-            throw new IllegalStateException("Can not get span if no ranges exist");
+            throw new AthenaConnectorException("Can not get span if no ranges exist", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return lowIndexedRanges.firstEntry().getValue().span(lowIndexedRanges.lastEntry().getValue());
     }
@@ -456,11 +459,11 @@ public class SortedRangeSet
     private SortedRangeSet checkCompatibility(ValueSet other)
     {
         if (!getType().equals(other.getType())) {
-            throw new IllegalStateException(String.format("Mismatched types: %s vs %s",
-                    getType(), other.getType()));
+            throw new AthenaConnectorException(String.format("Mismatched types: %s vs %s",
+                    getType(), other.getType()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         if (!(other instanceof SortedRangeSet)) {
-            throw new IllegalStateException(String.format("ValueSet is not a SortedRangeSet: %s", other.getClass()));
+            throw new AthenaConnectorException(String.format("ValueSet is not a SortedRangeSet: %s", other.getClass()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return (SortedRangeSet) other;
     }
@@ -469,8 +472,8 @@ public class SortedRangeSet
     {
         if (!getType().equals(marker.getType())
                 && !checkTypeCompatibilityForTimeStamp(marker)) {
-            throw new IllegalStateException(String.format("Marker of %s does not match SortedRangeSet of %s",
-                    marker.getType(), getType()));
+            throw new AthenaConnectorException(String.format("Marker of %s does not match SortedRangeSet of %s",
+                    marker.getType(), getType()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -547,8 +550,8 @@ public class SortedRangeSet
         public Builder add(Range range)
         {
             if (!type.equals(range.getType())) {
-                throw new IllegalArgumentException(String.format("Range type %s does not match builder type %s",
-                        range.getType(), type));
+                throw new AthenaConnectorException(String.format("Range type %s does not match builder type %s",
+                        range.getType(), type), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
 
             ranges.add(range);

@@ -20,8 +20,11 @@
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.data.AthenaFederationIpcOption;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -99,7 +102,7 @@ public final class SchemaSerDe
                 return MessageSerializer.deserializeSchema(new ReadChannel(Channels.newChannel(in)));
             }
             else {
-                throw new IllegalStateException("Expected " + JsonToken.VALUE_STRING + " found " + jparser.getText());
+                throw new AthenaConnectorException("Expected " + JsonToken.VALUE_STRING + " found " + jparser.getText(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
         }
     }

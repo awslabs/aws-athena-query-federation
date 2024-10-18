@@ -50,6 +50,9 @@ import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.VarCharFi
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -152,7 +155,7 @@ public class GeneratedRowWriter
         }
 
         if (extractor == null) {
-            throw new IllegalStateException("Missing extractor for field[" + fieldName + "]");
+            throw new AthenaConnectorException("Missing extractor for field[" + fieldName + "]", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
 
         switch (fieldType) {
@@ -181,7 +184,7 @@ public class GeneratedRowWriter
             case VARBINARY:
                 return new VarBinaryFieldWriter((VarBinaryExtractor) extractor, (VarBinaryVector) vector, constraint);
             default:
-                throw new RuntimeException(fieldType + " is not supported");
+                throw new AthenaConnectorException(fieldType + " is not supported", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
