@@ -56,7 +56,6 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_NAME;
@@ -76,7 +75,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
     private AWSSecretsManager secretsManager;
     private AmazonAthena athena;
     private MockedStatic<PostGreSqlMetadataHandler> mockedPostGreSqlMetadataHandler;
-    private DatabaseConnectionConfig databaseConnectionConfig;
+
     @Before
     public void setup()
             throws Exception
@@ -87,8 +86,8 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""), Collections.emptyMap());
-        databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", POSTGRES_NAME,
+        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""));
+        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", POSTGRES_NAME,
                 "postgres://jdbc:postgresql://hostname/user=A&password=B");
 
         this.postGreSqlRecordHandler = new PostGreSqlRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
@@ -228,95 +227,6 @@ public class PostGreSqlRecordHandlerTest extends TestBase
                 .setDate(1, expectedDate);
 
         logger.info("buildSplitSqlForDateTest - exit");
-    }
-
-    @Test
-    public void buildSplitSqlCollateAwareQuery()
-            throws SQLException
-    {
-        logger.info("buildSplitSqlCollateAwareQuery - enter");
-
-        TableName tableName = new TableName("testSchema", "testTable");
-
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.INT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol2", Types.MinorType.VARCHAR.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol3", Types.MinorType.BIGINT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol4", Types.MinorType.FLOAT4.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol5", Types.MinorType.SMALLINT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol6", Types.MinorType.TINYINT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol7", Types.MinorType.FLOAT8.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol8", Types.MinorType.BIT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol9", new ArrowType.Decimal(8, 2)).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol10", new ArrowType.Utf8()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition_schema_name", Types.MinorType.VARCHAR.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
-        Schema schema = schemaBuilder.build();
-
-        Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(ImmutableMap.of("partition_schema_name", "s0", "partition_name", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq(com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME))).thenReturn("s0");
-        Mockito.when(split.getProperty(Mockito.eq(com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn("p0");
-
-        Range range1a = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range1a.isSingleValue()).thenReturn(true);
-        Mockito.when(range1a.getLow().getValue()).thenReturn(1);
-        Range range1b = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range1b.isSingleValue()).thenReturn(true);
-        Mockito.when(range1b.getLow().getValue()).thenReturn(2);
-        ValueSet valueSet1 = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet1.getRanges().getOrderedRanges()).thenReturn(ImmutableList.of(range1a, range1b));
-
-        ValueSet valueSet2 = getRangeSet(Marker.Bound.EXACTLY, "1", Marker.Bound.BELOW, "10");
-        ValueSet valueSet3 = getRangeSet(Marker.Bound.ABOVE, 2L, Marker.Bound.EXACTLY, 20L);
-        ValueSet valueSet4 = getSingleValueSet(1.1F);
-        ValueSet valueSet5 = getSingleValueSet(1);
-        ValueSet valueSet6 = getSingleValueSet(0);
-        ValueSet valueSet7 = getSingleValueSet(1.2d);
-        ValueSet valueSet8 = getSingleValueSet(true);
-        ValueSet valueSet9 = getSingleValueSet(BigDecimal.valueOf(12.34));
-        ValueSet valueSet10 = getSingleValueSet("A");
-
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
-                .put("testCol1", valueSet1)
-                .put("testCol2", valueSet2)
-                .put("testCol3", valueSet3)
-                .put("testCol4", valueSet4)
-                .put("testCol5", valueSet5)
-                .put("testCol6", valueSet6)
-                .put("testCol7", valueSet7)
-                .put("testCol8", valueSet8)
-                .put("testCol9", valueSet9)
-                .put("testCol10", valueSet10)
-                .build());
-
-        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\", RTRIM(\"testCol10\") AS \"testCol10\" FROM \"s0\".\"p0\"  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? COLLATE \"C\" AND \"testCol2\" < ? COLLATE \"C\")) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?) AND (\"testCol10\" = ?)";
-        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
-
-        //Setting Collate Aware query builder flag on
-        Map<String, String> configOptions = ImmutableMap.of("postgresql_collate_experimental_flag", "true");
-        PostGreSqlQueryStringBuilder localJdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""), configOptions);
-        PostGreSqlRecordHandler localPostgresqlRecordHandler = new PostGreSqlRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, localJdbcSplitQueryBuilder, configOptions);
-        PreparedStatement preparedStatement = localPostgresqlRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
-
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "1");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "10");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(5, 2L);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(6, 20L);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setFloat(7, 1.1F);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setShort(8, (short) 1);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setByte(9, (byte) 0);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(10, 1.2d);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(11, true);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(12, BigDecimal.valueOf(12.34));
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(13, "A");
-
-        logger.info("buildSplitSqlCollateAwareQuery - exit");
     }
 
     private ValueSet getSingleValueSet(Object value) {
