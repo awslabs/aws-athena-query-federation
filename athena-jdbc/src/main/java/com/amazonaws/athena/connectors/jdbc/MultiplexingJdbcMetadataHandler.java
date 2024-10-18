@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.jdbc;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -40,6 +41,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
@@ -75,7 +78,8 @@ public class MultiplexingJdbcMetadataHandler
         this.metadataHandlerMap = Validate.notEmpty(metadataHandlerMap, "metadataHandlerMap must not be empty");
 
         if (this.metadataHandlerMap.size() > MAX_CATALOGS_TO_MULTIPLEX) {
-            throw new RuntimeException("Max 100 catalogs supported in multiplexer.");
+            throw new AthenaConnectorException("Max 100 catalogs supported in multiplexer.",
+                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -91,7 +95,8 @@ public class MultiplexingJdbcMetadataHandler
     private void validateMultiplexer(final String catalogName)
     {
         if (this.metadataHandlerMap.get(catalogName) == null) {
-            throw new RuntimeException(String.format(CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName));
+            throw new AthenaConnectorException(String.format(CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName),
+                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
