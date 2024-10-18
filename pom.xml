@@ -11,7 +11,9 @@
     <properties>
         <!-- Uncomment to target java 8 -->
         <!--<maven.compiler.release>8</maven.compiler.release>-->
-        <maven.compiler.release>11</maven.compiler.release>
+        <!-- Uncomment to target java 11 -->
+        <!--<maven.compiler.release>11</maven.compiler.release>-->
+        <maven.compiler.release>17</maven.compiler.release>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
         <aws-sdk.version>1.12.773</aws-sdk.version>
@@ -356,6 +358,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire.failsafe.version}</version>
                 <configuration>
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                     <excludes>
                         <exclude>*IntegTest</exclude>
                     </excludes>
@@ -366,6 +369,7 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${surefire.failsafe.version}</version>
                 <configuration>
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                     <forkCount>3C</forkCount>
                     <reuseForks>false</reuseForks>
                     <includes>
