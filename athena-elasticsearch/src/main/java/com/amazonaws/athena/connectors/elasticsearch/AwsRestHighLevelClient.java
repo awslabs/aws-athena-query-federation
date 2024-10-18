@@ -84,8 +84,14 @@ public class AwsRestHighLevelClient
     public Set<String> getAliases()
             throws IOException
     {
-        GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
-        GetAliasesResponse getAliasesResponse = indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
+        GetAliasesResponse getAliasesResponse = null;
+        try {
+            GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
+            getAliasesResponse = indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
+        }
+        catch (Exception e) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
+        }
         return getAliasesResponse.getAliases().keySet();
     }
 
