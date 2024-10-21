@@ -150,6 +150,7 @@ class ElasticsearchSchemaUtils
             case "text":
             case "keyword":
             case "binary":
+            case "geo_point":
                 minorType = Types.MinorType.VARCHAR;
                 break;
             case "long":
