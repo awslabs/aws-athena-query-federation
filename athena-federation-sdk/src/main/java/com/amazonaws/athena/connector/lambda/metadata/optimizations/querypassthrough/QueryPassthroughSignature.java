@@ -19,7 +19,10 @@
  */
 package com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -78,15 +81,15 @@ public interface QueryPassthroughSignature
         //High-level Query Passthrough Function Argument verification
         //First verifies that these arguments belong to this specific function
         if (!verifyFunctionSignature(engineQptArguments)) {
-            throw new IllegalArgumentException("Function Signature doesn't match implementation's");
+            throw new AthenaConnectorException("Function Signature doesn't match implementation's", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         //Ensuring the arguments received from the engine are the one defined by the connector
         for (String argument : this.getFunctionArguments()) {
             if (!engineQptArguments.containsKey(argument)) {
-                throw new IllegalArgumentException("Missing Query Passthrough Argument: " + argument);
+                throw new AthenaConnectorException("Missing Query Passthrough Argument: " + argument, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
             if (StringUtils.isEmpty(engineQptArguments.get(argument))) {
-                throw new IllegalArgumentException("Missing Query Passthrough Value for Argument: " + argument);
+                throw new AthenaConnectorException("Missing Query Passthrough Value for Argument: " + argument, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
             }
         }
         //Finally, perform any connector-specific verification;

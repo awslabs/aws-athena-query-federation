@@ -19,6 +19,9 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +99,8 @@ public class GenericJdbcConnectionFactory
             return URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
         }
         catch (UnsupportedEncodingException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException("Unsupported Encoding Exception: ",
+                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()).withErrorMessage(ex.getMessage()));
         }
     }
 }

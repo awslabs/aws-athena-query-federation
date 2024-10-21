@@ -21,6 +21,9 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  */
 
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -144,7 +147,7 @@ public class GlueFieldLexer
     private static Field parseMap(String name, GlueTypeParser.Token typeToken, GlueTypeParser parser, BaseTypeMapper mapper)
     {
         if (MAP_DISABLED) {
-            throw new RuntimeException("Map type is currently unsupported");
+            throw new AthenaConnectorException("Map type is currently unsupported", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
         }
 
         expectTokenMarkerIsFieldStart(typeToken);
@@ -170,7 +173,7 @@ public class GlueFieldLexer
     private static void expectTokenMarkerIsFieldStart(GlueTypeParser.Token token)
     {
         if (token.getMarker() != GlueTypeParser.FIELD_START) {
-            throw new RuntimeException("Expected field start: but found " + token.toString());
+            throw new AthenaConnectorException("Expected field start: but found " + token.toString(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
@@ -180,7 +183,7 @@ public class GlueFieldLexer
               token.getMarker().equals(GlueTypeParser.FIELD_SEP) ||
               token.getMarker().equals(GlueTypeParser.FIELD_END));
         if (!isFieldEnd) {
-            throw new RuntimeException("Expected field ending but found: " + token.toString());
+            throw new AthenaConnectorException("Expected field ending but found: " + token.toString(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }

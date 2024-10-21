@@ -19,6 +19,9 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -136,7 +139,7 @@ public final class TimeZoneKey
             zoneKey = ZONE_ID_TO_KEY.get(normalizeZoneId(zoneId));
         }
         if (zoneKey == null) {
-            throw new IllegalArgumentException("Time zone not supported: " + zoneId);
+            throw new AthenaConnectorException("Time zone not supported: " + zoneId, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return zoneKey;
     }
@@ -148,11 +151,11 @@ public final class TimeZoneKey
         }
 
         if (!(offsetMinutes >= OFFSET_TIME_ZONE_MIN && offsetMinutes <= OFFSET_TIME_ZONE_MAX)) {
-            throw new IllegalArgumentException(String.format("Invalid offset minutes %s", offsetMinutes));
+            throw new AthenaConnectorException(String.format("Invalid offset minutes %s", offsetMinutes), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         TimeZoneKey timeZoneKey = OFFSET_TIME_ZONE_KEYS[((int) offsetMinutes) - OFFSET_TIME_ZONE_MIN];
         if (timeZoneKey == null) {
-            throw new IllegalArgumentException("Time zone not supported: " + zoneIdForOffset(offsetMinutes));
+            throw new AthenaConnectorException("Time zone not supported: " + zoneIdForOffset(offsetMinutes), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         return timeZoneKey;
     }
@@ -165,7 +168,7 @@ public final class TimeZoneKey
     {
         this.id = requireNonNull(id, "id is null");
         if (key < 0) {
-            throw new IllegalArgumentException("key is negative");
+            throw new AthenaConnectorException("key is negative", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
         this.key = key;
     }
@@ -318,7 +321,7 @@ public final class TimeZoneKey
     private static void checkArgument(boolean check, String message, Object... args)
     {
         if (!check) {
-            throw new IllegalArgumentException(String.format(message, args));
+            throw new AthenaConnectorException(String.format(message, args), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 }

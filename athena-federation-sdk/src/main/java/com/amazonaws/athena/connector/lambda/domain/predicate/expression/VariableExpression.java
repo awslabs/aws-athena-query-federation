@@ -19,6 +19,9 @@
  */
 package com.amazonaws.athena.connector.lambda.domain.predicate.expression;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -42,7 +45,7 @@ public class VariableExpression
         this.columnName = requireNonNull(columnName, "columnName is null");
 
         if (columnName.isEmpty()) {
-            throw new IllegalArgumentException("columnName is empty");
+            throw new AthenaConnectorException("columnName is empty", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
         }
     }
 
