@@ -24,6 +24,9 @@ import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.glue.model.ErrorDetails;
 import com.amazonaws.services.glue.model.FederationSourceErrorCode;
+import com.amazonaws.services.glue.model.AccessDeniedException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.base.Splitter;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -82,8 +85,14 @@ public class AwsRestHighLevelClient
     public Set<String> getAliases()
             throws IOException
     {
-        GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
-        GetAliasesResponse getAliasesResponse = indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
+        GetAliasesResponse getAliasesResponse = null;
+        try {
+            GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
+            getAliasesResponse = indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
+        }
+        catch (Exception e) {
+            throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.AccessDeniedException.toString()));
+        }
         return getAliasesResponse.getAliases().keySet();
     }
 
