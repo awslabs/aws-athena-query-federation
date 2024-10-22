@@ -336,7 +336,7 @@ public abstract class JdbcSplitQueryBuilder
         return "(" + Joiner.on(" OR ").join(disjuncts) + ")";
     }
 
-    protected String toPredicate(String columnName, String operator, Object value, ArrowType type,
+    private String toPredicate(String columnName, String operator, Object value, ArrowType type,
             List<TypeAndValue> accumulator)
     {
         accumulator.add(new TypeAndValue(type, value));
