@@ -177,32 +177,5 @@ export class OpenSearchStack extends cdk.Stack {
         'SpillBucket': spill_bucket,
       }
     });
-
-    const ecrRepo = new Repository(this, 'ElasticsearchRepository', {
-      repositoryName: 'athena-federation-repository-elasticsearch',
-      emptyOnDelete: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY
-    });
-    ecrRepo.addToResourcePolicy(
-      new iam.PolicyStatement({
-        sid: 'CrossAccountPermission',
-        effect: iam.Effect.ALLOW,
-        actions: ['ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer'],
-        principals: [new iam.AnyPrincipal()],
-      }),
-    );
-    ecrRepo.addToResourcePolicy(
-      new iam.PolicyStatement({
-        sid: 'LambdaECRImageCrossAccountRetrievalPolicy',
-        effect: iam.Effect.ALLOW,
-        actions: ['ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer'],
-        principals: [new iam.ServicePrincipal('lambda.amazonaws.com')],
-        conditions: {
-          StringLike: {
-            'aws:sourceArn': 'arn:aws:lambda:*:*:function:*',
-          },
-        },
-      }),
-    );
   }
 }
