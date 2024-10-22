@@ -31,13 +31,13 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeRouteTablesRequest;
-import com.amazonaws.services.ec2.model.DescribeRouteTablesResult;
-import com.amazonaws.services.ec2.model.Route;
-import com.amazonaws.services.ec2.model.RouteTable;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeRouteTablesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeRouteTablesResponse;
+import software.amazon.awssdk.services.ec2.model.Route;
+import software.amazon.awssdk.services.ec2.model.RouteTable;
 
 import java.util.Collections;
 import java.util.List;
@@ -50,9 +50,9 @@ public class RouteTableProvider
         implements TableProvider
 {
     private static final Schema SCHEMA;
-    private AmazonEC2 ec2;
+    private Ec2Client ec2;
 
-    public RouteTableProvider(AmazonEC2 ec2)
+    public RouteTableProvider(Ec2Client ec2)
     {
         this.ec2 = ec2;
     }
@@ -94,25 +94,25 @@ public class RouteTableProvider
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         boolean done = false;
-        DescribeRouteTablesRequest request = new DescribeRouteTablesRequest();
+        DescribeRouteTablesRequest.Builder request = DescribeRouteTablesRequest.builder();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("route_table_id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
-            request.setRouteTableIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
+            request.routeTableIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }
 
         while (!done) {
-            DescribeRouteTablesResult response = ec2.describeRouteTables(request);
+            DescribeRouteTablesResponse response = ec2.describeRouteTables(request.build());
 
-            for (RouteTable nextRouteTable : response.getRouteTables()) {
-                for (Route route : nextRouteTable.getRoutes()) {
+            for (RouteTable nextRouteTable : response.routeTables()) {
+                for (Route route : nextRouteTable.routes()) {
                     instanceToRow(nextRouteTable, route, spiller);
                 }
             }
 
-            request.setNextToken(response.getNextToken());
+            request.nextToken(response.nextToken());
 
-            if (response.getNextToken() == null || !queryStatusChecker.isQueryRunning()) {
+            if (response.nextToken() == null || !queryStatusChecker.isQueryRunning()) {
                 done = true;
             }
         }
@@ -134,33 +134,33 @@ public class RouteTableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("route_table_id", row, routeTable.getRouteTableId());
-            matched &= block.offerValue("owner", row, routeTable.getOwnerId());
-            matched &= block.offerValue("vpc", row, routeTable.getVpcId());
-            matched &= block.offerValue("dst_cidr", row, route.getDestinationCidrBlock());
-            matched &= block.offerValue("dst_cidr_v6", row, route.getDestinationIpv6CidrBlock());
-            matched &= block.offerValue("dst_prefix_list", row, route.getDestinationPrefixListId());
-            matched &= block.offerValue("egress_igw", row, route.getEgressOnlyInternetGatewayId());
-            matched &= block.offerValue("gateway", row, route.getGatewayId());
-            matched &= block.offerValue("instance_id", row, route.getInstanceId());
-            matched &= block.offerValue("instance_owner", row, route.getInstanceOwnerId());
-            matched &= block.offerValue("nat_gateway", row, route.getNatGatewayId());
-            matched &= block.offerValue("interface", row, route.getNetworkInterfaceId());
-            matched &= block.offerValue("origin", row, route.getOrigin());
-            matched &= block.offerValue("state", row, route.getState());
-            matched &= block.offerValue("transit_gateway", row, route.getTransitGatewayId());
-            matched &= block.offerValue("vpc_peering_con", row, route.getVpcPeeringConnectionId());
+            matched &= block.offerValue("route_table_id", row, routeTable.routeTableId());
+            matched &= block.offerValue("owner", row, routeTable.ownerId());
+            matched &= block.offerValue("vpc", row, routeTable.vpcId());
+            matched &= block.offerValue("dst_cidr", row, route.destinationCidrBlock());
+            matched &= block.offerValue("dst_cidr_v6", row, route.destinationIpv6CidrBlock());
+            matched &= block.offerValue("dst_prefix_list", row, route.destinationPrefixListId());
+            matched &= block.offerValue("egress_igw", row, route.egressOnlyInternetGatewayId());
+            matched &= block.offerValue("gateway", row, route.gatewayId());
+            matched &= block.offerValue("instance_id", row, route.instanceId());
+            matched &= block.offerValue("instance_owner", row, route.instanceOwnerId());
+            matched &= block.offerValue("nat_gateway", row, route.natGatewayId());
+            matched &= block.offerValue("interface", row, route.networkInterfaceId());
+            matched &= block.offerValue("origin", row, route.originAsString());
+            matched &= block.offerValue("state", row, route.stateAsString());
+            matched &= block.offerValue("transit_gateway", row, route.transitGatewayId());
+            matched &= block.offerValue("vpc_peering_con", row, route.vpcPeeringConnectionId());
 
-            List<String> associations = routeTable.getAssociations().stream()
-                    .map(next -> next.getSubnetId() + ":" + next.getRouteTableId()).collect(Collectors.toList());
+            List<String> associations = routeTable.associations().stream()
+                    .map(next -> next.subnetId() + ":" + next.routeTableId()).collect(Collectors.toList());
             matched &= block.offerComplexValue("associations", row, FieldResolver.DEFAULT, associations);
 
-            List<String> tags = routeTable.getTags().stream()
-                    .map(next -> next.getKey() + ":" + next.getValue()).collect(Collectors.toList());
+            List<String> tags = routeTable.tags().stream()
+                    .map(next -> next.key() + ":" + next.value()).collect(Collectors.toList());
             matched &= block.offerComplexValue("tags", row, FieldResolver.DEFAULT, tags);
 
-            List<String> propagatingVgws = routeTable.getPropagatingVgws().stream()
-                    .map(next -> next.getGatewayId()).collect(Collectors.toList());
+            List<String> propagatingVgws = routeTable.propagatingVgws().stream()
+                    .map(next -> next.gatewayId()).collect(Collectors.toList());
             matched &= block.offerComplexValue("propagating_vgws", row, FieldResolver.DEFAULT, propagatingVgws);
 
             return matched ? 1 : 0;

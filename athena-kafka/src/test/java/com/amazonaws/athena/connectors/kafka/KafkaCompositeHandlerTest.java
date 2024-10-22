@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.kafka;
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.junit.After;
 import org.junit.Assert;
@@ -29,10 +27,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 
 
@@ -55,14 +53,14 @@ public class KafkaCompositeHandlerTest {
 
 
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
 
     private MockedStatic<KafkaUtils> mockedKafkaUtils;
-    private MockedStatic<AWSSecretsManagerClientBuilder> mockedSecretsManagerClient;
+    private MockedStatic<SecretsManagerClient> mockedSecretsManagerClient;
     @Before
     public void setUp() throws Exception {
-        mockedSecretsManagerClient = Mockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-        mockedSecretsManagerClient.when(()-> AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
+        mockedSecretsManagerClient = Mockito.mockStatic(SecretsManagerClient.class);
+        mockedSecretsManagerClient.when(()-> SecretsManagerClient.create()).thenReturn(secretsManager);
         mockedKafkaUtils = Mockito.mockStatic(KafkaUtils.class);
         mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(configOptions)).thenReturn(kafkaConsumer);
     }

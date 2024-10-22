@@ -20,8 +20,8 @@
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.services.cloudwatch.model.AmazonCloudWatchException;
-import com.amazonaws.services.cloudwatch.model.LimitExceededException;
+import software.amazon.awssdk.services.cloudwatch.model.CloudWatchException;
+import software.amazon.awssdk.services.cloudwatch.model.LimitExceededException;
 
 /**
  * Used to identify Exceptions that are related to Cloudwatch Metrics throttling events.
@@ -36,11 +36,11 @@ public class MetricsExceptionFilter
     @Override
     public boolean isMatch(Exception ex)
     {
-        if (ex instanceof AmazonCloudWatchException && ex.getMessage().startsWith("Rate exceeded")) {
+        if (ex instanceof CloudWatchException && ex.getMessage().startsWith("Rate exceeded")) {
             return true;
         }
 
-        if (ex instanceof AmazonCloudWatchException && ex.getMessage().startsWith("Request has been throttled")) {
+        if (ex instanceof CloudWatchException && ex.getMessage().startsWith("Request has been throttled")) {
             return true;
         }
 

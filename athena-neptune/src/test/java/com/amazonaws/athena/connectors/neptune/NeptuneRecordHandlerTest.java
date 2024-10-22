@@ -46,13 +46,6 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -77,6 +70,15 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -97,9 +99,9 @@ public class NeptuneRecordHandlerTest extends TestBase {
         private Schema schemaPGVertexForRead;
         private Schema schemaPGEdgeForRead;
         private Schema schemaPGQueryForRead;
-        private AmazonS3 amazonS3;
-        private AWSSecretsManager awsSecretsManager;
-        private AmazonAthena athena;
+        private S3Client amazonS3;
+        private SecretsManagerClient awsSecretsManager;
+        private AthenaClient athena;
         private S3BlockSpillReader spillReader;
         private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
         private List<ByteHolder> mockS3Storage = new ArrayList<>();
@@ -164,34 +166,32 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 .build();
 
                 allocator = new BlockAllocatorImpl();
-                amazonS3 = mock(AmazonS3.class);
-                awsSecretsManager = mock(AWSSecretsManager.class);
-                athena = mock(AmazonAthena.class);
+                amazonS3 = mock(S3Client.class);
+                awsSecretsManager = mock(SecretsManagerClient.class);
+                athena = mock(AthenaClient.class);
 
-                when(amazonS3.putObject(any()))
+                when(amazonS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                                        InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
+                                        InputStream inputStream = ((RequestBody) invocationOnMock.getArguments()[1]).contentStreamProvider().newStream();
                                         ByteHolder byteHolder = new ByteHolder();
                                         byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                                         synchronized (mockS3Storage) {
                                                 mockS3Storage.add(byteHolder);
                                                 logger.info("puObject: total size " + mockS3Storage.size());
                                         }
-                                        return mock(PutObjectResult.class);
+                                        return PutObjectResponse.builder().build();
                                 });
 
-                when(amazonS3.getObject(nullable(String.class), nullable(String.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
-                        S3Object mockObject = mock(S3Object.class);
-                        ByteHolder byteHolder;
-                        synchronized (mockS3Storage) {
-                                byteHolder = mockS3Storage.get(0);
-                                mockS3Storage.remove(0);
-                                logger.info("getObject: total size " + mockS3Storage.size());
-                        }
-                        when(mockObject.getObjectContent()).thenReturn(
-                                        new S3ObjectInputStream(new ByteArrayInputStream(byteHolder.getBytes()), null));
-                        return mockObject;
-                });
+                when(amazonS3.getObject(any(GetObjectRequest.class)))
+                                .thenAnswer((InvocationOnMock invocationOnMock) -> {
+                                        ByteHolder byteHolder;
+                                        synchronized (mockS3Storage) {
+                                                byteHolder = mockS3Storage.get(0);
+                                                mockS3Storage.remove(0);
+                                                logger.info("getObject: total size " + mockS3Storage.size());
+                                        }
+                                        return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
+                                });
 
                 handler = new NeptuneRecordHandler(amazonS3, awsSecretsManager, athena, neptuneConnection, com.google.common.collect.ImmutableMap.of());
                 spillReader = new S3BlockSpillReader(amazonS3, allocator);

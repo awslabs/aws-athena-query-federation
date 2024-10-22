@@ -19,9 +19,6 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.junit.After;
 import org.junit.Before;
@@ -31,6 +28,9 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -47,12 +47,12 @@ public class BigQueryCompositeHandlerTest
         System.setProperty("aws.region", "us-east-1");
     }
 
-    MockedStatic<AWSSecretsManagerClientBuilder> awsSecretManagerClient;
+    MockedStatic<SecretsManagerClient> awsSecretManagerClient;
     MockedStatic<ServiceAccountCredentials> serviceAccountCredentialsStatic;
     MockedStatic<BigQueryUtils> bigQueryUtils;
     private BigQueryCompositeHandler bigQueryCompositeHandler;
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
     @Mock
     private ServiceAccountCredentials serviceAccountCredentials;
 
@@ -61,7 +61,7 @@ public class BigQueryCompositeHandlerTest
     {
         bigQueryUtils = mockStatic(BigQueryUtils.class);
         serviceAccountCredentialsStatic = mockStatic(ServiceAccountCredentials.class);
-        awsSecretManagerClient = mockStatic(AWSSecretsManagerClientBuilder.class);
+        awsSecretManagerClient = mockStatic(SecretsManagerClient.class);
     }
 
     @After
@@ -77,15 +77,18 @@ public class BigQueryCompositeHandlerTest
     {
         Exception ex = null;
 
-        Mockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(Arrays.asList("v1")).withSecretString("{\n" +
-                "  \"type\": \"service_account\",\n" +
-                "  \"project_id\": \"mockProjectId\",\n" +
-                "  \"private_key_id\": \"mockPrivateKeyId\",\n" +
-                "  \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nmockPrivateKeydsfhdskfhjdfjkdhgfdjkghfdngvfkvfnjvfdjkg\\n-----END PRIVATE KEY-----\\n\",\n" +
-                "  \"client_email\": \"mockabc@mockprojectid.iam.gserviceaccount.com\",\n" +
-                "  \"client_id\": \"000000000000000000000\"\n" +
-                "}");
+        Mockito.when(SecretsManagerClient.create()).thenReturn(secretsManager);
+        GetSecretValueResponse getSecretValueResponse = GetSecretValueResponse.builder()
+                .versionStages(Arrays.asList("v1"))
+                .secretString("{\n" +
+                        "  \"type\": \"service_account\",\n" +
+                        "  \"project_id\": \"mockProjectId\",\n" +
+                        "  \"private_key_id\": \"mockPrivateKeyId\",\n" +
+                        "  \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nmockPrivateKeydsfhdskfhjdfjkdhgfdjkghfdngvfkvfnjvfdjkg\\n-----END PRIVATE KEY-----\\n\",\n" +
+                        "  \"client_email\": \"mockabc@mockprojectid.iam.gserviceaccount.com\",\n" +
+                        "  \"client_id\": \"000000000000000000000\"\n" +
+                        "}")
+                .build();
 
         Mockito.when(ServiceAccountCredentials.fromStream(any())).thenReturn(serviceAccountCredentials);
         bigQueryCompositeHandler = new BigQueryCompositeHandler();
