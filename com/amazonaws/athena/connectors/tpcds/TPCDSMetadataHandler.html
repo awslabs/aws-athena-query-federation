@@ -222,9 +222,9 @@ extends <a href="../../connector/lambda/handlers/MetadataHandler.html" title="cl
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected </code></td>
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">TPCDSMetadataHandler</a></span>&#8203;(<a href="../../connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                    com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                    com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">TPCDSMetadataHandler</a></span>&#8203;(<a href="../../connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
+                    software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                    software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
@@ -426,15 +426,15 @@ extends <a href="../../connector/lambda/handlers/MetadataHandler.html" title="cl
 <pre>public&nbsp;TPCDSMetadataHandler&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 </li>
 </ul>
-<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">
+<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>TPCDSMetadataHandler</h4>
 <pre>protected&nbsp;TPCDSMetadataHandler&#8203;(<a href="../../connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                               com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                               com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                               software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                               software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>

@@ -177,7 +177,7 @@ implements <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.services.s3.AmazonS3,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,int,java.util.Map)">S3BlockSpiller</a></span>&#8203;(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(software.amazon.awssdk.services.s3.S3Client,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,int,java.util.Map)">S3BlockSpiller</a></span>&#8203;(software.amazon.awssdk.services.s3.S3Client&nbsp;amazonS3,
               <a href="SpillConfig.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig</a>&nbsp;spillConfig,
               <a href="BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
               org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
@@ -189,7 +189,7 @@ implements <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base
 </td>
 </tr>
 <tr class="rowColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.services.s3.AmazonS3,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,java.util.Map)">S3BlockSpiller</a></span>&#8203;(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(software.amazon.awssdk.services.s3.S3Client,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,java.util.Map)">S3BlockSpiller</a></span>&#8203;(software.amazon.awssdk.services.s3.S3Client&nbsp;amazonS3,
               <a href="SpillConfig.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig</a>&nbsp;spillConfig,
               <a href="BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
               org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
@@ -299,13 +299,13 @@ implements <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a id="&lt;init&gt;(com.amazonaws.services.s3.AmazonS3,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,java.util.Map)">
+<a id="&lt;init&gt;(software.amazon.awssdk.services.s3.S3Client,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>S3BlockSpiller</h4>
-<pre>public&nbsp;S3BlockSpiller&#8203;(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
+<pre>public&nbsp;S3BlockSpiller&#8203;(software.amazon.awssdk.services.s3.S3Client&nbsp;amazonS3,
                       <a href="SpillConfig.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig</a>&nbsp;spillConfig,
                       <a href="BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                       org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
@@ -322,13 +322,13 @@ implements <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base
 </dl>
 </li>
 </ul>
-<a id="&lt;init&gt;(com.amazonaws.services.s3.AmazonS3,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,int,java.util.Map)">
+<a id="&lt;init&gt;(software.amazon.awssdk.services.s3.S3Client,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,int,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>S3BlockSpiller</h4>
-<pre>public&nbsp;S3BlockSpiller&#8203;(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
+<pre>public&nbsp;S3BlockSpiller&#8203;(software.amazon.awssdk.services.s3.S3Client&nbsp;amazonS3,
                       <a href="SpillConfig.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig</a>&nbsp;spillConfig,
                       <a href="BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                       org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,

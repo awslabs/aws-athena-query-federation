@@ -280,11 +280,19 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><code>&nbsp;</code></td>
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(java.lang.String,java.util.Map)">GlueMetadataHandler</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
+                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
+<td class="colLast">
+<div class="block">Basic constructor which is recommended when extending this class.</div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>protected </code></td>
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">GlueMetadataHandler</a></span>&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">GlueMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                    <a href="../security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;encryptionKeyFactory,
-                   com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                   com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                   software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                   software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
@@ -293,21 +301,13 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 <div class="block">Full DI constructor used mostly for testing</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>&nbsp;</code></td>
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.services.glue.AWSGlue,java.lang.String,java.util.Map)">GlueMetadataHandler</a></span>&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,java.lang.String,java.util.Map)">GlueMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
 <td class="colLast">
 <div class="block">Constructor that allows injection of a customized Glue client.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>&nbsp;</code></td>
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(java.lang.String,java.util.Map)">GlueMetadataHandler</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
-                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
-<td class="colLast">
-<div class="block">Basic constructor which is recommended when extending this class.</div>
 </td>
 </tr>
 </table>
@@ -391,7 +391,7 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 </td>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><code>protected com.amazonaws.services.glue.AWSGlue</code></td>
+<td class="colFirst"><code>protected software.amazon.awssdk.services.glue.GlueClient</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getAwsGlue()">getAwsGlue</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Provides access to the Glue client if the extender should need it.</div>
@@ -406,7 +406,7 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getColumnNameMapping(com.amazonaws.services.glue.model.Table)">getColumnNameMapping</a></span>&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getColumnNameMapping(software.amazon.awssdk.services.glue.model.Table)">getColumnNameMapping</a></span>&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table)</code></th>
 <td class="colLast">
 <div class="block">If available, will parse and return a column name mapping for cases when a data source's columns
  cannot be represented by Glue's quite restrictive naming rules.</div>
@@ -416,12 +416,12 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSourceTableName(org.apache.arrow.vector.types.pojo.Schema)">getSourceTableName</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Schema&nbsp;schema)</code></th>
 <td class="colLast">
-<div class="block">Will return the source table name stored by <a href="#populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)"><code>populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table, com.amazonaws.athena.connector.lambda.data.SchemaBuilder)</code></a></div>
+<div class="block">Will return the source table name stored by <a href="#populateSourceTableNameIfAvailable(software.amazon.awssdk.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)"><code>populateSourceTableNameIfAvailable(software.amazon.awssdk.services.glue.model.Table, com.amazonaws.athena.connector.lambda.data.SchemaBuilder)</code></a></div>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>protected static void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)">populateSourceTableNameIfAvailable</a></span>&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#populateSourceTableNameIfAvailable(software.amazon.awssdk.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)">populateSourceTableNameIfAvailable</a></span>&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table,
                                   <a href="../data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a>&nbsp;schemaBuilder)</code></th>
 <td class="colLast">
 <div class="block">Glue has strict table naming rules and may not be able to match the exact table name from the source.</div>
@@ -576,13 +576,13 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 </dl>
 </li>
 </ul>
-<a id="&lt;init&gt;(com.amazonaws.services.glue.AWSGlue,java.lang.String,java.util.Map)">
+<a id="&lt;init&gt;(software.amazon.awssdk.services.glue.GlueClient,java.lang.String,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>GlueMetadataHandler</h4>
-<pre>public&nbsp;GlueMetadataHandler&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<pre>public&nbsp;GlueMetadataHandler&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 <div class="block">Constructor that allows injection of a customized Glue client.</div>
@@ -594,16 +594,16 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 </dl>
 </li>
 </ul>
-<a id="&lt;init&gt;(com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">
+<a id="&lt;init&gt;(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>GlueMetadataHandler</h4>
-<pre>protected&nbsp;GlueMetadataHandler&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<pre>protected&nbsp;GlueMetadataHandler&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                               <a href="../security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;encryptionKeyFactory,
-                              com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                              com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                              software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                              software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
@@ -613,7 +613,7 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>awsGlue</code> - The glue client to use.</dd>
 <dd><code>encryptionKeyFactory</code> - The EncryptionKeyFactory to use for spill encryption.</dd>
-<dd><code>secretsManager</code> - The AWSSecretsManager client that can be used when attempting to resolve secrets.</dd>
+<dd><code>secretsManager</code> - The SecretsManagerClient client that can be used when attempting to resolve secrets.</dd>
 <dd><code>athena</code> - The Athena client that can be used to fetch query termination status to fast-fail this handler.</dd>
 <dd><code>spillBucket</code> - The S3 Bucket to use when spilling results.</dd>
 <dd><code>spillPrefix</code> - The S3 prefix to use when spilling results.</dd>
@@ -637,7 +637,7 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 <ul class="blockList">
 <li class="blockList">
 <h4>getAwsGlue</h4>
-<pre class="methodSignature">protected&nbsp;com.amazonaws.services.glue.AWSGlue&nbsp;getAwsGlue()</pre>
+<pre class="methodSignature">protected&nbsp;software.amazon.awssdk.services.glue.GlueClient&nbsp;getAwsGlue()</pre>
 <div class="block">Provides access to the Glue client if the extender should need it. This will return null if Glue
  use is disabled.</div>
 <dl>
@@ -821,13 +821,13 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 </dl>
 </li>
 </ul>
-<a id="populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)">
+<a id="populateSourceTableNameIfAvailable(software.amazon.awssdk.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>populateSourceTableNameIfAvailable</h4>
-<pre class="methodSignature">protected static&nbsp;void&nbsp;populateSourceTableNameIfAvailable&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table,
+<pre class="methodSignature">protected static&nbsp;void&nbsp;populateSourceTableNameIfAvailable&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table,
                                                          <a href="../data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a>&nbsp;schemaBuilder)</pre>
 <div class="block">Glue has strict table naming rules and may not be able to match the exact table name from the source. So this stores
  the source table name in the schema metadata if necessary to ease lookup later. It looks for it in the following places:
@@ -850,7 +850,7 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 <li class="blockList">
 <h4>getSourceTableName</h4>
 <pre class="methodSignature">protected static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getSourceTableName&#8203;(org.apache.arrow.vector.types.pojo.Schema&nbsp;schema)</pre>
-<div class="block">Will return the source table name stored by <a href="#populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)"><code>populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table, com.amazonaws.athena.connector.lambda.data.SchemaBuilder)</code></a></div>
+<div class="block">Will return the source table name stored by <a href="#populateSourceTableNameIfAvailable(software.amazon.awssdk.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)"><code>populateSourceTableNameIfAvailable(software.amazon.awssdk.services.glue.model.Table, com.amazonaws.athena.connector.lambda.data.SchemaBuilder)</code></a></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>schema</code> - The schema returned by <a href="#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)"><code>doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator, com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)</code></a></dd>
@@ -859,13 +859,13 @@ extends <a href="MetadataHandler.html" title="class in com.amazonaws.athena.conn
 </dl>
 </li>
 </ul>
-<a id="getColumnNameMapping(com.amazonaws.services.glue.model.Table)">
+<a id="getColumnNameMapping(software.amazon.awssdk.services.glue.model.Table)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getColumnNameMapping</h4>
-<pre class="methodSignature">protected static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getColumnNameMapping&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table)</pre>
+<pre class="methodSignature">protected static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getColumnNameMapping&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table)</pre>
 <div class="block">If available, will parse and return a column name mapping for cases when a data source's columns
  cannot be represented by Glue's quite restrictive naming rules. It looks a comma separated inline map
  in the <a href="#COLUMN_NAME_MAPPING_PROPERTY">"columnMapping"</a> table property.</div>

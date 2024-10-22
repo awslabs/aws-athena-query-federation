@@ -179,7 +179,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#buildTableSchema(com.amazonaws.services.glue.model.Table,org.apache.arrow.memory.BufferAllocator)">buildTableSchema</a></span>&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#buildTableSchema(software.amazon.awssdk.services.glue.model.Table,org.apache.arrow.memory.BufferAllocator)">buildTableSchema</a></span>&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table,
                 org.apache.arrow.memory.BufferAllocator&nbsp;allocator)</code></th>
 <td class="colLast">
 <div class="block">Builds the table schema based on the provided field</div>
@@ -203,10 +203,10 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionFolders(org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.services.glue.AWSGlue)">getPartitionFolders</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionFolders(org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,software.amazon.awssdk.services.glue.GlueClient)">getPartitionFolders</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
                    <a href="../../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableInfo,
                    <a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
-                   com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue)</code></th>
+                   software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue)</code></th>
 <td class="colLast">
 <div class="block">Retrieves a list of partition folders from the GCS bucket based on partition.pattern Table parameter and partition keys set forth in Glue table.</div>
 </td>
@@ -285,7 +285,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </dl>
 </li>
 </ul>
-<a id="getPartitionFolders(org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.services.glue.AWSGlue)">
+<a id="getPartitionFolders(org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,software.amazon.awssdk.services.glue.GlueClient)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -294,7 +294,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&gt;&nbsp;getPartitionFolders&#8203;(org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
                                                           <a href="../../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableInfo,
                                                           <a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
-                                                          com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue)
+                                                          software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue)
                                                    throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/net/URISyntaxException.html?is-external=true" title="class or interface in java.net" class="externalLink">URISyntaxException</a></pre>
 <div class="block">Retrieves a list of partition folders from the GCS bucket based on partition.pattern Table parameter and partition keys set forth in Glue table. If the summary from the
  constraints is empty (no where clauses or unsupported clauses), it will essentially return all the partition folders from the GCS bucket. If there is any constraints to
@@ -342,13 +342,13 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
                                                                   org.apache.arrow.memory.BufferAllocator&nbsp;allocator)</pre>
 </li>
 </ul>
-<a id="buildTableSchema(com.amazonaws.services.glue.model.Table,org.apache.arrow.memory.BufferAllocator)">
+<a id="buildTableSchema(software.amazon.awssdk.services.glue.model.Table,org.apache.arrow.memory.BufferAllocator)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>buildTableSchema</h4>
-<pre class="methodSignature">public&nbsp;org.apache.arrow.vector.types.pojo.Schema&nbsp;buildTableSchema&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table,
+<pre class="methodSignature">public&nbsp;org.apache.arrow.vector.types.pojo.Schema&nbsp;buildTableSchema&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table,
                                                                   org.apache.arrow.memory.BufferAllocator&nbsp;allocator)
                                                            throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/net/URISyntaxException.html?is-external=true" title="class or interface in java.net" class="externalLink">URISyntaxException</a></pre>
 <div class="block">Builds the table schema based on the provided field</div>

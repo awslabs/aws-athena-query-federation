@@ -157,15 +157,15 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>protected static boolean</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#applyMetricConstraints(com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,com.amazonaws.services.cloudwatch.model.Metric,java.lang.String)">applyMetricConstraints</a></span>&#8203;(<a href="../../../connector/lambda/domain/predicate/ConstraintEvaluator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">ConstraintEvaluator</a>&nbsp;evaluator,
-                      com.amazonaws.services.cloudwatch.model.Metric&nbsp;metric,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#applyMetricConstraints(com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,software.amazon.awssdk.services.cloudwatch.model.Metric,java.lang.String)">applyMetricConstraints</a></span>&#8203;(<a href="../../../connector/lambda/domain/predicate/ConstraintEvaluator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">ConstraintEvaluator</a>&nbsp;evaluator,
+                      software.amazon.awssdk.services.cloudwatch.model.Metric&nbsp;metric,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;statistic)</code></th>
 <td class="colLast">
 <div class="block">Filters metrics who have at least 1 metric dimension that matches DIMENSION_NAME_FIELD and DIMENSION_VALUE_FIELD filters.</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code>protected static com.amazonaws.services.cloudwatch.model.GetMetricDataRequest</code></td>
+<td class="colFirst"><code>protected static software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeGetMetricDataRequest(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest)">makeGetMetricDataRequest</a></span>&#8203;(<a href="../../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest)</code></th>
 <td class="colLast">
 <div class="block">Creates a Cloudwatch Metrics sample data request from the provided inputs</div>
@@ -173,8 +173,8 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>protected static void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#pushDownPredicate(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.services.cloudwatch.model.ListMetricsRequest)">pushDownPredicate</a></span>&#8203;(<a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
-                 com.amazonaws.services.cloudwatch.model.ListMetricsRequest&nbsp;listMetricsRequest)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#pushDownPredicate(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest.Builder)">pushDownPredicate</a></span>&#8203;(<a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
+                 software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest.Builder&nbsp;listMetricsRequest)</code></th>
 <td class="colLast">
 <div class="block">Attempts to push the supplied predicate constraints onto the Cloudwatch Metrics request.</div>
 </td>
@@ -203,14 +203,14 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="applyMetricConstraints(com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,com.amazonaws.services.cloudwatch.model.Metric,java.lang.String)">
+<a id="applyMetricConstraints(com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,software.amazon.awssdk.services.cloudwatch.model.Metric,java.lang.String)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>applyMetricConstraints</h4>
 <pre class="methodSignature">protected static&nbsp;boolean&nbsp;applyMetricConstraints&#8203;(<a href="../../../connector/lambda/domain/predicate/ConstraintEvaluator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">ConstraintEvaluator</a>&nbsp;evaluator,
-                                                com.amazonaws.services.cloudwatch.model.Metric&nbsp;metric,
+                                                software.amazon.awssdk.services.cloudwatch.model.Metric&nbsp;metric,
                                                 <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;statistic)</pre>
 <div class="block">Filters metrics who have at least 1 metric dimension that matches DIMENSION_NAME_FIELD and DIMENSION_VALUE_FIELD filters.
  This is just an optimization and isn't fully correct. We depend on the calling engine to apply full constraints. Also
@@ -221,14 +221,14 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </dl>
 </li>
 </ul>
-<a id="pushDownPredicate(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.services.cloudwatch.model.ListMetricsRequest)">
+<a id="pushDownPredicate(com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest.Builder)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>pushDownPredicate</h4>
 <pre class="methodSignature">protected static&nbsp;void&nbsp;pushDownPredicate&#8203;(<a href="../../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
-                                        com.amazonaws.services.cloudwatch.model.ListMetricsRequest&nbsp;listMetricsRequest)</pre>
+                                        software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest.Builder&nbsp;listMetricsRequest)</pre>
 <div class="block">Attempts to push the supplied predicate constraints onto the Cloudwatch Metrics request.</div>
 </li>
 </ul>
@@ -238,7 +238,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <ul class="blockListLast">
 <li class="blockList">
 <h4>makeGetMetricDataRequest</h4>
-<pre class="methodSignature">protected static&nbsp;com.amazonaws.services.cloudwatch.model.GetMetricDataRequest&nbsp;makeGetMetricDataRequest&#8203;(<a href="../../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest)</pre>
+<pre class="methodSignature">protected static&nbsp;software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest&nbsp;makeGetMetricDataRequest&#8203;(<a href="../../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest)</pre>
 <div class="block">Creates a Cloudwatch Metrics sample data request from the provided inputs</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

@@ -180,10 +180,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../handlers/GlueMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">GlueMetadataHandler</a></span>&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../handlers/GlueMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">GlueMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                    <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;encryptionKeyFactory,
-                   com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                   com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                   software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                   software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
@@ -193,9 +193,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </td>
 </tr>
 <tr class="rowColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../handlers/MetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">MetadataHandler</a></span>&#8203;(<a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;encryptionKeyFactory,
-               com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-               com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../handlers/MetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">MetadataHandler</a></span>&#8203;(<a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;encryptionKeyFactory,
+               software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+               software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
@@ -250,10 +250,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/aws/cmdb/AwsCmdbMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.aws.cmdb.TableProviderFactory,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">AwsCmdbMetadataHandler</a></span>&#8203;(<a href="../../../../connectors/aws/cmdb/TableProviderFactory.html" title="class in com.amazonaws.athena.connectors.aws.cmdb">TableProviderFactory</a>&nbsp;tableProviderFactory,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/aws/cmdb/AwsCmdbMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.aws.cmdb.TableProviderFactory,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">AwsCmdbMetadataHandler</a></span>&#8203;(<a href="../../../../connectors/aws/cmdb/TableProviderFactory.html" title="class in com.amazonaws.athena.connectors.aws.cmdb">TableProviderFactory</a>&nbsp;tableProviderFactory,
                       <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                      com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                      com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                      software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                      software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
@@ -276,10 +276,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/cloudwatch/CloudwatchMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.logs.AWSLogs,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">CloudwatchMetadataHandler</a></span>&#8203;(com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/cloudwatch/CloudwatchMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">CloudwatchMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;awsLogs,
                          <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                         com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                         com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                         software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                         software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
@@ -302,10 +302,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/cloudwatch/metrics/MetricsMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.cloudwatch.AmazonCloudWatch,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">MetricsMetadataHandler</a></span>&#8203;(com.amazonaws.services.cloudwatch.AmazonCloudWatch&nbsp;metrics,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/cloudwatch/metrics/MetricsMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.cloudwatch.CloudWatchClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">MetricsMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.cloudwatch.CloudWatchClient&nbsp;metrics,
                       <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                      com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                      com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                      software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                      software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
@@ -328,11 +328,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/docdb/DocDBMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connectors.docdb.DocDBConnectionFactory,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">DocDBMetadataHandler</a></span>&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;glue,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/docdb/DocDBMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connectors.docdb.DocDBConnectionFactory,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">DocDBMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;glue,
                     <a href="../../../../connectors/docdb/DocDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBConnectionFactory</a>&nbsp;connectionFactory,
                     <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                    com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                    com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                    software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                    software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
@@ -355,10 +355,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/elasticsearch/ElasticsearchMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,com.amazonaws.athena.connectors.elasticsearch.ElasticsearchDomainMapProvider,com.amazonaws.athena.connectors.elasticsearch.AwsRestHighLevelClientFactory,long,java.util.Map)">ElasticsearchMetadataHandler</a></span>&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/elasticsearch/ElasticsearchMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,com.amazonaws.athena.connectors.elasticsearch.ElasticsearchDomainMapProvider,com.amazonaws.athena.connectors.elasticsearch.AwsRestHighLevelClientFactory,long,java.util.Map)">ElasticsearchMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                             <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                            com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;awsSecretsManager,
-                            com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                            software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;awsSecretsManager,
+                            software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                             <a href="../../../../connectors/elasticsearch/ElasticsearchDomainMapProvider.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchDomainMapProvider</a>&nbsp;domainMapProvider,
@@ -384,9 +384,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/example/ExampleMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">ExampleMetadataHandler</a></span>&#8203;(<a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                      com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;awsSecretsManager,
-                      com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/example/ExampleMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">ExampleMetadataHandler</a></span>&#8203;(<a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
+                      software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;awsSecretsManager,
+                      software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
@@ -409,12 +409,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/gcs/GcsMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,com.amazonaws.services.glue.AWSGlue,org.apache.arrow.memory.BufferAllocator,java.util.Map)">GcsMetadataHandler</a></span>&#8203;(<a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                  com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;awsSecretsManager,
-                  com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/gcs/GcsMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,software.amazon.awssdk.services.glue.GlueClient,org.apache.arrow.memory.BufferAllocator,java.util.Map)">GcsMetadataHandler</a></span>&#8203;(<a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
+                  software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;awsSecretsManager,
+                  software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
-                  com.amazonaws.services.glue.AWSGlue&nbsp;glueClient,
+                  software.amazon.awssdk.services.glue.GlueClient&nbsp;glueClient,
                   org.apache.arrow.memory.BufferAllocator&nbsp;allocator,
                   <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -436,10 +436,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/hbase/HbaseMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory,java.lang.String,java.lang.String,java.util.Map)">HbaseMetadataHandler</a></span>&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/hbase/HbaseMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory,java.lang.String,java.lang.String,java.util.Map)">HbaseMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                     <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                    com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                    com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                    software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                    software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                     <a href="../../../../connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a>&nbsp;connectionFactory,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
@@ -463,11 +463,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/neptune/NeptuneMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connectors.neptune.NeptuneConnection,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">NeptuneMetadataHandler</a></span>&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;glue,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/neptune/NeptuneMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connectors.neptune.NeptuneConnection,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">NeptuneMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;glue,
                       <a href="../../../../connectors/neptune/NeptuneConnection.html" title="class in com.amazonaws.athena.connectors.neptune">NeptuneConnection</a>&nbsp;neptuneConnection,
                       <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                      com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;awsSecretsManager,
-                      com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                      software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;awsSecretsManager,
+                      software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
@@ -490,10 +490,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/redis/RedisMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory,java.lang.String,java.lang.String,java.util.Map)">RedisMetadataHandler</a></span>&#8203;(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/redis/RedisMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory,java.lang.String,java.lang.String,java.util.Map)">RedisMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                     <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                    com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                    com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                    software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                    software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                     <a href="../../../../connectors/redis/lettuce/RedisConnectionFactory.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisConnectionFactory</a>&nbsp;redisConnectionFactory,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
@@ -517,12 +517,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/timestream/TimestreamMetadataHandler.html#%3Cinit%3E(com.amazonaws.services.timestreamquery.AmazonTimestreamQuery,com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite,com.amazonaws.services.glue.AWSGlue,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">TimestreamMetadataHandler</a></span>&#8203;(com.amazonaws.services.timestreamquery.AmazonTimestreamQuery&nbsp;tsQuery,
-                         com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite&nbsp;tsMeta,
-                         com.amazonaws.services.glue.AWSGlue&nbsp;glue,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/timestream/TimestreamMetadataHandler.html#%3Cinit%3E(software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient,software.amazon.awssdk.services.timestreamwrite.TimestreamWriteClient,software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">TimestreamMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.timestreamquery.TimestreamQueryClient&nbsp;tsQuery,
+                         software.amazon.awssdk.services.timestreamwrite.TimestreamWriteClient&nbsp;tsMeta,
+                         software.amazon.awssdk.services.glue.GlueClient&nbsp;glue,
                          <a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                         com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                         com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                         software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                         software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
@@ -545,9 +545,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/tpcds/TPCDSMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,java.lang.String,java.lang.String,java.util.Map)">TPCDSMetadataHandler</a></span>&#8203;(<a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
-                    com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                    com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../../connectors/tpcds/TPCDSMetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.util.Map)">TPCDSMetadataHandler</a></span>&#8203;(<a href="../EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
+                    software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                    software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>

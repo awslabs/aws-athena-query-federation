@@ -139,8 +139,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <pre>public class <span class="typeNameLabel">AWSRequestSigningApacheInterceptor</span>
 extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>
 implements org.apache.http.HttpRequestInterceptor</pre>
-<div class="block">An <code>HttpRequestInterceptor</code> that signs requests using any AWS <code>Signer</code>
- and <code>AWSCredentialsProvider</code>.</div>
+<div class="block">An <code>HttpRequestInterceptor</code> that signs requests using any AWS <code>AwsV4HttpSigner</code>
+ and <code>AwsCredentialsProvider</code>.</div>
 </li>
 </ul>
 </div>
@@ -161,9 +161,10 @@ implements org.apache.http.HttpRequestInterceptor</pre>
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(java.lang.String,com.amazonaws.auth.Signer,com.amazonaws.auth.AWSCredentialsProvider)">AWSRequestSigningApacheInterceptor</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;service,
-                                  com.amazonaws.auth.Signer&nbsp;signer,
-                                  com.amazonaws.auth.AWSCredentialsProvider&nbsp;awsCredentialsProvider)</code></th>
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(java.lang.String,software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner,software.amazon.awssdk.auth.credentials.AwsCredentialsProvider,java.lang.String)">AWSRequestSigningApacheInterceptor</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;service,
+                                  software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner&nbsp;signer,
+                                  software.amazon.awssdk.auth.credentials.AwsCredentialsProvider&nbsp;awsCredentialsProvider,
+                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;region)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -213,15 +214,16 @@ implements org.apache.http.HttpRequestInterceptor</pre>
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a id="&lt;init&gt;(java.lang.String,com.amazonaws.auth.Signer,com.amazonaws.auth.AWSCredentialsProvider)">
+<a id="&lt;init&gt;(java.lang.String,software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner,software.amazon.awssdk.auth.credentials.AwsCredentialsProvider,java.lang.String)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>AWSRequestSigningApacheInterceptor</h4>
 <pre>public&nbsp;AWSRequestSigningApacheInterceptor&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;service,
-                                          com.amazonaws.auth.Signer&nbsp;signer,
-                                          com.amazonaws.auth.AWSCredentialsProvider&nbsp;awsCredentialsProvider)</pre>
+                                          software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner&nbsp;signer,
+                                          software.amazon.awssdk.auth.credentials.AwsCredentialsProvider&nbsp;awsCredentialsProvider,
+                                          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;region)</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>service</code> - service that we're connecting to</dd>

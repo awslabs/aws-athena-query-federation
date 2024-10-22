@@ -178,27 +178,27 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code>static com.amazonaws.services.logs.model.StartQueryResult</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getQueryResult(com.amazonaws.services.logs.AWSLogs,com.amazonaws.services.logs.model.StartQueryRequest)">getQueryResult</a></span>&#8203;(com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
-              com.amazonaws.services.logs.model.StartQueryRequest&nbsp;startQueryRequest)</code></th>
+<td class="colFirst"><code>static software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getQueryResult(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest)">getQueryResult</a></span>&#8203;(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;awsLogs,
+              software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest&nbsp;startQueryRequest)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code>static com.amazonaws.services.logs.model.GetQueryResultsResult</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getQueryResults(com.amazonaws.services.logs.AWSLogs,com.amazonaws.services.logs.model.StartQueryResult)">getQueryResults</a></span>&#8203;(com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
-               com.amazonaws.services.logs.model.StartQueryResult&nbsp;startQueryResult)</code></th>
+<td class="colFirst"><code>static software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getQueryResults(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse)">getQueryResults</a></span>&#8203;(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;awsLogs,
+               software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse&nbsp;startQueryResponse)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code>static com.amazonaws.services.logs.model.GetQueryResultsResult</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getResult(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,com.amazonaws.services.logs.AWSLogs,java.util.Map,int)">getResult</a></span>&#8203;(<a href="../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-         com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
+<td class="colFirst"><code>static software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getResult(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,java.util.Map,int)">getResult</a></span>&#8203;(<a href="../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
+         software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;awsLogs,
          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;qptArguments,
          int&nbsp;limit)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code>static com.amazonaws.services.logs.model.StartQueryRequest</code></td>
+<td class="colFirst"><code>static software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#startQueryRequest(java.util.Map)">startQueryRequest</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;qptArguments)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -255,41 +255,41 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <ul class="blockList">
 <li class="blockList">
 <h4>startQueryRequest</h4>
-<pre class="methodSignature">public static&nbsp;com.amazonaws.services.logs.model.StartQueryRequest&nbsp;startQueryRequest&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;qptArguments)</pre>
+<pre class="methodSignature">public static&nbsp;software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest&nbsp;startQueryRequest&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;qptArguments)</pre>
 </li>
 </ul>
-<a id="getQueryResult(com.amazonaws.services.logs.AWSLogs,com.amazonaws.services.logs.model.StartQueryRequest)">
+<a id="getQueryResult(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getQueryResult</h4>
-<pre class="methodSignature">public static&nbsp;com.amazonaws.services.logs.model.StartQueryResult&nbsp;getQueryResult&#8203;(com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
-                                                                                com.amazonaws.services.logs.model.StartQueryRequest&nbsp;startQueryRequest)</pre>
+<pre class="methodSignature">public static&nbsp;software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse&nbsp;getQueryResult&#8203;(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;awsLogs,
+                                                                                                     software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryRequest&nbsp;startQueryRequest)</pre>
 </li>
 </ul>
-<a id="getQueryResults(com.amazonaws.services.logs.AWSLogs,com.amazonaws.services.logs.model.StartQueryResult)">
+<a id="getQueryResults(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getQueryResults</h4>
-<pre class="methodSignature">public static&nbsp;com.amazonaws.services.logs.model.GetQueryResultsResult&nbsp;getQueryResults&#8203;(com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
-                                                                                      com.amazonaws.services.logs.model.StartQueryResult&nbsp;startQueryResult)</pre>
+<pre class="methodSignature">public static&nbsp;software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse&nbsp;getQueryResults&#8203;(software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;awsLogs,
+                                                                                                           software.amazon.awssdk.services.cloudwatchlogs.model.StartQueryResponse&nbsp;startQueryResponse)</pre>
 </li>
 </ul>
-<a id="getResult(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,com.amazonaws.services.logs.AWSLogs,java.util.Map,int)">
+<a id="getResult(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,java.util.Map,int)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getResult</h4>
-<pre class="methodSignature">public static&nbsp;com.amazonaws.services.logs.model.GetQueryResultsResult&nbsp;getResult&#8203;(<a href="../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-                                                                                com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
-                                                                                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;qptArguments,
-                                                                                int&nbsp;limit)
-                                                                         throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a>,
-                                                                                <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/InterruptedException.html?is-external=true" title="class or interface in java.lang" class="externalLink">InterruptedException</a></pre>
+<pre class="methodSignature">public static&nbsp;software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsResponse&nbsp;getResult&#8203;(<a href="../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
+                                                                                                     software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;awsLogs,
+                                                                                                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;qptArguments,
+                                                                                                     int&nbsp;limit)
+                                                                                              throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a>,
+                                                                                                     <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/InterruptedException.html?is-external=true" title="class or interface in java.lang" class="externalLink">InterruptedException</a></pre>
 <dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></code></dd>

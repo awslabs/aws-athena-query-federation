@@ -130,7 +130,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <li>com.fasterxml.jackson.databind.deser.std.StdDeserializer&lt;T&gt;</li>
 <li>
 <ul class="inheritance">
-<li><a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">com.amazonaws.athena.connector.lambda.serde.BaseDeserializer</a>&lt;com.amazonaws.services.lambda.invoke.LambdaFunctionException&gt;</li>
+<li><a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">com.amazonaws.athena.connector.lambda.serde.BaseDeserializer</a>&lt;software.amazon.awssdk.services.lambda.model.LambdaException&gt;</li>
 <li>
 <ul class="inheritance">
 <li>com.amazonaws.athena.connector.lambda.serde.v2.LambdaFunctionExceptionSerDe.Deserializer</li>
@@ -148,7 +148,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <li class="blockList">
 <dl>
 <dt>All Implemented Interfaces:</dt>
-<dd><code><a href="../VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;com.amazonaws.services.lambda.invoke.LambdaFunctionException&gt;</code>, <code>com.fasterxml.jackson.databind.deser.NullValueProvider</code>, <code>com.fasterxml.jackson.databind.deser.ValueInstantiator.Gettable</code>, <code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/Serializable.html?is-external=true" title="class or interface in java.io" class="externalLink">Serializable</a></code></dd>
+<dd><code><a href="../VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;software.amazon.awssdk.services.lambda.model.LambdaException&gt;</code>, <code>com.fasterxml.jackson.databind.deser.NullValueProvider</code>, <code>com.fasterxml.jackson.databind.deser.ValueInstantiator.Gettable</code>, <code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/Serializable.html?is-external=true" title="class or interface in java.io" class="externalLink">Serializable</a></code></dd>
 </dl>
 <dl>
 <dt>Enclosing class:</dt>
@@ -156,7 +156,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dl>
 <hr>
 <pre>public static final class <span class="typeNameLabel">LambdaFunctionExceptionSerDe.Deserializer</span>
-extends <a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;com.amazonaws.services.lambda.invoke.LambdaFunctionException&gt;</pre>
+extends <a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;software.amazon.awssdk.services.lambda.model.LambdaException&gt;</pre>
 <dl>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../../../../../../serialized-form.html#com.amazonaws.athena.connector.lambda.serde.v2.LambdaFunctionExceptionSerDe.Deserializer">Serialized Form</a></dd>
@@ -237,13 +237,13 @@ extends <a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code>com.amazonaws.services.lambda.invoke.LambdaFunctionException</code></td>
+<td class="colFirst"><code>software.amazon.awssdk.services.lambda.model.LambdaException</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">deserialize</a></span>&#8203;(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
            com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code>com.amazonaws.services.lambda.invoke.LambdaFunctionException</code></td>
+<td class="colFirst"><code>software.amazon.awssdk.services.lambda.model.LambdaException</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doDeserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">doDeserialize</a></span>&#8203;(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
              com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -318,14 +318,14 @@ extends <a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.
 <ul class="blockList">
 <li class="blockList">
 <h4>deserialize</h4>
-<pre class="methodSignature">public&nbsp;com.amazonaws.services.lambda.invoke.LambdaFunctionException&nbsp;deserialize&#8203;(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+<pre class="methodSignature">public&nbsp;software.amazon.awssdk.services.lambda.model.LambdaException&nbsp;deserialize&#8203;(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
                                                                                 com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)
                                                                          throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/IOException.html?is-external=true" title="class or interface in java.io" class="externalLink">IOException</a></pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../VersionedSerDe.Deserializer.html#deserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">deserialize</a></code>&nbsp;in interface&nbsp;<code><a href="../VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;com.amazonaws.services.lambda.invoke.LambdaFunctionException&gt;</code></dd>
+<dd><code><a href="../VersionedSerDe.Deserializer.html#deserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">deserialize</a></code>&nbsp;in interface&nbsp;<code><a href="../VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;software.amazon.awssdk.services.lambda.model.LambdaException&gt;</code></dd>
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
-<dd><code><a href="../BaseDeserializer.html#deserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">deserialize</a></code>&nbsp;in class&nbsp;<code><a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;com.amazonaws.services.lambda.invoke.LambdaFunctionException&gt;</code></dd>
+<dd><code><a href="../BaseDeserializer.html#deserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">deserialize</a></code>&nbsp;in class&nbsp;<code><a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;software.amazon.awssdk.services.lambda.model.LambdaException&gt;</code></dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/IOException.html?is-external=true" title="class or interface in java.io" class="externalLink">IOException</a></code></dd>
 </dl>
@@ -337,14 +337,14 @@ extends <a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.
 <ul class="blockListLast">
 <li class="blockList">
 <h4>doDeserialize</h4>
-<pre class="methodSignature">public&nbsp;com.amazonaws.services.lambda.invoke.LambdaFunctionException&nbsp;doDeserialize&#8203;(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+<pre class="methodSignature">public&nbsp;software.amazon.awssdk.services.lambda.model.LambdaException&nbsp;doDeserialize&#8203;(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
                                                                                   com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)
                                                                            throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/IOException.html?is-external=true" title="class or interface in java.io" class="externalLink">IOException</a></pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../VersionedSerDe.Deserializer.html#doDeserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">doDeserialize</a></code>&nbsp;in interface&nbsp;<code><a href="../VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;com.amazonaws.services.lambda.invoke.LambdaFunctionException&gt;</code></dd>
+<dd><code><a href="../VersionedSerDe.Deserializer.html#doDeserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">doDeserialize</a></code>&nbsp;in interface&nbsp;<code><a href="../VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;software.amazon.awssdk.services.lambda.model.LambdaException&gt;</code></dd>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../BaseDeserializer.html#doDeserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">doDeserialize</a></code>&nbsp;in class&nbsp;<code><a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;com.amazonaws.services.lambda.invoke.LambdaFunctionException&gt;</code></dd>
+<dd><code><a href="../BaseDeserializer.html#doDeserialize(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext)">doDeserialize</a></code>&nbsp;in class&nbsp;<code><a href="../BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;software.amazon.awssdk.services.lambda.model.LambdaException&gt;</code></dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/IOException.html?is-external=true" title="class or interface in java.io" class="externalLink">IOException</a></code></dd>
 </dl>

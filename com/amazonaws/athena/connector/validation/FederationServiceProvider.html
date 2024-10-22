@@ -89,7 +89,7 @@ loadScripts(document, 'script');</script>
 <div>
 <ul class="subNavList">
 <li>Summary:&nbsp;</li>
-<li><a href="#nested.class.summary">Nested</a>&nbsp;|&nbsp;</li>
+<li>Nested&nbsp;|&nbsp;</li>
 <li>Field&nbsp;|&nbsp;</li>
 <li>Constr&nbsp;|&nbsp;</li>
 <li><a href="#method.summary">Method</a></li>
@@ -140,29 +140,6 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div class="summary">
 <ul class="blockList">
 <li class="blockList">
-<!-- ======== NESTED CLASS SUMMARY ======== -->
-<section>
-<ul class="blockList">
-<li class="blockList"><a id="nested.class.summary">
-<!--   -->
-</a>
-<h3>Nested Class Summary</h3>
-<table class="memberSummary">
-<caption><span>Nested Classes</span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colSecond" scope="col">Class</th>
-<th class="colLast" scope="col">Description</th>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>static class&nbsp;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="FederationServiceProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation">FederationServiceProvider.Mapper</a></span></code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-</table>
-</li>
-</ul>
-</section>
 <!-- ========== METHOD SUMMARY =========== -->
 <section>
 <ul class="blockList">
@@ -178,15 +155,16 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#generateQueryId()">generateQueryId</a></span>()</code></th>
+<td class="colFirst"><code>static <a href="../lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#callService(java.lang.String,com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,com.amazonaws.athena.connector.lambda.request.FederationRequest)">callService</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;lambdaFunction,
+           <a href="../lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
+           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
+           <a href="../lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&nbsp;request)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code>static <a href="FederationService.html" title="interface in com.amazonaws.athena.connector.validation">FederationService</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getService(java.lang.String,com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String)">getService</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;lambdaFunction,
-          <a href="../lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
-          <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog)</code></th>
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#generateQueryId()">generateQueryId</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -213,15 +191,16 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="getService(java.lang.String,com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String)">
+<a id="callService(java.lang.String,com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,com.amazonaws.athena.connector.lambda.request.FederationRequest)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getService</h4>
-<pre class="methodSignature">public static&nbsp;<a href="FederationService.html" title="interface in com.amazonaws.athena.connector.validation">FederationService</a>&nbsp;getService&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;lambdaFunction,
-                                           <a href="../lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
-                                           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog)</pre>
+<h4>callService</h4>
+<pre class="methodSignature">public static&nbsp;<a href="../lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;callService&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;lambdaFunction,
+                                             <a href="../lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;identity,
+                                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalog,
+                                             <a href="../lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&nbsp;request)</pre>
 </li>
 </ul>
 <a id="generateQueryId()">
@@ -285,7 +264,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <div>
 <ul class="subNavList">
 <li>Summary:&nbsp;</li>
-<li><a href="#nested.class.summary">Nested</a>&nbsp;|&nbsp;</li>
+<li>Nested&nbsp;|&nbsp;</li>
 <li>Field&nbsp;|&nbsp;</li>
 <li>Constr&nbsp;|&nbsp;</li>
 <li><a href="#method.summary">Method</a></li>

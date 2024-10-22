@@ -198,7 +198,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../data/S3BlockSpiller.html#%3Cinit%3E(com.amazonaws.services.s3.AmazonS3,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,int,java.util.Map)">S3BlockSpiller</a></span>&#8203;(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../data/S3BlockSpiller.html#%3Cinit%3E(software.amazon.awssdk.services.s3.S3Client,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,int,java.util.Map)">S3BlockSpiller</a></span>&#8203;(software.amazon.awssdk.services.s3.S3Client&nbsp;amazonS3,
               <a href="../../../data/SpillConfig.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig</a>&nbsp;spillConfig,
               <a href="../../../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
               org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
@@ -210,7 +210,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </td>
 </tr>
 <tr class="rowColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../data/S3BlockSpiller.html#%3Cinit%3E(com.amazonaws.services.s3.AmazonS3,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,java.util.Map)">S3BlockSpiller</a></span>&#8203;(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../data/S3BlockSpiller.html#%3Cinit%3E(software.amazon.awssdk.services.s3.S3Client,com.amazonaws.athena.connector.lambda.data.SpillConfig,com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,java.util.Map)">S3BlockSpiller</a></span>&#8203;(software.amazon.awssdk.services.s3.S3Client&nbsp;amazonS3,
               <a href="../../../data/SpillConfig.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig</a>&nbsp;spillConfig,
               <a href="../../../data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
               org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
@@ -263,8 +263,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>protected static boolean</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">MetricUtils.</span><code><span class="memberNameLink"><a href="../../../../../connectors/cloudwatch/metrics/MetricUtils.html#applyMetricConstraints(com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,com.amazonaws.services.cloudwatch.model.Metric,java.lang.String)">applyMetricConstraints</a></span>&#8203;(<a href="../ConstraintEvaluator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">ConstraintEvaluator</a>&nbsp;evaluator,
-                      com.amazonaws.services.cloudwatch.model.Metric&nbsp;metric,
+<th class="colSecond" scope="row"><span class="typeNameLabel">MetricUtils.</span><code><span class="memberNameLink"><a href="../../../../../connectors/cloudwatch/metrics/MetricUtils.html#applyMetricConstraints(com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator,software.amazon.awssdk.services.cloudwatch.model.Metric,java.lang.String)">applyMetricConstraints</a></span>&#8203;(<a href="../ConstraintEvaluator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">ConstraintEvaluator</a>&nbsp;evaluator,
+                      software.amazon.awssdk.services.cloudwatch.model.Metric&nbsp;metric,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;statistic)</code></th>
 <td class="colLast">
 <div class="block">Filters metrics who have at least 1 metric dimension that matches DIMENSION_NAME_FIELD and DIMENSION_VALUE_FIELD filters.</div>

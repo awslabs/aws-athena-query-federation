@@ -155,26 +155,26 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionColumnData(java.lang.String,java.lang.String,java.lang.String,java.util.List)">getPartitionColumnData</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;partitionPattern,
+                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;partitionFolder,
+                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;folderNameRegEx,
+                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;software.amazon.awssdk.services.glue.model.Column&gt;&nbsp;partitionColumns)</code></th>
+<td class="colLast">
+<div class="block">Return a list of storage partition(column name, column type and value)</div>
+</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionColumnData(com.amazonaws.services.glue.model.Table,java.lang.String)">getPartitionColumnData</a></span>&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionColumnData(software.amazon.awssdk.services.glue.model.Table,java.lang.String)">getPartitionColumnData</a></span>&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table,
                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;partitionFolder)</code></th>
 <td class="colLast">
 <div class="block">Returns a map of partition column names to their values</div>
 </td>
 </tr>
-<tr id="i1" class="rowColor">
-<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionColumnData(java.lang.String,java.lang.String,java.lang.String,java.util.List)">getPartitionColumnData</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;partitionPattern,
-                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;partitionFolder,
-                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;folderNameRegEx,
-                      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;com.amazonaws.services.glue.model.Column&gt;&nbsp;partitionColumns)</code></th>
-<td class="colLast">
-<div class="block">Return a list of storage partition(column name, column type and value)</div>
-</td>
-</tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/net/URI.html?is-external=true" title="class or interface in java.net" class="externalLink">URI</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionsFolderLocationUri(com.amazonaws.services.glue.model.Table,java.util.List,int)">getPartitionsFolderLocationUri</a></span>&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionsFolderLocationUri(software.amazon.awssdk.services.glue.model.Table,java.util.List,int)">getPartitionsFolderLocationUri</a></span>&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table,
                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;org.apache.arrow.vector.FieldVector&gt;&nbsp;fieldVectors,
                               int&nbsp;readerPosition)</code></th>
 <td class="colLast">
@@ -184,7 +184,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Optional.html?is-external=true" title="class or interface in java.util" class="externalLink">Optional</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getRegExExpression(com.amazonaws.services.glue.model.Table)">getRegExExpression</a></span>&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getRegExExpression(software.amazon.awssdk.services.glue.model.Table)">getRegExExpression</a></span>&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table)</code></th>
 <td class="colLast">
 <div class="block">Return a regular expression for partition pattern from AWS Glue.</div>
 </td>
@@ -213,13 +213,13 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="getPartitionColumnData(com.amazonaws.services.glue.model.Table,java.lang.String)">
+<a id="getPartitionColumnData(software.amazon.awssdk.services.glue.model.Table,java.lang.String)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getPartitionColumnData</h4>
-<pre class="methodSignature">public static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getPartitionColumnData&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table,
+<pre class="methodSignature">public static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getPartitionColumnData&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table,
                                                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;partitionFolder)</pre>
 <div class="block">Returns a map of partition column names to their values</div>
 <dl>
@@ -240,7 +240,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <pre class="methodSignature">protected static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getPartitionColumnData&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;partitionPattern,
                                                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;partitionFolder,
                                                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;folderNameRegEx,
-                                                                 <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;com.amazonaws.services.glue.model.Column&gt;&nbsp;partitionColumns)</pre>
+                                                                 <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;software.amazon.awssdk.services.glue.model.Column&gt;&nbsp;partitionColumns)</pre>
 <div class="block">Return a list of storage partition(column name, column type and value)</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -253,13 +253,13 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </dl>
 </li>
 </ul>
-<a id="getRegExExpression(com.amazonaws.services.glue.model.Table)">
+<a id="getRegExExpression(software.amazon.awssdk.services.glue.model.Table)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getRegExExpression</h4>
-<pre class="methodSignature">protected static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Optional.html?is-external=true" title="class or interface in java.util" class="externalLink">Optional</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getRegExExpression&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table)</pre>
+<pre class="methodSignature">protected static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Optional.html?is-external=true" title="class or interface in java.util" class="externalLink">Optional</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getRegExExpression&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table)</pre>
 <div class="block">Return a regular expression for partition pattern from AWS Glue. This will dynamically generate a
  regular expression to match a folder within the GCS to see if the folder conforms with the partition keys
  already setup in the AWS Glue Table (if any)</div>
@@ -271,13 +271,13 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </dl>
 </li>
 </ul>
-<a id="getPartitionsFolderLocationUri(com.amazonaws.services.glue.model.Table,java.util.List,int)">
+<a id="getPartitionsFolderLocationUri(software.amazon.awssdk.services.glue.model.Table,java.util.List,int)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getPartitionsFolderLocationUri</h4>
-<pre class="methodSignature">public static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/net/URI.html?is-external=true" title="class or interface in java.net" class="externalLink">URI</a>&nbsp;getPartitionsFolderLocationUri&#8203;(com.amazonaws.services.glue.model.Table&nbsp;table,
+<pre class="methodSignature">public static&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/net/URI.html?is-external=true" title="class or interface in java.net" class="externalLink">URI</a>&nbsp;getPartitionsFolderLocationUri&#8203;(software.amazon.awssdk.services.glue.model.Table&nbsp;table,
                                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;org.apache.arrow.vector.FieldVector&gt;&nbsp;fieldVectors,
                                                  int&nbsp;readerPosition)
                                           throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/net/URISyntaxException.html?is-external=true" title="class or interface in java.net" class="externalLink">URISyntaxException</a></pre>

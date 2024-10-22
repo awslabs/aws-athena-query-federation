@@ -212,9 +212,9 @@ extends <a href="../../../connector/lambda/handlers/MetadataHandler.html" title=
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected </code></td>
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">JdbcMetadataHandler</a></span>&#8203;(<a href="../connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
-                   com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                   com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">JdbcMetadataHandler</a></span>&#8203;(<a href="../connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
+                   software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                   software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                    <a href="../connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a>&nbsp;jdbcConnectionFactory,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -455,15 +455,15 @@ extends <a href="../../../connector/lambda/handlers/MetadataHandler.html" title=
                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 </li>
 </ul>
-<a id="&lt;init&gt;(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,com.amazonaws.services.secretsmanager.AWSSecretsManager,com.amazonaws.services.athena.AmazonAthena,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">
+<a id="&lt;init&gt;(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>JdbcMetadataHandler</h4>
 <pre>protected&nbsp;JdbcMetadataHandler&#8203;(<a href="../connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a>&nbsp;databaseConnectionConfig,
-                              com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
-                              com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
+                              software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                              software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
                               <a href="../connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a>&nbsp;jdbcConnectionFactory,
                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 </li>

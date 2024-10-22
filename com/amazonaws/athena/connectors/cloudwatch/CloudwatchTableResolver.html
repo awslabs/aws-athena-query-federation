@@ -160,8 +160,8 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,com.amazonaws.services.logs.AWSLogs,long,long)">CloudwatchTableResolver</a></span>&#8203;(<a href="../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-                       com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,long,long)">CloudwatchTableResolver</a></span>&#8203;(<a href="../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
+                       software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;logsClient,
                        long&nbsp;maxSchemaCacheSize,
                        long&nbsp;maxTableCacheSize)</code></th>
 <td class="colLast">
@@ -224,21 +224,21 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,com.amazonaws.services.logs.AWSLogs,long,long)">
+<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient,long,long)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>CloudwatchTableResolver</h4>
 <pre>public&nbsp;CloudwatchTableResolver&#8203;(<a href="../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-                               com.amazonaws.services.logs.AWSLogs&nbsp;awsLogs,
+                               software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient&nbsp;logsClient,
                                long&nbsp;maxSchemaCacheSize,
                                long&nbsp;maxTableCacheSize)</pre>
 <div class="block">Constructs an instance of the table resolver.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>invoker</code> - The ThrottlingInvoker to use to handle throttling events.</dd>
-<dd><code>awsLogs</code> - The AWSLogs client to use for cache misses.</dd>
+<dd><code>logsClient</code> - The AWSLogs client to use for cache misses.</dd>
 <dd><code>maxSchemaCacheSize</code> - The max number of schemas to cache.</dd>
 <dd><code>maxTableCacheSize</code> - The max tables to cache.</dd>
 </dl>
