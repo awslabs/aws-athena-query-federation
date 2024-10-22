@@ -180,7 +180,8 @@ export class OpenSearchStack extends cdk.Stack {
 
     const ecrRepo = new Repository(this, 'ElasticsearchRepository', {
       repositoryName: 'athena-federation-repository-elasticsearch',
-      emptyOnDelete: true
+      emptyOnDelete: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     ecrRepo.addToResourcePolicy(
       new iam.PolicyStatement({

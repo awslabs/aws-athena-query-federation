@@ -156,7 +156,8 @@ export class RdsGenericStack extends cdk.Stack {
 
     const ecrRepo = new Repository(this, `${db_type}Repository`, {
       repositoryName: `athena-federation-repository-${db_type}`,
-      emptyOnDelete: true
+      emptyOnDelete: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     ecrRepo.addToResourcePolicy(
       new iam.PolicyStatement({

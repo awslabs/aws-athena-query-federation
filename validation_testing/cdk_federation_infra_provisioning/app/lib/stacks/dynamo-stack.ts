@@ -59,7 +59,8 @@ export class DynamoDBStack extends cdk.Stack {
     });
     const ecrRepo = new Repository(this, 'DynamoDBRepository', {
       repositoryName: 'athena-federation-repository-dynamodb',
-      emptyOnDelete: true
+      emptyOnDelete: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     ecrRepo.addToResourcePolicy(
       new iam.PolicyStatement({

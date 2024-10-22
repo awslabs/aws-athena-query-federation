@@ -7,6 +7,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
+import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { CfnInclude } from 'aws-cdk-lib/cloudformation-include';
 import { Construct } from 'constructs';
 const path = require('path');
@@ -151,7 +152,8 @@ export class RedshiftStack extends cdk.Stack {
 
     const ecrRepo = new Repository(this, 'RedshiftRepository', {
       repositoryName: 'athena-federation-repository-redshift',
-      emptyOnDelete: true
+      emptyOnDelete: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     ecrRepo.addToResourcePolicy(
       new iam.PolicyStatement({
