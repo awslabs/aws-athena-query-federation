@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as glue from '@aws-cdk/aws-glue-alpha';
 import * as ddb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { CfnInclude } from 'aws-cdk-lib/cloudformation-include';
 import { Construct } from 'constructs';
 import tpcdsJson from '../../resources/tpcds_specs.json'
@@ -56,6 +57,31 @@ export class DynamoDBStack extends cdk.Stack {
         SpillBucket: spill_bucket
       }
     });
+    const ecrRepo = new Repository(this, 'DynamoDBRepository', {
+      repositoryName: 'athena-federation-repository-dynamodb',
+      emptyOnDelete: true
+    });
+    ecrRepo.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'CrossAccountPermission',
+        effect: iam.Effect.ALLOW,
+        actions: ['ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer'],
+        principals: [new iam.AnyPrincipal()],
+      }),
+    );
+    ecrRepo.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'LambdaECRImageCrossAccountRetrievalPolicy',
+        effect: iam.Effect.ALLOW,
+        actions: ['ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer'],
+        principals: [new iam.ServicePrincipal('lambda.amazonaws.com')],
+        conditions: {
+          StringLike: {
+            'aws:sourceArn': 'arn:aws:lambda:*:*:function:*',
+          },
+        },
+      }),
+    );
   }
 
   initDdbTableWithHashKey(tableName: string, hashKey: string) {
