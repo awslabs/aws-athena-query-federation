@@ -36,6 +36,8 @@ Conditions:
   HasKmsKeyId: !Not [!Equals [!Ref KmsKeyId, ""]]
   NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
   CreateKmsPolicy: !And [ !Condition HasKmsKeyId, !Condition NotHasLambdaRole ]
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 
 Resources:
   ConnectorConfig:
@@ -46,7 +48,9 @@ Resources:
           glue_connection: !Ref GlueConnection
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-cloudwatch:2022.47.1'
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-cloudwatch:2022.47.1'
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       Description: "Enables Amazon Athena to communicate with Cloudwatch, making your log accessible via SQL"
       Timeout: 900
       MemorySize: 3008

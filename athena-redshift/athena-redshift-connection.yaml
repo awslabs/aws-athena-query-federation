@@ -44,6 +44,8 @@ Conditions:
   HasKmsKeyId: !Not [!Equals [!Ref KmsKeyId, ""]]
   NotHasLambdaRole: !Equals [!Ref LambdaRoleArn, ""]
   CreateKmsPolicy: !And [!Condition NotHasLambdaRole, !Condition HasKmsKeyId]
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -53,7 +55,9 @@ Resources:
           glue_connection: !Ref GlueConnection
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
-      ImageUri: !Sub '292517598671.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-redshift:2022.47.1'
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-redshift:2022.47.1'
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       ImageConfig:
         Command: [ "com.amazonaws.athena.connectors.redshift.RedshiftCompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with Redshift using JDBC"
