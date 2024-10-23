@@ -22,7 +22,10 @@ package com.amazonaws.athena.connectors.cloudera;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
 import com.google.common.base.Strings;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.util.Collections;
 import java.util.List;
@@ -55,5 +58,22 @@ public class HiveQueryStringBuilder extends JdbcSplitQueryBuilder
             return Collections.singletonList(split.getProperty(HiveConstants.BLOCK_PARTITION_COLUMN_NAME));
         }
         return Collections.emptyList();
+    }
+
+    protected String toPredicate(String columnName, String operator, Object value, ArrowType type,
+                                 List<TypeAndValue> accumulator)
+    {
+        Types.MinorType minorType = Types.getMinorTypeForArrowType(type);
+        if (minorType.equals(Types.MinorType.DATEMILLI) && isOperatorEquals(operator)) {
+            accumulator.add(new TypeAndValue(type, value));
+            return quote(columnName) + " " + operator + " cast(? as timestamp)";
+        }
+        // Default to parent's behavior
+        return super.toPredicate(columnName, operator, value, type, accumulator);
+    }
+
+    private boolean isOperatorEquals(String operator)
+    {
+        return operator.equals("=");
     }
 }
