@@ -42,7 +42,6 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
-
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
