@@ -50,5 +50,4 @@ jobs:
           RESULTS_LOCATION: ${{ secrets.RESULTS_LOCATION }}
           DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
           S3_DATA_PATH: ${{ secrets.S3_DATA_PATH }}
-          S3_JARS_BUCKET: ${{ secrets.S3_JARS_BUCKET }}
           SPILL_BUCKET: ${{ secrets.SPILL_BUCKET }}
