@@ -75,6 +75,14 @@ Parameters:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
+  JavaVersion:
+    Description: "(Optional) Specify the Java version for the Lambda function. Default is '17'; use '11' for Java 11 or '8' for Java 8."
+    Type: String
+    AllowedValues:
+      - "17"
+      - "11"
+      - "8"
+    Default: "17"
 
 Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
@@ -83,6 +91,7 @@ Conditions:
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
   IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
   IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
+  IsJava17: !Equals [!Ref JavaVersion, "17"]
 Resources:
   AthenaMSKConnector:
     Type: 'AWS::Serverless::Function'
@@ -96,6 +105,7 @@ Resources:
           certificates_s3_reference: !Ref CertificatesS3Reference
           kafka_endpoint: !Ref KafkaEndpoint
           auth_type: !Ref AuthType
+          JAVA_TOOL_OPTIONS: !If [IsJava17, "--add-opens=java.base/java.nio=ALL-UNNAMED", !Ref "AWS::NoValue"]
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub

@@ -112,7 +112,7 @@ public class ConnectorStack extends Stack
                                 .build())
                         .build()))
                 .handler(functionHandler)
-                .runtime(new Runtime("java11"))
+                .runtime(new Runtime("java17"))
                 .memorySize(Integer.valueOf(3008))
                 .timeout(Duration.seconds(Integer.valueOf(900)))
                 .environment(environmentVariables);

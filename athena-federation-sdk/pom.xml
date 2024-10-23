@@ -441,4 +441,26 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>java17</id>
+            <activation>
+                <jdk>17</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${surefire.failsafe.version}</version>
+                        <configuration>
+                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
+                            <excludedGroups>slow</excludedGroups>
+                            <properties>
+                            </properties>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
