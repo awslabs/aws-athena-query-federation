@@ -115,7 +115,7 @@ Resources:
                 - glue:GetDatabases
                 - glue:GetTable
                 - glue:GetPartition
-                - glue:GetDatabase              
+                - glue:GetDatabase
                 - athena:GetQueryExecution
               Effect: Allow
               Resource: '*'

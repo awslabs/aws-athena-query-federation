@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
 
 public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
 {
-    public static final String IS_FIPS_ENABLED = "is_FIPS_Enabled";
+    public static final String IS_FIPS_ENABLED = "is_fips_enabled";
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleJdbcConnectionFactory.class);

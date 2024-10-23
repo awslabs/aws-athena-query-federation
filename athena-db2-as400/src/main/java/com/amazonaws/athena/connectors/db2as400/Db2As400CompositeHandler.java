@@ -31,6 +31,6 @@ public class Db2As400CompositeHandler extends CompositeHandler
 {
     public Db2As400CompositeHandler()
     {
-        super(new Db2As400MetadataHandler(System.getenv()), new Db2As400RecordHandler(System.getenv()));
+        super(new Db2As400MetadataHandler(new Db2As400EnvironmentProperties().createEnvironment()), new Db2As400RecordHandler(new Db2As400EnvironmentProperties().createEnvironment()));
     }
 }
