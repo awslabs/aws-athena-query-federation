@@ -40,6 +40,9 @@ Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
     Properties:
+      Environment:
+        Variables:
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub

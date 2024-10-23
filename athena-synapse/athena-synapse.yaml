@@ -78,6 +78,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub

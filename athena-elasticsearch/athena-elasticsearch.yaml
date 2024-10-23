@@ -102,6 +102,7 @@ Resources:
           query_timeout_cluster: !Ref QueryTimeoutCluster
           query_timeout_search: !Ref QueryTimeoutSearch
           query_scroll_timeout: !Ref QueryScrollTimeout
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Sub "${AthenaCatalogName}"
       PackageType: "Image"
       ImageUri: !Sub

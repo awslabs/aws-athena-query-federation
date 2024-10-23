@@ -96,6 +96,7 @@ Resources:
           certificates_s3_reference: !Ref CertificatesS3Reference
           kafka_endpoint: !Ref KafkaEndpoint
           auth_type: !Ref AuthType
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub

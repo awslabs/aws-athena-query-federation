@@ -96,6 +96,7 @@ Resources:
           neptune_graphtype: !Ref NeptuneGraphType
           SERVICE_REGION: !Ref AWS::Region
           enable_caseinsensitivematch: !Ref EnableCaseInsensitiveMatch
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
       ImageUri: !Sub

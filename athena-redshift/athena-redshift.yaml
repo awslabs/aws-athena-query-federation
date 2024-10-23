@@ -80,6 +80,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub

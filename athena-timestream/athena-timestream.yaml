@@ -53,6 +53,7 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
       ImageUri: !Sub

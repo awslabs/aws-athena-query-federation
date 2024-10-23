@@ -80,6 +80,7 @@ Resources:
           gcp_project_id: !Ref GCPProjectID
           big_query_endpoint: !Ref BigQueryEndpoint
           GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub

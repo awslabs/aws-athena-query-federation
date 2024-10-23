@@ -66,6 +66,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
       ImageUri: !Sub
