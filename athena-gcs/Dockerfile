@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/java:11
+FROM public.ecr.aws/lambda/java:17
 
 # Copy function code and runtime dependencies from Maven layout
 COPY target/athena-gcs.zip ${LAMBDA_TASK_ROOT}
