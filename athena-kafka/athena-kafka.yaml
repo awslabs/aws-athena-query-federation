@@ -101,6 +101,7 @@ Resources:
           kafka_endpoint: !Ref KafkaEndpoint
           schema_registry_url: !Ref SchemaRegistryUrl
           auth_type: !Ref AuthType
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub

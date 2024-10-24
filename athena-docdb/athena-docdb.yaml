@@ -67,6 +67,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default_docdb: !Ref DocDBConnectionString
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
       ImageUri: !Sub

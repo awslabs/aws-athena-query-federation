@@ -86,6 +86,7 @@ Resources:
           kerberos_config_files_s3_reference: !Ref KerberosConfigFilesS3Reference
           principal_name: !Ref PrincipalName
           hbase_rpc_protection: !Ref HbaseRpcProtection
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
       ImageUri: !Sub

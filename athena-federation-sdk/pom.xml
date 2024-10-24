@@ -314,6 +314,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire.failsafe.version}</version>
                 <configuration>
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                     <!--<groups>fast</groups>-->
                     <excludedGroups>slow</excludedGroups>
                     <properties>

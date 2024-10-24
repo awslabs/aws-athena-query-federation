@@ -139,7 +139,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire.failsafe.version}</version>
                 <configuration>
-                    <argLine>-Xmx4g</argLine>
+                    <!-- If you are using java 8 then remove below "add-opens" argument from argLine -->
+                    <argLine>-Xmx4g --add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                     <excludes>
                         <exclude>*IntegTest</exclude>
                     </excludes>

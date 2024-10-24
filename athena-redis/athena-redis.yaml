@@ -82,6 +82,7 @@ Resources:
           qpt_ssl: !Ref QPTConnectionSSL
           qpt_cluster: !Ref QPTConnectionCluster
           qpt_db_number: !Ref QPTConnectionDBNumber
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
       ImageUri: !Sub

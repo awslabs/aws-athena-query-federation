@@ -81,6 +81,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           export_bucket: !Ref VerticaExportBucket
           default: !Ref VerticaConnectionString
+          JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
 
       FunctionName: !Sub "${AthenaCatalogName}"
       PackageType: "Image"
