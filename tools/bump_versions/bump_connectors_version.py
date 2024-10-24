@@ -51,5 +51,5 @@ if __name__ == "__main__":
         common.update_yaml(yaml_files, new_version)
 
         # Bump the versions in the Dockerfiles
-        dockerfiles = glob.glob("Dockerfile")
+        dockerfiles = glob.glob(f"{connector}/Dockerfile")
         common.update_dockerfile(dockerfiles, new_version)
