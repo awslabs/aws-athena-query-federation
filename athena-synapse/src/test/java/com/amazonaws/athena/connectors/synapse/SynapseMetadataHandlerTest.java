@@ -339,13 +339,13 @@ public class SynapseMetadataHandlerTest
         String[] schema = {"DATA_TYPE", "COLUMN_NAME", "PRECISION", "SCALE"};
         int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
         Object[][] values = {{Types.INTEGER, "testCol1", 0, 0}, {Types.VARCHAR, "testCol2", 0, 0},
-                    {Types.TIMESTAMP, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, "testCol4", 0, 0}};
+                    {Types.TIMESTAMP, "testCol3", 0, 0}, {Types.VARCHAR, "testCol4", 0, 0}};
         ResultSet resultSet = mockResultSet(schema, types, values, new AtomicInteger(-1));
 
         String[] columns = {"DATA_TYPE", "COLUMN_SIZE", "DECIMAL_DIGITS", "COLUMN_NAME"};
         int[] types2 = {Types.INTEGER, Types.INTEGER, Types.INTEGER, Types.VARCHAR};
         Object[][] values2 = {{Types.INTEGER, 12, 0, "testCol1"}, {Types.VARCHAR, 25, 0, "testCol2"},
-                {Types.TIMESTAMP, 93, 0, "testCol3"}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, 0, "testCol4"}};
+                {Types.TIMESTAMP, 93, 0, "testCol3"}, {Types.VARCHAR, 93, 0, "testCol4"}};
         ResultSet resultSet2 = mockResultSet(columns, types2, values2, new AtomicInteger(-1));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
