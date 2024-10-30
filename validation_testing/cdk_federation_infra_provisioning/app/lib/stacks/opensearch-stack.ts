@@ -5,6 +5,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as glue from '@aws-cdk/aws-glue-alpha';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { CfnInclude } from 'aws-cdk-lib/cloudformation-include';
 const path = require('path');
 import {FederationStackProps} from './stack-props'

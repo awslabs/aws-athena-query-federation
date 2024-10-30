@@ -39,6 +39,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOp
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.HintsSubtype;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -46,8 +47,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -57,6 +56,8 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -97,6 +98,9 @@ public class PostGreSqlMetadataHandler
 
     static final String LIST_PAGINATED_TABLES_QUERY = "SELECT a.\"TABLE_NAME\", a.\"TABLE_SCHEM\" FROM ((SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?) UNION (SELECT matviewname as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" from pg_catalog.pg_matviews mv where has_table_privilege(format('%I.%I', mv.schemaname, mv.matviewname), 'select') and schemaname = ?)) AS a ORDER BY a.\"TABLE_NAME\" LIMIT ? OFFSET ?";
 
+    //Session Property Flag that hints to the engine that the data source is using none default collation
+    protected static final String NON_DEFAULT_COLLATE = "non_default_collate";
+
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
@@ -115,8 +119,8 @@ public class PostGreSqlMetadataHandler
     @VisibleForTesting
     protected PostGreSqlMetadataHandler(
         DatabaseConnectionConfig databaseConnectionConfig,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
@@ -143,6 +147,14 @@ public class PostGreSqlMetadataHandler
         ));
 
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        //Provide a hint to the engine that postgresql is using default collate settings
+        //Which doesn't match Athena's Engine Collation; this disabling Predicate pushdown
+        boolean nonDefaultCollate = Boolean.valueOf(this.configOptions.getOrDefault(NON_DEFAULT_COLLATE, "false"));
+        if (nonDefaultCollate) {
+            capabilities.put(DataSourceOptimizations.DATA_SOURCE_HINTS.withSupportedSubTypes(HintsSubtype.NON_DEFAULT_COLLATE));
+        }
+
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 

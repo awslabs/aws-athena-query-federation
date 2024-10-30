@@ -349,4 +349,11 @@ public class SaphanaQueryStringBuilder extends JdbcSplitQueryBuilder
 
         return "(" + Joiner.on(" OR ").join(disjuncts) + ")";
     }
+
+    private String toPredicate(String columnName, String operator, Object value, ArrowType type,
+                               List<TypeAndValue> accumulator)
+    {
+        accumulator.add(new TypeAndValue(type, value));
+        return quote(columnName) + " " + operator + " ?";
+    }
 }

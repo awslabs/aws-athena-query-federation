@@ -28,15 +28,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetTablesRequest;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 
 import org.junit.After;
 import org.junit.Before;
@@ -45,6 +36,15 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResponse;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -66,10 +66,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneMetadataHandlerTest.class);
 
     @Mock
-    private AWSGlue glue;
-
-    @Mock
-    private GetTablesRequest glueReq = null;
+    private GlueClient glue;
 
     private NeptuneMetadataHandler handler = null;
 
@@ -86,7 +83,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         logger.info("setUpBefore - enter");
         allocator = new BlockAllocatorImpl();
         handler = new NeptuneMetadataHandler(glue,neptuneConnection,
-                new LocalKeyFactory(), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "spill-bucket",
+                new LocalKeyFactory(), mock(SecretsManagerClient.class), mock(AthenaClient.class), "spill-bucket",
                 "spill-prefix", com.google.common.collect.ImmutableMap.of());
         logger.info("setUpBefore - exit");
     }
@@ -113,23 +110,19 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         logger.info("doListTables - enter");
 
         List<Table> tables = new ArrayList<Table>();
-        Table table1 = new Table();
-        table1.setName("table1");
-        Table table2 = new Table();
-        table2.setName("table2");
-        Table table3 = new Table();
-        table3.setName("table3");
+        Table table1 = Table.builder().name("table1").build();
+        Table table2 = Table.builder().name("table2").build();
+        Table table3 = Table.builder().name("table3").build();
 
         tables.add(table1);
         tables.add(table2);
         tables.add(table3);
 
-        GetTablesResult tableResult = new GetTablesResult();
-        tableResult.setTableList(tables);
+        GetTablesResponse tableResponse = GetTablesResponse.builder().tableList(tables).build();
 
         ListTablesRequest req = new ListTablesRequest(IDENTITY, "queryId", "default",
                 "default", null, UNLIMITED_PAGE_SIZE_VALUE);
-        when(glue.getTables(nullable(GetTablesRequest.class))).thenReturn(tableResult);
+        when(glue.getTables(nullable(GetTablesRequest.class))).thenReturn(tableResponse);
 
         ListTablesResponse res = handler.doListTables(allocator, req);
 
@@ -143,35 +136,33 @@ public class NeptuneMetadataHandlerTest extends TestBase {
 
         logger.info("doGetTable - enter");
 
-        Table table = new Table();
-        table.setName("table1");
-
         Map<String, String> expectedParams = new HashMap<>();
-        expectedParams.put("sourceTable", table.getName());
+
+        List<Column> columns = new ArrayList<>();
+        columns.add(Column.builder().name("col1").type("int").comment("comment").build());
+        columns.add(Column.builder().name("col2").type("bigint").comment("comment").build());
+        columns.add(Column.builder().name("col3").type("string").comment("comment").build());
+        columns.add(Column.builder().name("col4").type("timestamp").comment("comm.build()ent").build());
+        columns.add(Column.builder().name("col5").type("date").comment("comment").build());
+        columns.add(Column.builder().name("col6").type("timestamptz").comment("comment").build());
+        columns.add(Column.builder().name("col7").type("timestamptz").comment("comment").build());
+
+        StorageDescriptor storageDescriptor = StorageDescriptor.builder().columns(columns).build();
+        Table table = Table.builder()
+                .name("table1")
+                .parameters(expectedParams)
+                .storageDescriptor(storageDescriptor)
+                .build();
+
+        expectedParams.put("sourceTable", table.name());
         expectedParams.put("columnMapping", "col2=Col2,col3=Col3, col4=Col4");
         expectedParams.put("datetimeFormatMapping", "col2=someformat2, col1=someformat1 ");
 
-        table.setParameters(expectedParams);
-
-        List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col1").withType("int").withComment("comment"));
-        columns.add(new Column().withName("col2").withType("bigint").withComment("comment"));
-        columns.add(new Column().withName("col3").withType("string").withComment("comment"));
-        columns.add(new Column().withName("col4").withType("timestamp").withComment("comment"));
-        columns.add(new Column().withName("col5").withType("date").withComment("comment"));
-        columns.add(new Column().withName("col6").withType("timestamptz").withComment("comment"));
-        columns.add(new Column().withName("col7").withType("timestamptz").withComment("comment"));
-
-        StorageDescriptor storageDescriptor = new StorageDescriptor();
-        storageDescriptor.setColumns(columns);
-        table.setStorageDescriptor(storageDescriptor);
-
         GetTableRequest req = new GetTableRequest(IDENTITY, "queryId", "default", new TableName("schema1", "table1"), Collections.emptyMap());
 
-        GetTableResult getTableResult = new GetTableResult();
-        getTableResult.setTable(table);
+        software.amazon.awssdk.services.glue.model.GetTableResponse getTableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
 
-        when(glue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class))).thenReturn(getTableResult);
+        when(glue.getTable(nullable(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(getTableResponse);
 
         GetTableResponse res = handler.doGetTable(allocator, req);
 

@@ -19,11 +19,11 @@
  */
 package com.amazonaws.athena.connectors.timestream.integ;
 
-import com.amazonaws.services.timestreamwrite.model.Dimension;
-import com.amazonaws.services.timestreamwrite.model.MeasureValueType;
-import com.amazonaws.services.timestreamwrite.model.Record;
-import com.amazonaws.services.timestreamwrite.model.TimeUnit;
-import com.amazonaws.services.timestreamwrite.model.WriteRecordsRequest;
+import software.amazon.awssdk.services.timestreamwrite.model.Dimension;
+import software.amazon.awssdk.services.timestreamwrite.model.MeasureValueType;
+import software.amazon.awssdk.services.timestreamwrite.model.Record;
+import software.amazon.awssdk.services.timestreamwrite.model.TimeUnit;
+import software.amazon.awssdk.services.timestreamwrite.model.WriteRecordsRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -104,14 +104,14 @@ public class TimestreamWriteRecordRequestBuilder
                                                           long timeMillis)
     {
         List<Dimension> dimensions = new ArrayList<>();
-        columns.forEach((k, v) -> dimensions.add(new Dimension().withName(k).withValue(v)));
-        records.add(new Record()
-                .withDimensions(dimensions)
-                .withMeasureName(measureName)
-                .withMeasureValue(measureValue)
-                .withMeasureValueType(measureValueType)
-                .withTime(String.valueOf(timeMillis))
-                .withTimeUnit(TimeUnit.MILLISECONDS));
+        columns.forEach((k, v) -> dimensions.add(Dimension.builder().name(k).value(v).build()));
+        records.add(Record.builder()
+                .dimensions(dimensions)
+                .measureName(measureName)
+                .measureValue(measureValue)
+                .measureValueType(measureValueType)
+                .time(String.valueOf(timeMillis))
+                .timeUnit(TimeUnit.MILLISECONDS).build());
         return this;
     }
 
@@ -121,9 +121,9 @@ public class TimestreamWriteRecordRequestBuilder
      */
     public WriteRecordsRequest build()
     {
-        return new WriteRecordsRequest()
-                .withDatabaseName(databaseName)
-                .withTableName(tableName)
-                .withRecords(records);
+        return WriteRecordsRequest.builder()
+                .databaseName(databaseName)
+                .tableName(tableName)
+                .records(records).build();
     }
 }

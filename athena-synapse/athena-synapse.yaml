@@ -66,7 +66,8 @@ Conditions:
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryARN, ""]]
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
-
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -78,10 +79,11 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.synapse.SynapseMuxCompositeHandler"
-      CodeUri: "./target/athena-synapse-2022.47.1.jar"
+      PackageType: "Image"
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-synapse:2022.47.1'
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       Description: "Enables Amazon Athena to communicate with SYNPASE using JDBC"
-      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
@@ -143,5 +145,24 @@ Resources:
               - autoscaling:CompleteLifecycleAction
             Effect: Allow
             Resource: '*'
+          - Action:
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                - arn:${AWS::Partition}:s3:::${bucketName}
+                - bucketName:
+                    Ref: SpillBucket
+              - Fn::Sub:
+                - arn:${AWS::Partition}:s3:::${bucketName}/*
+                - bucketName:
+                    Ref: SpillBucket
       Roles:
         - !Ref FunctionRole

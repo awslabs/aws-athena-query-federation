@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.google.bigquery.integ;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.athena.connector.integ.data.TestConfig;
-import com.amazonaws.services.athena.model.Row;
 import com.google.common.collect.ImmutableList;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;

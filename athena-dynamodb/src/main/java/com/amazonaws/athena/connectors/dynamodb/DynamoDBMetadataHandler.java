@@ -57,14 +57,7 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.util.json.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -74,10 +67,17 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementResponse;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -136,15 +136,15 @@ public class DynamoDBMetadataHandler
     // defines the value that should be present in the Glue Database URI to enable the DB for DynamoDB.
     static final String DYNAMO_DB_FLAG = "dynamo-db-flag";
     // used to filter out Glue tables which lack indications of being used for DDB.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(DYNAMODB)
-            || (table.getParameters() != null && DYNAMODB.equals(table.getParameters().get("classification")))
-            || (table.getStorageDescriptor().getParameters() != null && DYNAMODB.equals(table.getStorageDescriptor().getParameters().get("classification")));
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.storageDescriptor().location().contains(DYNAMODB)
+            || (table.parameters() != null && DYNAMODB.equals(table.parameters().get("classification")))
+            || (table.storageDescriptor().parameters() != null && DYNAMODB.equals(table.storageDescriptor().parameters().get("classification")));
     // used to filter out Glue databases which lack the DYNAMO_DB_FLAG in the URI.
-    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DYNAMO_DB_FLAG));
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(DYNAMO_DB_FLAG));
 
     private final ThrottlingInvoker invoker;
     private final DynamoDbClient ddbClient;
-    private final AWSGlue glueClient;
+    private final GlueClient glueClient;
     private final DynamoDBTableResolver tableResolver;
 
     private final DDBQueryPassthrough queryPassthrough;
@@ -171,12 +171,12 @@ public class DynamoDBMetadataHandler
     @VisibleForTesting
     DynamoDBMetadataHandler(
             EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
+            SecretsManagerClient secretsManager,
+            AthenaClient athena,
             String spillBucket,
             String spillPrefix,
             DynamoDbClient ddbClient,
-            AWSGlue glueClient,
+            GlueClient glueClient,
             java.util.Map<String, String> configOptions)
     {
         super(glueClient, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
@@ -267,7 +267,7 @@ public class DynamoDBMetadataHandler
     public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
         if (!request.isQueryPassthrough()) {
-            throw new AthenaConnectorException("No Query passed through [{}]" + request, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()).withErrorMessage("No Query passed through [{}]" + request));
+            throw new AthenaConnectorException("No Query passed through [{}]" + request, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).errorMessage("No Query passed through [{}]" + request).build());
         }
 
         queryPassthrough.verify(request.getQueryPassthroughArguments());
@@ -336,7 +336,7 @@ public class DynamoDBMetadataHandler
             table = tableResolver.getTableMetadata(tableName);
         }
         catch (TimeoutException e) {
-            throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationTimeoutException.toString()).withErrorMessage(e.getMessage()));
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString()).errorMessage(e.getMessage()).build());
         }
         // add table name so we don't have to do case insensitive resolution again
         partitionSchemaBuilder.addMetadata(TABLE_METADATA, table.getName());
@@ -458,7 +458,14 @@ public class DynamoDBMetadataHandler
                 expressionValueMapping.put(valueNameProducer2.getNext(), value);
             }
 
-            partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, Jackson.toJsonString(aliasedColumns));
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, objectMapper.writeValueAsString(aliasedColumns));
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            
             partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValueMapping).toJson());
         }
     }
@@ -483,7 +490,7 @@ public class DynamoDBMetadataHandler
         Map<String, String> partitionMetadata = partitions.getSchema().getCustomMetadata();
         String partitionType = partitionMetadata.get(PARTITION_TYPE_METADATA);
         if (partitionType == null) {
-            throw new AthenaConnectorException(String.format("No metadata %s defined in Schema %s", PARTITION_TYPE_METADATA, partitions.getSchema()), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+            throw new AthenaConnectorException(String.format("No metadata %s defined in Schema %s", PARTITION_TYPE_METADATA, partitions.getSchema()), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         if (QUERY_PARTITION_TYPE.equals(partitionType)) {
             String hashKeyName = partitionMetadata.get(HASH_KEY_NAME_METADATA);
@@ -539,7 +546,7 @@ public class DynamoDBMetadataHandler
             return new GetSplitsResponse(request.getCatalogName(), splits, null);
         }
         else {
-            throw new AthenaConnectorException("Unexpected partition type " + partitionType, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+            throw new AthenaConnectorException("Unexpected partition type " + partitionType, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
