@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.services.athena.model.AmazonAthenaException;
+import software.amazon.awssdk.services.athena.model.AthenaException;
 
 public class GcsThrottlingExceptionFilter implements ThrottlingInvoker.ExceptionFilter
 {
@@ -29,7 +29,7 @@ public class GcsThrottlingExceptionFilter implements ThrottlingInvoker.Exception
     @Override
     public boolean isMatch(Exception ex)
     {
-        return (ex instanceof AmazonAthenaException && ex.getMessage().contains("Rate exceeded"))
+        return (ex instanceof AthenaException && ex.getMessage().contains("Rate exceeded"))
                 || ex.getMessage().contains("Too Many Requests");
     }
 }

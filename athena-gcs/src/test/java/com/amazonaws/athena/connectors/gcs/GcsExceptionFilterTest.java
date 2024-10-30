@@ -19,11 +19,10 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.services.athena.model.AmazonAthenaException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
-
+import software.amazon.awssdk.services.athena.model.AthenaException;
 
 import static com.amazonaws.athena.connectors.gcs.GcsThrottlingExceptionFilter.EXCEPTION_FILTER;
 import static org.junit.Assert.assertEquals;
@@ -36,11 +35,11 @@ public class GcsExceptionFilterTest
     @Test
     public void testIsMatch()
     {
-        boolean match = EXCEPTION_FILTER.isMatch(new AmazonAthenaException("Rate exceeded"));
+        boolean match = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("Rate exceeded").build());
         assertTrue(match);
-        boolean match1 = EXCEPTION_FILTER.isMatch(new AmazonAthenaException("Too Many Requests"));
+        boolean match1 = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("Too Many Requests").build());
         assertTrue(match1);
-        boolean match3 = EXCEPTION_FILTER.isMatch(new AmazonAthenaException("other"));
+        boolean match3 = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("other").build());
         assertFalse(match3);
     }
 }

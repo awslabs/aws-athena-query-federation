@@ -29,8 +29,8 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.amazonaws.athena.connector.validation.FederationServiceProvider.callService;
 import static com.amazonaws.athena.connector.validation.FederationServiceProvider.generateQueryId;
-import static com.amazonaws.athena.connector.validation.FederationServiceProvider.getService;
 
 /**
  * This class offers a convenience method to retrieve records from a deployed Lambda.
@@ -81,7 +81,7 @@ public class LambdaRecordProvider
                                         MAX_BLOCK_SIZE,
                                         MAX_INLINE_BLOCK_SIZE)) {
       log.info("Submitting request: {}", request);
-      ReadRecordsResponse response = (ReadRecordsResponse) getService(recordFunction, identity, catalog).call(request);
+      ReadRecordsResponse response = (ReadRecordsResponse) callService(recordFunction, identity, catalog, request);
       log.info("Received response: {}", response);
       return response;
     }

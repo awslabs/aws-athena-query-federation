@@ -30,12 +30,12 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsV2Request;
-import com.amazonaws.services.s3.model.ListObjectsV2Result;
-import com.amazonaws.services.s3.model.Owner;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.Owner;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
  * Maps your S3 Objects to a table.
@@ -45,9 +45,9 @@ public class S3ObjectsTableProvider
 {
     private static final int MAX_KEYS = 1000;
     private static final Schema SCHEMA;
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
 
-    public S3ObjectsTableProvider(AmazonS3 amazonS3)
+    public S3ObjectsTableProvider(S3Client amazonS3)
     {
         this.amazonS3 = amazonS3;
     }
@@ -98,42 +98,44 @@ public class S3ObjectsTableProvider
                     "(e.g. where bucket_name='my_bucket'.");
         }
 
-        ListObjectsV2Request req = new ListObjectsV2Request().withBucketName(bucket).withMaxKeys(MAX_KEYS);
-        ListObjectsV2Result result;
+        ListObjectsV2Request req = ListObjectsV2Request.builder().bucket(bucket).maxKeys(MAX_KEYS).build();
+        ListObjectsV2Response response;
         do {
-            result = amazonS3.listObjectsV2(req);
-            for (S3ObjectSummary objectSummary : result.getObjectSummaries()) {
-                toRow(objectSummary, spiller);
+            response = amazonS3.listObjectsV2(req);
+            for (S3Object s3Object : response.contents()) {
+                toRow(s3Object, spiller, bucket);
             }
-            req.setContinuationToken(result.getNextContinuationToken());
+            req = req.toBuilder().continuationToken(response.nextContinuationToken()).build();
         }
-        while (result.isTruncated() && queryStatusChecker.isQueryRunning());
+        while (response.isTruncated() && queryStatusChecker.isQueryRunning());
     }
 
     /**
      * Maps a DBInstance into a row in our Apache Arrow response block(s).
      *
-     * @param objectSummary The S3 ObjectSummary to map.
+     * @param s3Object The S3 object to map.
      * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
+     * @param bucket The name of the S3 bucket
      * @note The current implementation is rather naive in how it maps fields. It leverages a static
      * list of fields that we'd like to provide and then explicitly filters and converts each field.
      */
-    private void toRow(S3ObjectSummary objectSummary,
-            BlockSpiller spiller)
+    private void toRow(S3Object s3Object,
+            BlockSpiller spiller,
+            String bucket)
     {
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
-            matched &= block.offerValue("bucket_name", row, objectSummary.getBucketName());
-            matched &= block.offerValue("e_tag", row, objectSummary.getETag());
-            matched &= block.offerValue("key", row, objectSummary.getKey());
-            matched &= block.offerValue("bytes", row, objectSummary.getSize());
-            matched &= block.offerValue("storage_class", row, objectSummary.getStorageClass());
-            matched &= block.offerValue("last_modified", row, objectSummary.getLastModified());
+            matched &= block.offerValue("bucket_name", row, bucket);
+            matched &= block.offerValue("e_tag", row, s3Object.eTag());
+            matched &= block.offerValue("key", row, s3Object.key());
+            matched &= block.offerValue("bytes", row, s3Object.size());
+            matched &= block.offerValue("storage_class", row, s3Object.storageClassAsString());
+            matched &= block.offerValue("last_modified", row, s3Object.lastModified());
 
-            Owner owner = objectSummary.getOwner();
+            Owner owner = s3Object.owner();
             if (owner != null) {
-                matched &= block.offerValue("owner_name", row, owner.getDisplayName());
-                matched &= block.offerValue("owner_id", row, owner.getId());
+                matched &= block.offerValue("owner_name", row, owner.displayName());
+                matched &= block.offerValue("owner_id", row, owner.id());
             }
 
             return matched ? 1 : 0;

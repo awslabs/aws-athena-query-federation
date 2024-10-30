@@ -3,6 +3,7 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as glue from '@aws-cdk/aws-glue-alpha';
 import * as iam from 'aws-cdk-lib/aws-iam'
+import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { CfnInclude } from 'aws-cdk-lib/cloudformation-include';
 import { Construct } from 'constructs';
 const path = require('path')

@@ -19,32 +19,21 @@
  */
 package com.amazonaws.athena.connectors.timestream;
 
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.data.FieldResolver;
-import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
-import com.amazonaws.services.timestreamquery.model.Datum;
-import com.amazonaws.services.timestreamquery.model.QueryResult;
-import com.amazonaws.services.timestreamquery.model.Row;
-import com.amazonaws.services.timestreamquery.model.TimeSeriesDataPoint;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.mockito.stubbing.Answer;
+import software.amazon.awssdk.services.timestreamquery.model.Datum;
+import software.amazon.awssdk.services.timestreamquery.model.QueryResponse;
+import software.amazon.awssdk.services.timestreamquery.model.Row;
+import software.amazon.awssdk.services.timestreamquery.model.TimeSeriesDataPoint;
 
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.apache.arrow.vector.types.Types.MinorType.FLOAT8;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -59,17 +48,17 @@ public class TestUtils
 
     private static final String[] AZS = {"us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d"};
 
-    public static QueryResult makeMockQueryResult(Schema schemaForRead, int numRows)
+    public static QueryResponse makeMockQueryResult(Schema schemaForRead, int numRows)
     {
         return makeMockQueryResult(schemaForRead, numRows, 100, true);
     }
 
-    public static QueryResult makeMockQueryResult(Schema schemaForRead, int numRows, int maxDataGenerationRow, boolean isRandomAZ)
+    public static QueryResponse makeMockQueryResult(Schema schemaForRead, int numRows, int maxDataGenerationRow, boolean isRandomAZ)
     {
-        QueryResult mockResult = mock(QueryResult.class);
+        QueryResponse mockResult = mock(QueryResponse.class);
         final AtomicLong nextToken = new AtomicLong(0);
 
-        when(mockResult.getRows()).thenAnswer((Answer<List<Row>>) invocationOnMock -> {
+        when(mockResult.rows()).thenAnswer((Answer<List<Row>>) invocationOnMock -> {
                     List<Row> rows = new ArrayList<>();
                     for (int i = 0; i < maxDataGenerationRow; i++) {
                         nextToken.incrementAndGet();
@@ -78,15 +67,14 @@ public class TestUtils
                             columnData.add(makeValue(nextField, i, isRandomAZ));
                         }
 
-                        Row row = new Row();
-                        row.setData(columnData);
+                        Row row = Row.builder().data(columnData).build();
                         rows.add(row);
                     }
                     return rows;
                 }
         );
 
-        when(mockResult.getNextToken()).thenAnswer((Answer<String>) invocationOnMock -> {
+        when(mockResult.nextToken()).thenAnswer((Answer<String>) invocationOnMock -> {
                     if (nextToken.get() < numRows) {
                         return String.valueOf(nextToken.get());
                     }
@@ -99,30 +87,30 @@ public class TestUtils
 
     public static Datum makeValue(Field field, int num, boolean isRandomAZ)
     {
-        Datum datum = new Datum();
+        Datum.Builder datum = Datum.builder();
         switch (Types.getMinorTypeForArrowType(field.getType())) {
             case VARCHAR:
                 if (field.getName().equals("az")) {
-                    datum.setScalarValue(isRandomAZ ? AZS[RAND.nextInt(4)] : "us-east-1a");
+                    datum.scalarValue(isRandomAZ ? AZS[RAND.nextInt(4)] : "us-east-1a");
                 }
                 else {
-                    datum.setScalarValue(field.getName() + "_" + RAND.nextInt(10_000_000));
+                    datum.scalarValue(field.getName() + "_" + RAND.nextInt(10_000_000));
                 }
                 break;
             case FLOAT8:
-                datum.setScalarValue(String.valueOf(RAND.nextFloat()));
+                datum.scalarValue(String.valueOf(RAND.nextFloat()));
                 break;
             case INT:
-                datum.setScalarValue(String.valueOf(RAND.nextInt()));
+                datum.scalarValue(String.valueOf(RAND.nextInt()));
                 break;
             case BIT:
-                datum.setScalarValue(String.valueOf(RAND.nextBoolean()));
+                datum.scalarValue(String.valueOf(RAND.nextBoolean()));
                 break;
             case BIGINT:
-                datum.setScalarValue(String.valueOf(RAND.nextLong()));
+                datum.scalarValue(String.valueOf(RAND.nextLong()));
                 break;
             case DATEMILLI:
-                datum.setScalarValue(startDate.plusDays(num).toString().replace('T', ' '));
+                datum.scalarValue(startDate.plusDays(num).toString().replace('T', ' '));
                 break;
             case LIST:
                 buildTimeSeries(field, datum, num);
@@ -131,17 +119,17 @@ public class TestUtils
                 throw new RuntimeException("Unsupported field type[" + field.getType() + "] for field[" + field.getName() + "]");
         }
 
-        return datum;
+        return datum.build();
     }
 
-    private static void buildTimeSeries(Field field, Datum datum, int num)
+    private static void buildTimeSeries(Field field, Datum.Builder datum, int num)
     {
         List<TimeSeriesDataPoint> dataPoints = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            TimeSeriesDataPoint dataPoint = new TimeSeriesDataPoint();
-            Datum dataPointValue = new Datum();
+            TimeSeriesDataPoint.Builder dataPoint = TimeSeriesDataPoint.builder();
+            Datum.Builder dataPointValue = Datum.builder();
 
-            dataPoint.setTime(startDate.plusDays(num).toString().replace('T', ' '));
+            dataPoint.time(startDate.plusDays(num).toString().replace('T', ' '));
 
             /**
              * Presently we only support TimeSeries as LIST<STRUCT<DATEMILLISECONDS, DOUBLE|INT|FLOAT8|BIT|BIGINT>>
@@ -152,22 +140,22 @@ public class TestUtils
 
             switch (Types.getMinorTypeForArrowType(baseSeriesType.getType())) {
                 case FLOAT8:
-                    dataPointValue.setScalarValue(String.valueOf(RAND.nextFloat()));
+                    dataPointValue.scalarValue(String.valueOf(RAND.nextFloat()));
                     break;
                 case BIT:
-                    dataPointValue.setScalarValue(String.valueOf(RAND.nextBoolean()));
+                    dataPointValue.scalarValue(String.valueOf(RAND.nextBoolean()));
                     break;
                 case INT:
-                    dataPointValue.setScalarValue(String.valueOf(RAND.nextInt()));
+                    dataPointValue.scalarValue(String.valueOf(RAND.nextInt()));
                     break;
                 case BIGINT:
-                    dataPointValue.setScalarValue(String.valueOf(RAND.nextLong()));
+                    dataPointValue.scalarValue(String.valueOf(RAND.nextLong()));
                     break;
             }
 
-            dataPoint.setValue(dataPointValue);
-            dataPoints.add(dataPoint);
+            dataPoint.value(dataPointValue.build());
+            dataPoints.add(dataPoint.build());
         }
-        datum.setTimeSeriesValue(dataPoints);
+        datum.timeSeriesValue(dataPoints);
     }
 }

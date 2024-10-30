@@ -32,8 +32,6 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBin
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.types.Types;
@@ -52,6 +50,8 @@ import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.Byt
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.EnhancedAttributeValue;
 import software.amazon.awssdk.enhanced.dynamodb.internal.converter.attribute.StringAttributeConverter;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.utils.ImmutableMap;
 
 import java.math.BigDecimal;
@@ -191,7 +191,7 @@ public final class DDBTypeUtils
         }
 
         String attributeTypeName = (value == null || value.getClass() == null) ? "null" : enhancedAttributeValue.type().name();
-        throw new AthenaConnectorException("Unknown Attribute Value Type[" + attributeTypeName + "] for field[" + key + "]", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+        throw new AthenaConnectorException("Unknown Attribute Value Type[" + attributeTypeName + "] for field[" + key + "]", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
     }
 
     /**
@@ -265,7 +265,7 @@ public final class DDBTypeUtils
             case MAP:
                 return new Field(attributeName, FieldType.nullable(Types.MinorType.STRUCT.getType()), null);
             default:
-                throw new AthenaConnectorException("Unknown type[" + attributeType + "] for field[" + attributeName + "]", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException("Unknown type[" + attributeType + "] for field[" + attributeName + "]", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -385,7 +385,7 @@ public final class DDBTypeUtils
 
         if (!(value instanceof Collection)) {
             if (value instanceof Map) {
-                throw new AthenaConnectorException("Unexpected type (Map) encountered for: " + childField.getName(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException("Unexpected type (Map) encountered for: " + childField.getName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             return Collections.singletonList(coerceValueToExpectedType(value, childField, fieldType, recordMetadata));
         }
@@ -621,7 +621,7 @@ public final class DDBTypeUtils
             return handleMapType((Map<String, Object>) value);
         }
         else {
-            throw new AthenaConnectorException("Unsupported value type: " + value.getClass(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+            throw new AthenaConnectorException("Unsupported value type: " + value.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -635,7 +635,7 @@ public final class DDBTypeUtils
     {
         EnhancedDocument enhancedDocument = EnhancedDocument.fromJson(jsonString);
         if (!enhancedDocument.isPresent(key)) {
-            throw new AthenaConnectorException("Unknown attribute Key", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+            throw new AthenaConnectorException("Unknown attribute Key", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         return enhancedDocument.toMap().get(key);
     }
@@ -658,7 +658,7 @@ public final class DDBTypeUtils
         } // Add other types if needed
 
         // Fallback for unsupported set types
-        throw new AthenaConnectorException("Unsupported Set element type: " + firstElement.getClass(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+        throw new AthenaConnectorException("Unsupported Set element type: " + firstElement.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
     }
 
     private static AttributeValue handleListType(List<?> value)

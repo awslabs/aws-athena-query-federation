@@ -28,9 +28,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -54,6 +51,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -90,13 +90,13 @@ public class ElasticsearchMetadataHandlerTest
     private BlockAllocatorImpl allocator;
 
     @Mock
-    private AWSGlue awsGlue;
+    private GlueClient awsGlue;
 
     @Mock
-    private AWSSecretsManager awsSecretsManager;
+    private SecretsManagerClient awsSecretsManager;
 
     @Mock
-    private AmazonAthena amazonAthena;
+    private AthenaClient amazonAthena;
 
     @Mock
     private AwsRestHighLevelClient mockClient;

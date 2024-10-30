@@ -44,18 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
-import com.amazonaws.services.athena.AmazonAthena;
-
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.GetDatabasesResult;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -74,7 +63,19 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
+import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResponse;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.paginators.GetDatabasesIterable;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -114,6 +115,7 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -129,13 +131,13 @@ public class DynamoDBMetadataHandlerTest
     public TestName testName = new TestName();
 
     @Mock
-    private AWSGlue glueClient;
+    private GlueClient glueClient;
 
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
 
     @Mock
-    private AmazonAthena athena;
+    private AthenaClient athena;
 
     private DynamoDBMetadataHandler handler;
 
@@ -162,7 +164,7 @@ public class DynamoDBMetadataHandlerTest
     public void doListSchemaNamesGlueError()
             throws Exception
     {
-        when(glueClient.getDatabases(any())).thenThrow(new AmazonServiceException(""));
+        when(glueClient.getDatabasesPaginator(any(GetDatabasesRequest.class))).thenThrow(new AmazonServiceException(""));
 
         ListSchemasRequest req = new ListSchemasRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
@@ -176,12 +178,16 @@ public class DynamoDBMetadataHandlerTest
     public void doListSchemaNamesGlue()
             throws Exception
     {
-        GetDatabasesResult result = new GetDatabasesResult().withDatabaseList(
-                new Database().withName(DEFAULT_SCHEMA),
-                new Database().withName("ddb").withLocationUri(DYNAMO_DB_FLAG),
-                new Database().withName("s3").withLocationUri("blah"));
+        GetDatabasesResponse response = GetDatabasesResponse.builder()
+                .databaseList(
+                        Database.builder().name(DEFAULT_SCHEMA).build(),
+                        Database.builder().name("ddb").locationUri(DYNAMO_DB_FLAG).build(),
+                        Database.builder().name("s3").locationUri("blah").build())
+                .build();
 
-        when(glueClient.getDatabases(any())).thenReturn(result);
+        GetDatabasesIterable mockIterable = mock(GetDatabasesIterable.class);
+        when(mockIterable.stream()).thenReturn(Collections.singletonList(response).stream());
+        when(glueClient.getDatabasesPaginator(any(GetDatabasesRequest.class))).thenReturn(mockIterable);
 
         ListSchemasRequest req = new ListSchemasRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
@@ -202,25 +208,37 @@ public class DynamoDBMetadataHandlerTest
         tableNames.add("table2");
         tableNames.add("table3");
 
-        GetTablesResult mockResult = new GetTablesResult();
         List<Table> tableList = new ArrayList<>();
-        tableList.add(new Table().withName("table1")
-                .withParameters(ImmutableMap.of("classification", "dynamodb"))
-                .withStorageDescriptor(new StorageDescriptor()
-                        .withLocation("some.location")));
-        tableList.add(new Table().withName("table2")
-                .withParameters(ImmutableMap.of())
-                .withStorageDescriptor(new StorageDescriptor()
-                        .withLocation("some.location")
-                        .withParameters(ImmutableMap.of("classification", "dynamodb"))));
-        tableList.add(new Table().withName("table3")
-                .withParameters(ImmutableMap.of())
-                .withStorageDescriptor(new StorageDescriptor()
-                        .withLocation("arn:aws:dynamodb:us-east-1:012345678910:table/table3")));
-        tableList.add(new Table().withName("notADynamoTable").withParameters(ImmutableMap.of()).withStorageDescriptor(
-                new StorageDescriptor().withParameters(ImmutableMap.of()).withLocation("some_location")));
-        mockResult.setTableList(tableList);
-        when(glueClient.getTables(any())).thenReturn(mockResult);
+        tableList.add(Table.builder().name("table1")
+                .parameters(ImmutableMap.of("classification", "dynamodb"))
+                .storageDescriptor(StorageDescriptor.builder()
+                        .location("some.location")
+                        .build())
+                .build());
+        tableList.add(Table.builder().name("table2")
+                .parameters(ImmutableMap.of())
+                .storageDescriptor(StorageDescriptor.builder()
+                        .location("some.location")
+                        .parameters(ImmutableMap.of("classification", "dynamodb"))
+                        .build())
+                .build());
+        tableList.add(Table.builder().name("table3")
+                .parameters(ImmutableMap.of())
+                .storageDescriptor(StorageDescriptor.builder()
+                        .location("arn:aws:dynamodb:us-east-1:012345678910:table/table3")
+                        .build())
+                .build());
+        tableList.add(Table.builder().name("notADynamoTable")
+                .parameters(ImmutableMap.of())
+                .storageDescriptor(StorageDescriptor.builder()
+                        .location("some_location")
+                        .parameters(ImmutableMap.of())
+                        .build())
+                .build());
+        GetTablesResponse mockResponse = GetTablesResponse.builder()
+                .tableList(tableList)
+                .build();
+        when(glueClient.getTables(any(GetTablesRequest.class))).thenReturn(mockResponse);
 
         ListTablesRequest req = new ListTablesRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, DEFAULT_SCHEMA,
                 null, UNLIMITED_PAGE_SIZE_VALUE);
@@ -257,7 +275,7 @@ public class DynamoDBMetadataHandlerTest
     public void doGetTable()
             throws Exception
     {
-        when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
 
         GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_NAME, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
@@ -273,7 +291,7 @@ public class DynamoDBMetadataHandlerTest
     public void doGetEmptyTable()
             throws Exception
     {
-        when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
 
         GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
@@ -288,7 +306,7 @@ public class DynamoDBMetadataHandlerTest
     public void testCaseInsensitiveResolve()
             throws Exception
     {
-        when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
 
         GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
@@ -594,20 +612,21 @@ public class DynamoDBMetadataHandlerTest
             throws Exception
     {
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col1").withType("int"));
-        columns.add(new Column().withName("col2").withType("bigint"));
-        columns.add(new Column().withName("col3").withType("string"));
+        columns.add(Column.builder().name("col1").type("int").build());
+        columns.add(Column.builder().name("col2").type("bigint").build());
+        columns.add(Column.builder().name("col3").type("string").build());
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE,
                 COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1 , col2=Col2 ,col3=Col3",
                 DATETIME_FORMAT_MAPPING_PROPERTY, "col1=datetime1,col3=datetime3 ");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .partitionKeys(Collections.EMPTY_SET)
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(tableResponse);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
         GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
@@ -635,20 +654,21 @@ public class DynamoDBMetadataHandlerTest
             throws Exception
     {
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col1").withType("int"));
-        columns.add(new Column().withName("col2").withType("timestamptz"));
-        columns.add(new Column().withName("col3").withType("string"));
+        columns.add(Column.builder().name("col1").type("int").build());
+        columns.add(Column.builder().name("col2").type("timestamptz").build());
+        columns.add(Column.builder().name("col3").type("string").build());
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE,
                 COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1",
                 DATETIME_FORMAT_MAPPING_PROPERTY, "col1=datetime1,col3=datetime3 ");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .partitionKeys(Collections.EMPTY_SET)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(tableResponse);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
         GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());

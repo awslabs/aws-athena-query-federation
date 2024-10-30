@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.exceptions;
 
-import com.amazonaws.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
 
 import javax.annotation.Nonnull;
 
