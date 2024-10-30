@@ -36,13 +36,13 @@ def update_yaml(yaml_files, new_version):
     for yml in yaml_files:
         subprocess.run(["sed", "-i", f"s/\(SemanticVersion:\s*\).*/\\1{new_version}/", yml])
         subprocess.run(["sed", "-i", f"s/\(CodeUri:.*-\)[0-9]*\.[0-9]*\.[0-9]*\(-\?.*\.jar\)/\\1{new_version}\\2/", yml])
-        subprocess.run(["sed", "-i", f"s/\(ImageUri:.*:\)[0-9]*\.[0-9]*\.[0-9]*\(\'\)/\\1{new_version}\\2/", yml])
+        subprocess.run(["sed", "-i", f"s|\(athena-federation-repository-.*:\)[0-9]*\.[0-9]*\.[0-9]*\(\'\)|\\1{new_version}\\2|", yml])
 
 
 def update_dockerfile(dockerfiles, new_version):
     for file in dockerfiles:
-        subprocess.run(["sed", "-i", f"s/\(COPY\s.*-\)[0-9]*\.[0-9]*\.[0-9]*\(\.jar.*\)/\\1{new_version}\\2/", file])
-        subprocess.run(["sed", "-i", f"s/\(RUN\sjar\sxf.*-\)[0-9]*\.[0-9]*\.[0-9]*\(\.jar\)/\\1{new_version}\\2/", file])
+        subprocess.run(["sed", "-i", f"s|\(target\/.*-\)[0-9]*\.[0-9]*\.[0-9]*|\\1{new_version}|", file])
+        subprocess.run(["sed", "-i", f"s|\(xf\s*.*-\)[0-9]*\.[0-9]*\.[0-9]*|\\1{new_version}|", file])
 
 
 def update_project_version(soup, new_version):
