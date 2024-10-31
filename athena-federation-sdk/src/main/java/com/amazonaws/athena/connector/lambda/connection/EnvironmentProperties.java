@@ -29,6 +29,7 @@ import software.amazon.awssdk.services.glue.model.Connection;
 import software.amazon.awssdk.services.glue.model.GetConnectionRequest;
 import software.amazon.awssdk.services.glue.model.GetConnectionResponse;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -66,11 +67,20 @@ public class EnvironmentProperties
     public Connection getGlueConnection(String glueConnectionName) throws RuntimeException
     {
         try {
+            HashMap<String, String> lambdaEnvironment = new HashMap<>(System.getenv());
             GlueClient awsGlue = GlueClient.builder()
                     .httpClientBuilder(ApacheHttpClient
                             .builder()
                             .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
                     .build();
+            if (lambdaEnvironment.getOrDefault("USE_GAMMA_GLUE", "false").equals("true")) {
+                awsGlue = GlueClient.builder()
+                        .endpointOverride(new URI(String.format("https://glue-gamma.%s.amazonaws.com", lambdaEnvironment.get("AWS_REGION"))))
+                        .httpClientBuilder(ApacheHttpClient
+                                .builder()
+                                .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
+                        .build();
+            }
             GetConnectionResponse glueConnection = awsGlue.getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
             logger.debug("Successfully retrieved connection {}", glueConnectionName);
             return glueConnection.connection();
