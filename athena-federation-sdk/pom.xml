@@ -357,6 +357,10 @@
                             <pattern>io.netty</pattern>
                             <shadedPattern>athena.com.io.netty</shadedPattern>
                         </relocation>
+                        <relocation>
+                            <pattern>org.bouncycastle</pattern>
+                            <shadedPattern>athena.com.org.bouncycastle</shadedPattern>
+                        </relocation>
                     </relocations>
                 </configuration>
                 <dependencies>
