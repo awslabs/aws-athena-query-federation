@@ -141,7 +141,7 @@ export class RedshiftStack extends cdk.Stack {
       templateFile: cfn_template_file,
       parameters: {
         'LambdaFunctionName': 'redshift-cdk-deployed',
-        'SecretName': 'asdf',
+        'SecretNamePrefix': 'asdf',
         'DefaultConnectionString': `${connectionStringPrefix}://${connectionString}`,
         'SecurityGroupIds': [securityGroup.securityGroupId],
         'SubnetIds': [subnet.subnetId],
