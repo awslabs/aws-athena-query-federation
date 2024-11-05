@@ -63,6 +63,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -507,6 +508,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 throw new AthenaConnectorException("Could not find table in " + tableName.getSchemaName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
             partitionSchema.getFields().forEach(schemaBuilder::addField);
+        }
+        catch (SnowflakeSQLException ex) {
+            throw new AthenaConnectorException(ex.getMessage(),ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
         }
         LOGGER.debug(schemaBuilder.toString());
         return schemaBuilder.build();
