@@ -23,7 +23,7 @@ public final class EnvironmentConstants
 {
     private EnvironmentConstants() {}
 
-    public static final int CONNECT_TIMEOUT = 250;
+    public static final int CONNECT_TIMEOUT = 2000;
 
     // Lambda environment variable keys
     public static final String DEFAULT_GLUE_CONNECTION = "glue_connection";
