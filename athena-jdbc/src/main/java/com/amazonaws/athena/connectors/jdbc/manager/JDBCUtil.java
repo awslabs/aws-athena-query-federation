@@ -23,13 +23,13 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -65,7 +65,7 @@ public final class JDBCUtil
 
         throw new AthenaConnectorException(String.format("Must provide default connection string parameter %s for database type %s",
                 DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY, databaseEngine),
-                new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
     }
 
     /**
@@ -85,7 +85,7 @@ public final class JDBCUtil
 
         if (databaseConnectionConfigs.isEmpty()) {
             throw new AthenaConnectorException("At least one connection string required.",
-                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         boolean defaultPresent = false;
@@ -103,7 +103,7 @@ public final class JDBCUtil
         if (!defaultPresent) {
             throw new AthenaConnectorException("Must provide connection parameters for default database instance " +
                     DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY,
-                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         return metadataHandlerMap.build();
@@ -125,7 +125,7 @@ public final class JDBCUtil
 
         if (databaseConnectionConfigs.isEmpty()) {
             throw new AthenaConnectorException("At least one connection string required.",
-                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         boolean defaultPresent = false;
@@ -143,7 +143,7 @@ public final class JDBCUtil
         if (!defaultPresent) {
             throw new AthenaConnectorException("Must provide connection parameters for default database instance " +
                     DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY,
-                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         return recordHandlerMap.build();
@@ -161,7 +161,7 @@ public final class JDBCUtil
             }
             else {
                 throw new AthenaConnectorException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName),
-                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
         }
 
@@ -173,13 +173,13 @@ public final class JDBCUtil
                 resolvedName = resultSet.getString("table_name");
                 if (resultSet.next()) {
                     throw new AthenaConnectorException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName),
-                            new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                            ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                 }
                 LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
             }
             else {
                 throw new AthenaConnectorException(String.format("During TABLE Case Insensitive look up could not find Table '%s' in Database '%s'", tableName, databaseName),
-                        new ErrorDetails().withErrorCode(FederationSourceErrorCode.EntityNotFoundException.toString()));
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
         }
 
