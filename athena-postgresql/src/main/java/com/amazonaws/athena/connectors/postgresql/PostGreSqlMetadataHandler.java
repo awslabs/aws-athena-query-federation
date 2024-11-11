@@ -61,6 +61,7 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -367,10 +368,8 @@ public class PostGreSqlMetadataHandler
             preparedStatement = getMaterializedViewOrExternalTable(connection, tableName, resolvedSchemaName);
             resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
             if (resolvedTableName == null) {
-
                 throw new AthenaConnectorException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName),
                         ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
-
             }
         }
         return new TableName(resolvedSchemaName, resolvedTableName);
