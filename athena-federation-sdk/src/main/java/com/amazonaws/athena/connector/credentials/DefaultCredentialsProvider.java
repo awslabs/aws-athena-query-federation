@@ -20,11 +20,12 @@
 package com.amazonaws.athena.connector.credentials;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -62,7 +63,7 @@ public class DefaultCredentialsProvider
         }
         catch (IOException ioException) {
             throw new AthenaConnectorException("Could not deserialize RDS credentials into HashMap: ",
-                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()).withErrorMessage(ioException.getMessage()));
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(ioException.getMessage()).build());
         }
 
         this.defaultCredentials = new DefaultCredentials(rdsSecrets.get("username"), rdsSecrets.get("password"));

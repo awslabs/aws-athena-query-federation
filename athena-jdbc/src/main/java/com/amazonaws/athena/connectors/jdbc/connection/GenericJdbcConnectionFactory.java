@@ -21,9 +21,13 @@ package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.services.glue.model.ErrorDetails;
+import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -96,10 +100,10 @@ public class GenericJdbcConnectionFactory
         }
         catch (SQLException e) {
             if (e.getMessage().contains("Name or service not known")) {
-                throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             else if (e.getMessage().contains("Incorrect username or password was specified.")) {
-                throw new AthenaConnectorException(e.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidCredentialsException.toString()));
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
             }
         }
         return connection;
@@ -112,7 +116,7 @@ public class GenericJdbcConnectionFactory
         }
         catch (UnsupportedEncodingException ex) {
             throw new AthenaConnectorException("Unsupported Encoding Exception: ",
-                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()).withErrorMessage(ex.getMessage()));
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).errorMessage(ex.getMessage()).build());
         }
     }
 }

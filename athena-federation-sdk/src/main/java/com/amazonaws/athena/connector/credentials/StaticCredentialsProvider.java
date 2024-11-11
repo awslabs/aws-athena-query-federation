@@ -20,10 +20,11 @@
 package com.amazonaws.athena.connector.credentials;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 /**
  * Static credential provider.
@@ -42,7 +43,7 @@ public class StaticCredentialsProvider
 
         if (StringUtils.isAnyBlank(jdbcCredential.getUser(), jdbcCredential.getPassword())) {
             throw new AthenaConnectorException("User or password must not be blank.",
-                    new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
