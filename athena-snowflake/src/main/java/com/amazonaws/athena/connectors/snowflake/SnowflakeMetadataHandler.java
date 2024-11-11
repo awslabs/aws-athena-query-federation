@@ -510,7 +510,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             partitionSchema.getFields().forEach(schemaBuilder::addField);
         }
         catch (SnowflakeSQLException ex) {
-            throw new AthenaConnectorException(ex.getMessage(),ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
+            throw new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
         }
         LOGGER.debug(schemaBuilder.toString());
         return schemaBuilder.build();
