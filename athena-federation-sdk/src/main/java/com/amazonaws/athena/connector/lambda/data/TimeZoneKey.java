@@ -279,7 +279,8 @@ public final class TimeZoneKey
         if (length == 2) {
             hourTens = '0';
             hourOnes = zoneId.charAt(1);
-        } else {
+        }
+        else {
             hourTens = zoneId.charAt(1);
             hourOnes = zoneId.charAt(2);
         }
