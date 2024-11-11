@@ -111,13 +111,13 @@ public final class TimeZoneKey
                 OFFSET_TIME_ZONE_KEYS[offset - OFFSET_TIME_ZONE_MIN] = zoneKey;
             }
         }
-        catch (IOException e)
-        {
+        catch (IOException e) {
             throw new AssertionError("Error loading time zone index file", e);
         }
     }
 
-    public static Set<TimeZoneKey> getTimeZoneKeys() {
+    public static Set<TimeZoneKey> getTimeZoneKeys()
+    {
         return ZONE_KEYS;
     }
 
@@ -145,18 +145,15 @@ public final class TimeZoneKey
 
     public static TimeZoneKey getTimeZoneKeyForOffset(long offsetMinutes)
     {
-        if (offsetMinutes == 0)
-        {
+        if (offsetMinutes == 0) {
             return UTC_KEY;
         }
 
-        if (!(offsetMinutes >= OFFSET_TIME_ZONE_MIN && offsetMinutes <= OFFSET_TIME_ZONE_MAX))
-        {
+        if (!(offsetMinutes >= OFFSET_TIME_ZONE_MIN && offsetMinutes <= OFFSET_TIME_ZONE_MAX)) {
             throw new AthenaConnectorException(String.format("Invalid offset minutes %s", offsetMinutes), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         TimeZoneKey timeZoneKey = OFFSET_TIME_ZONE_KEYS[((int) offsetMinutes) - OFFSET_TIME_ZONE_MIN];
-        if (timeZoneKey == null)
-        {
+        if (timeZoneKey == null) {
             throw new AthenaConnectorException("Time zone not supported: " + zoneIdForOffset(offsetMinutes), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         return timeZoneKey;
@@ -175,29 +172,30 @@ public final class TimeZoneKey
         this.key = key;
     }
 
-    public String getId() {
+    public String getId()
+    {
         return id;
     }
 
     @JsonValue
-    public short getKey() {
+    public short getKey()
+    {
         return key;
     }
 
     @Override
-    public int hashCode() {
+    public int hashCode()
+    {
         return Objects.hash(id, key);
     }
 
     @Override
     public boolean equals(Object obj)
     {
-        if (this == obj)
-        {
+        if (this == obj) {
             return true;
         }
-        if (obj == null || getClass() != obj.getClass())
-        {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         TimeZoneKey other = (TimeZoneKey) obj;
@@ -205,11 +203,13 @@ public final class TimeZoneKey
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         return id;
     }
 
-    public static boolean isUtcZoneId(String zoneId) {
+    public static boolean isUtcZoneId(String zoneId)
+    {
         return normalizeZoneId(zoneId).equals("utc");
     }
 
@@ -218,13 +218,11 @@ public final class TimeZoneKey
         String zoneId = originalZoneId.toLowerCase(ENGLISH);
 
         boolean startsWithEtc = zoneId.startsWith("etc/");
-        if (startsWithEtc)
-        {
+        if (startsWithEtc) {
             zoneId = zoneId.substring(4);
         }
 
-        if (isUtcEquivalentName(zoneId))
-        {
+        if (isUtcEquivalentName(zoneId)) {
             return "utc";
         }
 
@@ -235,31 +233,26 @@ public final class TimeZoneKey
         // In some zones systems, these will start with UTC, GMT or UT.
         int length = zoneId.length();
         boolean startsWithEtcGmt = false;
-        if (length > 3 && (zoneId.startsWith("utc") || zoneId.startsWith("gmt")))
-        {
-            if (startsWithEtc && zoneId.startsWith("gmt"))
-            {
+        if (length > 3 && (zoneId.startsWith("utc") || zoneId.startsWith("gmt"))) {
+            if (startsWithEtc && zoneId.startsWith("gmt")) {
                 startsWithEtcGmt = true;
             }
             zoneId = zoneId.substring(3);
             length = zoneId.length();
         }
-        else if (length > 2 && zoneId.startsWith("ut"))
-        {
+        else if (length > 2 && zoneId.startsWith("ut")) {
             zoneId = zoneId.substring(2);
             length = zoneId.length();
         }
 
         // (+/-)00:00 is UTC
-        if ("+00:00".equals(zoneId) || "-00:00".equals(zoneId))
-        {
+        if ("+00:00".equals(zoneId) || "-00:00".equals(zoneId)) {
             return "utc";
         }
 
         // if zoneId matches XXX:XX, it is likely +HH:mm, so just return it
         // since only offset time zones will contain a `:` character
-        if (length == 6 && zoneId.charAt(3) == ':')
-        {
+        if (length == 6 && zoneId.charAt(3) == ':') {
             return zoneId;
         }
 
@@ -272,8 +265,7 @@ public final class TimeZoneKey
 
         // zone must start with a plus or minus sign
         char signChar = zoneId.charAt(0);
-        if (signChar != '+' && signChar != '-')
-        {
+        if (signChar != '+' && signChar != '-') {
             return originalZoneId;
         }
         if (startsWithEtcGmt) {
@@ -305,7 +297,8 @@ public final class TimeZoneKey
         return "" + signChar + hourTens + hourOnes + ":00";
     }
 
-    private static boolean isUtcEquivalentName(String zoneId) {
+    private static boolean isUtcEquivalentName(String zoneId)
+    {
         return zoneId.equals("utc") ||
                 zoneId.equals("z") ||
                 zoneId.equals("ut") ||
