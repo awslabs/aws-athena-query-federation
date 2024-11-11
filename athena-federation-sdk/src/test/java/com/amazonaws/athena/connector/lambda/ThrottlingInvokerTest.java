@@ -22,8 +22,8 @@ package com.amazonaws.athena.connector.lambda;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
-import com.amazonaws.services.glue.model.ErrorDetails;
 import org.junit.Test;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
 
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -101,7 +101,7 @@ public class ThrottlingInvokerTest
                 .withFilter((Exception ex) -> ex instanceof FederationThrottleException)
                 .build();
 
-        invoker.invoke(() -> {throw new AthenaConnectorException("Throttling error", new ErrorDetails());}, 2_000);
+        invoker.invoke(() -> {throw new AthenaConnectorException("Throttling error", ErrorDetails.builder().build());}, 2_000);
     }
 
     @Test(expected = AthenaConnectorException.class)
@@ -119,6 +119,6 @@ public class ThrottlingInvokerTest
                 .build();
 
         when(spiller.spilled()).thenReturn(false);
-        invoker.invoke(() -> {throw new AthenaConnectorException("Throttling error", new ErrorDetails());}, 2_000);
+        invoker.invoke(() -> {throw new AthenaConnectorException("Throttling error", ErrorDetails.builder().build());}, 2_000);
     }
 }

@@ -20,8 +20,8 @@
 package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,7 +36,7 @@ public enum ComplexExpressionPushdownSubType
         public SubTypeProperties withSubTypeProperties(String... properties)
         {
             if (properties.length == 0) {
-                throw new AthenaConnectorException("Connectors that support function expressions must provide a list of supported functions. See Documentation for more details", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException("Connectors that support function expressions must provide a list of supported functions. See Documentation for more details", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             return new SubTypeProperties(getSubType(), Arrays.asList(properties));
         }

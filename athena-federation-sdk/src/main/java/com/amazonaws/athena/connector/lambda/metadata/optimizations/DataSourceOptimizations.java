@@ -26,8 +26,8 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Hin
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.PushdownSubTypes;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Arrays;
@@ -42,7 +42,7 @@ public enum DataSourceOptimizations
         public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof LimitPushdownSubType)) {
-                throw new AthenaConnectorException("Limit Pushdown Optimization must contain valid pushdown subtypes.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException("Limit Pushdown Optimization must contain valid pushdown subtypes.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             return new SimpleImmutableEntry<String, List<OptimizationSubType>>(SUPPORTS_LIMIT_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
@@ -52,7 +52,7 @@ public enum DataSourceOptimizations
         public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof TopNPushdownSubType)) {
-                throw new AthenaConnectorException("TopN Pushdown Optimization must contain valid pushdown subtypes.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException("TopN Pushdown Optimization must contain valid pushdown subtypes.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             return new SimpleImmutableEntry<String, List<OptimizationSubType>>(SUPPORTS_TOP_N_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
@@ -62,7 +62,7 @@ public enum DataSourceOptimizations
         public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof FilterPushdownSubType)) {
-                throw new AthenaConnectorException("Filter Pushdown Optimization must contain valid pushdown subtypes.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException("Filter Pushdown Optimization must contain valid pushdown subtypes.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             return new SimpleImmutableEntry<String, List<OptimizationSubType>>(SUPPORTS_FILTER_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
@@ -72,7 +72,7 @@ public enum DataSourceOptimizations
         public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownsubTypes -> pushdownsubTypes instanceof ComplexExpressionPushdownSubType || pushdownsubTypes instanceof ComplexExpressionPushdownSubType.SubTypeProperties)) {
-                throw new AthenaConnectorException("Complex Expression Pushdown Optimization must contain valid pushdown subtypes.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException("Complex Expression Pushdown Optimization must contain valid pushdown subtypes.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             return new SimpleImmutableEntry<String, List<OptimizationSubType>>(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
@@ -84,7 +84,7 @@ public enum DataSourceOptimizations
         public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof HintsSubtype)) {
-                throw new AthenaConnectorException("Data Source Hints  must contain valid data source hint subtypes.", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+                throw new AthenaConnectorException("Data Source Hints  must contain valid data source hint subtypes.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             return new SimpleImmutableEntry<>(DATA_SOURCE_HINTS.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }

@@ -24,12 +24,12 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.RecordBatchSerDe;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -85,7 +85,7 @@ public class AesGcmBlockCrypto
             return cipher.doFinal(out.toByteArray());
         }
         catch (BadPaddingException | IllegalBlockSizeException | IOException ex) {
-            throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -101,7 +101,7 @@ public class AesGcmBlockCrypto
             return resultBlock;
         }
         catch (BadPaddingException | IllegalBlockSizeException | IOException ex) {
-            throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -112,19 +112,19 @@ public class AesGcmBlockCrypto
             return cipher.doFinal(bytes);
         }
         catch (BadPaddingException | IllegalBlockSizeException ex) {
-            throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
     private Cipher makeCipher(int mode, EncryptionKey key)
     {
         if (key.getNonce().length != NONCE_BYTES) {
-            throw new AthenaConnectorException("Expected " + NONCE_BYTES + " nonce bytes but found " + key.getNonce().length, new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+            throw new AthenaConnectorException("Expected " + NONCE_BYTES + " nonce bytes but found " + key.getNonce().length, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         logger.debug("Cipher key bytes length: " + key.getKey().length);
         if (key.getKey() == null || key.getKey().length == 0) {
-            throw new AthenaConnectorException("Invalid key", new ErrorDetails().withErrorCode(FederationSourceErrorCode.InvalidInputException.toString()));
+            throw new AthenaConnectorException("Invalid key", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, key.getNonce());
@@ -137,7 +137,7 @@ public class AesGcmBlockCrypto
         }
         catch (NoSuchAlgorithmException | InvalidKeyException | InvalidAlgorithmParameterException
                 | NoSuchProviderException | NoSuchPaddingException ex) {
-            throw new AthenaConnectorException(ex, ex.getMessage(), new ErrorDetails().withErrorCode(FederationSourceErrorCode.InternalServiceException.toString()));
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 }

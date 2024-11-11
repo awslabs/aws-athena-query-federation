@@ -138,7 +138,7 @@ public abstract class RecordHandler
                 }
 
                 if (!(rawReq instanceof RecordRequest)) {
-                    throw new AthenaConnectorException("Expected a RecordRequest but found " + rawReq.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
+                    throw new AthenaConnectorException("Expected a RecordRequest but found " + rawReq.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                 }
 
                 doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);

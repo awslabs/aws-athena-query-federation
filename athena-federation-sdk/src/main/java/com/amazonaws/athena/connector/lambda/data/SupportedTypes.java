@@ -20,11 +20,11 @@
 package com.amazonaws.athena.connector.lambda.data;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -130,7 +130,7 @@ public enum SupportedTypes
     {
         if (!isSupported(field)) {
             throw new AthenaConnectorException("Detected unsupported type[" + field.getType() + " / " + Types.getMinorTypeForArrowType(field.getType()) +
-                    " for column[" + field.getName() + "]", new ErrorDetails().withErrorCode(FederationSourceErrorCode.OperationNotSupportedException.toString()));
+                    " for column[" + field.getName() + "]", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
     }
 }
