@@ -47,7 +47,8 @@ import static java.util.Objects.requireNonNull;
  * Class for representing timezone to be used in encoding datetime value and timezone value to a single long
  * Source: Presto TimeZoneKey
  */
-public final class TimeZoneKey {
+public final class TimeZoneKey
+{
     public static final TimeZoneKey UTC_KEY = new TimeZoneKey("UTC", (short) 0);
     public static final short MAX_TIME_ZONE_KEY;
     private static final Map<String, TimeZoneKey> ZONE_ID_TO_KEY;
@@ -65,7 +66,8 @@ public final class TimeZoneKey {
             // todo parse file by hand since Properties ignores duplicate entries
             Properties data = new Properties() {
                 @Override
-                public synchronized Object put(Object key, Object value) {
+                public synchronized Object put(Object key, Object value)
+                {
                     Object existingEntry = super.put(key, value);
                     if (existingEntry != null) {
                         throw new AssertionError("Zone file has duplicate entries for " + key);
@@ -108,7 +110,9 @@ public final class TimeZoneKey {
                 TimeZoneKey zoneKey = ZONE_ID_TO_KEY.get(zoneId);
                 OFFSET_TIME_ZONE_KEYS[offset - OFFSET_TIME_ZONE_MIN] = zoneKey;
             }
-        } catch (IOException e) {
+        }
+        catch (IOException e)
+        {
             throw new AssertionError("Error loading time zone index file", e);
         }
     }
@@ -118,12 +122,14 @@ public final class TimeZoneKey {
     }
 
     @JsonCreator
-    public static TimeZoneKey getTimeZoneKey(short timeZoneKey) {
+    public static TimeZoneKey getTimeZoneKey(short timeZoneKey)
+    {
         checkArgument(timeZoneKey < TIME_ZONE_KEYS.length && TIME_ZONE_KEYS[timeZoneKey] != null, "Invalid time zone key %d", timeZoneKey);
         return TIME_ZONE_KEYS[timeZoneKey];
     }
 
-    public static TimeZoneKey getTimeZoneKey(String zoneId) {
+    public static TimeZoneKey getTimeZoneKey(String zoneId)
+    {
         requireNonNull(zoneId, "Zone id is null");
         checkArgument(!zoneId.isEmpty(), "Zone id is an empty string");
 
@@ -137,16 +143,20 @@ public final class TimeZoneKey {
         return zoneKey;
     }
 
-    public static TimeZoneKey getTimeZoneKeyForOffset(long offsetMinutes) {
-        if (offsetMinutes == 0) {
+    public static TimeZoneKey getTimeZoneKeyForOffset(long offsetMinutes)
+    {
+        if (offsetMinutes == 0)
+        {
             return UTC_KEY;
         }
 
-        if (!(offsetMinutes >= OFFSET_TIME_ZONE_MIN && offsetMinutes <= OFFSET_TIME_ZONE_MAX)) {
+        if (!(offsetMinutes >= OFFSET_TIME_ZONE_MIN && offsetMinutes <= OFFSET_TIME_ZONE_MAX))
+        {
             throw new AthenaConnectorException(String.format("Invalid offset minutes %s", offsetMinutes), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         TimeZoneKey timeZoneKey = OFFSET_TIME_ZONE_KEYS[((int) offsetMinutes) - OFFSET_TIME_ZONE_MIN];
-        if (timeZoneKey == null) {
+        if (timeZoneKey == null)
+        {
             throw new AthenaConnectorException("Time zone not supported: " + zoneIdForOffset(offsetMinutes), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         return timeZoneKey;
@@ -156,7 +166,8 @@ public final class TimeZoneKey {
 
     private final short key;
 
-    TimeZoneKey(String id, short key) {
+    TimeZoneKey(String id, short key)
+    {
         this.id = requireNonNull(id, "id is null");
         if (key < 0) {
             throw new AthenaConnectorException("key is negative", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
@@ -179,11 +190,14 @@ public final class TimeZoneKey {
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
+    public boolean equals(Object obj)
+    {
+        if (this == obj)
+        {
             return true;
         }
-        if (obj == null || getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass())
+        {
             return false;
         }
         TimeZoneKey other = (TimeZoneKey) obj;
@@ -199,15 +213,18 @@ public final class TimeZoneKey {
         return normalizeZoneId(zoneId).equals("utc");
     }
 
-    private static String normalizeZoneId(String originalZoneId) {
+    private static String normalizeZoneId(String originalZoneId)
+    {
         String zoneId = originalZoneId.toLowerCase(ENGLISH);
 
         boolean startsWithEtc = zoneId.startsWith("etc/");
-        if (startsWithEtc) {
+        if (startsWithEtc)
+        {
             zoneId = zoneId.substring(4);
         }
 
-        if (isUtcEquivalentName(zoneId)) {
+        if (isUtcEquivalentName(zoneId))
+        {
             return "utc";
         }
 
@@ -218,25 +235,31 @@ public final class TimeZoneKey {
         // In some zones systems, these will start with UTC, GMT or UT.
         int length = zoneId.length();
         boolean startsWithEtcGmt = false;
-        if (length > 3 && (zoneId.startsWith("utc") || zoneId.startsWith("gmt"))) {
-            if (startsWithEtc && zoneId.startsWith("gmt")) {
+        if (length > 3 && (zoneId.startsWith("utc") || zoneId.startsWith("gmt")))
+        {
+            if (startsWithEtc && zoneId.startsWith("gmt"))
+            {
                 startsWithEtcGmt = true;
             }
             zoneId = zoneId.substring(3);
             length = zoneId.length();
-        } else if (length > 2 && zoneId.startsWith("ut")) {
+        }
+        else if (length > 2 && zoneId.startsWith("ut"))
+        {
             zoneId = zoneId.substring(2);
             length = zoneId.length();
         }
 
         // (+/-)00:00 is UTC
-        if ("+00:00".equals(zoneId) || "-00:00".equals(zoneId)) {
+        if ("+00:00".equals(zoneId) || "-00:00".equals(zoneId))
+        {
             return "utc";
         }
 
         // if zoneId matches XXX:XX, it is likely +HH:mm, so just return it
         // since only offset time zones will contain a `:` character
-        if (length == 6 && zoneId.charAt(3) == ':') {
+        if (length == 6 && zoneId.charAt(3) == ':')
+        {
             return zoneId;
         }
 
@@ -249,7 +272,8 @@ public final class TimeZoneKey {
 
         // zone must start with a plus or minus sign
         char signChar = zoneId.charAt(0);
-        if (signChar != '+' && signChar != '-') {
+        if (signChar != '+' && signChar != '-')
+        {
             return originalZoneId;
         }
         if (startsWithEtcGmt) {
@@ -294,11 +318,13 @@ public final class TimeZoneKey {
                 zoneId.equals("zulu");
     }
 
-    private static String zoneIdForOffset(long offset) {
+    private static String zoneIdForOffset(long offset)
+    {
         return String.format("%s%02d:%02d", offset < 0 ? "-" : "+", abs(offset / 60), abs(offset % 60));
     }
 
-    private static void checkArgument(boolean check, String message, Object... args) {
+    private static void checkArgument(boolean check, String message, Object... args)
+    {
         if (!check) {
             throw new AthenaConnectorException(String.format(message, args), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }

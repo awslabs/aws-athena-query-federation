@@ -17,9 +17,7 @@
  * limitations under the License.
  * #L%
  */
-
 package com.amazonaws.athena.connector.lambda.domain.spill;
-
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.annotations.VisibleForTesting;
