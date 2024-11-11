@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.http.Header;
 import org.apache.http.HttpEntityEnclosingRequest;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;

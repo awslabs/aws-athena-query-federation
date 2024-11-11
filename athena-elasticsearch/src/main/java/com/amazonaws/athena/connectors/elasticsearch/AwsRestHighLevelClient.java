@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-import com.amazonaws.athena.connector.lambda.serde.v4.FederationExpressionSerDeV4;
 import com.google.common.base.Splitter;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
