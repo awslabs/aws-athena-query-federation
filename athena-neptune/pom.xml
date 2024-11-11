@@ -10,7 +10,7 @@
     <version>2022.47.1</version>
     <properties>
         <!-- make sure gremlin driver version stays within the Neptune supported range -->
-        <gremlinDriverVersion>3.7.2</gremlinDriverVersion>
+        <gremlinDriverVersion>3.7.3</gremlinDriverVersion>
         <neptune.sigv4.signer.version>2.4.0</neptune.sigv4.signer.version>
     </properties>
     <dependencies>
@@ -124,7 +124,7 @@
         <dependency>
             <groupId>org.eclipse.rdf4j</groupId>
             <artifactId>rdf4j-repository-sparql</artifactId>
-            <version>5.0.2</version>
+            <version>5.0.3</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
