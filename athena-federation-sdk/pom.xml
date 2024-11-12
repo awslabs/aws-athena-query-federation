@@ -30,6 +30,12 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
             <version>${aws-sdk-v2.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -216,8 +222,8 @@
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.70</version>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.78.1</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -350,6 +356,10 @@
                         <relocation>
                             <pattern>io.netty</pattern>
                             <shadedPattern>athena.com.io.netty</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.bouncycastle</pattern>
+                            <shadedPattern>athena.com.org.bouncycastle</shadedPattern>
                         </relocation>
                     </relocations>
                 </configuration>
