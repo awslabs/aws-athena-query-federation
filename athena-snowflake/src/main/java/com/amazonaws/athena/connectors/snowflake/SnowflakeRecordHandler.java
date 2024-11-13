@@ -77,7 +77,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     }
 
     @Override
-    public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split) throws SQLException
+    public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableNameInput, Schema schema, Constraints constraints, Split split) throws SQLException
     {
         PreparedStatement preparedStatement;
 
@@ -85,6 +85,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
             preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
         }
         else {
+            TableName tableName = SnowflakeCaseInsensitiveResolver.getTableNameObjectCaseInsensitiveMatch(jdbcConnection, tableNameInput, configOptions);
             preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
         }
 
