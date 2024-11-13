@@ -111,7 +111,7 @@ public class SnowflakeMetadataHandlerTest
         String[] primaryKeyColumns = new String[] {SnowflakeMetadataHandler.PRIMARY_KEY_COLUMN_NAME};
         String[][] primaryKeyValues = new String[][]{new String[] {"pkey"}};
         ResultSet primaryKeyResultSet = mockResultSet(primaryKeyColumns, primaryKeyValues, new AtomicInteger(-1));
-        Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.SHOW_PRIMARY_KEYS_QUERY + "testSchema" + "." + "testTable")).thenReturn(primaryKeyPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.SHOW_PRIMARY_KEYS_QUERY + "\"testSchema\"" + "." + "\"testTable\"")).thenReturn(primaryKeyPreparedStatement);
         Mockito.when(primaryKeyPreparedStatement.executeQuery()).thenReturn(primaryKeyResultSet);
 
         PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
@@ -236,7 +236,7 @@ public class SnowflakeMetadataHandlerTest
         String[] primaryKeyColumns = new String[] {SnowflakeMetadataHandler.PRIMARY_KEY_COLUMN_NAME};
         String[][] primaryKeyValues = new String[][]{new String[] {"pkey"}};
         ResultSet primaryKeyResultSet = mockResultSet(primaryKeyColumns, primaryKeyValues, new AtomicInteger(-1));
-        Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.SHOW_PRIMARY_KEYS_QUERY + "testSchema" + "." + "testTable")).thenReturn(primaryKeyPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.SHOW_PRIMARY_KEYS_QUERY + "\"testSchema\"" + "." + "\"testTable\"")).thenReturn(primaryKeyPreparedStatement);
         Mockito.when(primaryKeyPreparedStatement.executeQuery()).thenReturn(primaryKeyResultSet);
 
         PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);

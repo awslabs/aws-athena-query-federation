@@ -113,8 +113,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     static final String SHOW_PRIMARY_KEYS_QUERY = "SHOW PRIMARY KEYS IN ";
     static final String PRIMARY_KEY_COLUMN_NAME = "column_name";
     static final String COUNTS_COLUMN_NAME = "COUNTS";
-    private static final String CASE_UPPER = "upper";
-    private static final String CASE_LOWER = "lower";
     /**
      * Query to check view
      */
@@ -208,7 +206,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         LOGGER.debug("getPrimaryKey tableName: " + tableName);
         List<String> primaryKeys = new ArrayList<String>();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + tableName.getSchemaName() + "." + tableName.getTableName());
+            try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
                 ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
                     // Concatenate multiple primary keys if they exist
