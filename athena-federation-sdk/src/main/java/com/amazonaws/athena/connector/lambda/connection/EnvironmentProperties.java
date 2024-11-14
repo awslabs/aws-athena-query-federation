@@ -95,7 +95,7 @@ public class EnvironmentProperties
     {
         Map<String, String> authMap = new HashMap<>();
 
-        if (StringUtils.isNotBlank(auth.secretArn())) {
+        if (auth != null && StringUtils.isNotBlank(auth.secretArn())) {
             String[] splitArn = auth.secretArn().split(":");
             String[] secretNameWithRandom = splitArn[splitArn.length - 1].split("-"); // 6 random characters at end. at least length of 2
             String[] secretNameArray = Arrays.copyOfRange(secretNameWithRandom, 0, secretNameWithRandom.length - 1);
