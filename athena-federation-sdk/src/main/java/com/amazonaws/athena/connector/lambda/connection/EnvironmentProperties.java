@@ -51,6 +51,7 @@ public class EnvironmentProperties
         String glueConnectionName = lambdaEnvironment.get(DEFAULT_GLUE_CONNECTION);
 
         HashMap<String, String> connectionEnvironment = new HashMap<>();
+        connectionEnvironment.put(DEFAULT_GLUE_CONNECTION, glueConnectionName);
         if (StringUtils.isNotBlank(glueConnectionName)) {
             Connection connection = getGlueConnection(glueConnectionName);
             Map<String, String> connectionProperties = new HashMap<>(connection.connectionPropertiesAsStrings());
