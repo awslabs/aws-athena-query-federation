@@ -20,12 +20,17 @@
 package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
+import com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SCHEMA;
@@ -33,19 +38,38 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 
 public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeEnvironmentProperties.class);
+    private static final String WAREHOUSE_PROPERTY_KEY = "warehouse";
+    private static final String DB_PROPERTY_KEY = "db";
+    private static final String SCHEMA_PROPERTY_KEY = "schema";
+    private static final String SNOWFLAKE_ESCAPE_CHARACTER = "\"";
+
     @Override
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
     {
         HashMap<String, String> environment = new HashMap<>();
 
-        // now construct jdbc string
-        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST);
-        if (connectionProperties.containsKey(PORT)) {
-            connectionString = connectionString + ":" + connectionProperties.get(PORT);
-        }
-        connectionString = connectionString + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
+        // put it as environment variable so we can put it as JDBC parameters later when creation connection (not with JDBC)
+        Optional.ofNullable(connectionProperties.get(WAREHOUSE)).ifPresent(x -> environment.put(WAREHOUSE, x));
+        Optional.ofNullable(connectionProperties.get(DATABASE)).ifPresent(x -> environment.put(DATABASE, x));
+        Optional.ofNullable(connectionProperties.get(SCHEMA)).ifPresent(x -> environment.put(SCHEMA, x));
 
-        environment.put(DEFAULT, connectionString);
+        // now construct jdbc string, Snowflake JDBC should just be plain JDBC String. Parameter in JDBC string will get upper case.
+        StringBuilder connectionStringBuilder = new StringBuilder(getConnectionStringPrefix(connectionProperties));
+        connectionStringBuilder.append(connectionProperties.get(HOST));
+        if (connectionProperties.containsKey(PORT)) {
+            connectionStringBuilder
+                    .append(":")
+                    .append(connectionProperties.get(PORT));
+        }
+
+        String jdbcParametersString = getJdbcParameters(connectionProperties);
+        if (!Strings.isNullOrEmpty(jdbcParametersString)) {
+            LOGGER.info("JDBC parameters found, adding to JDBC String");
+            connectionStringBuilder.append(getSnowflakeJDBCParameterPrefix()).append(getJdbcParameters(connectionProperties));
+        }
+
+        environment.put(DEFAULT, connectionStringBuilder.toString());
         return environment;
     }
 
@@ -55,22 +79,59 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
         return "snowflake://jdbc:snowflake://";
     }
 
+    /**
+     * For Snowflake, we don't put warehouse, database or schema information to the JDBC String to avoid casing issues.
+     * @param connectionProperties
+     * @return
+     */
     @Override
     protected String getDatabase(Map<String, String> connectionProperties)
     {
-        if (!connectionProperties.containsKey(SCHEMA)) {
-            logger.debug("No schema specified in connection string");
-        }
-
-        String databaseString = "/?warehouse=" + connectionProperties.get(WAREHOUSE)
-                + "&db=" + connectionProperties.get(DATABASE)
-                + "&schema=" + connectionProperties.get(SCHEMA);
-        return databaseString;
+        return "";
     }
 
     @Override
     protected String getJdbcParametersSeparator()
     {
         return "&";
+    }
+
+    private String getSnowflakeJDBCParameterPrefix()
+    {
+        return "/?";
+    }
+
+    private static String getValueWrapperWithEscapedCharacter(String input)
+    {
+        return SNOWFLAKE_ESCAPE_CHARACTER + input + SNOWFLAKE_ESCAPE_CHARACTER;
+    }
+
+    private static boolean isGlueConnection(Map<String, String> properties)
+    {
+        return properties.containsKey(DEFAULT_GLUE_CONNECTION);
+    }
+
+    public static Map<String, String> getSnowFlakeParameter(Map<String, String> baseProperty, Map<String, String> connectionProperties)
+    {
+        logger.debug("getSnowFlakeParameter, Loading connection properties");
+        Map<String, String> parameters = new HashMap<>(baseProperty);
+
+        if (!isGlueConnection(connectionProperties)) {
+            return parameters;
+        }
+
+        if (!connectionProperties.containsKey(SCHEMA)) {
+            logger.debug("No schema specified in connection string");
+        }
+
+        parameters.put(WAREHOUSE_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(WAREHOUSE)));
+        parameters.put(DB_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(DATABASE)));
+
+        if (connectionProperties.containsKey(SCHEMA)) {
+            logger.debug("Found schema specified");
+            parameters.put(SCHEMA_PROPERTY_KEY, getValueWrapperWithEscapedCharacter(connectionProperties.get(SCHEMA)));
+        }
+
+        return parameters;
     }
 }
