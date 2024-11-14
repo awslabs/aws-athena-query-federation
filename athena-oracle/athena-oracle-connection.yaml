@@ -37,6 +37,7 @@ Parameters:
   KmsKeyId:
     Description: "(Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys."
     Type: String
+    Default: ""
   LambdaRoleArn:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Type: String
