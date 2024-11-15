@@ -53,10 +53,10 @@ public class EnvironmentProperties
         HashMap<String, String> connectionEnvironment = new HashMap<>();
         if (StringUtils.isNotBlank(glueConnectionName)) {
             Connection connection = getGlueConnection(glueConnectionName);
-            Map<String, String> connectionProperties = new HashMap<>(connection.connectionPropertiesAsStrings());
-            connectionProperties.putAll(authenticationConfigurationToMap(connection.authenticationConfiguration()));
+            Map<String, String> connectionPropertiesWithSecret = new HashMap<>(connection.connectionPropertiesAsStrings());
+            connectionPropertiesWithSecret.putAll(authenticationConfigurationToMap(connection.authenticationConfiguration()));
 
-            connectionEnvironment.putAll(connectionPropertiesToEnvironment(connectionProperties));
+            connectionEnvironment.putAll(connectionPropertiesToEnvironment(connectionPropertiesWithSecret));
             connectionEnvironment.putAll(athenaPropertiesToEnvironment(connection.athenaProperties()));
         }
 
@@ -120,13 +120,14 @@ public class EnvironmentProperties
     }
 
     /**
-     * Maps glue connection properties to environment properties like 'default' and 'secret_manager_gcp_creds_name'
-     * Default behavior is to not populate environment with these properties
+     * Maps glue connection properties and authentication configuration
+     * to Athena federation environment properties like 'default' and 'secret_manager_gcp_creds_name'
+     * Default behavior is to not map to Athena federation environment variables
      *
      * @param connectionProperties contains secret_name and connection properties
      */
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
     {
-        return new HashMap<>();
+        return connectionProperties;
     }
 }
