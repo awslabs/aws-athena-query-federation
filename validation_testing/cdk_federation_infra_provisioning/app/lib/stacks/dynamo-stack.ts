@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as glue from '@aws-cdk/aws-glue-alpha';
 import * as ddb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { CfnInclude } from 'aws-cdk-lib/cloudformation-include';
 import { Construct } from 'constructs';
 import tpcdsJson from '../../resources/tpcds_specs.json'

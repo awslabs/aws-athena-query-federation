@@ -51,6 +51,10 @@ import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -135,5 +139,38 @@ public class HiveRecordHandlerTest
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
                 .setDate(1, expectedDate);
+    }
+
+    @Test
+    public void buildSplitSqlTimestamp()
+            throws SQLException
+    {
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.DATEMILLI.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("partition", Types.MinorType.VARCHAR.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = Mockito.mock(Split.class);
+        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
+        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime timestamp = LocalDateTime.parse("2024-10-03 12:34:56", formatter);
+        ValueSet valueSet2 = getSingleValueSet(timestamp);
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
+                .put("testCol1", valueSet2)
+                .build());
+        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        LocalDateTime timestampExp = LocalDateTime.parse("2024-10-03 12:34:56", formatter);
+        Timestamp expectedTimestamp = new Timestamp(timestamp.toInstant(ZoneOffset.UTC).toEpochMilli());
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        Mockito.verify(preparedStatement, Mockito.times(1))
+                .setTimestamp(1, expectedTimestamp);
     }
 }
