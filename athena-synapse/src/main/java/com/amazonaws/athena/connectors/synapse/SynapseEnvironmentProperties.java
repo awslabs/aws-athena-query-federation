@@ -30,7 +30,7 @@ public class SynapseEnvironmentProperties extends JdbcEnvironmentProperties
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
-        return "synapse://jdbc:synapse://";
+        return "synapse://jdbc:sqlserver://";
     }
 
     @Override
