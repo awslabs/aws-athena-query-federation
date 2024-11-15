@@ -47,7 +47,12 @@ public class ElasticsearchCredentialProvider
     {
         Map<String, String> elasticsearchSecrets;
         try {
-            elasticsearchSecrets = OBJECT_MAPPER.readValue(secretString, HashMap.class);
+            Map<String, String> originalMap = OBJECT_MAPPER.readValue(secretString, HashMap.class);
+
+            elasticsearchSecrets = new HashMap<>();
+            for (Map.Entry<String, String> entry : originalMap.entrySet()) {
+                elasticsearchSecrets.put(entry.getKey().toLowerCase(), entry.getValue());
+            }
         }
         catch (IOException ioException) {
             throw new RuntimeException("Could not deserialize Elasticsearch credentials into HashMap", ioException);
