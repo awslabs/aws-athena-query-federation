@@ -52,6 +52,7 @@ public class EnvironmentProperties
 
         HashMap<String, String> connectionEnvironment = new HashMap<>();
         if (StringUtils.isNotBlank(glueConnectionName)) {
+            connectionEnvironment.put(DEFAULT_GLUE_CONNECTION, glueConnectionName);
             Connection connection = getGlueConnection(glueConnectionName);
             Map<String, String> connectionPropertiesWithSecret = new HashMap<>(connection.connectionPropertiesAsStrings());
             connectionPropertiesWithSecret.putAll(authenticationConfigurationToMap(connection.authenticationConfiguration()));

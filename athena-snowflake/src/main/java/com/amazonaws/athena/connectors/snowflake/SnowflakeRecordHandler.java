@@ -42,6 +42,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.JDBC_PROPERTIES;
 
 public class SnowflakeRecordHandler extends JdbcRecordHandler
 {
@@ -59,7 +60,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig,
-                SnowflakeMetadataHandler.JDBC_PROPERTIES,
+                SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
                 new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS,
                         SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)), configOptions);
     }
