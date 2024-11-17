@@ -51,4 +51,5 @@ public final class EnvironmentConstants
     public static final String ZOOKEEPER_PORT = "ZOOKEEPER_PORT";
     public static final String CUSTOM_AUTH_TYPE = "CUSTOM_AUTH_TYPE";
     public static final String GLUE_CERTIFICATES_S3_REFERENCE = "CERTIFICATE_S3_REFERENCE";
+    public static final String ENFORCE_SSL = "ENFORCE_SSL";
 }
