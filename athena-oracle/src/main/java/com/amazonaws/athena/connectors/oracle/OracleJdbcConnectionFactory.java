@@ -41,10 +41,7 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleJdbcConnectionFactory.class);
-    private static final String SSL_CONNECTION_STRING_REGEX = "jdbc:oracle:thin:\\$\\{([a-zA-Z0-9:_/+=.@-]+)\\}@" +
-            "\\((?i)description=\\(address=\\(protocol=tcps\\)\\(host=[a-zA-Z0-9-.]+\\)" +
-            "\\(port=([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])\\)\\)" +
-            "\\(connect_data=\\(sid=[a-zA-Z_]+\\)\\)\\(security=\\(ssl_server_cert_dn=\"[=a-zA-Z,0-9-.,]+\"\\)\\)\\)";
+    private static final String SSL_CONNECTION_STRING_REGEX = "jdbc:oracle:thin:\\$\\{([a-zA-Z0-9:_/+=.@-]+)\\}@tcps://";
     private static final Pattern SSL_CONNECTION_STRING_PATTERN = Pattern.compile(SSL_CONNECTION_STRING_REGEX);
 
     /**

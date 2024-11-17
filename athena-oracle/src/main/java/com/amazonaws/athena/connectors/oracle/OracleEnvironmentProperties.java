@@ -24,6 +24,7 @@ import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.ENFORCE_SSL;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
 
 public class OracleEnvironmentProperties extends JdbcEnvironmentProperties
@@ -35,7 +36,12 @@ public class OracleEnvironmentProperties extends JdbcEnvironmentProperties
         if (connectionProperties.containsKey(SECRET_NAME)) {
             prefix = prefix + "${" + connectionProperties.get(SECRET_NAME) + "}";
         }
-        prefix = prefix + "@//";
+        if (connectionProperties.containsKey(ENFORCE_SSL)) {
+            prefix = prefix + "@tcps://";
+        }
+        else {
+            prefix = prefix + "@//";
+        }
 
         return prefix;
     }
