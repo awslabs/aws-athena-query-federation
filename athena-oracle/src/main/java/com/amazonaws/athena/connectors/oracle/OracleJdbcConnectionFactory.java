@@ -79,6 +79,10 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     LOGGER.info("Establishing normal connection..");
                 }
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
+                String password = jdbcCredentialProvider.getCredential().getPassword();
+                if (!password.contains("\"")) {
+                    password = String.format("\"%s\"", password);
+                }
                 final String secretReplacement = String.format("%s/%s", jdbcCredentialProvider.getCredential().getUser(),
                         jdbcCredentialProvider.getCredential().getPassword());
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
