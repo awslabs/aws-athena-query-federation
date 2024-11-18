@@ -112,7 +112,12 @@ public class EnvironmentProperties
      * */
     public Map<String, String> athenaPropertiesToEnvironment(Map<String, String> athenaProperties)
     {
-        return athenaProperties;
+        Map<String, String> athenaPropertiesModified = new HashMap<>(athenaProperties);
+        if (athenaPropertiesModified.containsKey(SPILL_KMS_KEY_ID)) {
+            String kmsKeyId = athenaPropertiesModified.remove(SPILL_KMS_KEY_ID);
+            athenaPropertiesModified.put(KMS_KEY_ID, kmsKeyId);
+        }
+        return athenaPropertiesModified;
     }
 
     /**
