@@ -37,10 +37,13 @@ public class DocDBEnvironmentProperties extends EnvironmentProperties
     {
         Map<String, String> environment = new HashMap<>();
 
-        String connectionString = "mongodb://${" + connectionProperties.get(SECRET_NAME) + "}@"
-                + connectionProperties.get(HOST) + connectionProperties.get(PORT) + "/?"
-                + connectionProperties.getOrDefault(JDBC_PARAMS, "");
-        environment.put(DEFAULT_DOCDB, connectionString);
+        StringBuilder connectionString = new StringBuilder("mongodb://${");
+        connectionString.append(connectionProperties.get(SECRET_NAME)).append("}@");
+        connectionString.append(connectionProperties.get(HOST)).append(":").append(connectionProperties.get(PORT));
+        if (connectionProperties.containsKey(JDBC_PARAMS)) {
+            connectionString.append("/?").append(connectionProperties.get(JDBC_PARAMS));
+        }
+        environment.put(DEFAULT_DOCDB, connectionString.toString());
         return environment;
     }
 }
