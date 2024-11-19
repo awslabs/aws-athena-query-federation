@@ -39,10 +39,11 @@ public abstract class JdbcEnvironmentProperties extends EnvironmentProperties
         HashMap<String, String> environment = new HashMap<>();
 
         // now construct jdbc string
-        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST)
-                + ":" + connectionProperties.get(PORT) + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
+        StringBuilder connectionString = new StringBuilder(getConnectionStringPrefix(connectionProperties));
+        connectionString.append(connectionProperties.get(HOST)).append(":").append(connectionProperties.get(PORT));
+        connectionString.append(getDatabase(connectionProperties)).append(getJdbcParameters(connectionProperties));
 
-        environment.put(DEFAULT, connectionString);
+        environment.put(DEFAULT, connectionString.toString());
         return environment;
     }
 
@@ -55,16 +56,17 @@ public abstract class JdbcEnvironmentProperties extends EnvironmentProperties
 
     protected String getJdbcParameters(Map<String, String> connectionProperties)
     {
-        String params = getJdbcParametersSeparator() + connectionProperties.getOrDefault(JDBC_PARAMS, "");
+        StringBuilder params = new StringBuilder(getJdbcParametersSeparator());
+        params.append(connectionProperties.getOrDefault(JDBC_PARAMS, ""));
 
         if (connectionProperties.containsKey(SECRET_NAME)) {
             if (connectionProperties.containsKey(JDBC_PARAMS)) { // need to add delimiter
-                params = params + getDelimiter();
+                params.append(getDelimiter());
             }
-            params = params + "${" + connectionProperties.get(SECRET_NAME) + "}";
+            params.append("${").append(connectionProperties.get(SECRET_NAME)).append("}");
         }
 
-        return params;
+        return params.toString();
     }
 
     protected String getDatabaseSeparator()
