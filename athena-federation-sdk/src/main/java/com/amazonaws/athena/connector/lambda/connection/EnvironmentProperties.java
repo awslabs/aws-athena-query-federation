@@ -92,7 +92,7 @@ public class EnvironmentProperties
         }
     }
 
-    private Map<String, String> authenticationConfigurationToMap(AuthenticationConfiguration auth)
+    public Map<String, String> authenticationConfigurationToMap(AuthenticationConfiguration auth)
     {
         Map<String, String> authMap = new HashMap<>();
 
