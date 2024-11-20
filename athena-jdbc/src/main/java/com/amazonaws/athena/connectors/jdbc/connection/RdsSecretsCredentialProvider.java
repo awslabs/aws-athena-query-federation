@@ -52,7 +52,9 @@ public class RdsSecretsCredentialProvider
 
             rdsSecrets = new HashMap<>();
             for (Map.Entry<String, String> entry : originalMap.entrySet()) {
-                rdsSecrets.put(entry.getKey().toLowerCase(), entry.getValue());
+                if (entry.getKey().equalsIgnoreCase("username") || entry.getKey().equalsIgnoreCase("password")) {
+                    rdsSecrets.put(entry.getKey().toLowerCase(), entry.getValue());
+                }
             }
         }
         catch (IOException ioException) {
