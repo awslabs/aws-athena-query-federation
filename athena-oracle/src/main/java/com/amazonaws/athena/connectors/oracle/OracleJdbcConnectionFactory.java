@@ -81,7 +81,7 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     password = String.format("\"%s\"", password);
                 }
                 final String secretReplacement = String.format("%s/%s", jdbcCredentialProvider.getCredential().getUser(),
-                        jdbcCredentialProvider.getCredential().getPassword());
+                        password);
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
                 LOGGER.info("derivedJdbcString: " + derivedJdbcString);
                 return DriverManager.getConnection(derivedJdbcString, properties);
