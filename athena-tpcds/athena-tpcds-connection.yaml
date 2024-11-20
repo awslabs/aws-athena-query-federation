@@ -45,7 +45,7 @@ Resources:
     Properties:
       Environment:
         Variables:
-          glue_connection: Ref GlueConnection
+          glue_connection: !Ref GlueConnection
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
