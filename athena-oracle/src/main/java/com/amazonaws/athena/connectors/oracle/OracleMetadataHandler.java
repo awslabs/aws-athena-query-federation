@@ -95,7 +95,7 @@ public class OracleMetadataHandler
     static final String BLOCK_PARTITION_COLUMN_NAME = "PARTITION_NAME";
     static final String ALL_PARTITIONS = "0";
     static final String PARTITION_COLUMN_NAME = "PARTITION_NAME";
-    static final String UPPER_CASE = "upper-case";
+    static final String CASING_MODE = "casing-mode";
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private static final String COLUMN_NAME = "COLUMN_NAME";
@@ -448,7 +448,7 @@ public class OracleMetadataHandler
     private String transformString(String str)
     {
         boolean isGlueConnection = StringUtils.isBlank(configOptions.get(DEFAULT_GLUE_CONNECTION));
-        boolean uppercase = configOptions.getOrDefault(UPPER_CASE, isGlueConnection ? "false" : "true").toLowerCase().equals("true");
+        boolean uppercase = configOptions.getOrDefault(CASING_MODE, isGlueConnection ? "lower" : "upper").toLowerCase().equals("upper");
         if (uppercase) {
             return str.toUpperCase();
         }
