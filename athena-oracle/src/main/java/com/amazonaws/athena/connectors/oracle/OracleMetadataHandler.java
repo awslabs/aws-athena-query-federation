@@ -61,6 +61,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -78,6 +79,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.MODULUS_FUNCTION_NAME;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
@@ -93,6 +95,7 @@ public class OracleMetadataHandler
     static final String BLOCK_PARTITION_COLUMN_NAME = "PARTITION_NAME";
     static final String ALL_PARTITIONS = "0";
     static final String PARTITION_COLUMN_NAME = "PARTITION_NAME";
+    static final String UPPER_CASE = "upper-case";
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private static final String COLUMN_NAME = "COLUMN_NAME";
@@ -157,7 +160,7 @@ public class OracleMetadataHandler
         LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-          List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getTableName().toUpperCase());
+          List<String> parameters = Arrays.asList(transformString(getTableLayoutRequest.getTableName().getTableName()));
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 // Return a single partition if no partitions defined
@@ -305,7 +308,7 @@ public class OracleMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
+            TableName tableName = new TableName(transformString(getTableRequest.getTableName().getSchemaName()), transformString(getTableRequest.getTableName().getTableName()));
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -357,11 +360,12 @@ public class OracleMetadataHandler
              */
             try
                     (PreparedStatement stmt = connection.prepareStatement("select COLUMN_NAME ,DATA_TYPE from USER_TAB_COLS where  table_name =?")) {
-                stmt.setString(1, tableName.getTableName().toUpperCase());
+                stmt.setString(1, "\"" + tableName.getTableName() + "\"");
                 ResultSet dataTypeResultSet = stmt.executeQuery();
                 while (dataTypeResultSet.next()) {
                     hashMap.put(dataTypeResultSet.getString(COLUMN_NAME).trim(), dataTypeResultSet.getString("DATA_TYPE").trim());
                 }
+                LOGGER.debug("hashMap", hashMap.toString());
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                             resultSet.getInt("DATA_TYPE"),
@@ -432,5 +436,22 @@ public class OracleMetadataHandler
             LOGGER.debug("Oracle Table Schema" + schemaBuilder.toString());
             return schemaBuilder.build();
         }
+    }
+
+    /**
+     * Always adds double quotes around the string
+     * If the lambda uses a glue connection, return the string as is (lowercased by the trino engine)
+     * Otherwise uppercase it (the default of oracle)
+     * @param str
+     * @return
+     */
+    private String transformString(String str)
+    {
+        boolean isGlueConnection = StringUtils.isBlank(configOptions.get(DEFAULT_GLUE_CONNECTION));
+        boolean uppercase = configOptions.getOrDefault(UPPER_CASE, isGlueConnection ? "false" : "true").toLowerCase().equals("true");
+        if (uppercase) {
+            return str.toUpperCase();
+        }
+        return str;
     }
 }
