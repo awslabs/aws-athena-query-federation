@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.postgresql;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -35,6 +36,8 @@ import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -86,14 +89,19 @@ public class PostGreSqlRecordHandler
             throws SQLException
     {
         PreparedStatement preparedStatement;
-        if (constraints.isQueryPassThrough()) {
-            preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+        try {
+            if (constraints.isQueryPassThrough()) {
+                preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+            }
+            else {
+                preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+            }
+            // Disable fetching all rows.
+            preparedStatement.setFetchSize(FETCH_SIZE);
         }
-        else {
-            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        catch (SQLException e) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
-        // Disable fetching all rows.
-        preparedStatement.setFetchSize(FETCH_SIZE);
 
         return preparedStatement;
     }
