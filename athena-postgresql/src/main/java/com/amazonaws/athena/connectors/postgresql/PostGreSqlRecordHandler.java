@@ -86,7 +86,6 @@ public class PostGreSqlRecordHandler
 
     @Override
     public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
-            throws SQLException
     {
         PreparedStatement preparedStatement;
         try {
