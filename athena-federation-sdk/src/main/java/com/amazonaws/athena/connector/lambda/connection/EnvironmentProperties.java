@@ -74,7 +74,7 @@ public class EnvironmentProperties
                             .builder()
                             .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
                     .build();
-            if (lambdaEnvironment.getOrDefault("USE_GAMMA_GLUE", "true").equals("true")) {
+            if (lambdaEnvironment.getOrDefault("USE_GAMMA_GLUE", "false").equals("true")) {
                 awsGlue = GlueClient.builder()
                         .endpointOverride(new URI(String.format("https://glue-gamma.%s.amazonaws.com", lambdaEnvironment.get("AWS_REGION"))))
                         .httpClientBuilder(ApacheHttpClient
