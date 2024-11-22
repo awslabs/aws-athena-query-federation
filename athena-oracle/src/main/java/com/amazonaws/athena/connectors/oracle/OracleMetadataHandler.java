@@ -91,11 +91,11 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.S
 public class OracleMetadataHandler
         extends JdbcMetadataHandler
 {
-    static final String GET_PARTITIONS_QUERY = "Select DISTINCT PARTITION_NAME FROM USER_TAB_PARTITIONS where table_name= ?";
-    static final String BLOCK_PARTITION_COLUMN_NAME = "PARTITION_NAME";
+    static final String GET_PARTITIONS_QUERY = "Select DISTINCT PARTITION_NAME as \"partition_name\" FROM USER_TAB_PARTITIONS where table_name= ?";
+    static final String BLOCK_PARTITION_COLUMN_NAME = "PARTITION_NAME".toLowerCase();
     static final String ALL_PARTITIONS = "0";
-    static final String PARTITION_COLUMN_NAME = "PARTITION_NAME";
-    static final String CASING_MODE = "casing-mode";
+    static final String PARTITION_COLUMN_NAME = "PARTITION_NAME".toLowerCase();
+    static final String CASING_MODE = "casing_mode";
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private static final String COLUMN_NAME = "COLUMN_NAME";
@@ -157,15 +157,18 @@ public class OracleMetadataHandler
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
-                getTableLayoutRequest.getTableName().getTableName());
+        LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), "\"" + transformString(getTableLayoutRequest.getTableName().getSchemaName()) + "\"",
+                "\"" + transformString(getTableLayoutRequest.getTableName().getTableName()) + "\"");
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-          List<String> parameters = Arrays.asList(transformString(getTableLayoutRequest.getTableName().getTableName()));
+          List<String> parameters = Arrays.asList("\"" + transformString(getTableLayoutRequest.getTableName().getTableName()) + "\"");
+            //try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(GET_PARTITIONS_QUERY + ))  
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
-                 ResultSet resultSet = preparedStatement.executeQuery()) {
+                ResultSet resultSet = preparedStatement.executeQuery()) {
                 // Return a single partition if no partitions defined
                 if (!resultSet.next()) {
+                    LOGGER.debug("here");
                     blockWriter.writeRows((Block block, int rowNum) -> {
+                        LOGGER.debug("Parameters: " + BLOCK_PARTITION_COLUMN_NAME + " " + rowNum + " " + ALL_PARTITIONS);
                         block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
                         LOGGER.info("Adding partition {}", ALL_PARTITIONS);
                         //we wrote 1 row so we return 1
