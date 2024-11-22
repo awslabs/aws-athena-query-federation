@@ -99,6 +99,7 @@ public class OracleMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private static final String COLUMN_NAME = "COLUMN_NAME";
+    private static final String ORACLE_QUOTE_CHARACTER = "\"";
 
     static final String LIST_PAGINATED_TABLES_QUERY = "SELECT TABLE_NAME as \"TABLE_NAME\", OWNER as \"TABLE_SCHEM\" FROM all_tables WHERE owner = ? ORDER BY TABLE_NAME OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
 
@@ -157,10 +158,10 @@ public class OracleMetadataHandler
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), "\"" + transformString(getTableLayoutRequest.getTableName().getSchemaName()) + "\"",
-                "\"" + transformString(getTableLayoutRequest.getTableName().getTableName()) + "\"");
+        LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), transformString(getTableLayoutRequest.getTableName().getSchemaName(), true),
+                transformString(getTableLayoutRequest.getTableName().getTableName(), true));
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-          List<String> parameters = Arrays.asList("\"" + transformString(getTableLayoutRequest.getTableName().getTableName()) + "\"");
+          List<String> parameters = Arrays.asList(transformString(getTableLayoutRequest.getTableName().getTableName(), true));
             //try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(GET_PARTITIONS_QUERY + ))  
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -311,7 +312,7 @@ public class OracleMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(transformString(getTableRequest.getTableName().getSchemaName()), transformString(getTableRequest.getTableName().getTableName()));
+            TableName tableName = new TableName(transformString(getTableRequest.getTableName().getSchemaName(), false), transformString(getTableRequest.getTableName().getTableName(), false));
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -363,7 +364,7 @@ public class OracleMetadataHandler
              */
             try
                     (PreparedStatement stmt = connection.prepareStatement("select COLUMN_NAME ,DATA_TYPE from USER_TAB_COLS where  table_name =?")) {
-                stmt.setString(1, "\"" + tableName.getTableName() + "\"");
+                stmt.setString(1, transformString(tableName.getTableName(), true));
                 ResultSet dataTypeResultSet = stmt.executeQuery();
                 while (dataTypeResultSet.next()) {
                     hashMap.put(dataTypeResultSet.getString(COLUMN_NAME).trim(), dataTypeResultSet.getString("DATA_TYPE").trim());
@@ -446,14 +447,18 @@ public class OracleMetadataHandler
      * If the lambda uses a glue connection, return the string as is (lowercased by the trino engine)
      * Otherwise uppercase it (the default of oracle)
      * @param str
+     * @param quote
      * @return
      */
-    private String transformString(String str)
+    private String transformString(String str, boolean quote)
     {
         boolean isGlueConnection = StringUtils.isNotBlank(configOptions.get(DEFAULT_GLUE_CONNECTION));
         boolean uppercase = configOptions.getOrDefault(CASING_MODE, isGlueConnection ? "lower" : "upper").toLowerCase().equals("upper");
         if (uppercase) {
-            return str.toUpperCase();
+            str = str.toUpperCase();
+        }
+        if (quote && !str.contains(ORACLE_QUOTE_CHARACTER)) {
+            str = ORACLE_QUOTE_CHARACTER + str + ORACLE_QUOTE_CHARACTER;
         }
         return str;
     }
