@@ -89,7 +89,7 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.S
 public class OracleMetadataHandler
         extends JdbcMetadataHandler
 {
-    static final String GET_PARTITIONS_QUERY = "Select DISTINCT PARTITION_NAME FROM USER_TAB_PARTITIONS where table_name= ?";
+    static final String GET_PARTITIONS_QUERY = "Select DISTINCT PARTITION_NAME FROM ALL_TAB_PARTITIONS where table_name= ?";
     static final String BLOCK_PARTITION_COLUMN_NAME = "PARTITION_NAME";
     static final String ALL_PARTITIONS = "0";
     static final String PARTITION_COLUMN_NAME = "PARTITION_NAME";
@@ -114,10 +114,12 @@ public class OracleMetadataHandler
      */
     public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new OracleJdbcConnectionFactory(databaseConnectionConfig, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig, new OracleJdbcConnectionFactory(databaseConnectionConfig, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS,
+OracleConstants.ORACLE_DEFAULT_PORT)), configOptions);
     }
 
-    public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
+    public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String>
+configOptions)
     {
         super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
@@ -158,7 +160,8 @@ public class OracleMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
           List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getTableName().toUpperCase());
-            try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
+            try (PreparedStatement preparedStatement = new 
+PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 // Return a single partition if no partitions defined
                 if (!resultSet.next()) {
@@ -280,7 +283,7 @@ public class OracleMetadataHandler
         capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
-        
+
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
@@ -352,15 +355,45 @@ public class OracleMetadataHandler
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             boolean found = false;
             HashMap<String, String> hashMap = new HashMap<String, String>();
+            HashMap<String, Integer> scaleMap = new HashMap<String, Integer>();
+            HashMap<String, Integer> precisionMap = new HashMap<String, Integer>();
+
             /**
              * Getting original data type from oracle table for conversion
              */
-            try
-                    (PreparedStatement stmt = connection.prepareStatement("select COLUMN_NAME ,DATA_TYPE from USER_TAB_COLS where  table_name =?")) {
+            try (PreparedStatement stmt = connection.prepareStatement(
+                    "select COLUMN_NAME ,DATA_TYPE, DATA_PRECISION, DATA_SCALE from ALL_TAB_COLUMNS where  table_name =?")) {
                 stmt.setString(1, tableName.getTableName().toUpperCase());
                 ResultSet dataTypeResultSet = stmt.executeQuery();
                 while (dataTypeResultSet.next()) {
-                    hashMap.put(dataTypeResultSet.getString(COLUMN_NAME).trim(), dataTypeResultSet.getString("DATA_TYPE").trim());
+                    int precision;
+                    int scale;
+                    String columnName = dataTypeResultSet.getString(COLUMN_NAME).trim();
+                    hashMap.put(columnName, dataTypeResultSet.getString("DATA_TYPE").trim());
+                    precision = dataTypeResultSet.getInt("DATA_PRECISION");
+                    LOGGER.debug(columnName + " :: FromDB Precision: " + precision);
+                    if (dataTypeResultSet.wasNull()) {
+                        LOGGER.debug(columnName + " :: Precision Null: " + precision);
+                        precision = Integer.parseInt(System.getenv().getOrDefault("default_oracle_precision", "38"));
+                        if (precision > 38) {
+                            LOGGER.warn("Attempting to Set Precision to value larger than 38 set to: " + precision);
+                            precision = 38;
+                        }
+                    }
+                    scale = dataTypeResultSet.getInt("DATA_SCALE");
+                    LOGGER.debug(columnName + " :: FromDB Scale: " + scale);
+                    if (dataTypeResultSet.wasNull()) {
+                        LOGGER.debug(columnName + " :: Scale Null: " + scale);
+                        scale = Integer.parseInt(System.getenv().getOrDefault("default_oracle_scale", "5"));
+                        if (scale > 7) {
+                            LOGGER.warn("Attempting to Set Scale to value larger than 7 set to: " + scale);
+                            scale = 7;
+                        }
+                    }
+                    LOGGER.debug(columnName + " :: Precision - Set: " + precision);
+                    LOGGER.debug(columnName + " :: Scale - Set: " + scale);
+                    precisionMap.put(columnName, precision);
+                    scaleMap.put(columnName, scale);
                 }
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
@@ -398,10 +431,28 @@ public class OracleMetadataHandler
                     /**
                      * Converting oracle NUMBER data type into BIGINT  MinorType
                      */
-                    if (dataType != null && (dataType.contains("NUMBER")) && columnType.getTypeID().toString().equalsIgnoreCase("Utf8")) {
-                        columnType = Types.MinorType.BIGINT.getType();
+                    if (columnType != null) {
+                        if (columnType.getTypeID() != null) {
+                            LOGGER.debug("columnType.getTypeId().toString(): " + columnType.getTypeID().toString());
+                        }
                     }
-
+                    if (dataType != null && (dataType.contains("NUMBER"))
+                            && columnType.getTypeID().toString().equalsIgnoreCase("Utf8")) {
+                        LOGGER.debug("Number UTF8 Block");
+                        int precision = precisionMap.get(columnName);
+                        int scale = scaleMap.get(columnName);
+                        LOGGER.debug("UTF8 Block - precisionFromDb: " + precision);
+                        LOGGER.debug("UTF8 Block - scaleFromDb: " + scale);
+                        columnType = new ArrowType.Decimal(precision, scale);
+                    } 
+                    else if (dataType != null && (dataType.contains("NUMBER"))) {
+                        LOGGER.debug("Number NonUTF8 Block");
+                        int precision = precisionMap.get(columnName);
+                        int scale = scaleMap.get(columnName);
+                        LOGGER.debug("NonUTF8 Block - precisionFromDb: " + precision);
+                        LOGGER.debug("NonUTF8 Block - scaleFromDb: " + scale);
+                        columnType = new ArrowType.Decimal(precision, scale);
+                    }
                     /**
                      * Converting oracle TIMESTAMP data type into DATEMILLI  MinorType
                      */
