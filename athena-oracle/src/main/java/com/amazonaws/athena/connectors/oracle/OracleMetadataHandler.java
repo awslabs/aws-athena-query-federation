@@ -450,7 +450,7 @@ public class OracleMetadataHandler
      */
     private String transformString(String str)
     {
-        boolean isGlueConnection = StringUtils.isBlank(configOptions.get(DEFAULT_GLUE_CONNECTION));
+        boolean isGlueConnection = StringUtils.isNotBlank(configOptions.get(DEFAULT_GLUE_CONNECTION));
         boolean uppercase = configOptions.getOrDefault(CASING_MODE, isGlueConnection ? "lower" : "upper").toLowerCase().equals("upper");
         if (uppercase) {
             return str.toUpperCase();
