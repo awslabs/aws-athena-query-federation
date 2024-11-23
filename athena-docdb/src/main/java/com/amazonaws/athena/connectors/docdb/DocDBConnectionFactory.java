@@ -53,6 +53,12 @@ public class DocDBConnectionFactory
         MongoClient result = clientCache.get(connStr);
 
         if (result == null || !connectionTest(result)) {
+            //Setup SSL Trust Store:
+            if (connStr.toLowerCase().contains("ssl=true")) {
+                logger.info("MongoClient is using SSL; thus setting up System properties for trust store");
+                System.setProperty("javax.net.ssl.trustStore", "rds-truststore.jks");
+                System.setProperty("javax.net.ssl.trustStorePassword", "federationStorePass");
+            }
             result = MongoClients.create(connStr);
             clientCache.put(connStr, result);
         }
