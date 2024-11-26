@@ -213,9 +213,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 }
             }
 
-            String primaryKey = String.join(", ", primaryKeys);
-            if (!Strings.isNullOrEmpty(primaryKey) && hasUniquePrimaryKey(tableName, primaryKey)) {
-                return Optional.of(primaryKey);
+            String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
+            if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString)) {
+                return Optional.of(primaryKeyString);
             }
         }
         return Optional.empty(); 
@@ -228,7 +228,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception 
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + tableName.getTableName() + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC"); 
+            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
                     if (rs.getInt(COUNTS_COLUMN_NAME) == 1) {
