@@ -115,7 +115,8 @@ public class SnowflakeMetadataHandlerTest
         Mockito.when(primaryKeyPreparedStatement.executeQuery()).thenReturn(primaryKeyResultSet);
 
         PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
-        String GET_PKEY_COUNTS_QUERY = "SELECT pkey, count(*) as COUNTS FROM testTable GROUP BY pkey ORDER BY COUNTS DESC"; 
+        String GET_PKEY_COUNTS_QUERY = "SELECT \"pkey\", count(*) as COUNTS FROM \"testSchema\".\"testTable\" GROUP BY \"pkey\" ORDER BY COUNTS DESC";
+        System.err.println("test:" + GET_PKEY_COUNTS_QUERY);
         String[] countsColumns = new String[] {"pkey", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
         Object[][] countsValues = {{"a", 1}};
         ResultSet countsResultSet = mockResultSet(countsColumns, countsValues, new AtomicInteger(-1));
@@ -136,7 +137,7 @@ public class SnowflakeMetadataHandlerTest
             if (i > 1) {
                 offset = offset + partitionActualRecordCount;
             }
-            actualValues.add("[partition : partition-primary-pkey-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
+            actualValues.add("[partition : partition-primary-\"pkey\"-limit-" + + partitionActualRecordCount + "-offset-" + offset + "]");
         }
         Assert.assertEquals((int)limit, getTableLayoutResponse.getPartitions().getRowCount());
         Assert.assertEquals(expectedValues, actualValues);
@@ -179,7 +180,8 @@ public class SnowflakeMetadataHandlerTest
         Mockito.when(primaryKeyPreparedStatement.executeQuery()).thenReturn(primaryKeyResultSet);
 
         PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
-        String GET_PKEY_COUNTS_QUERY = "SELECT pkey, count(*) as COUNTS FROM testTable GROUP BY pkey ORDER BY COUNTS DESC";
+        String GET_PKEY_COUNTS_QUERY = "SELECT \"pkey\", count(*) as COUNTS FROM \"testSchema\".\"testTable\" GROUP BY \"pkey\" ORDER BY COUNTS DESC";
+        System.err.println("test:" + GET_PKEY_COUNTS_QUERY);
         String[] countsColumns = new String[] {"pkey", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
         Object[][] countsValues = {{"a", 1}};
         ResultSet countsResultSet = mockResultSet(countsColumns, countsValues, new AtomicInteger(-1));
@@ -223,6 +225,7 @@ public class SnowflakeMetadataHandlerTest
         long pageCount = (long) (Math.ceil(totalActualRecordCount / MAX_PARTITION_COUNT));
         long partitionActualRecordCount = (totalActualRecordCount <= 10000) ? (long) totalActualRecordCount : pageCount;
         double limit = (int) Math.ceil(totalActualRecordCount / partitionActualRecordCount);
+//        double limit = 1;
         long offset = 0;
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
@@ -240,8 +243,8 @@ public class SnowflakeMetadataHandlerTest
         Mockito.when(primaryKeyPreparedStatement.executeQuery()).thenReturn(primaryKeyResultSet);
 
         PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
-        String GET_PKEY_COUNTS_QUERY = "SELECT pkey, count(*) as COUNTS FROM testTable GROUP BY pkey ORDER BY COUNTS DESC";
-        String[] countsColumns = new String[] {"pkey", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
+        String GET_PKEY_COUNTS_QUERY = "SELECT \"pkey\", count(*) as COUNTS FROM \"testSchema\".\"testTable\" GROUP BY \"pkey\" ORDER BY COUNTS DESC";
+        String[] countsColumns = new String[] {"\"pkey\"", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
         Object[][] countsValues = {{"a", 1}};
         ResultSet countsResultSet = mockResultSet(countsColumns, countsValues, new AtomicInteger(-1));
         Mockito.when(this.connection.prepareStatement(GET_PKEY_COUNTS_QUERY)).thenReturn(countsPreparedStatement);
@@ -257,7 +260,7 @@ public class SnowflakeMetadataHandlerTest
             if (i > 1) {
                 offset = offset + partitionActualRecordCount;
             }
-            actualValues.add("[partition : partition-primary-pkey-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
+            actualValues.add("[partition : partition-primary-\"pkey\"-limit-" +partitionActualRecordCount + "-offset-" + offset + "]");
         }
         Assert.assertEquals(expectedValues,actualValues);
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
