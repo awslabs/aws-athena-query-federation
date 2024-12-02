@@ -48,7 +48,14 @@ public class RdsSecretsCredentialProvider
     {
         Map<String, String> rdsSecrets;
         try {
-            rdsSecrets = OBJECT_MAPPER.readValue(secretString, HashMap.class);
+            Map<String, String> originalMap = OBJECT_MAPPER.readValue(secretString, HashMap.class);
+
+            rdsSecrets = new HashMap<>();
+            for (Map.Entry<String, String> entry : originalMap.entrySet()) {
+                if (entry.getKey().equalsIgnoreCase("username") || entry.getKey().equalsIgnoreCase("password")) {
+                    rdsSecrets.put(entry.getKey().toLowerCase(), entry.getValue());
+                }
+            }
         }
         catch (IOException ioException) {
             throw new RuntimeException("Could not deserialize RDS credentials into HashMap", ioException);
