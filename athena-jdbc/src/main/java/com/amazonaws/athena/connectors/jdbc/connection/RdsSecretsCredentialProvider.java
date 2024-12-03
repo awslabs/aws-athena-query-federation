@@ -19,9 +19,13 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -51,7 +55,8 @@ public class RdsSecretsCredentialProvider
             rdsSecrets = OBJECT_MAPPER.readValue(secretString, HashMap.class);
         }
         catch (IOException ioException) {
-            throw new RuntimeException("Could not deserialize RDS credentials into HashMap", ioException);
+            throw new AthenaConnectorException("Could not deserialize RDS credentials into HashMap: ",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(ioException.getMessage()).build());
         }
 
         this.jdbcCredential = new JdbcCredential(rdsSecrets.get("username"), rdsSecrets.get("password"));
