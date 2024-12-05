@@ -33,6 +33,7 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -312,7 +313,7 @@ public class OracleMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
         Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
-                {Types.TIMESTAMP, 93, "testCol3", 0, 0},  {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0},  {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}, {Types.NUMERIC, 10, "testCol5", 2, 0}};
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
@@ -321,6 +322,8 @@ public class OracleMetadataHandlerTest
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        ArrowType.Decimal testCol5ArrowType = ArrowType.Decimal.createDecimal(10, 2, 128);
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol5", testCol5ArrowType).build());
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
