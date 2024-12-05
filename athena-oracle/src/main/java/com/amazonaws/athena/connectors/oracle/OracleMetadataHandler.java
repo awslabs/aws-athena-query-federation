@@ -73,7 +73,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -355,82 +354,69 @@ public class OracleMetadataHandler
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
-        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
             boolean found = false;
-            HashMap<String, String> hashMap = new HashMap<String, String>();
-            /**
-             * Getting original data type from oracle table for conversion
-             */
-            try
-                    (PreparedStatement stmt = connection.prepareStatement("select COLUMN_NAME ,DATA_TYPE from USER_TAB_COLS where  table_name =?")) {
-                stmt.setString(1, transformString(tableName.getTableName(), true));
-                ResultSet dataTypeResultSet = stmt.executeQuery();
-                while (dataTypeResultSet.next()) {
-                    hashMap.put(dataTypeResultSet.getString(COLUMN_NAME).trim(), dataTypeResultSet.getString("DATA_TYPE").trim());
+
+            while (resultSet.next()) {
+                ArrowType arrowColumnType = JdbcArrowTypeConverter.toArrowType(
+                        resultSet.getInt("DATA_TYPE"),
+                        resultSet.getInt("COLUMN_SIZE"),
+                        resultSet.getInt("DECIMAL_DIGITS"),
+                        configOptions);
+
+                String columnName = resultSet.getString(COLUMN_NAME);
+                int jdbcColumnType = resultSet.getInt("DATA_TYPE");
+                int scale = resultSet.getInt("COLUMN_SIZE");
+
+                LOGGER.debug("columnName: {}", columnName);
+                LOGGER.debug("arrowColumnType: {}", arrowColumnType);
+                LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
+
+                /**
+                 * below data type conversion doing since a framework not giving appropriate
+                 * data types for oracle data types.
+                 */
+
+                /** Handling TIMESTAMP, DATE, 0 Precision **/
+                if (arrowColumnType != null && arrowColumnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
+                    String[] data = arrowColumnType.toString().split(",");
+                    if (scale == 0) {
+                        arrowColumnType = Types.MinorType.BIGINT.getType();
+                    }
+
+                    /** Handling negative scale issue */
+                    if (Integer.parseInt(data[1].trim().replace(")", "")) < 0.0) {
+                        arrowColumnType = Types.MinorType.VARCHAR.getType();
+                    }
                 }
-                LOGGER.debug("hashMap", hashMap.toString());
-                while (resultSet.next()) {
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                            resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"),
-                            configOptions);
-                    String columnName = resultSet.getString(COLUMN_NAME);
-                    /** Handling TIMESTAMP,DATE, 0 Precesion**/
-                    if (columnType != null && columnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
-                        String[] data = columnType.toString().split(",");
-                        if (data[0].contains("0") || data[1].contains("0")) {
-                            columnType = Types.MinorType.BIGINT.getType();
-                        }
 
-                        /** Handling negative scale issue */
-                        if (Integer.parseInt(data[1].trim().replace(")", "")) < 0.0) {
-                            columnType = Types.MinorType.VARCHAR.getType();
-                        }
-                    }
+                /**
+                 * Converting an Oracle date data type into DATEDAY MinorType
+                 */
+                if (jdbcColumnType == java.sql.Types.DATE) {
+                    arrowColumnType = Types.MinorType.DATEDAY.getType();
+                }
 
-                    String dataType = hashMap.get(columnName);
-                    LOGGER.debug("columnName: " + columnName);
-                    LOGGER.debug("dataType: " + dataType);
-                    /**
-                     * below data type conversion  doing since framework not giving appropriate
-                     * data types for oracle data types..
-                     */
-                    /**
-                     * Converting oracle date data type into DATEDAY MinorType
-                     */
-                    if (dataType != null && (dataType.contains("date") || dataType.contains("DATE"))) {
-                        columnType = Types.MinorType.DATEDAY.getType();
-                    }
-                    /**
-                     * Converting oracle NUMBER data type into BIGINT  MinorType
-                     */
-                    if (dataType != null && (dataType.contains("NUMBER")) && columnType.getTypeID().toString().equalsIgnoreCase("Utf8")) {
-                        columnType = Types.MinorType.BIGINT.getType();
-                    }
+                /**
+                 * Converting an Oracle TIMESTAMP data type into DATEMILLI MinorType
+                 */
+                if (jdbcColumnType == java.sql.Types.TIMESTAMP) {
+                    arrowColumnType = Types.MinorType.DATEMILLI.getType();
+                }
 
-                    /**
-                     * Converting oracle TIMESTAMP data type into DATEMILLI  MinorType
-                     */
-                    if (dataType != null && (dataType.contains("TIMESTAMP"))
-                    ) {
-                        columnType = Types.MinorType.DATEMILLI.getType();
-                    }
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
+                if (arrowColumnType == null) {
+                    arrowColumnType = Types.MinorType.VARCHAR.getType();
+                }
+                if (arrowColumnType != null && !SupportedTypes.isSupported(arrowColumnType)) {
+                    arrowColumnType = Types.MinorType.VARCHAR.getType();
+                }
 
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        found = true;
-                    }
-                    else {
-                        LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
-                    }
+                if (arrowColumnType != null && SupportedTypes.isSupported(arrowColumnType)) {
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType).build());
+                    found = true;
+                }
+                else {
+                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + arrowColumnType);
                 }
             }
             if (!found) {
