@@ -369,16 +369,17 @@ public class VerticaMetadataHandler
         FieldReader fieldReaderAwsRegion = request.getPartitions().getFieldReader("awsRegionSql");
         String awsRegionSql  = fieldReaderAwsRegion.readText().toString();
 
-
-        //execute the queries on Vertica
-        executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
-
-        /*
-         * For each generated S3 object, create a split and add data to the split.
-         */
-        Split split;
         List<S3Object> s3ObjectsList = getlistExportedObjects(exportBucket, queryId);
+        if (s3ObjectsList.isEmpty()) {
+            // Execute queries on Vertica if S3 export bucket does not contain objects for given queryId
+            executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
+            // Retrieve the S3 objects list for given queryId
+            s3ObjectsList = getlistExportedObjects(exportBucket, queryId);
+        }
 
+        Split split;
+
+        // Create a split for each s3 object
         if(!s3ObjectsList.isEmpty())
         {
             for (S3Object s3Object : s3ObjectsList)
