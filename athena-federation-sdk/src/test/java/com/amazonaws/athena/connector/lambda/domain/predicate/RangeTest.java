@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,7 +49,7 @@ public class RangeTest
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testMismatchedTypes()
             throws Exception
     {
@@ -56,21 +57,21 @@ public class RangeTest
         new Range(Marker.exactly(allocator, BIGINT.getType(), 1L), Marker.exactly(allocator, VARCHAR.getType(), "a"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testInvertedBounds()
             throws Exception
     {
         new Range(Marker.exactly(allocator, BIGINT.getType(), 1L), Marker.exactly(allocator, BIGINT.getType(), 0L));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testLowerUnboundedOnly()
             throws Exception
     {
         new Range(Marker.lowerUnbounded(allocator, BIGINT.getType()), Marker.lowerUnbounded(allocator, BIGINT.getType()));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testUpperUnboundedOnly()
             throws Exception
     {
@@ -225,7 +226,7 @@ public class RangeTest
             Range.lessThan(allocator, BIGINT.getType(), 0L).getSingleValue();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
     }
 
@@ -293,14 +294,14 @@ public class RangeTest
             Range.greaterThan(allocator, BIGINT.getType(), 2L).intersect(Range.lessThan(allocator, BIGINT.getType(), 2L));
             fail();
         }
-        catch (IllegalArgumentException e) {
+        catch (AthenaConnectorException e) {
         }
 
         try {
             Range.range(allocator, BIGINT.getType(), 1L, true, 3L, false).intersect(Range.range(allocator, BIGINT.getType(), 3L, true, 10L, false));
             fail();
         }
-        catch (IllegalArgumentException e) {
+        catch (AthenaConnectorException e) {
         }
     }
 }

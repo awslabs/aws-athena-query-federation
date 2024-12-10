@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.After;
@@ -29,7 +30,10 @@ import org.junit.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class EquatableValueSetTest
 {
@@ -158,7 +162,7 @@ public class EquatableValueSetTest
             EquatableValueSet.all(allocator, INT).getSingleValue();
             fail();
         }
-        catch (IllegalStateException ignored) {
+        catch (AthenaConnectorException ignored) {
         }
     }
 

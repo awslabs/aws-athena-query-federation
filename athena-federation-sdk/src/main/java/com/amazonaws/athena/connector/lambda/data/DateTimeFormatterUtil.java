@@ -19,12 +19,15 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.utils.StringUtils;
 
 import java.math.BigDecimal;
@@ -330,7 +333,7 @@ public class DateTimeFormatterUtil
         ZoneId timeZone = ZoneId.of(arrowType.getTimezone());
         if (packTimezone) {
             if (!org.apache.arrow.vector.types.TimeUnit.MILLISECOND.equals(timeunit)) {
-                throw new UnsupportedOperationException("Unpacking is only supported for milliseconds");
+                throw new AthenaConnectorException("Unpacking is only supported for milliseconds", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
             }
             // arrowType's timezone is ignored in this case since the timezone is packed into the long
             TimeZoneKey timeZoneKey = unpackZoneKey(epochTimestamp);
@@ -355,7 +358,7 @@ public class DateTimeFormatterUtil
                 return java.time.temporal.ChronoUnit.SECONDS;
         }
 
-        throw new UnsupportedOperationException(String.format("Unsupported timeunit: %s", timeunit));
+        throw new AthenaConnectorException(String.format("Unsupported timeunit: %s", timeunit), ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
     }
 
     public static ZonedDateTime zonedDateTimeFromObject(Object value)
@@ -370,7 +373,7 @@ public class DateTimeFormatterUtil
             return ((Date) value).toInstant().atZone(ZoneId.of("UTC"));
         }
 
-        throw new UnsupportedOperationException(String.format("Type: %s not supported", value.getClass()));
+        throw new AthenaConnectorException(String.format("Type: %s not supported", value.getClass()), ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
     }
 
     public static org.apache.arrow.vector.holders.TimeStampMilliTZHolder timestampMilliTzHolderFromObject(Object value, String targetTimeZoneId)
@@ -401,7 +404,7 @@ public class DateTimeFormatterUtil
     public static org.apache.arrow.vector.holders.TimeStampMicroTZHolder timestampMicroTzHolderFromObject(Object value, String targetTimeZoneId)
     {
         if (packTimezone) {
-            throw new UnsupportedOperationException("Packing for TimeStampMicroTZ is not currently supported");
+            throw new AthenaConnectorException("Packing for TimeStampMicroTZ is not currently supported", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
 
         ZonedDateTime zdt = zonedDateTimeFromObject(value);
