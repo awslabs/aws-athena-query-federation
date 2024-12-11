@@ -103,7 +103,6 @@ Resources:
         Statement:
           - Action:
               - dynamodb:DescribeTable
-              - dynamodb:ListSchemas
               - dynamodb:ListTables
               - dynamodb:Query
               - dynamodb:Scan
