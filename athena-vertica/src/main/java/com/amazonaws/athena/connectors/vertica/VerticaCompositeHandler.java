@@ -38,7 +38,7 @@ public class VerticaCompositeHandler
 {
     public VerticaCompositeHandler() throws CertificateEncodingException, IOException, NoSuchAlgorithmException, KeyStoreException
     {
-        super(new VerticaMetadataHandler(System.getenv()), new VerticaRecordHandler(System.getenv()));
+        super(new VerticaMetadataHandler(new VerticaEnvironmentProperties().createEnvironment()), new VerticaRecordHandler(new VerticaEnvironmentProperties().createEnvironment()));
         installCaCertificate();
         setupNativeEnvironmentVariables();
     }

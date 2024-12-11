@@ -41,6 +41,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -57,6 +59,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -84,6 +87,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT;
 
@@ -93,7 +97,7 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGL
  */
 public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 {
-    static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
+    static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA", "CLIENT_RESULT_COLUMN_CASE_INSENSITIVE", "true");
     static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
@@ -109,13 +113,23 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     static final String SHOW_PRIMARY_KEYS_QUERY = "SHOW PRIMARY KEYS IN ";
     static final String PRIMARY_KEY_COLUMN_NAME = "column_name";
     static final String COUNTS_COLUMN_NAME = "COUNTS";
-    private static final String CASE_UPPER = "upper";
-    private static final String CASE_LOWER = "lower";
     /**
      * Query to check view
      */
     static final String VIEW_CHECK_QUERY = "SELECT * FROM information_schema.views WHERE table_schema = ? AND table_name = ?";
     static final String ALL_PARTITIONS = "*";
+
+    static final Map<String, ArrowType> STRING_ARROW_TYPE_MAP = com.google.common.collect.ImmutableMap.of(
+            "INTEGER", (ArrowType) Types.MinorType.INT.getType(),
+            "DATE", (ArrowType) Types.MinorType.DATEDAY.getType(),
+            "TIMESTAMP", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+            "TIMESTAMP_LTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+            "TIMESTAMP_NTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+            "TIMESTAMP_TZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+            "TIMESTAMPLTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+            "TIMESTAMPNTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+            "TIMESTAMPTZ", (ArrowType) Types.MinorType.DATEMILLI.getType()
+    );
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
@@ -132,8 +146,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig,
-                JDBC_PROPERTIES, new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS,
-                SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)), configOptions);
+                SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
+                new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS, SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)), configOptions);
     }
 
     @VisibleForTesting
@@ -150,8 +164,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
+        LOGGER.debug("doGetDataSourceCapabilities: " + request);
         ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
-
         capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
                 FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
         ));
@@ -180,26 +194,29 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public Schema getPartitionSchema(final String catalogName)
     {
+        LOGGER.debug("getPartitionSchema: " + catalogName);
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
                 .addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
         return schemaBuilder.build();
     }
 
-    private Optional<String> getPrimaryKey(TableName tableName) throws Exception 
+    private Optional<String> getPrimaryKey(TableName tableName) throws Exception
     {
+        LOGGER.debug("getPrimaryKey tableName: " + tableName);
         List<String> primaryKeys = new ArrayList<String>();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + tableName.getTableName());
+            try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
                 ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
                     // Concatenate multiple primary keys if they exist
                     primaryKeys.add(rs.getString(PRIMARY_KEY_COLUMN_NAME));
                 }
             }
-        }
-        String primaryKey = String.join(", ", primaryKeys);
-        if (!Strings.isNullOrEmpty(primaryKey) && hasUniquePrimaryKey(tableName, primaryKey)) {
-            return Optional.of(primaryKey);
+
+            String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
+            if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString)) {
+                return Optional.of(primaryKeyString);
+            }
         }
         return Optional.empty(); 
     }
@@ -211,7 +228,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception 
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + tableName.getTableName() + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC"); 
+            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
                     if (rs.getInt(COUNTS_COLUMN_NAME) == 1) {
@@ -237,38 +254,42 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest getTableLayoutRequest,
                               QueryStatusChecker queryStatusChecker) throws Exception
     {
-        LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
+        LOGGER.debug("getPartitions: {}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
-        /**
-         * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
-         * this is to handle timeout issues because of huge partitions
-         */
-        LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
-        boolean viewFlag = checkForView(getTableLayoutRequest);
-        //if the input table is a view , there will be single split
-        if (viewFlag) {
-            blockWriter.writeRows((Block block, int rowNum) -> {
-                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
-                return 1;
-            });
-        }
-        else {
+
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            TableName tableName = getTableLayoutRequest.getTableName();
+            /**
+             * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
+             * this is to handle timeout issues because of huge partitions
+             */
+            LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
+            boolean viewFlag = checkForView(tableName);
+            //if the input table is a view , there will be single split
+            if (viewFlag) {
+                blockWriter.writeRows((Block block, int rowNum) -> {
+                    block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
+                    return 1;
+                });
+                return;
+            }
+
             double totalRecordCount = 0;
             LOGGER.info(COUNT_RECORDS_QUERY);
-            List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
 
-            try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-                 PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection)
-                         .withQuery(COUNT_RECORDS_QUERY).withParameters(parameters).build();
-                 ResultSet rs = preparedStatement.executeQuery()) {
+            try (PreparedStatement preparedStatement = new PreparedStatementBuilder()
+                    .withConnection(connection)
+                    .withQuery(COUNT_RECORDS_QUERY)
+                    .withParameters(Arrays.asList(tableName.getSchemaName(), tableName.getTableName())).build();
+                    ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
                     totalRecordCount = rs.getLong(1);
                 }
                 if (totalRecordCount > 0) {
-                    Optional<String> primaryKey = getPrimaryKey(getTableLayoutRequest.getTableName());
+                    Optional<String> primaryKey = getPrimaryKey(tableName);
                     long recordsInPartition = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
                     long partitionRecordCount = (totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT || !primaryKey.isPresent()) ? (long) totalRecordCount : recordsInPartition;
-                    LOGGER.info(" Total Page Count: " +  partitionRecordCount);
+                    LOGGER.info(" Total Page Count: " + partitionRecordCount);
                     double numberOfPartitions = (int) Math.ceil(totalRecordCount / partitionRecordCount);
                     long offset = 0;
                     /**
@@ -276,7 +297,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                      * It will have maximum 50 partitions and number of records in each partition is decided by dividing total number of records by 50
                      * the partition values we are setting the limit and offset values like p-limit-3000-offset-0
                      */
-                    for (int i = 1; i <= numberOfPartitions; i++) { 
+                    for (int i = 1; i <= numberOfPartitions; i++) {
                         final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-primary-" + primaryKey.orElse("") + "-limit-" + partitionRecordCount + "-offset-" + offset;
                         LOGGER.info("partitionVal {} ", partitionVal);
                         blockWriter.writeRows((Block block, int rowNum) ->
@@ -288,22 +309,19 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     }
                 }
                 else {
-                    LOGGER.info("No Records Found for table {}", getTableLayoutRequest.getTableName().getTableName());
+                    LOGGER.info("No Records Found for table {}", tableName);
                 }
             }
         }
     }
 
-    /**
+    /*
      * Check if the input table is a view and returns viewflag accordingly
-     * @param getTableLayoutRequest
-     * @return
-     * @throws Exception
      */
-    private boolean checkForView(GetTableLayoutRequest getTableLayoutRequest) throws Exception
+    private boolean checkForView(TableName tableName) throws Exception
     {
         boolean viewFlag = false;
-        List<String> viewparameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
+        List<String> viewparameters = Arrays.asList(tableName.getSchemaName(), tableName.getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -319,7 +337,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
-        LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+        LOGGER.info("doGetSplits: {}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
         if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
             LOGGER.info("QPT Split Requested");
             return setupQueryPassthroughSplit(getSplitsRequest);
@@ -362,12 +380,52 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
             throws Exception
     {
+        LOGGER.debug("doGetTable getTableName:{}", getTableRequest.getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = getTableFromMetadata(connection.getCatalog(), getTableRequest.getTableName(), connection.getMetaData());
+            TableName tableName = SnowflakeCaseInsensitiveResolver.getAdjustedTableObjectNameBasedOnConfig(connection, getTableRequest.getTableName(), configOptions);
             GetTableResponse getTableResponse = new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
             return getTableResponse;
+        }
+    }
+
+    @Override
+    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
+            throws Exception
+    {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
+                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
+            String schemaName = SnowflakeCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(connection, listTablesRequest.getSchemaName(), configOptions);
+
+            String token = listTablesRequest.getNextToken();
+            int pageSize = listTablesRequest.getPageSize();
+
+            if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) { // perform no pagination
+                LOGGER.info("doListTables - NO pagination");
+                return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, schemaName), null);
+            }
+
+            LOGGER.info("doListTables - pagination - NOT SUPPORTED - return all tables");
+            return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, schemaName), null);
+        }
+    }
+
+    private List<TableName> listTablesNoPagination(final Connection jdbcConnection, final String databaseName)
+            throws SQLException
+    {
+        LOGGER.debug("listTables, databaseName:" + databaseName);
+        try (ResultSet resultSet = jdbcConnection.getMetaData().getTables(
+                jdbcConnection.getCatalog(),
+                databaseName,
+                null,
+                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})) {
+            ImmutableList.Builder<TableName> list = ImmutableList.builder();
+            while (resultSet.next()) {
+                list.add(JDBCUtil.getSchemaTableName(resultSet));
+            }
+            return list.build();
         }
     }
 
@@ -379,9 +437,10 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * @return
      * @throws Exception
      */
-    public Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
+        LOGGER.debug("getSchema start, tableName:" + tableName);
         /**
          * query to fetch column data type to handle appropriate datatype to arrowtype conversions.
          */
@@ -391,8 +450,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
-            stmt.setString(1, tableName.getSchemaName().toUpperCase());
-            stmt.setString(2, tableName.getTableName().toUpperCase());
+            stmt.setString(1, tableName.getSchemaName());
+            stmt.setString(2, tableName.getTableName());
 
             HashMap<String, String> hashMap = new HashMap<String, String>();
             ResultSet dataTypeResultSet = stmt.executeQuery();
@@ -419,16 +478,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 String dataType = hashMap.get(columnName);
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
-                final Map<String, ArrowType> stringArrowTypeMap = com.google.common.collect.ImmutableMap.of(
-                    "INTEGER", (ArrowType) Types.MinorType.INT.getType(),
-                    "DATE", (ArrowType) Types.MinorType.DATEDAY.getType(),
-                    "TIMESTAMP", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-                    "TIMESTAMP_LTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-                    "TIMESTAMP_NTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-                    "TIMESTAMP_TZ", (ArrowType) Types.MinorType.DATEMILLI.getType()
-                );
-                if (dataType != null && stringArrowTypeMap.containsKey(dataType.toUpperCase())) {
-                    columnType = stringArrowTypeMap.get(dataType.toUpperCase());
+                if (dataType != null && STRING_ARROW_TYPE_MAP.containsKey(dataType.toUpperCase())) {
+                    columnType = STRING_ARROW_TYPE_MAP.get(dataType.toUpperCase());
                 }
                 /**
                  * converting into VARCHAR for not supported data types.
@@ -469,90 +520,18 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
             throws SQLException
     {
+        LOGGER.debug("getColumns, catalogName:" + catalogName + ", tableHandle: " + tableHandle);
         String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(
+
+        ResultSet columns = metadata.getColumns(
                 catalogName,
                 escapeNamePattern(tableHandle.getSchemaName(), escape),
                 escapeNamePattern(tableHandle.getTableName(), escape),
                 null);
+
+        return columns;
     }
 
-    /**
-     * Finding table name from query hint
-     * In sap hana schemas and tables can be case sensitive, but executed query from athena sends table and schema names
-     * in lower case, this has been handled by appending query hint to the table name as below
-     * "lambda:lambdaname".SCHEMA_NAME."TABLE_NAME@schemacase=upper&tablecase=upper"
-     * @param table
-     * @return
-     */
-    protected  TableName findTableNameFromQueryHint(TableName table)
-    {
-        //if no query hints has been passed then return input table name
-        if (!table.getTableName().contains("@")) {
-            return new TableName(table.getSchemaName().toUpperCase(), table.getTableName().toUpperCase());
-        }
-        //analyze the hint to find table and schema case
-        String[] tbNameWithQueryHint = table.getTableName().split("@");
-        String[] hintDetails = tbNameWithQueryHint[1].split("&");
-        String schemaCase = CASE_UPPER;
-        String tableCase = CASE_UPPER;
-        String tableName = tbNameWithQueryHint[0];
-        for (String str : hintDetails) {
-            String[] hintDetail = str.split("=");
-            if (hintDetail[0].contains("schema")) {
-                schemaCase = hintDetail[1];
-            }
-            else if (hintDetail[0].contains("table")) {
-                tableCase = hintDetail[1];
-            }
-        }
-        if (schemaCase.equalsIgnoreCase(CASE_UPPER) && tableCase.equalsIgnoreCase(CASE_UPPER)) {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toUpperCase());
-        }
-        else if (schemaCase.equalsIgnoreCase(CASE_LOWER) && tableCase.equalsIgnoreCase(CASE_LOWER)) {
-            return new TableName(table.getSchemaName().toLowerCase(), tableName.toLowerCase());
-        }
-        else if (schemaCase.equalsIgnoreCase(CASE_LOWER) && tableCase.equalsIgnoreCase(CASE_UPPER)) {
-            return new TableName(table.getSchemaName().toLowerCase(), tableName.toUpperCase());
-        }
-        else if (schemaCase.equalsIgnoreCase(CASE_UPPER) && tableCase.equalsIgnoreCase(CASE_LOWER)) {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toLowerCase());
-        }
-        else {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toUpperCase());
-        }
-    }
-
-    /**
-     * Logic to handle case sensitivity of table name and schema name
-     * @param catalogName
-     * @param tableHandle
-     * @param metadata
-     * @return
-     * @throws SQLException
-     */
-    protected TableName getTableFromMetadata(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        TableName tableName = findTableNameFromQueryHint(tableHandle);
-        //check for presence exact table and schema name returned by findTableNameFromQueryHint method by invoking metadata.getTables method
-        ResultSet resultSet = metadata.getTables(catalogName, tableName.getSchemaName(), tableName.getTableName(), null);
-        while (resultSet.next()) {
-            if (tableName.getTableName().equals(resultSet.getString(3))) {
-                tableName = new TableName(tableName.getSchemaName(), resultSet.getString(3));
-                return tableName;
-            }
-        }
-        // if table not found in above step, check for presence of input table by doing pattern search
-        ResultSet rs = metadata.getTables(catalogName, tableName.getSchemaName().toUpperCase(), "%", null);
-        while (rs.next()) {
-            if (tableName.getTableName().equalsIgnoreCase(rs.getString(3))) {
-                tableName = new TableName(tableName.getSchemaName().toUpperCase(), rs.getString(3));
-                return tableName;
-            }
-        }
-        return tableName;
-    }
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
             throws Exception
@@ -562,10 +541,13 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
         }
     }
-    protected static Set<String> listDatabaseNames(final Connection jdbcConnection)
+
+    private static Set<String> listDatabaseNames(final Connection jdbcConnection)
             throws Exception
     {
-        try (ResultSet resultSet = jdbcConnection.getMetaData().getSchemas()) {
+        try (ResultSet resultSet = jdbcConnection
+                .getMetaData()
+                .getSchemas(jdbcConnection.getCatalog(), null)) {
             ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
             String inputCatalogName = jdbcConnection.getCatalog();
             String inputSchemaName = jdbcConnection.getSchema();
