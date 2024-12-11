@@ -8,7 +8,6 @@ Metadata:
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
     Labels:
-      - Trianz
       - Big-Query
       - Athena-Federation
       - Google-SDK
