@@ -37,14 +37,14 @@ public class Db2As400EnvironmentProperties extends EnvironmentProperties
         HashMap<String, String> environment = new HashMap<>();
 
         // now construct jdbc string
-        String connectionString = "db2as400://jdbc:as400://" + connectionProperties.get(HOST)
-                + ";" + connectionProperties.getOrDefault(JDBC_PARAMS, "");
+        String connectionString = String.join("db2as400://jdbc:as400://", connectionProperties.get(HOST),
+                ";", connectionProperties.getOrDefault(JDBC_PARAMS, ""));
 
         if (connectionProperties.containsKey(SECRET_NAME)) {
             if (connectionProperties.containsKey(JDBC_PARAMS)) { // need to add delimiter
                 connectionString = connectionString + ";";
             }
-            connectionString = connectionString + ":${" + connectionProperties.get(SECRET_NAME) + "}";
+            connectionString = String.join(connectionString, ":${", connectionProperties.get(SECRET_NAME), "}");
         }
 
         logger.debug("Constructed connection string: {}", connectionString);
