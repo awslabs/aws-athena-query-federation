@@ -116,7 +116,6 @@ public class SnowflakeMetadataHandlerTest
 
         PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
         String GET_PKEY_COUNTS_QUERY = "SELECT \"pkey\", count(*) as COUNTS FROM \"testSchema\".\"testTable\" GROUP BY \"pkey\" ORDER BY COUNTS DESC";
-        System.err.println("test:" + GET_PKEY_COUNTS_QUERY);
         String[] countsColumns = new String[] {"pkey", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
         Object[][] countsValues = {{"a", 1}};
         ResultSet countsResultSet = mockResultSet(countsColumns, countsValues, new AtomicInteger(-1));
@@ -181,7 +180,6 @@ public class SnowflakeMetadataHandlerTest
 
         PreparedStatement countsPreparedStatement = Mockito.mock(PreparedStatement.class);
         String GET_PKEY_COUNTS_QUERY = "SELECT \"pkey\", count(*) as COUNTS FROM \"testSchema\".\"testTable\" GROUP BY \"pkey\" ORDER BY COUNTS DESC";
-        System.err.println("test:" + GET_PKEY_COUNTS_QUERY);
         String[] countsColumns = new String[] {"pkey", SnowflakeMetadataHandler.COUNTS_COLUMN_NAME};
         Object[][] countsValues = {{"a", 1}};
         ResultSet countsResultSet = mockResultSet(countsColumns, countsValues, new AtomicInteger(-1));
@@ -225,7 +223,6 @@ public class SnowflakeMetadataHandlerTest
         long pageCount = (long) (Math.ceil(totalActualRecordCount / MAX_PARTITION_COUNT));
         long partitionActualRecordCount = (totalActualRecordCount <= 10000) ? (long) totalActualRecordCount : pageCount;
         double limit = (int) Math.ceil(totalActualRecordCount / partitionActualRecordCount);
-//        double limit = 1;
         long offset = 0;
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
