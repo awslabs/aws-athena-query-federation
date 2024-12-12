@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
@@ -84,6 +85,8 @@ import com.fasterxml.jackson.databind.ser.Serializers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
 
 public class ObjectMapperFactoryV4
@@ -133,7 +136,7 @@ public class ObjectMapperFactoryV4
                     return (JsonSerializer<Object>) ser;
                 }
             }
-            throw new IllegalArgumentException("No explicitly configured serializer for " + origType);
+            throw new AthenaConnectorException("No explicitly configured serializer for " + origType, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -167,7 +170,7 @@ public class ObjectMapperFactoryV4
                     return (JsonDeserializer<Object>) deser;
                 }
             }
-            throw new IllegalArgumentException("No explicitly configured deserializer for " + type);
+            throw new AthenaConnectorException("No explicitly configured deserializer for " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
