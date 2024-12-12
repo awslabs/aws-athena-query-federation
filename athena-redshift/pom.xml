@@ -23,6 +23,7 @@
         <dependency>
             <groupId>com.amazon.redshift</groupId>
             <artifactId>redshift-jdbc42</artifactId>
+            <!-- Increasing to 2.1.0.31 caused a casing issue in release tests -->
             <version>2.1.0.30</version>
         </dependency>
         <dependency>
