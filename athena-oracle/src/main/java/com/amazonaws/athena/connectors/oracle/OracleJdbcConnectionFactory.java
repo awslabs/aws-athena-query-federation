@@ -33,7 +33,6 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
 {
@@ -42,8 +41,6 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleJdbcConnectionFactory.class);
-    private static final String SSL_CONNECTION_STRING_REGEX = "jdbc:oracle:thin:\\$\\{([a-zA-Z0-9:_/+=.@-]+)\\}@tcps://";
-    private static final Pattern SSL_CONNECTION_STRING_PATTERN = Pattern.compile(SSL_CONNECTION_STRING_REGEX);
 
     /**
      * @param databaseConnectionConfig database connection configuration {@link DatabaseConnectionConfig}
@@ -64,10 +61,12 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
             Properties properties = new Properties();
 
             if (null != jdbcCredentialProvider) {
-                if (SSL_CONNECTION_STRING_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString()).matches()) {
+                //checking for tcps (Secure Communication) protocol as part of the connection string.
+                if (databaseConnectionConfig.getJdbcConnectionString().toLowerCase().contains("@tcps://")) {
                     LOGGER.info("Establishing connection over SSL..");
                     properties.put("javax.net.ssl.trustStoreType", "JKS");
-                    properties.put("javax.net.ssl.trustStorePassword", "changeit");
+                    properties.put("javax.net.ssl.trustStore", "rds-truststore.jks");
+                    properties.put("javax.net.ssl.trustStorePassword", "federationStorePass");
                     properties.put("oracle.net.ssl_server_dn_match", "true");
                     if (System.getenv().getOrDefault(IS_FIPS_ENABLED, "false").equalsIgnoreCase("true") || System.getenv().getOrDefault(IS_FIPS_ENABLED_LEGACY, "false").equalsIgnoreCase("true")) {
                         properties.put("oracle.net.ssl_cipher_suites", "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)");
@@ -84,7 +83,6 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                 final String secretReplacement = String.format("%s/%s", jdbcCredentialProvider.getCredential().getUser(),
                         password);
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
-                LOGGER.info("derivedJdbcString: " + derivedJdbcString);
                 return DriverManager.getConnection(derivedJdbcString, properties);
             }
             else {
