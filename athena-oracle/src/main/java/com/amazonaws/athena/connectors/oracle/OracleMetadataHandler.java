@@ -354,8 +354,6 @@ public class OracleMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
-            boolean found = false;
-
             while (resultSet.next()) {
                 ArrowType arrowColumnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
@@ -398,24 +396,18 @@ public class OracleMetadataHandler
                     arrowColumnType = Types.MinorType.DATEMILLI.getType();
                 }
 
-                if (arrowColumnType == null) {
-                    arrowColumnType = Types.MinorType.VARCHAR.getType();
-                }
                 if (arrowColumnType != null && !SupportedTypes.isSupported(arrowColumnType)) {
+                    LOGGER.warn("getSchema: Unable to map type JDBC type [{}] for column[{}] to a supported type, attempted {}", jdbcColumnType, columnName, arrowColumnType);
                     arrowColumnType = Types.MinorType.VARCHAR.getType();
                 }
 
-                if (arrowColumnType != null && SupportedTypes.isSupported(arrowColumnType)) {
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType).build());
-                    found = true;
+                if (arrowColumnType == null) {
+                    LOGGER.warn("getSchema: column[{}]  type is null setting it to varchar | JDBC Type is [{}]", columnName, jdbcColumnType);
+                    arrowColumnType = Types.MinorType.VARCHAR.getType();
                 }
-                else {
-                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + arrowColumnType);
-                }
+                schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType).build());
             }
-            if (!found) {
-                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
-            }
+
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             LOGGER.debug("Oracle Table Schema" + schemaBuilder.toString());
             return schemaBuilder.build();
