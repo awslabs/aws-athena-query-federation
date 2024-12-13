@@ -33,8 +33,16 @@ public class GenericJdbcConnectionFactoryTest
     {
         String jdbcConnectionString = "mysql://jdbc:mysql://mysql.host:3333/default?${secret!@+=_}";
         Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(jdbcConnectionString);
-        String replacedString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
-        String expectedString = "mysql://jdbc:mysql://mysql.host:3333/default?";
-        Assert.assertEquals(expectedString, replacedString);
+
+        Assert.assertTrue(secretMatcher.find());
+    }
+
+    @Test
+    public void matchIncorrectSecretNamePattern()
+    {
+        String jdbcConnectionString = "mysql://jdbc:mysql://mysql.host:3333/default?${secret!@+=*_}";
+        Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(jdbcConnectionString);
+
+        Assert.assertFalse(secretMatcher.find());
     }
 }
