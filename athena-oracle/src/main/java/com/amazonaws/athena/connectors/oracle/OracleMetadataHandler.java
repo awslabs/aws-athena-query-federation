@@ -56,6 +56,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import oracle.jdbc.OracleTypes;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -393,7 +394,7 @@ public class OracleMetadataHandler
                 /**
                  * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
                  */
-                if (jdbcColumnType == -101 || jdbcColumnType == -102) {
+                if(jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ ) {
                     arrowColumnType = Types.MinorType.DATEMILLI.getType();
                 }
 
