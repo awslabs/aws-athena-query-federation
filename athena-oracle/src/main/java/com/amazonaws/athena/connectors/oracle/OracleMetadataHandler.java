@@ -378,27 +378,22 @@ public class OracleMetadataHandler
                 /** Handling TIMESTAMP, DATE, 0 Precision **/
                 if (arrowColumnType != null && arrowColumnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
                     String[] data = arrowColumnType.toString().split(",");
-                    if (scale == 0) {
+                    if (scale == 0 || Integer.parseInt(data[1].trim()) < 0) {
                         arrowColumnType = Types.MinorType.BIGINT.getType();
-                    }
-
-                    /** Handling negative scale issue */
-                    if (Integer.parseInt(data[1].trim().replace(")", "")) < 0.0) {
-                        arrowColumnType = Types.MinorType.VARCHAR.getType();
                     }
                 }
 
                 /**
                  * Converting an Oracle date data type into DATEDAY MinorType
                  */
-                if (jdbcColumnType == java.sql.Types.DATE) {
+                if (jdbcColumnType == java.sql.Types.TIMESTAMP && scale == 7) {
                     arrowColumnType = Types.MinorType.DATEDAY.getType();
                 }
 
                 /**
-                 * Converting an Oracle TIMESTAMP data type into DATEMILLI MinorType
+                 * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
                  */
-                if (jdbcColumnType == java.sql.Types.TIMESTAMP) {
+                if (jdbcColumnType == -101 || jdbcColumnType == -102) {
                     arrowColumnType = Types.MinorType.DATEMILLI.getType();
                 }
 
