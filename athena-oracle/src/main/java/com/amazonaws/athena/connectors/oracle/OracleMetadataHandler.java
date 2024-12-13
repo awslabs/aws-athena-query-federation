@@ -394,7 +394,7 @@ public class OracleMetadataHandler
                 /**
                  * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
                  */
-                if(jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ ) {
+                if (jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
                     arrowColumnType = Types.MinorType.DATEMILLI.getType();
                 }
 
