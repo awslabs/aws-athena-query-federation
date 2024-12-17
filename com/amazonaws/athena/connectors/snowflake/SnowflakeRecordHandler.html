@@ -230,7 +230,7 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
-             <a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+             <a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableNameInput,
              org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
              <a href="../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
              <a href="../../connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
@@ -327,7 +327,7 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 <h4>buildSplitSql</h4>
 <pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a>&nbsp;buildSplitSql&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
                                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
-                                       <a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+                                       <a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableNameInput,
                                        org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
                                        <a href="../../connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
                                        <a href="../../connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)
@@ -340,7 +340,7 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>jdbcConnection</code> - jdbc connection. See <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink"><code>Connection</code></a></dd>
 <dd><code>catalogName</code> - Athena provided catalog name.</dd>
-<dd><code>tableName</code> - database table name.</dd>
+<dd><code>tableNameInput</code> - database table name.</dd>
 <dd><code>schema</code> - table schema.</dd>
 <dd><code>constraints</code> - constraints to push down to the database.</dd>
 <dd><code>split</code> - table split.</dd>

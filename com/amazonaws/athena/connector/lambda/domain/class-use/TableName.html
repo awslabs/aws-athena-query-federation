@@ -1556,23 +1556,16 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<td class="colFirst"><code>protected <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#findTableNameFromQueryHint(com.amazonaws.athena.connector.lambda.domain.TableName)">findTableNameFromQueryHint</a></span>&#8203;(<a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;table)</code></th>
-<td class="colLast">
-<div class="block">Finding table name from query hint
- In sap hana schemas and tables can be case sensitive, but executed query from athena sends table and schema names
- in lower case, this has been handled by appending query hint to the table name as below
- "lambda:lambdaname".SCHEMA_NAME."</div>
-</td>
+<td class="colFirst"><code>static <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeCaseInsensitiveResolver.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeCaseInsensitiveResolver.html#getAdjustedTableObjectNameBasedOnConfig(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,java.util.Map)">getAdjustedTableObjectNameBasedOnConfig</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
+                                       <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+                                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
+<td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><code>protected <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#getTableFromMetadata(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.sql.DatabaseMetaData)">getTableFromMetadata</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
-                    <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableHandle,
-                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/DatabaseMetaData.html?is-external=true" title="class or interface in java.sql" class="externalLink">DatabaseMetaData</a>&nbsp;metadata)</code></th>
-<td class="colLast">
-<div class="block">Logic to handle case sensitivity of table name and schema name</div>
-</td>
+<td class="colFirst"><code>static <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeCaseInsensitiveResolver.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeCaseInsensitiveResolver.html#getTableNameFromQueryHint(com.amazonaws.athena.connector.lambda.domain.TableName)">getTableNameFromQueryHint</a></span>&#8203;(<a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;table)</code></th>
+<td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
 </table>
@@ -1588,37 +1581,23 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeRecordHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeRecordHandler.html#buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSplitSql</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
-             <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+             <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableNameInput,
              org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
              <a href="../predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
              <a href="../Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><code>protected <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#findTableNameFromQueryHint(com.amazonaws.athena.connector.lambda.domain.TableName)">findTableNameFromQueryHint</a></span>&#8203;(<a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;table)</code></th>
-<td class="colLast">
-<div class="block">Finding table name from query hint
- In sap hana schemas and tables can be case sensitive, but executed query from athena sends table and schema names
- in lower case, this has been handled by appending query hint to the table name as below
- "lambda:lambdaname".SCHEMA_NAME."</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
-         <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
-         org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
+<td class="colFirst"><code>static <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeCaseInsensitiveResolver.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeCaseInsensitiveResolver.html#getAdjustedTableObjectNameBasedOnConfig(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,java.util.Map)">getAdjustedTableObjectNameBasedOnConfig</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
+                                       <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
+                                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
-<td class="colFirst"><code>protected <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#getTableFromMetadata(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.sql.DatabaseMetaData)">getTableFromMetadata</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName,
-                    <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableHandle,
-                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/DatabaseMetaData.html?is-external=true" title="class or interface in java.sql" class="externalLink">DatabaseMetaData</a>&nbsp;metadata)</code></th>
-<td class="colLast">
-<div class="block">Logic to handle case sensitivity of table name and schema name</div>
-</td>
+<tr class="altColor">
+<td class="colFirst"><code>static <a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeCaseInsensitiveResolver.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeCaseInsensitiveResolver.html#getTableNameFromQueryHint(com.amazonaws.athena.connector.lambda.domain.TableName)">getTableNameFromQueryHint</a></span>&#8203;(<a href="../TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;table)</code></th>
+<td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
 </table>
