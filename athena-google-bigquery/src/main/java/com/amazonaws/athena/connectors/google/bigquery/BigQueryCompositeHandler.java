@@ -41,8 +41,8 @@ public class BigQueryCompositeHandler
     public BigQueryCompositeHandler()
             throws IOException
     {
-        super(new BigQueryMetadataHandler(System.getenv()), new BigQueryRecordHandler(System.getenv(), allocator));
-        installGoogleCredentialsJsonFile(System.getenv());
+        super(new BigQueryMetadataHandler(new BigQueryEnvironmentProperties().createEnvironment()), new BigQueryRecordHandler(new BigQueryEnvironmentProperties().createEnvironment(), allocator));
+        installGoogleCredentialsJsonFile(new BigQueryEnvironmentProperties().createEnvironment());
         setupNativeEnvironmentVariables();
         logger.info("Inside BigQueryCompositeHandler()");
     }

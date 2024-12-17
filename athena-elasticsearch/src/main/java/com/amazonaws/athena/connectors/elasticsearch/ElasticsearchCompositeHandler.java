@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class ElasticsearchCompositeHandler
 {
     public ElasticsearchCompositeHandler()
     {
-        super(new ElasticsearchMetadataHandler(System.getenv()), new ElasticsearchRecordHandler(System.getenv()));
+        super(new ElasticsearchMetadataHandler(new EnvironmentProperties().createEnvironment()), new ElasticsearchRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

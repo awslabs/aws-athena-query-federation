@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.docdb.DocDBFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
+import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STRING_PREFIX;
 
 /**
  * Handles data read record requests for the Athena DocumentDB Connector.
@@ -65,6 +66,8 @@ public class DocDBRecordHandler
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "documentdb";
+    //The env secret_name to use if defined 
+    private static final String SECRET_NAME = "secret_name";
     //Controls the page size for fetching batches of documents from the MongoDB client.
     private static final int MONGO_QUERY_BATCH_SIZE = 100;
 
@@ -103,12 +106,20 @@ public class DocDBRecordHandler
      */
     private MongoClient getOrCreateConn(Split split)
     {
-        String conStr = split.getProperty(DOCDB_CONN_STR);
-        if (conStr == null) {
+        String connStr = split.getProperty(DOCDB_CONN_STR);
+        if (connStr == null) {
             throw new RuntimeException(DOCDB_CONN_STR + " Split property is null! Unable to create connection.");
         }
-        String endpoint = resolveSecrets(conStr);
+        if (configOptions.containsKey(SECRET_NAME) && !hasEmbeddedSecret(connStr)) {
+            connStr = String.join(connStr.substring(0, DOCDB_CONN_STRING_PREFIX.length()), "${", configOptions.get(SECRET_NAME), "}@", connStr.substring(DOCDB_CONN_STRING_PREFIX.length()));
+        }
+        String endpoint = resolveSecrets(connStr);
         return connectionFactory.getOrCreateConn(endpoint);
+    }
+
+    private boolean hasEmbeddedSecret(String connStr) 
+    {
+        return connStr.contains("${");
     }
 
     private static Map<String, Object> documentAsMap(Document document, boolean caseInsensitive)

@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.aws.cmdb;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class AwsCmdbCompositeHandler
 {
     public AwsCmdbCompositeHandler()
     {
-        super(new AwsCmdbMetadataHandler(System.getenv()), new AwsCmdbRecordHandler(System.getenv()));
+        super(new AwsCmdbMetadataHandler(new EnvironmentProperties().createEnvironment()), new AwsCmdbRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

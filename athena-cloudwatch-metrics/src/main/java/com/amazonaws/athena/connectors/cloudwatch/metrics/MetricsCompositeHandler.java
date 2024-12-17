@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class MetricsCompositeHandler
 {
     public MetricsCompositeHandler()
     {
-        super(new MetricsMetadataHandler(System.getenv()), new MetricsRecordHandler(System.getenv()));
+        super(new MetricsMetadataHandler(new EnvironmentProperties().createEnvironment()), new MetricsRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

@@ -118,7 +118,6 @@
             <classifier>withdep</classifier>
         </dependency>
         <!-- Powermock depedency -->
-
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>

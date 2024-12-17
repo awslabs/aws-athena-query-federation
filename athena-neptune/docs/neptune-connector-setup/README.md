@@ -6,7 +6,7 @@ To deploy the Amazon Athena Neptune connector, we will need the following pre-re
 2)	NeptuneClusterEndpoint – You can get this information from the Neptune console and copying the cluster “Writer” endpoint information.
 ![](./assets/connector-clusterendpoint.png)
 
-3)	NeptuneClusterResourceID - To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.
+3)	NeptuneClusterResId/NeptuneClusterResourceID - To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.
 ![](./assets/connector-clusterId.png)
 
 4)	SecurityGroupIds – These are the Security Group ID(s) that the connector Lambda function uses to communicate with Neptune. There are two steps:
@@ -55,7 +55,7 @@ Scroll down to “Application Settings” and specify the following field values
 
   * NeptuneClusterEndpoint: Provide the Neptune Cluster endpoint that you have captured in one of the previous steps. 
 
-  * NeptuneClusterResourceID: Provide the Neptune Cluster resourceid that you have captured in one of the previous steps.
+  * NeptuneClusterResId/NeptuneClusterResourceID: Provide the Neptune Cluster resourceid that you have captured in one of the previous steps.
 
   * NeptunePort: The listener 	port for your Neptune Cluster. Default is 8182.
 
