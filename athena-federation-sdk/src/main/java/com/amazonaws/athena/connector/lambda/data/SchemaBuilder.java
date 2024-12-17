@@ -27,6 +27,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -86,6 +87,24 @@ public class SchemaBuilder
     public SchemaBuilder addStructField(String fieldName)
     {
         nestedFieldBuilderMap.put(fieldName, FieldBuilder.newBuilder(fieldName, Types.MinorType.STRUCT.getType()));
+        return this;
+    }
+
+    /**
+     * Adds a new MAP Field to the Schema as a top-level Field.
+     *
+     * @param fieldName The name of the field to add.
+     * @return This SchemaBuilder itself.
+     */
+    public SchemaBuilder addMapField(String fieldName)
+    {
+        fields.put(fieldName,
+                new Field(fieldName, FieldType.nullable(new ArrowType.Map(false)),
+                        Arrays.asList(new Field("entries", false, Types.MinorType.STRUCT.getType(),
+                                Arrays.asList(
+                                        new Field("key", false, Types.MinorType.LIST.getType(), Collections.singletonList(new Field("", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))),
+                                        new Field("value", true, Types.MinorType.LIST.getType(), Collections.singletonList(new Field("", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null)))
+                                )))));
         return this;
     }
 
