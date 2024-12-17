@@ -29,9 +29,9 @@ RUN echo "Trust store content is: " && \
     done
 
 # Copy function code and runtime dependencies from Maven layout
-COPY target/athena-oracle-2022.47.1.jar ${LAMBDA_TASK_ROOT}
+COPY target/athena-oracle-2024.50.1.jar ${LAMBDA_TASK_ROOT}
 # Unpack the jar
-RUN jar xf athena-oracle-2022.47.1.jar
+RUN jar xf athena-oracle-2024.50.1.jar
 
 # Clean up JAR
 RUN rm ${LAMBDA_TASK_ROOT}/athena-oracle-2022.47.1.jar
