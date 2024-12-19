@@ -36,6 +36,16 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: 'false'
     Type: String
+  JavaVersion:
+    Description: "(Optional) Specify the Java version for the Lambda function. Default is '17'; use '11' for Java 11 or '8' for Java 8."
+    Type: String
+    AllowedValues:
+      - "17"
+      - "11"
+      - "8"
+    Default: "17"
+Conditions:
+  IsJava17: !Equals [!Ref JavaVersion, "17"]
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -45,11 +55,12 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
+          JAVA_TOOL_OPTIONS: !If [IsJava17, "--add-opens=java.base/java.nio=ALL-UNNAMED", !Ref "AWS::NoValue"]
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connector.lambda.examples.ExampleCompositeHandler"
       CodeUri: "./target/aws-athena-federation-sdk-2022.47.1-withdep.jar"
       Description: "This connector enables Amazon Athena to communicate with a randomly generated data source."
-      Runtime: java11
+      Runtime: java17
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Policies:

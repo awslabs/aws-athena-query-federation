@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/java:11
+FROM public.ecr.aws/lambda/java:17
 
 # Install necessary tools
 RUN yum update -y && yum install -y curl perl openssl
