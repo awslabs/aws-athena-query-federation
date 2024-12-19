@@ -39,10 +39,10 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 public class OracleCaseResolver
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleCaseResolver.class);
-    private static final String SCHEMA_NAME_QUERY_TEMPLATE = "select distinct OWNER from all_tables where lower(OWNER) = ?";
-    private static final String TABLE_NAME_QUERY_TEMPLATE = "select distinct TABLE_NAME from all_tables where OWNER = ? and lower(TABLE_NAME) = ?";
-    private static final String SCHEMA_NAME_COLUMN_KEY = "OWNER";
-    private static final String TABLE_NAME_COLUMN_KEY = "TABLE_NAME";
+    static final String SCHEMA_NAME_QUERY_TEMPLATE = "select distinct OWNER from all_tables where lower(OWNER) = ?";
+    static final String TABLE_NAME_QUERY_TEMPLATE = "select distinct TABLE_NAME from all_tables where OWNER = ? and lower(TABLE_NAME) = ?";
+    static final String SCHEMA_NAME_COLUMN_KEY = "OWNER";
+    static final String TABLE_NAME_COLUMN_KEY = "TABLE_NAME";
 
     // the environment variable that can be set to specify which casing mode to use
     static final String CASING_MODE = "casing_mode";
@@ -67,8 +67,8 @@ public class OracleCaseResolver
         OracleCasingMode casingMode = getCasingMode(configOptions);
         switch (casingMode) {
             case SEARCH:
-                String schemaNameCaseInsensitively = getSchemaNameCaseInsensitively(connection, tableName.getSchemaName(), configOptions);
-                String tableNameCaseInsensitively = getTableNameCaseInsensitively(connection, schemaNameCaseInsensitively, tableName.getTableName(), configOptions);
+                String schemaNameCaseInsensitively = getSchemaNameCaseInsensitively(connection, tableName.getSchemaName());
+                String tableNameCaseInsensitively = getTableNameCaseInsensitively(connection, schemaNameCaseInsensitively, tableName.getTableName());
                 TableName tableNameResult = new TableName(schemaNameCaseInsensitively, tableNameCaseInsensitively);
                 LOGGER.info("casing mode is `SEARCH`: performing case insensitive search for TableName object. TableName:{}", tableNameResult);
                 return tableNameResult;
@@ -91,7 +91,7 @@ public class OracleCaseResolver
         switch (casingMode) {
             case SEARCH:
                 LOGGER.info("casing mode is SEARCH: performing case insensitive search for Schema...");
-                return getSchemaNameCaseInsensitively(connection, schemaNameInput, configOptions);
+                return getSchemaNameCaseInsensitively(connection, schemaNameInput);
             case UPPER:
                 LOGGER.info("casing mode is `UPPER`: adjusting casing from input to upper case for Schema");
                 return schemaNameInput.toUpperCase();
@@ -102,7 +102,7 @@ public class OracleCaseResolver
         return schemaNameInput;
     }
 
-    public static String getSchemaNameCaseInsensitively(final Connection connection, String schemaNameInput, Map<String, String> configOptions)
+    public static String getSchemaNameCaseInsensitively(final Connection connection, String schemaNameInput)
             throws SQLException
     {
         String nameFromOracle = null;
@@ -130,7 +130,7 @@ public class OracleCaseResolver
         return nameFromOracle;
     }
 
-    public static String getTableNameCaseInsensitively(final Connection connection, String schemaName, String tableNameInput, Map<String, String> configOptions)
+    public static String getTableNameCaseInsensitively(final Connection connection, String schemaName, String tableNameInput)
             throws SQLException
     {
         // schema name input should be correct case before searching tableName already
