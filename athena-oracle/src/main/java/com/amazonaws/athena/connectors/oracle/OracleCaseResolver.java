@@ -25,10 +25,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -42,11 +39,18 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 public class OracleCaseResolver
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleCaseResolver.class);
+    private static final String SCHEMA_NAME_QUERY_TEMPLATE = "select distinct OWNER from all_tables where lower(OWNER) = ?";
+    private static final String TABLE_NAME_QUERY_TEMPLATE = "select distinct TABLE_NAME from all_tables where OWNER = ? and lower(TABLE_NAME) = ?";
+    private static final String SCHEMA_NAME_COLUMN_KEY = "OWNER";
+    private static final String TABLE_NAME_COLUMN_KEY = "TABLE_NAME";
 
     // the environment variable that can be set to specify which casing mode to use
     static final String CASING_MODE = "casing_mode";
 
-    private static final String ORACLE_QUOTE_CHARACTER = "\"";
+    // used for identifying database objects (ex: table names)
+    private static final String ORACLE_IDENTIFIER_CHARACTER = "\"";
+    // used in SQL statements for character strings (ex: where OWNER = 'example')
+    private static final String ORACLE_STRING_LITERAL_CHARACTER = "\'";
 
     private OracleCaseResolver() {}
 
@@ -101,58 +105,58 @@ public class OracleCaseResolver
     public static String getSchemaNameCaseInsensitively(final Connection connection, String schemaNameInput, Map<String, String> configOptions)
             throws SQLException
     {
-        String nameFromSnowFlake = null;
+        String nameFromOracle = null;
         int i = 0;
         try (PreparedStatement preparedStatement = new PreparedStatementBuilder()
                 .withConnection(connection)
                 .withQuery(SCHEMA_NAME_QUERY_TEMPLATE)
-                .withParameters(Arrays.asList(schemaNameInput.toLowerCase())).build();
+                .withParameters(Arrays.asList(convertToLiteral(schemaNameInput.toLowerCase()))).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
             while (resultSet.next()) {
                 i++;
                 String schemaNameCandidate = resultSet.getString(SCHEMA_NAME_COLUMN_KEY);
                 LOGGER.debug("Case insensitive search on columLabel: {}, schema name: {}", SCHEMA_NAME_COLUMN_KEY, schemaNameCandidate);
-                nameFromSnowFlake = schemaNameCandidate;
+                nameFromOracle = schemaNameCandidate;
             }
         }
         catch (SQLException e) {
             throw new RuntimeException(e);
         }
 
-        if (i == 0 || i > 1) {
+        if (i != 1) {
             throw new RuntimeException(String.format("Schema name case insensitive match failed, number of match : %d", i));
         }
 
-        return nameFromSnowFlake;
+        return nameFromOracle;
     }
 
     public static String getTableNameCaseInsensitively(final Connection connection, String schemaName, String tableNameInput, Map<String, String> configOptions)
             throws SQLException
     {
         // schema name input should be correct case before searching tableName already
-        String nameFromSnowFlake = null;
+        String nameFromOracle = null;
         int i = 0;
         try (PreparedStatement preparedStatement = new PreparedStatementBuilder()
                 .withConnection(connection)
                 .withQuery(TABLE_NAME_QUERY_TEMPLATE)
-                .withParameters(Arrays.asList(schemaName, tableNameInput.toLowerCase())).build();
+                .withParameters(Arrays.asList(convertToLiteral(schemaName), convertToLiteral(tableNameInput.toLowerCase()))).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
             while (resultSet.next()) {
                 i++;
                 String schemaNameCandidate = resultSet.getString(TABLE_NAME_COLUMN_KEY);
                 LOGGER.debug("Case insensitive search on columLabel: {}, schema name: {}", TABLE_NAME_COLUMN_KEY, schemaNameCandidate);
-                nameFromSnowFlake = schemaNameCandidate;
+                nameFromOracle = schemaNameCandidate;
             }
         }
         catch (SQLException e) {
             throw new RuntimeException(e);
         }
 
-        if (i == 0 || i > 1) {
+        if (i != 1) {
             throw new RuntimeException(String.format("Schema name case insensitive match failed, number of match : %d", i));
         }
 
-        return nameFromSnowFlake;
+        return nameFromOracle;
     }
 
     private static OracleCasingMode getCasingMode(Map<String, String> configOptions)
@@ -173,5 +177,24 @@ public class OracleCaseResolver
             LOGGER.error("Invalid input for:{}, input value:{}, valid values:{}", CASING_MODE, configOptions.get(CASING_MODE), Arrays.asList(OracleCasingMode.values()), ex);
             throw ex;
         }
+    }
+
+    public static TableName quoteTableName(TableName inputTable) {
+        String schemaName = inputTable.getSchemaName();
+        String tableName = inputTable.getTableName();
+        if (!schemaName.contains(ORACLE_IDENTIFIER_CHARACTER)) {
+            schemaName = String.join(ORACLE_IDENTIFIER_CHARACTER, schemaName, ORACLE_IDENTIFIER_CHARACTER);
+        }
+        if (!tableName.contains(ORACLE_IDENTIFIER_CHARACTER)) {
+            tableName = String.join(ORACLE_IDENTIFIER_CHARACTER, tableName, ORACLE_IDENTIFIER_CHARACTER);
+        }
+        return new TableName(schemaName, tableName);
+    }
+
+    public static String convertToLiteral(String input) {
+        if (!input.contains(ORACLE_STRING_LITERAL_CHARACTER)) {
+            input = String.join(ORACLE_STRING_LITERAL_CHARACTER, input, ORACLE_STRING_LITERAL_CHARACTER);
+        }
+        return input;
     }
 }
