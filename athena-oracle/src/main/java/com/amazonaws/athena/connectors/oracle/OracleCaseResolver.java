@@ -38,8 +38,8 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 public class OracleCaseResolver
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleCaseResolver.class);
-    static final String SCHEMA_NAME_QUERY_TEMPLATE = "select distinct OWNER from all_tables where lower(OWNER) = ?";
-    static final String TABLE_NAME_QUERY_TEMPLATE = "select distinct TABLE_NAME from all_tables where OWNER = ? and lower(TABLE_NAME) = ?";
+    static final String SCHEMA_NAME_QUERY_TEMPLATE = "SELECT DISTINCT OWNER as \"OWNER\" FROM all_tables where lower(OWNER) = ?";
+    static final String TABLE_NAME_QUERY_TEMPLATE = "select distinct TABLE_NAME as \"TABLE_NAME\" from all_tables where OWNER = ? and lower(TABLE_NAME) = ?";
     static final String SCHEMA_NAME_COLUMN_KEY = "OWNER";
     static final String TABLE_NAME_COLUMN_KEY = "TABLE_NAME";
 
@@ -109,7 +109,7 @@ public class OracleCaseResolver
         try (PreparedStatement preparedStatement = new PreparedStatementBuilder()
                 .withConnection(connection)
                 .withQuery(SCHEMA_NAME_QUERY_TEMPLATE)
-                .withParameters(Arrays.asList(convertToLiteral(schemaNameInput.toLowerCase()))).build();
+                .withParameters(Arrays.asList(schemaNameInput.toLowerCase())).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
             while (resultSet.next()) {
                 i++;
@@ -138,7 +138,7 @@ public class OracleCaseResolver
         try (PreparedStatement preparedStatement = new PreparedStatementBuilder()
                 .withConnection(connection)
                 .withQuery(TABLE_NAME_QUERY_TEMPLATE)
-                .withParameters(Arrays.asList(convertToLiteral(schemaName), convertToLiteral(tableNameInput.toLowerCase()))).build();
+                .withParameters(Arrays.asList((schemaName), tableNameInput.toLowerCase())).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
             while (resultSet.next()) {
                 i++;

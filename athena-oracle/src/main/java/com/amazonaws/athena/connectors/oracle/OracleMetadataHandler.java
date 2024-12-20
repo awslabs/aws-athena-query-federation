@@ -155,7 +155,7 @@ public class OracleMetadataHandler
             throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            TableName casedTableName = OracleCaseResolver.getAdjustedTableObjectName(connection, getTableLayoutRequest.getTableName(), configOptions);
+            TableName casedTableName = getTableLayoutRequest.getTableName();
             LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), casedTableName.getSchemaName(),
                 casedTableName.getTableName());
             List<String> parameters = Arrays.asList(OracleCaseResolver.convertToLiteral(casedTableName.getTableName())); 
@@ -307,7 +307,7 @@ public class OracleMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = OracleCaseResolver.quoteTableName(OracleCaseResolver.getAdjustedTableObjectName(connection, getTableRequest.getTableName(), configOptions));
+            TableName tableName = OracleCaseResolver.getAdjustedTableObjectName(connection, getTableRequest.getTableName(), configOptions);
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
