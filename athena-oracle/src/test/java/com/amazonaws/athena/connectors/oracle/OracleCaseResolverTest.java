@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Types;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -60,7 +61,7 @@ public class OracleCaseResolverTest
             throws Exception
     {
         TableName inputTableName = new TableName("testschema", "testtable");
-        Map<String, String> config = Map.of(OracleCaseResolver.CASING_MODE, "lower");
+        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "lower");
         TableName outputTableName = OracleCaseResolver.getAdjustedTableObjectName(connection, inputTableName, config);
         Assert.assertEquals(outputTableName.getSchemaName(), inputTableName.getSchemaName());
         Assert.assertEquals(outputTableName.getTableName(), inputTableName.getTableName());
@@ -71,7 +72,7 @@ public class OracleCaseResolverTest
             throws Exception
     {
         TableName inputTableName = new TableName("testschema", "testtable");
-        Map<String, String> config = Map.of(OracleCaseResolver.CASING_MODE, "upper");
+        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "upper");
         TableName outputTableName = OracleCaseResolver.getAdjustedTableObjectName(connection, inputTableName, config);
         Assert.assertEquals(outputTableName.getSchemaName(), inputTableName.getSchemaName().toUpperCase());
         Assert.assertEquals(outputTableName.getTableName(), inputTableName.getTableName().toUpperCase());
@@ -86,7 +87,7 @@ public class OracleCaseResolverTest
         String inputTableName = "testtable";
         String matchedTableName = "TESTTABLE";
         TableName inputTableNameObject = new TableName(inputSchemaName, inputTableName);
-        Map<String, String> config = Map.of(OracleCaseResolver.CASING_MODE, "search");
+        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "search");
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleCaseResolver.SCHEMA_NAME_QUERY_TEMPLATE)).thenReturn(preparedStatement);
@@ -113,7 +114,7 @@ public class OracleCaseResolverTest
             throws Exception
     {
         TableName inputTableName = new TableName("testschema", "testtable");
-        Map<String, String> config = Map.of();
+        Map<String, String> config = Collections.emptyMap();
         TableName outputTableName = OracleCaseResolver.getAdjustedTableObjectName(connection, inputTableName, config);
         Assert.assertEquals(outputTableName.getSchemaName(), inputTableName.getSchemaName().toUpperCase());
         Assert.assertEquals(outputTableName.getTableName(), inputTableName.getTableName().toUpperCase());
@@ -124,7 +125,7 @@ public class OracleCaseResolverTest
             throws Exception
     {
         TableName inputTableName = new TableName("testschema", "testtable");
-        Map<String, String> config = Map.of(DEFAULT_GLUE_CONNECTION, "notBlank");
+        Map<String, String> config = Collections.singletonMap(DEFAULT_GLUE_CONNECTION, "notBlank");
         TableName outputTableName = OracleCaseResolver.getAdjustedTableObjectName(connection, inputTableName, config);
         Assert.assertEquals(outputTableName.getSchemaName(), inputTableName.getSchemaName());
         Assert.assertEquals(outputTableName.getTableName(), inputTableName.getTableName());
@@ -136,7 +137,7 @@ public class OracleCaseResolverTest
     {
         // the trino engine will lowercase anything
         String inputSchemaName = "testschema";
-        Map<String, String> config = Map.of(OracleCaseResolver.CASING_MODE, "lower");
+        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "lower");
         String outputSchemaName = OracleCaseResolver.getAdjustedSchemaName(connection, inputSchemaName, config);
         Assert.assertEquals(inputSchemaName, outputSchemaName);
     }
@@ -146,7 +147,7 @@ public class OracleCaseResolverTest
             throws Exception
     {
         String inputSchemaName = "testschema";
-        Map<String, String> config = Map.of(OracleCaseResolver.CASING_MODE, "upper");
+        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "upper");
         String outputSchemaName = OracleCaseResolver.getAdjustedSchemaName(connection, inputSchemaName, config);
         Assert.assertEquals(inputSchemaName.toUpperCase(), outputSchemaName);
     }
@@ -157,7 +158,7 @@ public class OracleCaseResolverTest
     {
         String inputSchemaName = "testschema";
         String matchedSchemaName = "testSchema";
-        Map<String, String> config = Map.of(OracleCaseResolver.CASING_MODE, "search");
+        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "search");
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleCaseResolver.SCHEMA_NAME_QUERY_TEMPLATE)).thenReturn(preparedStatement);
@@ -177,7 +178,7 @@ public class OracleCaseResolverTest
             throws Exception
     {
         String inputSchemaName = "testschema";
-        Map<String, String> config = Map.of();
+        Map<String, String> config = Collections.emptyMap();
         String outputSchemaName = OracleCaseResolver.getAdjustedSchemaName(connection, inputSchemaName, config);
         Assert.assertEquals(inputSchemaName.toUpperCase(), outputSchemaName);
     }
@@ -188,7 +189,7 @@ public class OracleCaseResolverTest
     {
         // the trino engine will lowercase anything
         String inputSchemaName = "testschema";
-        Map<String, String> config = Map.of(DEFAULT_GLUE_CONNECTION, "notBlank");
+        Map<String, String> config = Collections.singletonMap(DEFAULT_GLUE_CONNECTION, "notBlank");
         String outputSchemaName = OracleCaseResolver.getAdjustedSchemaName(connection, inputSchemaName, config);
         Assert.assertEquals(inputSchemaName, outputSchemaName);
     }
