@@ -20,19 +20,18 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Map;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 
@@ -179,7 +178,8 @@ public class OracleCaseResolver
         }
     }
 
-    public static TableName quoteTableName(TableName inputTable) {
+    public static TableName quoteTableName(TableName inputTable)
+    {
         String schemaName = inputTable.getSchemaName();
         String tableName = inputTable.getTableName();
         if (!schemaName.contains(ORACLE_IDENTIFIER_CHARACTER)) {
@@ -191,7 +191,8 @@ public class OracleCaseResolver
         return new TableName(schemaName, tableName);
     }
 
-    public static String convertToLiteral(String input) {
+    public static String convertToLiteral(String input)
+    {
         if (!input.contains(ORACLE_STRING_LITERAL_CHARACTER)) {
             input = String.join(ORACLE_STRING_LITERAL_CHARACTER, input, ORACLE_STRING_LITERAL_CHARACTER);
         }
