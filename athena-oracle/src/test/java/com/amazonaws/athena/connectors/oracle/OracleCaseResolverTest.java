@@ -218,14 +218,13 @@ public class OracleCaseResolverTest
             throws Exception
     {
         String inputSchemaName = "tEsTsChEmA";
-        String[] matchedSchemaName = {"testSchema", "TESTSCHEMA"};
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleCaseResolver.SCHEMA_NAME_QUERY_TEMPLATE)).thenReturn(preparedStatement);
 
         String[] columns = {OracleCaseResolver.SCHEMA_NAME_COLUMN_KEY};
         int[] types = {Types.VARCHAR};
-        Object[][] values = {matchedSchemaName};
+        Object[][] values = {{"testSchema"}, {"TESTSCHEMA"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
@@ -279,13 +278,12 @@ public class OracleCaseResolverTest
     {
         String schemaName = "TestSchema";
         String inputTableName = "tEsTtAbLe";
-        String[] matchedTableName = {"testtable", "TESTTABLE"};
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleCaseResolver.TABLE_NAME_QUERY_TEMPLATE)).thenReturn(preparedStatement);
 
         String[] columns = {OracleCaseResolver.TABLE_NAME_COLUMN_KEY};
         int[] types = {Types.VARCHAR};
-        Object[][] values = {matchedTableName};
+        Object[][] values = {{"testtable"}, {"TESTTABLE"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
@@ -311,5 +309,14 @@ public class OracleCaseResolverTest
 
         // should throw exception because no matches found
         OracleCaseResolver.getTableNameCaseInsensitively(connection, schemaName, inputTableName);
+    }
+
+    @Test
+    public void convertToLiteral()
+    {
+        String input = "teststring";
+        String expectedOutput = "\'teststring\'";
+        Assert.assertEquals(expectedOutput, OracleCaseResolver.convertToLiteral(input));
+        Assert.assertEquals(expectedOutput, OracleCaseResolver.convertToLiteral(expectedOutput));
     }
 }

@@ -183,10 +183,10 @@ public class OracleCaseResolver
         String schemaName = inputTable.getSchemaName();
         String tableName = inputTable.getTableName();
         if (!schemaName.contains(ORACLE_IDENTIFIER_CHARACTER)) {
-            schemaName = String.join(ORACLE_IDENTIFIER_CHARACTER, schemaName, ORACLE_IDENTIFIER_CHARACTER);
+            schemaName = ORACLE_IDENTIFIER_CHARACTER + schemaName + ORACLE_IDENTIFIER_CHARACTER;
         }
         if (!tableName.contains(ORACLE_IDENTIFIER_CHARACTER)) {
-            tableName = String.join(ORACLE_IDENTIFIER_CHARACTER, tableName, ORACLE_IDENTIFIER_CHARACTER);
+            tableName = ORACLE_IDENTIFIER_CHARACTER + tableName + ORACLE_IDENTIFIER_CHARACTER;
         }
         return new TableName(schemaName, tableName);
     }
@@ -194,7 +194,7 @@ public class OracleCaseResolver
     public static String convertToLiteral(String input)
     {
         if (!input.contains(ORACLE_STRING_LITERAL_CHARACTER)) {
-            input = String.join(ORACLE_STRING_LITERAL_CHARACTER, input, ORACLE_STRING_LITERAL_CHARACTER);
+            input = ORACLE_STRING_LITERAL_CHARACTER + input + ORACLE_STRING_LITERAL_CHARACTER;
         }
         return input;
     }
