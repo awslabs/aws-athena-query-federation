@@ -161,11 +161,13 @@ public class OracleMetadataHandler
         LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), transformString(getTableLayoutRequest.getTableName().getSchemaName(), true),
                 transformString(getTableLayoutRequest.getTableName().getTableName(), true));
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-          List<String> parameters = Arrays.asList(transformString(getTableLayoutRequest.getTableName().getTableName(), true)); 
+          List<String> parameters = Arrays.asList(transformString(getTableLayoutRequest.getTableName().getTableName(), true));
+            //try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(GET_PARTITIONS_QUERY + ))  
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
                 // Return a single partition if no partitions defined
                 if (!resultSet.next()) {
+                    LOGGER.debug("here");
                     blockWriter.writeRows((Block block, int rowNum) -> {
                         LOGGER.debug("Parameters: " + BLOCK_PARTITION_COLUMN_NAME + " " + rowNum + " " + ALL_PARTITIONS);
                         block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);

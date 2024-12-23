@@ -39,8 +39,8 @@ public abstract class JdbcEnvironmentProperties extends EnvironmentProperties
         HashMap<String, String> environment = new HashMap<>();
 
         // now construct jdbc string
-        String connectionString = String.join(getConnectionStringPrefix(connectionProperties), connectionProperties.get(HOST),
-                ":", connectionProperties.get(PORT), getDatabase(connectionProperties), getJdbcParameters(connectionProperties));
+        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST)
+                + ":" + connectionProperties.get(PORT) + getDatabase(connectionProperties) + getJdbcParameters(connectionProperties);
 
         environment.put(DEFAULT, connectionString);
         return environment;
