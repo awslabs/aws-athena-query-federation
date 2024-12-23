@@ -49,7 +49,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.docdb.DocDBFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
-import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STRING_PREFIX;
 
 /**
  * Handles data read record requests for the Athena DocumentDB Connector.
@@ -111,7 +110,7 @@ public class DocDBRecordHandler
             throw new RuntimeException(DOCDB_CONN_STR + " Split property is null! Unable to create connection.");
         }
         if (configOptions.containsKey(SECRET_NAME) && !hasEmbeddedSecret(connStr)) {
-            connStr = String.join(connStr.substring(0, DOCDB_CONN_STRING_PREFIX.length()), "${", configOptions.get(SECRET_NAME), "}@", connStr.substring(DOCDB_CONN_STRING_PREFIX.length()));
+            connStr = connStr.substring(0, 10) + "${" + configOptions.get(SECRET_NAME) + "}@" + connStr.substring(10);
         }
         String endpoint = resolveSecrets(connStr);
         return connectionFactory.getOrCreateConn(endpoint);
