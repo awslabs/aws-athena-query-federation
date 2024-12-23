@@ -24,7 +24,7 @@
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.9.2</jqwik.version>
-        <assertj.version>3.26.3</assertj.version>
+        <assertj.version>3.27.0</assertj.version>
         <testng.version>7.10.2</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.18.2</fasterxml.jackson.version>
