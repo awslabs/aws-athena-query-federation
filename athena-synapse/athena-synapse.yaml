@@ -48,6 +48,14 @@ Parameters:
     Description: "(Optional) A custom Permission Boundary to be used by the Connector lambda"
     Default: ""
     Type: String
+  JavaVersion:
+    Description: "(Optional) Specify the Java version for the Lambda function. Default is '17'; use '11' for Java 11 or '8' for Java 8."
+    Type: String
+    AllowedValues:
+      - "17"
+      - "11"
+      - "8"
+    Default: "17"
   DisableSpillEncryption:
     Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
     Default: 'false'
@@ -68,6 +76,7 @@ Conditions:
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
   IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
   IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
+  IsJava17: !Equals [!Ref JavaVersion, "17"]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -78,6 +87,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
+          JAVA_TOOL_OPTIONS: !If [IsJava17, "--add-opens=java.base/java.nio=ALL-UNNAMED", !Ref "AWS::NoValue"]
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
