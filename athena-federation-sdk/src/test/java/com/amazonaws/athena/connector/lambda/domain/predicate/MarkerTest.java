@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
@@ -31,7 +32,10 @@ import org.junit.Test;
 
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class MarkerTest
 {
@@ -135,42 +139,42 @@ public class MarkerTest
             Marker.below(allocator, Types.MinorType.INT.getType(), 1).lesserAdjacent();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
 
         try {
             Marker.above(allocator, Types.MinorType.INT.getType(), 1).greaterAdjacent();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
 
         try {
             Marker.lowerUnbounded(allocator, Types.MinorType.INT.getType()).lesserAdjacent();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
 
         try {
             Marker.lowerUnbounded(allocator, Types.MinorType.INT.getType()).greaterAdjacent();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
 
         try {
             Marker.upperUnbounded(allocator, Types.MinorType.INT.getType()).lesserAdjacent();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
 
         try {
             Marker.upperUnbounded(allocator, Types.MinorType.INT.getType()).greaterAdjacent();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
     }
 }
