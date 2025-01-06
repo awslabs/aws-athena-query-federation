@@ -38,8 +38,8 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 public class OracleCaseResolver
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleCaseResolver.class);
-    static final String SCHEMA_NAME_QUERY_TEMPLATE = "SELECT DISTINCT OWNER as \"OWNER\" FROM all_tables where lower(OWNER) = ?";
-    static final String TABLE_NAME_QUERY_TEMPLATE = "select distinct TABLE_NAME as \"TABLE_NAME\" from all_tables where OWNER = ? and lower(TABLE_NAME) = ?";
+    static final String SCHEMA_NAME_QUERY_TEMPLATE = "SELECT DISTINCT OWNER as \"OWNER\" FROM all_tables WHERE lower(OWNER) = ?";
+    static final String TABLE_NAME_QUERY_TEMPLATE = "SELECT DISTINCT TABLE_NAME as \"TABLE_NAME\" FROM all_tables WHERE OWNER = ? and lower(TABLE_NAME) = ?";
     static final String SCHEMA_NAME_COLUMN_KEY = "OWNER";
     static final String TABLE_NAME_COLUMN_KEY = "TABLE_NAME";
 
@@ -76,8 +76,9 @@ public class OracleCaseResolver
                 LOGGER.info("casing mode is `UPPER`: adjusting casing from input to upper case for TableName object. TableName:{}", upperTableName);
                 return upperTableName;
             case LOWER:
-                LOGGER.info("casing mode is `LOWER`: not adjust casing from input for TableName object. TableName:{}", tableName);
-                return tableName;
+                TableName lowerTableName = new TableName(tableName.getSchemaName().toLowerCase(), tableName.getTableName().toLowerCase());
+                LOGGER.info("casing mode is `LOWER`: adjusting casing from input to lower case for TableName object. TableName:{}", lowerTableName);
+                return lowerTableName;
         }
         LOGGER.warn("casing mode is empty: not adjust casing from input for TableName object. TableName:{}", tableName);
         return tableName;
@@ -95,13 +96,14 @@ public class OracleCaseResolver
                 LOGGER.info("casing mode is `UPPER`: adjusting casing from input to upper case for Schema");
                 return schemaNameInput.toUpperCase();
             case LOWER:
-                LOGGER.info("casing mode is `LOWER`: not adjust casing from input for Schema");
+                LOGGER.info("casing mode is `LOWER`: adjusting casing from input to lower case for Schema");
+                return schemaNameInput.toLowerCase();
         }
 
         return schemaNameInput;
     }
 
-    public static String getSchemaNameCaseInsensitively(final Connection connection, String schemaNameInput)
+    public static String getSchemaNameCaseInsensitively(final Connection connection, String schemaName)
             throws SQLException
     {
         String nameFromOracle = null;
@@ -109,7 +111,7 @@ public class OracleCaseResolver
         try (PreparedStatement preparedStatement = new PreparedStatementBuilder()
                 .withConnection(connection)
                 .withQuery(SCHEMA_NAME_QUERY_TEMPLATE)
-                .withParameters(Arrays.asList(schemaNameInput.toLowerCase())).build();
+                .withParameters(Arrays.asList(schemaName.toLowerCase())).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
             while (resultSet.next()) {
                 i++;
@@ -171,7 +173,7 @@ public class OracleCaseResolver
             LOGGER.info("CASING MODE enable: {}", oracleCasingMode.toString());
             return oracleCasingMode;
         }
-        catch (Exception ex) {
+        catch (IllegalArgumentException ex) {
             // print error log for customer along with list of input
             LOGGER.error("Invalid input for:{}, input value:{}, valid values:{}", CASING_MODE, configOptions.get(CASING_MODE), Arrays.asList(OracleCasingMode.values()), ex);
             throw ex;
