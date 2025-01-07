@@ -73,7 +73,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 
 public class Db2As400MetadataHandlerTest extends TestBase {
     private static final Logger logger = LoggerFactory.getLogger(Db2As400MetadataHandlerTest.class);
-    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("partition_number", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2As400Constants.NAME,
             "db2as400://jdbc:as400://testhost;user=dummy;password=dummy;");
     private Db2As400MetadataHandler db2As400MetadataHandler;

@@ -77,7 +77,7 @@ import java.util.stream.Collectors;
 public class Db2As400MetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Db2As400MetadataHandler.class);
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
+    static final String PARTITION_NUMBER = "PARTITION_NUMBER".toLowerCase();
     static final String PARTITIONING_COLUMN = "PARTITIONING_COLUMN";
     /**
      * DB2 has max number of partition 32,000
