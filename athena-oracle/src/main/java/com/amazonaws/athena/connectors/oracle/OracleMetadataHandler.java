@@ -253,7 +253,8 @@ public class OracleMetadataHandler
         int t = token != null ? Integer.parseInt(token) : 0;
 
         LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
-        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
+        String casedSchemaName = OracleCaseResolver.getAdjustedSchemaName(connection, listTablesRequest.getSchemaName(), configOptions);
+        List<TableName> paginatedTables = getPaginatedTables(connection, casedSchemaName, t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
     }
