@@ -55,7 +55,7 @@ public class OracleCaseResolver
 
     private enum OracleCasingMode
     {
-        LOWER,      // casing mode to use whatever the engine returns (in trino's case, lower)
+        LOWER,      // casing mode to lower case everything (glue and trino lower case everything)
         UPPER,      // casing mode to upper case everything (oracle by default upper cases everything)
         SEARCH      // casing mode to perform case insensitive search
     }
@@ -121,7 +121,7 @@ public class OracleCaseResolver
             }
         }
         catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(String.format("getSchemaNameCaseInsensitively query failed for %s", schemaName), e);
         }
 
         if (i != 1) {
@@ -150,7 +150,7 @@ public class OracleCaseResolver
             }
         }
         catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(String.format("getTableNameCaseInsensitively query failed for schema: %s tableName: %s", schemaName, tableNameInput), e);
         }
 
         if (i != 1) {
