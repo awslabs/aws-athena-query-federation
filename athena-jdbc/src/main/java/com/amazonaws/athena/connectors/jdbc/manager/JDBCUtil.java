@@ -212,7 +212,7 @@ public final class JDBCUtil
             }
         }
         catch (SQLException ex) {
-            LOGGER.info("Unable to return list of {} from data source!", tableType);
+            LOGGER.warn("Unable to return list of {} from data source!. Returning Empty list of table", tableType, ex);
         }
         return list.build();
     }
