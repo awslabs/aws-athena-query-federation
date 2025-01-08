@@ -57,7 +57,7 @@ public class OracleCaseResolver
     {
         LOWER,      // casing mode to lower case everything (glue and trino lower case everything)
         UPPER,      // casing mode to upper case everything (oracle by default upper cases everything)
-        SEARCH      // casing mode to perform case insensitive search
+        CASE_INSENSITIVE_SEARCH     // casing mode to perform case insensitive search
     }
 
     public static TableName getAdjustedTableObjectName(final Connection connection, TableName tableName, Map<String, String> configOptions)
@@ -65,7 +65,7 @@ public class OracleCaseResolver
     {
         OracleCasingMode casingMode = getCasingMode(configOptions);
         switch (casingMode) {
-            case SEARCH:
+            case CASE_INSENSITIVE_SEARCH:
                 String schemaNameCaseInsensitively = getSchemaNameCaseInsensitively(connection, tableName.getSchemaName());
                 String tableNameCaseInsensitively = getTableNameCaseInsensitively(connection, schemaNameCaseInsensitively, tableName.getTableName());
                 TableName tableNameResult = new TableName(schemaNameCaseInsensitively, tableNameCaseInsensitively);
@@ -89,7 +89,7 @@ public class OracleCaseResolver
     {
         OracleCasingMode casingMode = getCasingMode(configOptions);
         switch (casingMode) {
-            case SEARCH:
+            case CASE_INSENSITIVE_SEARCH:
                 LOGGER.info("casing mode is SEARCH: performing case insensitive search for Schema...");
                 return getSchemaNameCaseInsensitively(connection, schemaNameInput);
             case UPPER:

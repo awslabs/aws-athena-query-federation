@@ -87,7 +87,7 @@ public class OracleCaseResolverTest
         String inputTableName = "testtable";
         String matchedTableName = "TESTTABLE";
         TableName inputTableNameObject = new TableName(inputSchemaName, inputTableName);
-        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "search");
+        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "case_insensitive_search");
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleCaseResolver.SCHEMA_NAME_QUERY_TEMPLATE)).thenReturn(preparedStatement);
@@ -158,7 +158,7 @@ public class OracleCaseResolverTest
     {
         String inputSchemaName = "testschema";
         String matchedSchemaName = "testSchema";
-        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "search");
+        Map<String, String> config = Collections.singletonMap(OracleCaseResolver.CASING_MODE, "case_insensitive_search");
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleCaseResolver.SCHEMA_NAME_QUERY_TEMPLATE)).thenReturn(preparedStatement);
