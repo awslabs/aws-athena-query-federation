@@ -213,9 +213,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 }
             }
 
-            String primaryKey = String.join(", ", primaryKeys);
-            if (!Strings.isNullOrEmpty(primaryKey) && hasUniquePrimaryKey(tableName, primaryKey)) {
-                return Optional.of(primaryKey);
+            String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
+            if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString)) {
+                return Optional.of(primaryKeyString);
             }
         }
         return Optional.empty(); 
@@ -228,7 +228,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception 
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + tableName.getTableName() + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC"); 
+            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
                     if (rs.getInt(COUNTS_COLUMN_NAME) == 1) {
@@ -258,7 +258,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
 
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            TableName tableName = SnowflakeCaseInsensitiveResolver.getTableNameObjectCaseInsensitiveMatch(connection, getTableLayoutRequest.getTableName(), configOptions);
+            TableName tableName = getTableLayoutRequest.getTableName();
             /**
              * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
              * this is to handle timeout issues because of huge partitions
@@ -383,7 +383,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         LOGGER.debug("doGetTable getTableName:{}", getTableRequest.getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = SnowflakeCaseInsensitiveResolver.getTableNameObjectCaseInsensitiveMatch(connection, getTableRequest.getTableName(), configOptions);
+            TableName tableName = SnowflakeCaseInsensitiveResolver.getAdjustedTableObjectNameBasedOnConfig(connection, getTableRequest.getTableName(), configOptions);
             GetTableResponse getTableResponse = new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
             return getTableResponse;
@@ -397,7 +397,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
                     listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-            String schemaName = SnowflakeCaseInsensitiveResolver.getSchemaNameCaseInsensitively(connection, listTablesRequest.getSchemaName(), configOptions);
+            String schemaName = SnowflakeCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(connection, listTablesRequest.getSchemaName(), configOptions);
 
             String token = listTablesRequest.getNextToken();
             int pageSize = listTablesRequest.getPageSize();
