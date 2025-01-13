@@ -1,6 +1,7 @@
 # Amazon Athena Query Federation
 
 [![Build Status](https://github.com/awslabs/aws-athena-query-federation/workflows/Java%20CI%20Push/badge.svg)](https://github.com/awslabs/aws-athena-query-federation/actions)
+[![codecov](https://codecov.io/github/awslabs/aws-athena-query-federation/graph/badge.svg?token=x5Q7jg0yUy)](https://codecov.io/github/awslabs/aws-athena-query-federation)
 
 The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code. This enables you to integrate with new data sources, proprietary data formats, or build in new user defined functions. Initially these customizations will be limited to the parts of a query that occur during a TableScan operation but will eventually be expanded to include other parts of the query lifecycle using the same easy to understand interface.
 
