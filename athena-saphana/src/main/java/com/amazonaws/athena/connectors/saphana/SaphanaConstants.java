@@ -32,7 +32,7 @@ public final class SaphanaConstants
     public static final int SAPHANA_DEFAULT_PORT = 1025;
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String ALL_PARTITIONS = "0";
-    static final String BLOCK_PARTITION_COLUMN_NAME = "PART_ID".toLowerCase();
+    static final String BLOCK_PARTITION_COLUMN_NAME = "part_id";
     static final String COLUMN_NAME = "COLUMN_NAME";
     static final String CASE_UPPER = "upper";
     static final String CASE_LOWER = "lower";
