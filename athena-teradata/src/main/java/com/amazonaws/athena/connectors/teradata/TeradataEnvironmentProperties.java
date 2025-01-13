@@ -35,12 +35,10 @@ public class TeradataEnvironmentProperties extends JdbcEnvironmentProperties
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
     {
         HashMap<String, String> environment = new HashMap<>();
-        // Default port for teradata is 1025
-        String port = connectionProperties.getOrDefault(PORT, "1025");
 
         // Construct the JDBC connection string and include the port as a DBS_PORT parameter
         String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST)
-                + getDatabase(connectionProperties)  + ",DBS_PORT=" + port + getJdbcParameters(connectionProperties);
+                + getDatabase(connectionProperties)  + ",DBS_PORT=" + connectionProperties.getOrDefault(PORT, String.valueOf(TeradataConstants.TERADATA_DEFAULT_PORT)) + getJdbcParameters(connectionProperties);
 
         environment.put(DEFAULT, connectionString);
         return environment;
