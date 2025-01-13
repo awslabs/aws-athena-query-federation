@@ -82,11 +82,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
+import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 
 public class Db2MetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Db2MetadataHandler.class);
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER".toLowerCase();
     static final String PARTITIONING_COLUMN = "PARTITIONING_COLUMN";
     /**
      * DB2 has max number of partition 32,000
