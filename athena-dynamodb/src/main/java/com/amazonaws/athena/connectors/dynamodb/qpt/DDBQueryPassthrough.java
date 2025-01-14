@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.dynamodb.qpt;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
-import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
@@ -31,7 +30,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 public class DDBQueryPassthrough implements QueryPassthroughSignature
 {
@@ -81,16 +79,6 @@ public class DDBQueryPassthrough implements QueryPassthroughSignature
         // Immediately check if the statement starts with "SELECT"
         if (!upperCaseStatement.startsWith("SELECT")) {
             throw new AthenaConnectorException("Statement does not start with SELECT.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
-        }
-
-        // List of disallowed keywords
-        Set<String> disallowedKeywords = ImmutableSet.of("INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER");
-
-        // Check if the statement contains any disallowed keywords
-        for (String keyword : disallowedKeywords) {
-            if (upperCaseStatement.contains(keyword)) {
-                throw new AthenaConnectorException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword, ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
-            }
         }
     }
 }
