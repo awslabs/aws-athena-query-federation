@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DDBQueryPassthrough implements QueryPassthroughSignature
 {
@@ -81,16 +83,6 @@ public class DDBQueryPassthrough implements QueryPassthroughSignature
         // Immediately check if the statement starts with "SELECT"
         if (!upperCaseStatement.startsWith("SELECT")) {
             throw new AthenaConnectorException("Statement does not start with SELECT.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
-        }
-
-        // List of disallowed keywords
-        Set<String> disallowedKeywords = ImmutableSet.of("INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER");
-
-        // Check if the statement contains any disallowed keywords
-        for (String keyword : disallowedKeywords) {
-            if (upperCaseStatement.contains(keyword)) {
-                throw new AthenaConnectorException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword, ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
-            }
         }
     }
 }
