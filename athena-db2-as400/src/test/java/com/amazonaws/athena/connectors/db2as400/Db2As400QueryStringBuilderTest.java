@@ -45,7 +45,7 @@ public class Db2As400QueryStringBuilderTest {
     {
         Db2As400QueryStringBuilder builder = new Db2As400QueryStringBuilder("'");
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperty(Mockito.eq("PARTITION_NUMBER"))).thenReturn("0");
+        Mockito.when(split.getProperty(Mockito.eq("partition_number"))).thenReturn("0");
         Mockito.when(split.getProperty(Mockito.eq("PARTITIONING_COLUMN"))).thenReturn("PC");
         Assert.assertEquals(Arrays.asList(" DATAPARTITIONNUM(PC) = 0"), builder.getPartitionWhereClauses(split));
     }

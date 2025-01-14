@@ -69,12 +69,13 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class Db2MetadataHandlerTest extends TestBase {
     private static final Logger logger = LoggerFactory.getLogger(Db2MetadataHandlerTest.class);
-    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2Constants.NAME,
             "dbtwo://jdbc:db2://hostname:50001/dummydatabase:user=dummyuser;password=dummypwd");
     private Db2MetadataHandler db2MetadataHandler;
@@ -104,7 +105,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     public void getPartitionSchema()
     {
         Assert.assertEquals(SchemaBuilder.newBuilder()
-                        .addField(Db2MetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
+                        .addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
                 this.db2MetadataHandler.getPartitionSchema("testCatalogName"));
     }
 
@@ -131,7 +132,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap(db2MetadataHandler.PARTITION_NUMBER, "0"));
+        expectedSplits.add(Collections.singletonMap(PARTITION_NUMBER, "0"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -168,13 +169,13 @@ public class Db2MetadataHandlerTest extends TestBase {
 
         Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
             com.google.common.collect.ImmutableMap.of(
-                db2MetadataHandler.PARTITION_NUMBER, "0",
+                PARTITION_NUMBER, "0",
                 db2MetadataHandler.PARTITIONING_COLUMN, "PC"),
             com.google.common.collect.ImmutableMap.of(
-                db2MetadataHandler.PARTITION_NUMBER, "1",
+                PARTITION_NUMBER, "1",
                 db2MetadataHandler.PARTITIONING_COLUMN, "PC"),
             com.google.common.collect.ImmutableMap.of(
-                db2MetadataHandler.PARTITION_NUMBER, "2",
+                PARTITION_NUMBER, "2",
                 db2MetadataHandler.PARTITIONING_COLUMN, "PC"));
 
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());

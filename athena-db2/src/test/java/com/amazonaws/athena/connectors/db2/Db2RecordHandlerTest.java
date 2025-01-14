@@ -47,6 +47,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 import static com.amazonaws.athena.connectors.db2.Db2Constants.QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -97,7 +98,7 @@ public class Db2RecordHandlerTest {
         Schema schema = schemaBuilder.build();
 
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperty(Db2MetadataHandler.PARTITION_NUMBER)).thenReturn("0");
+        Mockito.when(split.getProperty(PARTITION_NUMBER)).thenReturn("0");
 
         ValueSet valueSet = getSingleValueSet("varcharTest");
         Constraints constraints = Mockito.mock(Constraints.class);
