@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Federat
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -34,6 +35,8 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Collections;
 import java.util.List;
@@ -88,7 +91,8 @@ public abstract class FederationExpressionParser
                 else if (argument instanceof FunctionCallExpression) {
                     return parseFunctionCallExpression((FunctionCallExpression) argument, accumulator);
                 }
-                throw new RuntimeException("Should not reach this case - a new subclass was introduced and is not handled.");
+                throw new AthenaConnectorException("Should not reach this case - a new subclass was introduced and is not handled.",
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
             }).collect(Collectors.toList());
 
         return mapFunctionToDataSourceSyntax(functionName, functionCallExpression.getType(), arguments);
