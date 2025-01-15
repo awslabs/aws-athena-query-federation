@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -27,6 +28,8 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -107,7 +110,7 @@ class ElasticsearchSchemaUtils
             if (meta.containsKey(qualifiedName)) {
                 String metaValue = (String) meta.get(qualifiedName);
                 if (!metaValue.equalsIgnoreCase("list")) {
-                    throw new IllegalArgumentException(String.format("_meta only support value `list`, key:%s, value:%s", qualifiedName, metaValue));
+                    throw new AthenaConnectorException(String.format("_meta only support value `list`, key:%s, value:%s", qualifiedName, metaValue), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                 }
 
                 Field field1 = new Field(fieldName, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
