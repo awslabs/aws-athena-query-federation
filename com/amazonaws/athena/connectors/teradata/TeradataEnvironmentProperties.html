@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -203,16 +203,25 @@ extends <a href="../jdbc/JdbcEnvironmentProperties.html" title="class in com.ama
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#connectionPropertiesToEnvironment(java.util.Map)">connectionPropertiesToEnvironment</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;connectionProperties)</code></th>
+<td class="colLast">
+<div class="block">Maps glue connection properties and authentication configuration
+ to Athena federation environment properties like 'default' and 'secret_manager_gcp_creds_name'
+ Default behavior is to not map to Athena federation environment variables</div>
+</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getConnectionStringPrefix(java.util.Map)">getConnectionStringPrefix</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;connectionProperties)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDatabase(java.util.Map)">getDatabase</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;connectionProperties)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getJdbcParametersSeparator()">getJdbcParametersSeparator</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
@@ -223,7 +232,7 @@ extends <a href="../jdbc/JdbcEnvironmentProperties.html" title="class in com.ama
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connectors.jdbc.<a href="../jdbc/JdbcEnvironmentProperties.html" title="class in com.amazonaws.athena.connectors.jdbc">JdbcEnvironmentProperties</a></h3>
-<code><a href="../jdbc/JdbcEnvironmentProperties.html#connectionPropertiesToEnvironment(java.util.Map)">connectionPropertiesToEnvironment</a>, <a href="../jdbc/JdbcEnvironmentProperties.html#getDatabaseSeparator()">getDatabaseSeparator</a>, <a href="../jdbc/JdbcEnvironmentProperties.html#getDelimiter()">getDelimiter</a>, <a href="../jdbc/JdbcEnvironmentProperties.html#getJdbcParameters(java.util.Map)">getJdbcParameters</a></code></li>
+<code><a href="../jdbc/JdbcEnvironmentProperties.html#getDatabaseSeparator()">getDatabaseSeparator</a>, <a href="../jdbc/JdbcEnvironmentProperties.html#getDelimiter()">getDelimiter</a>, <a href="../jdbc/JdbcEnvironmentProperties.html#getJdbcParameters(java.util.Map)">getJdbcParameters</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties">
@@ -274,6 +283,25 @@ extends <a href="../jdbc/JdbcEnvironmentProperties.html" title="class in com.ama
 <!--   -->
 </a>
 <h3>Method Detail</h3>
+<a id="connectionPropertiesToEnvironment(java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>connectionPropertiesToEnvironment</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;connectionPropertiesToEnvironment&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;connectionProperties)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../../connector/lambda/connection/EnvironmentProperties.html#connectionPropertiesToEnvironment(java.util.Map)">EnvironmentProperties</a></code></span></div>
+<div class="block">Maps glue connection properties and authentication configuration
+ to Athena federation environment properties like 'default' and 'secret_manager_gcp_creds_name'
+ Default behavior is to not map to Athena federation environment variables</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="../jdbc/JdbcEnvironmentProperties.html#connectionPropertiesToEnvironment(java.util.Map)">connectionPropertiesToEnvironment</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/JdbcEnvironmentProperties.html" title="class in com.amazonaws.athena.connectors.jdbc">JdbcEnvironmentProperties</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>connectionProperties</code> - contains secret_name and connection properties</dd>
+</dl>
+</li>
+</ul>
 <a id="getConnectionStringPrefix(java.util.Map)">
 <!--   -->
 </a>
