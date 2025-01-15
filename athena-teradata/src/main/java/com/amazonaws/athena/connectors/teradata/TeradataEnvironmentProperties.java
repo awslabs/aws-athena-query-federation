@@ -21,12 +21,29 @@ package com.amazonaws.athena.connectors.teradata;
 
 import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 
 public class TeradataEnvironmentProperties extends JdbcEnvironmentProperties
 {
+    @Override
+    public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
+    {
+        HashMap<String, String> environment = new HashMap<>();
+
+        // Construct the JDBC connection string and include the port as a DBS_PORT parameter
+        String connectionString = getConnectionStringPrefix(connectionProperties) + connectionProperties.get(HOST)
+                + getDatabase(connectionProperties)  + ",DBS_PORT=" + connectionProperties.getOrDefault(PORT, String.valueOf(TeradataConstants.TERADATA_DEFAULT_PORT)) + getJdbcParameters(connectionProperties);
+
+        environment.put(DEFAULT, connectionString);
+        return environment;
+    }
+
     @Override
     protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
     {
