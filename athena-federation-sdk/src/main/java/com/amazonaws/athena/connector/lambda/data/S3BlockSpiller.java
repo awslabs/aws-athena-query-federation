@@ -23,6 +23,7 @@ package com.amazonaws.athena.connector.lambda.data;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.BlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
@@ -36,6 +37,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -48,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -200,8 +202,8 @@ public class S3BlockSpiller
         }
 
         if (rows > maxRowsPerCall) {
-            throw new RuntimeException("Call generated more than " + maxRowsPerCall + "rows. Generating " +
-                    "too many rows per call to writeRows(...) can result in blocks that exceed the max size.");
+            throw new AthenaConnectorException("Call generated more than " + maxRowsPerCall + "rows. Generating " +
+                    "too many rows per call to writeRows(...) can result in blocks that exceed the max size.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         if (rows > 0) {
             block.setRowCount(rowCount + rows);
@@ -249,7 +251,7 @@ public class S3BlockSpiller
     public Block getBlock()
     {
         if (spilled()) {
-            throw new RuntimeException("Blocks have spilled, calls to getBlock not permitted. use getSpillLocations instead.");
+            throw new AthenaConnectorException("Blocks have spilled, calls to getBlock not permitted. use getSpillLocations instead.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
 
         logger.info("getBlock: Inline Block size[{}] bytes vs {}", inProgressBlock.get().getSize(), spillConfig.getMaxInlineBlockSize());
@@ -265,7 +267,7 @@ public class S3BlockSpiller
     public List<SpillLocation> getSpillLocations()
     {
         if (!spilled()) {
-            throw new RuntimeException("Blocks have not spilled, calls to getSpillLocations not permitted. use getBlock instead.");
+            throw new AthenaConnectorException("Blocks have not spilled, calls to getSpillLocations not permitted. use getBlock instead.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
 
         Lock lock = spillLock.writeLock();
@@ -398,7 +400,7 @@ public class S3BlockSpiller
             return block;
         }
         catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -467,7 +469,7 @@ public class S3BlockSpiller
     {
         S3SpillLocation splitSpillLocation = (S3SpillLocation) spillConfig.getSpillLocation();
         if (!splitSpillLocation.isDirectory()) {
-            throw new RuntimeException("Split's SpillLocation must be a directory because multiple blocks may be spilled.");
+            throw new AthenaConnectorException("Split's SpillLocation must be a directory because multiple blocks may be spilled.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         String blockKey = splitSpillLocation.getKey() + "." + spillNumber.getAndIncrement();
         return new S3SpillLocation(splitSpillLocation.getBucket(), blockKey, false);
@@ -484,7 +486,7 @@ public class S3BlockSpiller
             block.close();
         }
         catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -512,7 +514,7 @@ public class S3BlockSpiller
                 }
                 catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    throw new RejectedExecutionException("Received an exception while submitting spillBlock task: ", e);
+                    throw new AthenaConnectorException("Received an exception while submitting spillBlock task: ", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
                 }
             }
         };
