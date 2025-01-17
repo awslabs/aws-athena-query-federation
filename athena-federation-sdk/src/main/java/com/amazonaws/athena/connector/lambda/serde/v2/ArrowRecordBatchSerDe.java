@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.data.AthenaFederationIpcOption;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -34,6 +35,8 @@ import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -91,7 +94,7 @@ public final class ArrowRecordBatchSerDe
                 throws IOException
         {
             if (jparser.nextToken() != JsonToken.VALUE_EMBEDDED_OBJECT) {
-                throw new IllegalStateException("Expecting " + JsonToken.VALUE_STRING + " but found " + jparser.getCurrentLocation());
+                throw new AthenaConnectorException("Expecting " + JsonToken.VALUE_STRING + " but found " + jparser.getCurrentLocation(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             byte[] bytes = jparser.getBinaryValue();
             AtomicReference<ArrowRecordBatch> batch = new AtomicReference<>();
