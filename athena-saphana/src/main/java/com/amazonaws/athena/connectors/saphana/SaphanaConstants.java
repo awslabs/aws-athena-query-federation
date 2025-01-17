@@ -32,7 +32,7 @@ public final class SaphanaConstants
     public static final int SAPHANA_DEFAULT_PORT = 1025;
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String ALL_PARTITIONS = "0";
-    static final String BLOCK_PARTITION_COLUMN_NAME = "PART_ID";
+    static final String BLOCK_PARTITION_COLUMN_NAME = "part_id";
     static final String COLUMN_NAME = "COLUMN_NAME";
     static final String CASE_UPPER = "upper";
     static final String CASE_LOWER = "lower";
@@ -40,7 +40,7 @@ public final class SaphanaConstants
     /**
      * partition query for saphana
      */
-    static final String GET_PARTITIONS_QUERY = "SELECT DISTINCT PART_ID FROM SYS.TABLE_PARTITIONS " +
+    static final String GET_PARTITIONS_QUERY = "SELECT DISTINCT PART_ID as \"part_id\" FROM SYS.TABLE_PARTITIONS " +
             "WHERE TABLE_NAME = ? AND SCHEMA_NAME = ? AND PART_ID IS NOT NULL";
 
     /**

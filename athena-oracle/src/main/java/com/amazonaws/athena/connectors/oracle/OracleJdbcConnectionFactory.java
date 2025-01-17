@@ -68,6 +68,9 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     properties.put("javax.net.ssl.trustStore", "rds-truststore.jks");
                     properties.put("javax.net.ssl.trustStorePassword", "federationStorePass");
                     properties.put("oracle.net.ssl_server_dn_match", "true");
+                    // By default; Oracle RDS uses SSL_RSA_WITH_AES_256_CBC_SHA
+                    // Adding the following cipher suits to support others listed in Doc
+                    // https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Appendix.Oracle.Options.SSL.html#Appendix.Oracle.Options.SSL.CipherSuites
                     if (System.getenv().getOrDefault(IS_FIPS_ENABLED, "false").equalsIgnoreCase("true") || System.getenv().getOrDefault(IS_FIPS_ENABLED_LEGACY, "false").equalsIgnoreCase("true")) {
                         properties.put("oracle.net.ssl_cipher_suites", "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)");
                     }
