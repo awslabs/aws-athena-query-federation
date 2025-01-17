@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Collections;
 import java.util.List;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
+
 public class SqlServerQueryStringBuilder extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlServerQueryStringBuilder.class);
@@ -63,7 +65,7 @@ public class SqlServerQueryStringBuilder extends JdbcSplitQueryBuilder
     {
         String partitionFunction = split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION);
         String partitioningColumn = split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN);
-        String partitionNumber = split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER);
+        String partitionNumber = split.getProperty(PARTITION_NUMBER);
 
         //example query: select * from MyPartitionTable where $PARTITION.myRangePF(col1) =2
         LOGGER.debug("PARTITION_FUNCTION: {}", partitionFunction);
