@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -46,7 +47,9 @@ import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
 import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -61,6 +64,7 @@ import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -191,7 +195,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
      *
-     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param blockAllocator Tool for creating and managing Apache Arrow Blocks.
      * @param request   Provides details on who made the request and which Athena
      *                  catalog, database, and table they are querying.
      * @return A GetTableResponse which primarily contains: 1. An Apache Arrow
@@ -279,11 +283,6 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         String schemaName = qptArguments.get(NeptuneQueryPassthrough.DATABASE);
         String tableName = qptArguments.get(NeptuneQueryPassthrough.COLLECTION);
         TableName tableNameObj = new TableName(schemaName, tableName);
-        request = new GetTableRequest(request.getIdentity(), request.getQueryId(),
-                request.getCatalogName(), tableNameObj, request.getQueryPassthroughArguments());
-
-        GetTableResponse getTableResponse = doGetTable(allocator, request);
-        List<Field> fields = getTableResponse.getSchema().getFields();
         Schema schema;
         Enums.GraphType graphType = Enums.GraphType.PROPERTYGRAPH;
 
@@ -296,7 +295,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 Client client = neptuneConnection.getNeptuneClientConnection();
                 GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
                 String gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
-                gremlinQuery = gremlinQuery.concat(".limit(1)");
+                gremlinQuery = gremlinQuery.concat(".limit(10)");
                 logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with limit: " + gremlinQuery);
                 Object object = new PropertyGraphHandler(neptuneConnection).getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
                 GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
@@ -305,7 +304,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                     if (responseObj instanceof Map && gremlinQuery.contains(Constants.GREMLIN_QUERY_SUPPORT_TYPE)) {
                         logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with valueMap");
                         Map graphTraversalObj = (Map) responseObj;
-                        schema = getSchemaFromResults(getTableResponse, graphTraversalObj, fields);
+                        schema = getSchemaFromResults(graphTraversalObj);
                         return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                     }
                     else {
@@ -320,15 +319,13 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
 
             case RDF:
                 String sparqlQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
-                sparqlQuery = sparqlQuery.contains("limit") ? sparqlQuery : sparqlQuery.concat("\nlimit 1");
+                sparqlQuery = sparqlQuery.contains("limit") ? sparqlQuery : sparqlQuery.concat("\nlimit 10");
                 logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema sparql query with limit: " + sparqlQuery);
                 NeptuneSparqlConnection neptuneSparqlConnection = (NeptuneSparqlConnection) neptuneConnection;
                 neptuneSparqlConnection.runQuery(sparqlQuery);
-                String strim = getTableResponse.getSchema().getCustomMetadata().get(Constants.SCHEMA_STRIP_URI);
-                boolean trimURI = strim == null ? false : Boolean.parseBoolean(strim);
                 if (neptuneSparqlConnection.hasNext()) {
-                    Map<String, Object> resultsMap = neptuneSparqlConnection.next(trimURI);
-                    schema = getSchemaFromResults(getTableResponse, resultsMap, fields);
+                    Map<String, Object> resultsMap = neptuneSparqlConnection.next(true);
+                    schema = getSchemaFromResults(resultsMap);
                     return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                 }
                 else {
@@ -340,35 +337,71 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         }
     }
 
-    private Schema getSchemaFromResults(GetTableResponse getTableResponse, Map resultsMap, List<Field> fields)
+    private Schema getSchemaFromResults(Map resultsMap)
     {
         Schema schema;
-        //In case of 'gremlin/sparql query' is fetching all columns then we can use same schema from glue
-        //otherwise we will build schema from gremlin/sparql query result column names.
-        if (resultsMap != null && resultsMap.size() == fields.size()) {
-            schema = getTableResponse.getSchema();
-        }
-        else {
-            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            //Building schema from gremlin/sparql query results and list of fields from glue response.
-            //It's require only when we are selecting limited columns.
-            resultsMap.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), fields, schemaBuilder));
-            Map<String, String> metaData = getTableResponse.getSchema().getCustomMetadata();
-            for (Map.Entry<String, String> map : metaData.entrySet()) {
-                schemaBuilder.addMetadata(map.getKey(), map.getValue());
-            }
-            schema = schemaBuilder.build();
-        }
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        //Building schema from gremlin/sparql query results.
+        resultsMap.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), columnValue,  schemaBuilder));
+        schema = schemaBuilder.build();
+
         return schema;
     }
 
-    private void buildSchema(String columnName, List<Field> fields, SchemaBuilder schemaBuilder)
+    private void buildSchema(String columnName, Object columnValue, SchemaBuilder schemaBuilder)
     {
-        for (Field field : fields) {
-            if (field.getName().equals(columnName)) {
-                schemaBuilder.addField(field);
-                break;
-            }
-        }
+        schemaBuilder.addField(getArrowFieldForNeptune(columnName, columnValue));
     }
+
+    /**
+     * Infers the type of a field from Neptune data.
+     *
+     * @param key The key of the field we are attempting to infer.
+     * @param value A value from the key whose type we are attempting to infer.
+     * @return The Apache Arrow field definition of the inferred key/value.
+     */
+    private Field getArrowFieldForNeptune(String key, Object value)
+    {
+        if (value instanceof String) {
+            return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+        }
+        else if (value instanceof Integer) {
+            return new Field(key, FieldType.nullable(Types.MinorType.INT.getType()), null);
+        }
+        else if (value instanceof Long) {
+            return new Field(key, FieldType.nullable(Types.MinorType.BIGINT.getType()), null);
+        }
+        else if (value instanceof Boolean) {
+            return new Field(key, FieldType.nullable(Types.MinorType.BIT.getType()), null);
+        }
+        else if (value instanceof Float) {
+            return new Field(key, FieldType.nullable(Types.MinorType.FLOAT4.getType()), null);
+        }
+        else if (value instanceof Double) {
+            return new Field(key, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null);
+        }
+        else if (value instanceof java.util.Date) {
+            return new Field(key, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null);
+        }
+        else if (value instanceof java.util.UUID) {
+            return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+        }
+        else if (value instanceof List) {
+            Field child;
+            if (((List<?>) value).isEmpty()) {
+                logger.warn("getArrowFieldForNeptune: Encountered an empty List for field[{}], defaulting to List<String> due to type erasure.", key);
+                return FieldBuilder.newBuilder(key, Types.MinorType.LIST.getType()).addStringField("").build();
+            }
+            else {
+                child = getArrowFieldForNeptune("", ((List<?>) value).get(0));
+            }
+            return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),
+                    Collections.singletonList(child));
+        }
+
+        String className = (value == null || value.getClass() == null) ? "null" : value.getClass().getName();
+        logger.warn("Unknown type[{}] for field[{}], defaulting to varchar.", className, key);
+        return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+    }
+
 }
