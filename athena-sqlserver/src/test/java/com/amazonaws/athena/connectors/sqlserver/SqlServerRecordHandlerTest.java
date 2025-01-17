@@ -48,6 +48,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
 import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -104,7 +105,7 @@ public class SqlServerRecordHandlerTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn("pf");
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn("testCol1");
-        Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER)).thenReturn("1");
+        Mockito.when(split.getProperty(PARTITION_NUMBER)).thenReturn("1");
 
         ValueSet valueSet = getSingleValueSet("varcharTest");
         Constraints constraints = Mockito.mock(Constraints.class);
