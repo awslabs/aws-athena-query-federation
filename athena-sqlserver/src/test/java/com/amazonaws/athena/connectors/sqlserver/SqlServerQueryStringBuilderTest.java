@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
 import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
 
 public class SqlServerQueryStringBuilderTest
@@ -61,7 +62,7 @@ public class SqlServerQueryStringBuilderTest
         Split split1 = Mockito.mock(Split.class);
         Mockito.when(split1.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn("pf");
         Mockito.when(split1.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn("col");
-        Mockito.when(split1.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER)).thenReturn("1");
+        Mockito.when(split1.getProperty(PARTITION_NUMBER)).thenReturn("1");
         Assert.assertEquals(Collections.singletonList(" $PARTITION.pf(col) = 1"), builder.getPartitionWhereClauses(split1));
 
     }
@@ -73,7 +74,7 @@ public class SqlServerQueryStringBuilderTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn(null);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn("col");
-        Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER)).thenReturn("74");
+        Mockito.when(split.getProperty(PARTITION_NUMBER)).thenReturn("74");
         List<String> result = builder.getPartitionWhereClauses(split);
         // Should return empty list if partition function is null.
         Assert.assertEquals(0, result.size());
@@ -86,7 +87,7 @@ public class SqlServerQueryStringBuilderTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn("pf");
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn(null);
-        Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER)).thenReturn("74");
+        Mockito.when(split.getProperty(PARTITION_NUMBER)).thenReturn("74");
         List<String> result = builder.getPartitionWhereClauses(split);
         // Should return empty list if partitioning column is null.
         Assert.assertEquals(0, result.size());
@@ -99,7 +100,7 @@ public class SqlServerQueryStringBuilderTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn(null);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn(null);
-        Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER)).thenReturn("74");
+        Mockito.when(split.getProperty(PARTITION_NUMBER)).thenReturn("74");
         List<String> result = builder.getPartitionWhereClauses(split);
         // Should return empty list if both partition function and partitioning column are null.
         Assert.assertEquals(0, result.size());
