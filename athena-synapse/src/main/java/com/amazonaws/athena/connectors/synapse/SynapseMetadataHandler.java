@@ -87,7 +87,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
 
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String ALL_PARTITIONS = "0";
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
+    static final String PARTITION_NUMBER = "partition_number";
     static final String PARTITION_BOUNDARY_FROM = "PARTITION_BOUNDARY_FROM";
     static final String PARTITION_BOUNDARY_TO = "PARTITION_BOUNDARY_TO";
     static final String PARTITION_COLUMN = "PARTITION_COLUMN";
@@ -320,7 +320,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
+            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName());
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
