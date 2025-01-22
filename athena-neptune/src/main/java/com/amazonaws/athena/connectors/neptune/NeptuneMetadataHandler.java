@@ -22,8 +22,6 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
@@ -47,9 +45,7 @@ import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
 import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -64,7 +60,6 @@ import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -282,6 +277,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         queryPassthrough.verify(qptArguments);
         String schemaName = qptArguments.get(NeptuneQueryPassthrough.DATABASE);
         String tableName = qptArguments.get(NeptuneQueryPassthrough.COLLECTION);
+        String componentTypeValue = qptArguments.get(NeptuneQueryPassthrough.COMPONENT_TYPE);
         TableName tableNameObj = new TableName(schemaName, tableName);
         Schema schema;
         Enums.GraphType graphType = Enums.GraphType.PROPERTYGRAPH;
@@ -304,7 +300,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                     if (responseObj instanceof Map && gremlinQuery.contains(Constants.GREMLIN_QUERY_SUPPORT_TYPE)) {
                         logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with valueMap");
                         Map graphTraversalObj = (Map) responseObj;
-                        schema = getSchemaFromResults(graphTraversalObj);
+                        schema = NeptuneSchemaUtils.getSchemaFromResults(graphTraversalObj, componentTypeValue, tableName);
                         return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                     }
                     else {
@@ -324,8 +320,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 NeptuneSparqlConnection neptuneSparqlConnection = (NeptuneSparqlConnection) neptuneConnection;
                 neptuneSparqlConnection.runQuery(sparqlQuery);
                 if (neptuneSparqlConnection.hasNext()) {
-                    Map<String, Object> resultsMap = neptuneSparqlConnection.next(true);
-                    schema = getSchemaFromResults(resultsMap);
+                    Map<String, Object> resultsMap = neptuneSparqlConnection.next();
+                    schema = NeptuneSchemaUtils.getSchemaFromResults(resultsMap, componentTypeValue, tableName);
                     return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                 }
                 else {
@@ -336,72 +332,4 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 throw new IllegalArgumentException("Unsupported graphType: " + graphType);
         }
     }
-
-    private Schema getSchemaFromResults(Map resultsMap)
-    {
-        Schema schema;
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        //Building schema from gremlin/sparql query results.
-        resultsMap.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), columnValue,  schemaBuilder));
-        schema = schemaBuilder.build();
-
-        return schema;
-    }
-
-    private void buildSchema(String columnName, Object columnValue, SchemaBuilder schemaBuilder)
-    {
-        schemaBuilder.addField(getArrowFieldForNeptune(columnName, columnValue));
-    }
-
-    /**
-     * Infers the type of a field from Neptune data.
-     *
-     * @param key The key of the field we are attempting to infer.
-     * @param value A value from the key whose type we are attempting to infer.
-     * @return The Apache Arrow field definition of the inferred key/value.
-     */
-    private Field getArrowFieldForNeptune(String key, Object value)
-    {
-        if (value instanceof String) {
-            return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
-        }
-        else if (value instanceof Integer) {
-            return new Field(key, FieldType.nullable(Types.MinorType.INT.getType()), null);
-        }
-        else if (value instanceof Long) {
-            return new Field(key, FieldType.nullable(Types.MinorType.BIGINT.getType()), null);
-        }
-        else if (value instanceof Boolean) {
-            return new Field(key, FieldType.nullable(Types.MinorType.BIT.getType()), null);
-        }
-        else if (value instanceof Float) {
-            return new Field(key, FieldType.nullable(Types.MinorType.FLOAT4.getType()), null);
-        }
-        else if (value instanceof Double) {
-            return new Field(key, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null);
-        }
-        else if (value instanceof java.util.Date) {
-            return new Field(key, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null);
-        }
-        else if (value instanceof java.util.UUID) {
-            return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
-        }
-        else if (value instanceof List) {
-            Field child;
-            if (((List<?>) value).isEmpty()) {
-                logger.warn("getArrowFieldForNeptune: Encountered an empty List for field[{}], defaulting to List<String> due to type erasure.", key);
-                return FieldBuilder.newBuilder(key, Types.MinorType.LIST.getType()).addStringField("").build();
-            }
-            else {
-                child = getArrowFieldForNeptune("", ((List<?>) value).get(0));
-            }
-            return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),
-                    Collections.singletonList(child));
-        }
-
-        String className = (value == null || value.getClass() == null) ? "null" : value.getClass().getName();
-        logger.warn("Unknown type[{}] for field[{}], defaulting to varchar.", className, key);
-        return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
-    }
-
 }
