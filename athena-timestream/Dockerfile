@@ -1,9 +1,9 @@
 FROM public.ecr.aws/lambda/java:11
 
 # Copy function code and runtime dependencies from Maven layout
-COPY target/athena-timestream-2022.47.1.jar ${LAMBDA_TASK_ROOT}
+COPY target/athena-timestream-2025.3.2.jar ${LAMBDA_TASK_ROOT}
 # Unpack the jar
-RUN jar xf athena-timestream-2022.47.1.jar
+RUN jar xf athena-timestream-2025.3.2.jar
 
 # Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
 CMD [ "com.amazonaws.athena.connectors.timestream.TimestreamCompositeHandler" ]
