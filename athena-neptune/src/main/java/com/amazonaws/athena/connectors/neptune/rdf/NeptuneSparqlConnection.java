@@ -96,7 +96,7 @@ public class NeptuneSparqlConnection extends NeptuneConnection
         return false;
     }
 
-    public Map<String, Object> next(boolean trimURI) 
+    public Map<String, Object> next()
     {
         Map<String, Object> ret = new HashMap<String, Object>();
         BindingSet bindingSet = this.queryResult.next();
