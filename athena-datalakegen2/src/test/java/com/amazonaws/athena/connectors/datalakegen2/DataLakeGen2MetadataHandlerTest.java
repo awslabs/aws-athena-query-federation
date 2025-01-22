@@ -33,17 +33,18 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -52,10 +53,12 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -64,13 +67,21 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2MetadataHandler.PARTITION_NUMBER;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 public class DataLakeGen2MetadataHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(DataLakeGen2MetadataHandlerTest.class);
-    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", DataLakeGen2Constants.NAME,
     		  "datalakegentwo://jdbc:sqlserver://hostname;databaseName=fakedatabase");
     private DataLakeGen2MetadataHandler dataLakeGen2MetadataHandler;
@@ -85,22 +96,22 @@ public class DataLakeGen2MetadataHandlerTest
             throws Exception
     {
         System.setProperty("aws.region", "us-east-1");
-        this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
-        this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        this.jdbcConnectionFactory = mock(JdbcConnectionFactory.class, RETURNS_DEEP_STUBS);
+        this.connection = mock(Connection.class, RETURNS_DEEP_STUBS);
         logger.info(" this.connection.."+ this.connection);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
-        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
-        this.athena = Mockito.mock(AthenaClient.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}").build());
+        when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        this.secretsManager = mock(SecretsManagerClient.class);
+        this.athena = mock(AthenaClient.class);
+        when(this.secretsManager.getSecretValue(eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.dataLakeGen2MetadataHandler = new DataLakeGen2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
-        this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        this.federatedIdentity = mock(FederatedIdentity.class);
     }
 
     @Test
     public void getPartitionSchema()
     {
-        Assert.assertEquals(SchemaBuilder.newBuilder()
-                        .addField(DataLakeGen2MetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
+        assertEquals(SchemaBuilder.newBuilder()
+                        .addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
                 this.dataLakeGen2MetadataHandler.getPartitionSchema("testCatalogName"));
     }
 
@@ -109,7 +120,7 @@ public class DataLakeGen2MetadataHandlerTest
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        Constraints constraints = Mockito.mock(Constraints.class);
+        Constraints constraints = mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
 
         Schema partitionSchema = this.dataLakeGen2MetadataHandler.getPartitionSchema("testCatalogName");
@@ -122,33 +133,33 @@ public class DataLakeGen2MetadataHandlerTest
             actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
 
-        Assert.assertEquals(Collections.singletonList("[PARTITION_NUMBER : 0]"), actualValues);
+        assertEquals(Collections.singletonList("[partition_number : 0]"), actualValues);
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(DataLakeGen2MetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
 
-        Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
-        Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
+        assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
+        assertEquals(tableName, getTableLayoutResponse.getTableName());
     }
 
     @Test(expected = RuntimeException.class)
     public void doGetTableLayoutWithSQLException()
             throws Exception
     {
-        Constraints constraints = Mockito.mock(Constraints.class);
+        Constraints constraints = mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
         Schema partitionSchema = this.dataLakeGen2MetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
-        Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
-        Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
+        Connection connection = mock(Connection.class, RETURNS_DEEP_STUBS);
+        JdbcConnectionFactory jdbcConnectionFactory = mock(JdbcConnectionFactory.class);
+        when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
+        when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
         DataLakeGen2MetadataHandler dataLakeGen2MetadataHandler = new DataLakeGen2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 
-        dataLakeGen2MetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
+        dataLakeGen2MetadataHandler.doGetTableLayout(mock(BlockAllocator.class), getTableLayoutRequest);
     }
 
     @Test
@@ -156,7 +167,7 @@ public class DataLakeGen2MetadataHandlerTest
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        Constraints constraints = Mockito.mock(Constraints.class);
+        Constraints constraints = mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
 
         Schema partitionSchema = this.dataLakeGen2MetadataHandler.getPartitionSchema("testCatalogName");
@@ -170,10 +181,10 @@ public class DataLakeGen2MetadataHandlerTest
         GetSplitsResponse getSplitsResponse = this.dataLakeGen2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap(DataLakeGen2MetadataHandler.PARTITION_NUMBER, "0"));
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
+        expectedSplits.add(Collections.singletonMap(PARTITION_NUMBER, "0"));
+        assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
-        Assert.assertEquals(expectedSplits, actualSplits);
+        assertEquals(expectedSplits, actualSplits);
     }
 
     @Test
@@ -196,13 +207,48 @@ public class DataLakeGen2MetadataHandlerTest
         Schema expected = expectedSchemaBuilder.build();
 
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
-        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
-        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
+        when(connection.getCatalog()).thenReturn("testCatalog");
         GetTableResponse getTableResponse = this.dataLakeGen2MetadataHandler.doGetTable(
                 blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
 
-        Assert.assertEquals(expected, getTableResponse.getSchema());
-        Assert.assertEquals(inputTableName, getTableResponse.getTableName());
-        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+        assertEquals(expected, getTableResponse.getSchema());
+        assertEquals(inputTableName, getTableResponse.getTableName());
+        assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void doListTables() throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        String schemaName = "TESTSCHEMA";
+        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 0);
+
+        DatabaseMetaData mockDatabaseMetaData = mock(DatabaseMetaData.class);
+        ResultSet mockResultSet = mock(ResultSet.class);
+
+        when(connection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        when(mockDatabaseMetaData.getTables(any(), any(), any(), any())).thenReturn(mockResultSet);
+
+        when(mockResultSet.next()).thenReturn(true).thenReturn(true).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getString(3)).thenReturn("TESTTABLE").thenReturn("testtable").thenReturn("testTABLE");
+        when(mockResultSet.getString(2)).thenReturn(schemaName);
+
+        mockStatic(JDBCUtil.class);
+        when(JDBCUtil.getSchemaTableName(mockResultSet)).thenReturn(new TableName("TESTSCHEMA", "TESTTABLE"))
+                .thenReturn(new TableName("TESTSCHEMA", "testtable"))
+                .thenReturn(new TableName("TESTSCHEMA", "testTABLE"));
+
+        when(this.jdbcConnectionFactory.getConnection(any())).thenReturn(connection);
+
+        ListTablesResponse listTablesResponse = this.dataLakeGen2MetadataHandler.doListTables(blockAllocator, listTablesRequest);
+
+        TableName[] expectedTables = {
+                new TableName("TESTSCHEMA", "TESTTABLE"),
+                new TableName("TESTSCHEMA", "testtable"),
+                new TableName("TESTSCHEMA", "testTABLE")
+        };
+
+        assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTables().toString());
     }
 }
