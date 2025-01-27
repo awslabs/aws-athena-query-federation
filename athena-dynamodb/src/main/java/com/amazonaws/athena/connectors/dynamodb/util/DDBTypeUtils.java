@@ -126,7 +126,7 @@ public final class DDBTypeUtils
             return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),  Collections.singletonList(child));
         }
         else if (enhancedAttributeValue.isSetOfNumbers()) {
-            Field child = new Field(key, FieldType.nullable(Types.MinorType.DECIMAL.getType()), null);
+            Field child = new Field(key, FieldType.nullable(new ArrowType.Decimal(38, 9)), null);
             return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),  Collections.singletonList(child));
         }
         else if (enhancedAttributeValue.isSetOfStrings()) {

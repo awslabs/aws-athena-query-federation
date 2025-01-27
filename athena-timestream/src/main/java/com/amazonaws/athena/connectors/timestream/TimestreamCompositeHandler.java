@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.timestream;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 public class TimestreamCompositeHandler
@@ -26,6 +27,6 @@ public class TimestreamCompositeHandler
 {
     public TimestreamCompositeHandler()
     {
-        super(new TimestreamMetadataHandler(System.getenv()), new TimestreamRecordHandler(System.getenv()));
+        super(new TimestreamMetadataHandler(new EnvironmentProperties().createEnvironment()), new TimestreamRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

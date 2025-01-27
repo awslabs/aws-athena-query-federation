@@ -62,7 +62,7 @@
         <dependency>
             <groupId>com.teradata.jdbc</groupId>
             <artifactId>terajdbc</artifactId>
-            <version>20.00.00.34</version>
+            <version>20.00.00.39</version>
         </dependency>
     </dependencies>
     <build>
@@ -86,7 +86,7 @@
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
                         <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
-                        </transformer>
+</transformer>
                     </transformers>
                 </configuration>
                 <dependencies>

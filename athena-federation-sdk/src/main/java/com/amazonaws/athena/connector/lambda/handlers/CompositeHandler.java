@@ -109,7 +109,7 @@ public class CompositeHandler
                     break;
                 }
                 catch (IllegalStateException e) { // if client has not upgraded to our latest, fallback to lower version
-                    logger.warn("Client's SerDe mis-matched with connector version:, attempt with lower version: '{}'", --resolvedSerDeVersion, e);
+                    logger.debug("Client's SerDe mis-matched with connector version:, attempt with lower version: '{}'", --resolvedSerDeVersion);
                 }
             }
 

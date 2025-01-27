@@ -32,6 +32,7 @@ public class Constants
    public static final String CFG_PORT = "neptune_port";
    public static final String CFG_IAM = "iam_enabled";
    public static final String CFG_REGION = "AWS_REGION";
+   public static final String CFG_ClUSTER_RES_ID = "neptune_cluster_res_id";
     
    public static final String SCHEMA_QUERY = "query";
    public static final String SCHEMA_CASE_INSEN = "enable_caseinsensitivematch";

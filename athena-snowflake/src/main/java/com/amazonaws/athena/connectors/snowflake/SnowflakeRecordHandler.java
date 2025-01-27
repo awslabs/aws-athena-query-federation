@@ -42,6 +42,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.JDBC_PROPERTIES;
 
 public class SnowflakeRecordHandler extends JdbcRecordHandler
 {
@@ -59,7 +60,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig,
-                SnowflakeMetadataHandler.JDBC_PROPERTIES,
+                SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
                 new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS,
                         SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)), configOptions);
     }
@@ -77,7 +78,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     }
 
     @Override
-    public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split) throws SQLException
+    public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableNameInput, Schema schema, Constraints constraints, Split split) throws SQLException
     {
         PreparedStatement preparedStatement;
 
@@ -85,7 +86,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
             preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
         }
         else {
-            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableNameInput.getSchemaName(), tableNameInput.getTableName(), schema, constraints, split);
         }
 
         // Disable fetching all rows.

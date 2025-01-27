@@ -65,8 +65,8 @@ Parameters:
     Type: Number
   IsVPCAccess:
     AllowedValues:
-       - true
-       - false
+      - true
+      - false
     Default: false
     Description: "If ElasticSearch cluster is in VPC select true, [true, false] (default is false)"
     Type: String
@@ -140,15 +140,15 @@ Resources:
         - S3CrudPolicy:
             BucketName: !Ref SpillBucket
       VpcConfig:
-          SecurityGroupIds:
-            !If
-              - IsVPCAccessSelected
-              -
-                !Ref SecurityGroupIds
-              - !Ref "AWS::NoValue"
-          SubnetIds:
-            !If
-              - IsVPCAccessSelected
-              -
-                !Ref SubnetIds
-              - !Ref "AWS::NoValue"
+        SecurityGroupIds:
+          !If
+          - IsVPCAccessSelected
+          -
+            !Ref SecurityGroupIds
+          - !Ref "AWS::NoValue"
+        SubnetIds:
+          !If
+          - IsVPCAccessSelected
+          -
+            !Ref SubnetIds
+          - !Ref "AWS::NoValue"
