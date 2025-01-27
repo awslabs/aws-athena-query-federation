@@ -129,7 +129,7 @@ public class QueryStatusChecker
             if (e instanceof InvalidRequestException) {
                 // query does not exist, so no need to keep calling Athena
                 logger.debug("Athena reports query {} not found. Interrupting checker thread", queryId);
-                throw new AthenaConnectorException(e, e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+                throw new InterruptedException();
             }
         }
     }

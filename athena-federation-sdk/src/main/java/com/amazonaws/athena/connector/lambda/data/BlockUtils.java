@@ -563,7 +563,7 @@ public class BlockUtils
     {
         if (row > block.getRowCount() - 1) {
             throw new AthenaConnectorException("block has " + block.getRowCount()
-                    + " rows but requested to check " + row, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+                    + " rows but requested to check " + row, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         //If any column is non-null then return false
@@ -1018,13 +1018,13 @@ public class BlockUtils
                     }
                     break;
                 default:
-                    throw new AthenaConnectorException("Unknown type " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+                    throw new AthenaConnectorException("Unknown type " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
             }
         }
         catch (RuntimeException ex) {
             throw new AthenaConnectorException("Unable to write value for field "
                 + field.getName() + " using value " + value
-                + " with minor type " + Types.getMinorTypeForArrowType(type), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+                + " with minor type " + Types.getMinorTypeForArrowType(type), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 

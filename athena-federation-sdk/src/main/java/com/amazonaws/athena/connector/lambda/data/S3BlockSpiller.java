@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -203,7 +204,7 @@ public class S3BlockSpiller
 
         if (rows > maxRowsPerCall) {
             throw new AthenaConnectorException("Call generated more than " + maxRowsPerCall + "rows. Generating " +
-                    "too many rows per call to writeRows(...) can result in blocks that exceed the max size.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+                    "too many rows per call to writeRows(...) can result in blocks that exceed the max size.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         if (rows > 0) {
             block.setRowCount(rowCount + rows);
@@ -514,7 +515,7 @@ public class S3BlockSpiller
                 }
                 catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    throw new AthenaConnectorException("Received an exception while submitting spillBlock task: ", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+                    throw new RejectedExecutionException("Received an exception while submitting spillBlock task: ", e);
                 }
             }
         };

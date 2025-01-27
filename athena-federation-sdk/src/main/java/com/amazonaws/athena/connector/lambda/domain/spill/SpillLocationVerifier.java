@@ -95,7 +95,7 @@ public class SpillLocationVerifier
                 state = BucketState.INVALID;
             }
             else {
-                throw new AthenaConnectorException(ex, "Error while checking bucket ownership for " + bucket, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+                throw new AthenaConnectorException(ex, "Error while checking bucket ownership for " + bucket, ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
             }
         }
         finally {
@@ -114,7 +114,7 @@ public class SpillLocationVerifier
             case UNCHECKED:
                 throw new AthenaConnectorException("Bucket state should have been checked already.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             case INVALID:
-                throw new AthenaConnectorException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+                throw new AthenaConnectorException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             default:
                 return;
         }
