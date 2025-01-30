@@ -84,13 +84,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
+
 public class SqlServerMetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlServerMetadataHandler.class);
 
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String ALL_PARTITIONS = "0";
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
     static final String PARTITION_FUNCTION = "PARTITION_FUNCTION";
     static final String PARTITIONING_COLUMN = "PARTITIONING_COLUMN";
 
