@@ -174,11 +174,9 @@ public class RDFHandler
         final GeneratedRowWriter rowWriter = builder.build();
 
         // get results
-        String strim = recordsRequest.getSchema().getCustomMetadata().get(Constants.SCHEMA_STRIP_URI);
-        boolean trimURI = strim == null ? false : Boolean.parseBoolean(strim);
         neptuneConnection.runQuery(sparql.toString());
         while (neptuneConnection.hasNext() && queryStatusChecker.isQueryRunning()) {
-            Map<String, Object> result = neptuneConnection.next(trimURI);
+            Map<String, Object> result = neptuneConnection.next();
             spiller.writeRows((final Block block, final int rowNum) -> {
                 return (rowWriter.writeRow(block, rowNum, (Object) result) ? 1 : 0);
             });
