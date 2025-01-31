@@ -263,7 +263,7 @@ public class MetricsRecordHandler
 
                         boolean matches = true;
                         block.offerValue(VALUE_FIELD, row, values.get(sampleNum));
-                        long timestamp = timestamps.get(sampleNum).getEpochSecond() / 1000;
+                        long timestamp = timestamps.get(sampleNum).getEpochSecond();
                         block.offerValue(TIMESTAMP_FIELD, row, timestamp);
 
                         return matches ? 1 : 0;
