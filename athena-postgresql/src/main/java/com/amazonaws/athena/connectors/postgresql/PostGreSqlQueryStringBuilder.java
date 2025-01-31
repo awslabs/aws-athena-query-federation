@@ -1,4 +1,7 @@
-/*- #%L athena-postgresql %%
+/*- 
+ * #%L 
+ * athena-postgresql 
+ * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");

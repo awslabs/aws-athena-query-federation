@@ -154,6 +154,13 @@
         <module>athena-clickhouse</module>
     </modules>
     <dependencies>
+         <dependency>
+             <!-- Setting this dependency to provided with the range version will ensure to exclude it from all transitive depndencies -->
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+            <version>[1.2,)</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
