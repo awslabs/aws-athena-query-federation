@@ -19,8 +19,11 @@
  */
 package com.amazonaws.athena.connector.util;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.Function;
@@ -62,7 +65,7 @@ public class PaginatedRequestIterator<T> implements Iterator<T>
     public T next()
     {
         if (!hasNext()) {
-            throw new NoSuchElementException("No more pages left");
+            throw new AthenaConnectorException("No more pages left", ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
         }
 
         T current = fetchPage.apply(nextPageToken);
