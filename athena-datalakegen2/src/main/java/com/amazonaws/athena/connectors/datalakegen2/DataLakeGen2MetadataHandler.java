@@ -80,7 +80,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(DataLakeGen2MetadataHandler.class);
 
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
+    static final String PARTITION_NUMBER = "partition_number";
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -196,7 +196,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
+            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName());
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
