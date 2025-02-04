@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.jdbc;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -42,6 +43,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
@@ -75,7 +78,8 @@ public class MultiplexingJdbcMetadataHandler
         this.metadataHandlerMap = Validate.notEmpty(metadataHandlerMap, "metadataHandlerMap must not be empty");
 
         if (this.metadataHandlerMap.size() > MAX_CATALOGS_TO_MULTIPLEX) {
-            throw new RuntimeException("Max 100 catalogs supported in multiplexer.");
+            throw new AthenaConnectorException("Max 100 catalogs supported in multiplexer.",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -91,7 +95,8 @@ public class MultiplexingJdbcMetadataHandler
     private void validateMultiplexer(final String catalogName)
     {
         if (this.metadataHandlerMap.get(catalogName) == null) {
-            throw new RuntimeException(String.format(CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName));
+            throw new AthenaConnectorException(String.format(CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName),
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
