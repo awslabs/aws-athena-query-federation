@@ -70,6 +70,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -203,13 +204,13 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     }
 
     @Override
-    protected ArrowType convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
+    protected Optional<ArrowType> convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
     {
         String dataType = metadata.getColumnTypeName(columnIndex);
         LOGGER.info("In convertDatasourceTypeToArrow: converting {}", dataType);
         if (dataType != null && DataLakeGen2DataType.isSupported(dataType)) {
             LOGGER.debug("Data lake Gen2 Datatype is support: {}", dataType);
-            return DataLakeGen2DataType.fromType(dataType);
+            return Optional.of(DataLakeGen2DataType.fromType(dataType));
         }
         return super.convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
     }
@@ -253,7 +254,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
             }
 
             while (resultSet.next()) {
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
@@ -265,19 +266,19 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("dataType: " + dataType);
 
                 if (dataType != null && DataLakeGen2DataType.isSupported(dataType)) {
-                    columnType = DataLakeGen2DataType.fromType(dataType);
+                    columnType = Optional.of(DataLakeGen2DataType.fromType(dataType));
                 }
 
                 /**
                  * converting into VARCHAR for non supported data types.
                  */
-                if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
-                    columnType = Types.MinorType.VARCHAR.getType();
+                if (columnType.isEmpty() || !SupportedTypes.isSupported(columnType.get())) {
+                    columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
                 LOGGER.debug("columnType: " + columnType);
-                if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     found = true;
                 }
                 else {
