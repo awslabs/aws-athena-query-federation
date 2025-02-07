@@ -124,19 +124,25 @@ public class KafkaRecordHandlerTest {
         consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
         ConsumerRecord<String, TopicResultSet> record1 = createConsumerRecord("myTopic", 0, "k1", createTopicResultSet("myTopic"));
         ConsumerRecord<String, TopicResultSet> record2 = createConsumerRecord("myTopic", 0, "k2", createTopicResultSet("myTopic"));
+        ConsumerRecord<String, TopicResultSet> nullRecord = createConsumerRecord("myTopic", 0, "k3", null);
         consumer.schedulePollTask(() -> {
             consumer.addRecord(record1);
             consumer.addRecord(record2);
+            consumer.addRecord(nullRecord);
         });
         avroConsumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
         ConsumerRecord<String, GenericRecord> avroRecord = createAvroConsumerRecord("greetings", 0 , "k1", createGenericRecord("greetings"));
+        ConsumerRecord<String, GenericRecord> avroNullRecord = createAvroConsumerRecord("greetings", 0 , "k2", null);
         avroConsumer.schedulePollTask(() -> {
             avroConsumer.addRecord(avroRecord);
+            avroConsumer.addRecord(avroNullRecord);
         });
         protobufConsumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
         ConsumerRecord<String, DynamicMessage> protobufRecord = createProtobufConsumerRecord("protobuftest", 0, "k1", createDynamicRecord());
+        ConsumerRecord<String, DynamicMessage> protobufNullRecord = createProtobufConsumerRecord("protobuftest", 0, "k2", null);
         protobufConsumer.schedulePollTask(() -> {
             protobufConsumer.addRecord(protobufRecord);
+            protobufConsumer.addRecord(protobufNullRecord);
         });
         spillConfig = SpillConfig.newBuilder()
                 .withEncryptionKey(encryptionKey)
