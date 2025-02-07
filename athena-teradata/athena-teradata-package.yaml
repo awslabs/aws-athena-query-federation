@@ -30,9 +30,6 @@ Parameters:
     Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
     Default: athena-spill
-  LambdaJDBCLayername:
-    Description: 'Lambda JDBC layer Name. Must be ARN of layer'
-    Type: String
   LambdaTimeout:
     Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
     Default: 900
@@ -78,8 +75,6 @@ Resources:
           partitioncount: !Ref PartitionCount
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.teradata.TeradataMuxCompositeHandler"
-      Layers:
-        - !Ref LambdaJDBCLayername
       CodeUri: "./target/athena-teradata-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with Teradata using JDBC"
       Runtime: java11
