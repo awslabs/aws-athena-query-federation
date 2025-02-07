@@ -75,6 +75,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -353,7 +354,7 @@ public class OracleMetadataHandler
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
             while (resultSet.next()) {
-                ArrowType arrowColumnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> arrowColumnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
@@ -376,10 +377,10 @@ public class OracleMetadataHandler
                  */
 
                 /** Convert 0 scale Decimals to integer **/
-                if (arrowColumnType != null && arrowColumnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
+                if (arrowColumnType.isPresent() && arrowColumnType.get().getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
                     String[] data = arrowColumnType.toString().split(",");
                     if (Integer.parseInt(data[1].trim()) <= 0) {
-                        arrowColumnType = Types.MinorType.BIGINT.getType();
+                        arrowColumnType = Optional.of(Types.MinorType.BIGINT.getType());
                     }
                 }
 
@@ -387,29 +388,28 @@ public class OracleMetadataHandler
                  * Converting an Oracle date data type into DATEDAY MinorType
                  */
                 if (jdbcColumnType == java.sql.Types.TIMESTAMP && precision == 7) {
-                    arrowColumnType = Types.MinorType.DATEDAY.getType();
+                    arrowColumnType = Optional.of(Types.MinorType.DATEDAY.getType());
                 }
 
                 /**
                  * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
                  */
                 if (jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
-                    arrowColumnType = Types.MinorType.DATEMILLI.getType();
+                    arrowColumnType = Optional.of(Types.MinorType.DATEMILLI.getType());
                 }
 
-                if (arrowColumnType != null && !SupportedTypes.isSupported(arrowColumnType)) {
+                if (arrowColumnType.isPresent() && !SupportedTypes.isSupported(arrowColumnType.get())) {
                     LOGGER.warn("getSchema: Unable to map type JDBC type [{}] for column[{}] to a supported type, attempted {}", jdbcColumnType, columnName, arrowColumnType);
-                    arrowColumnType = Types.MinorType.VARCHAR.getType();
+                    arrowColumnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                if (arrowColumnType == null) {
+                if (arrowColumnType.isEmpty()) {
                     LOGGER.warn("getSchema: column[{}]  type is null setting it to varchar | JDBC Type is [{}]", columnName, jdbcColumnType);
-                    arrowColumnType = Types.MinorType.VARCHAR.getType();
+                    arrowColumnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
                 LOGGER.debug("new arrowColumnType: {}", arrowColumnType);
-
-                schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType).build());
+                schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType.get()).build());
             }
 
             partitionSchema.getFields().forEach(schemaBuilder::addField);

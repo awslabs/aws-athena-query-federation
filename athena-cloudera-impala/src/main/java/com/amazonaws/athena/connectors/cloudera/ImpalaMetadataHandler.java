@@ -73,6 +73,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -319,7 +320,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                 GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
                 Map<String, String> hashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
+                    Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
                             resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"), configOptions);
                     String columnName = resultSet.getString(ImpalaConstants.COLUMN_NAME);
                     String dataType = hashMap.get(columnName);
@@ -329,50 +330,50 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                      * Converting date data type into DATEDAY MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("DATE")) {
-                        columnType = Types.MinorType.DATEDAY.getType();
+                        columnType = Optional.of(Types.MinorType.DATEDAY.getType());
                     }
                     /**
                      * Converting binary data type into VARBINARY MinorType
                      */
 
                     if (dataType != null && dataType.toUpperCase().contains("BINARY")) {
-                        columnType = Types.MinorType.VARBINARY.getType();
+                        columnType = Optional.of(Types.MinorType.VARBINARY.getType());
                     }
                     /**
                      * Converting double data type into FLOAT8 MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("DOUBLE")) {
-                        columnType = Types.MinorType.FLOAT8.getType();
+                        columnType = Optional.of(Types.MinorType.FLOAT8.getType());
                     }
                     /**
                      * Converting boolean data type into BIT MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("BOOLEAN")) {
-                        columnType = Types.MinorType.BIT.getType();
+                        columnType = Optional.of(Types.MinorType.BIT.getType());
                     }
                     /**
                      * Converting float data type into FLOAT4 MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("FLOAT")) {
-                        columnType = Types.MinorType.FLOAT4.getType();
+                        columnType = Optional.of(Types.MinorType.FLOAT4.getType());
                     }
                     /**
                      * Converting TIMESTAMP data type into DATEMILLI MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("TIMESTAMP")) {
-                        columnType = Types.MinorType.DATEMILLI.getType();
+                        columnType = Optional.of(Types.MinorType.DATEMILLI.getType());
                     }
                     /**
                      * Converting other data type into VARCHAR MinorType
                      */
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
+                    if (columnType.isEmpty()) {
+                        columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
+                    if (columnType.isPresent() && !SupportedTypes.isSupported(columnType.get())) {
+                        columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     }
 
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                 }
             }
             partitionSchema.getFields().forEach(schemaBuilder::addField);
