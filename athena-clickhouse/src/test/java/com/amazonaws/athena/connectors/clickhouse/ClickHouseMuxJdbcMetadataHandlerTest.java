@@ -57,6 +57,9 @@ public class ClickHouseMuxJdbcMetadataHandlerTest
     @Before
     public void setup()
     {
+        System.setProperty("arrow.memory.debug.allocator", "false");
+        System.setProperty("arrow.memory.debug.logging", "false");
+        
         //this.allocator = Mockito.mock(BlockAllocator.class);
         this.allocator = new BlockAllocatorImpl();
         //Mockito.when(this.allocator.createBlock(nullable(Schema.class))).thenReturn(Mockito.mock(Block.class));
