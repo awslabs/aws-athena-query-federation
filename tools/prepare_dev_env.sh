@@ -45,13 +45,13 @@ echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.profile
 echo "export M2_HOME=/opt/apache-maven-3.9.6" >> ~/.bash_profile
 echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.bash_profile
 
-sudo yum -y install java-11-openjdk-devel
+sudo yum -y install java-17-openjdk-devel
 # If using amazon linux 2 and the above doesn't work, you can try this line instead
-# sudo amazon-linux-extras install -y java-openjdk11
+# sudo amazon-linux-extras install -y java-openjdk17
 # For amazon linux 2023, use the following line instead
-# sudo dnf install java-11-amazon-corretto
+# sudo dnf install java-17-amazon-corretto
 
-echo "Set the default to the Java 11 installation"
+echo "Set the default to the Java 17 installation"
 sudo update-alternatives --config java
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
