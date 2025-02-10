@@ -262,11 +262,11 @@ public class KafkaRecordHandler
             ConsumerRecord<String, TopicResultSet> record)
     {
         final boolean[] isExecuted = {false};
+        if (record == null || record.value() == null) {
+            LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
+            return;
+        }
         spiller.writeRows((Block block, int rowNum) -> {
-            if (record == null || record.value() == null) {
-                LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
-                return 0;
-            }
             for (KafkaField field : record.value().getFields()) {
                 boolean isMatched = block.offerValue(field.getName(), rowNum, field.getValue());
                 if (!isMatched) {
@@ -349,11 +349,11 @@ public class KafkaRecordHandler
             SplitParameters splitParameters,
             ConsumerRecord<String, GenericRecord> record)
     {
+        if (record == null || record.value() == null) {
+            LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
+            return; // Skip processing this record
+        }
         spiller.writeRows((Block block, int rowNum) -> {
-            if (record == null || record.value() == null) {
-                LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
-                return 0; // Skip processing this record
-            }
             for (Schema.Field next : record.value().getSchema().getFields()) {
                 boolean isMatched = block.offerValue(next.name(), rowNum, record.value().get(next.name()));
                 if (!isMatched) {
@@ -435,11 +435,11 @@ public class KafkaRecordHandler
             SplitParameters splitParameters,
             ConsumerRecord<String, DynamicMessage> record)
     {
+        if (record == null || record.value() == null) {
+            LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
+            return; // Skip processing this record
+        }
         spiller.writeRows((Block block, int rowNum) -> {
-            if (record == null || record.value() == null) {
-                LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
-                return 0; // Skip processing this record
-            }
             for (Descriptors.FieldDescriptor next : record.value().getAllFields().keySet()) {
                 boolean isMatched = block.offerValue(next.getName(), rowNum, record.value().getField(next));
                 if (!isMatched) {
