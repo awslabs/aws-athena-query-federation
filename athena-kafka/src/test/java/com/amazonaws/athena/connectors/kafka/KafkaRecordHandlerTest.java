@@ -179,7 +179,7 @@ public class KafkaRecordHandlerTest {
         offsets.put(new TopicPartition("myTopic", 0), 1L);
         consumer.updateEndOffsets(offsets);
 
-        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
+        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 2);
         Schema schema = createSchema(createCsvTopicSchema());
 
         mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
