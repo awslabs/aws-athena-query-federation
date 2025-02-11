@@ -361,21 +361,24 @@ public class OracleMetadataHandler
 
                 String columnName = resultSet.getString(COLUMN_NAME);
                 int jdbcColumnType = resultSet.getInt("DATA_TYPE");
-                int scale = resultSet.getInt("COLUMN_SIZE");
+                int precision = resultSet.getInt("COLUMN_SIZE");
+                int scale = resultSet.getInt("DECIMAL_DIGITS");
 
                 LOGGER.debug("columnName: {}", columnName);
-                LOGGER.debug("arrowColumnType: {}", arrowColumnType);
                 LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
+                LOGGER.debug("precision: {}", precision);
+                LOGGER.debug("scale: {}", scale);
+                LOGGER.debug("arrowColumnType: {}", arrowColumnType);
 
                 /**
                  * below data type conversion doing since a framework not giving appropriate
                  * data types for oracle data types.
                  */
 
-                /** Handling TIMESTAMP, DATE, 0 Precision **/
+                /** Convert 0 scale Decimals to integer **/
                 if (arrowColumnType != null && arrowColumnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
                     String[] data = arrowColumnType.toString().split(",");
-                    if (scale == 0 || Integer.parseInt(data[1].trim()) < 0) {
+                    if (Integer.parseInt(data[1].trim()) <= 0) {
                         arrowColumnType = Types.MinorType.BIGINT.getType();
                     }
                 }
@@ -383,7 +386,7 @@ public class OracleMetadataHandler
                 /**
                  * Converting an Oracle date data type into DATEDAY MinorType
                  */
-                if (jdbcColumnType == java.sql.Types.TIMESTAMP && scale == 7) {
+                if (jdbcColumnType == java.sql.Types.TIMESTAMP && precision == 7) {
                     arrowColumnType = Types.MinorType.DATEDAY.getType();
                 }
 
@@ -403,6 +406,9 @@ public class OracleMetadataHandler
                     LOGGER.warn("getSchema: column[{}]  type is null setting it to varchar | JDBC Type is [{}]", columnName, jdbcColumnType);
                     arrowColumnType = Types.MinorType.VARCHAR.getType();
                 }
+
+                LOGGER.debug("new arrowColumnType: {}", arrowColumnType);
+
                 schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType).build());
             }
 
