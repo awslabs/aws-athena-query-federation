@@ -40,6 +40,7 @@ public final class NeptuneQueryPassthrough implements QueryPassthroughSignature
     public static final String DATABASE = "DATABASE";
     public static final String COLLECTION = "COLLECTION";
     public static final String QUERY = "QUERY";
+    public static final String COMPONENT_TYPE = "COMPONENTTYPE";
 
     @Override
     public String getFunctionSchema()
@@ -56,7 +57,7 @@ public final class NeptuneQueryPassthrough implements QueryPassthroughSignature
     @Override
     public List<String> getFunctionArguments()
     {
-        return Arrays.asList(DATABASE, COLLECTION, QUERY);
+        return Arrays.asList(DATABASE, COLLECTION, QUERY, COMPONENT_TYPE);
     }
 
     @Override
