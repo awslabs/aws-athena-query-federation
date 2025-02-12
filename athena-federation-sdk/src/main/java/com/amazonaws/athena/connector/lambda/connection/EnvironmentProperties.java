@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.GlueClientBuilder;
 import software.amazon.awssdk.services.glue.model.AuthenticationConfiguration;
 import software.amazon.awssdk.services.glue.model.Connection;
 import software.amazon.awssdk.services.glue.model.GetConnectionRequest;
@@ -70,20 +71,14 @@ public class EnvironmentProperties
     {
         try {
             HashMap<String, String> lambdaEnvironment = new HashMap<>(System.getenv());
-            GlueClient awsGlue = GlueClient.builder()
+            GlueClientBuilder awsGlue = GlueClient.builder()
                     .httpClientBuilder(ApacheHttpClient
                             .builder()
-                            .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
-                    .build();
+                            .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)));
             if (lambdaEnvironment.containsKey(GLUE_ENDPOINT)) {
-                awsGlue = GlueClient.builder()
-                        .endpointOverride(new URI(lambdaEnvironment.get(GLUE_ENDPOINT)))
-                        .httpClientBuilder(ApacheHttpClient
-                                .builder()
-                                .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
-                        .build();
+                awsGlue.endpointOverride(new URI(lambdaEnvironment.get(GLUE_ENDPOINT)));
             }
-            GetConnectionResponse glueConnection = awsGlue.getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
+            GetConnectionResponse glueConnection = awsGlue.build().getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
             logger.debug("Successfully retrieved connection {}", glueConnectionName);
             return glueConnection.connection();
         }
