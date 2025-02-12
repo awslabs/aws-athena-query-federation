@@ -29,6 +29,7 @@ import software.amazon.awssdk.services.glue.model.Connection;
 import software.amazon.awssdk.services.glue.model.GetConnectionRequest;
 import software.amazon.awssdk.services.glue.model.GetConnectionResponse;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,6 +44,7 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 public class EnvironmentProperties
 {
     protected static final Logger logger = LoggerFactory.getLogger(EnvironmentProperties.class);
+    private static final String GLUE_ENDPOINT = "GLUE_ENDPOINT";
 
     public Map<String, String> createEnvironment() throws RuntimeException
     {
@@ -67,11 +69,20 @@ public class EnvironmentProperties
     public Connection getGlueConnection(String glueConnectionName) throws RuntimeException
     {
         try {
+            HashMap<String, String> lambdaEnvironment = new HashMap<>(System.getenv());
             GlueClient awsGlue = GlueClient.builder()
                     .httpClientBuilder(ApacheHttpClient
                             .builder()
                             .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
                     .build();
+            if (lambdaEnvironment.containsKey(GLUE_ENDPOINT)) {
+                awsGlue = GlueClient.builder()
+                        .endpointOverride(new URI(lambdaEnvironment.get(GLUE_ENDPOINT)))
+                        .httpClientBuilder(ApacheHttpClient
+                                .builder()
+                                .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
+                        .build();
+            }
             GetConnectionResponse glueConnection = awsGlue.getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
             logger.debug("Successfully retrieved connection {}", glueConnectionName);
             return glueConnection.connection();
