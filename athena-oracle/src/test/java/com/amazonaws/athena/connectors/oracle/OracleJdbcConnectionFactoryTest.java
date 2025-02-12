@@ -21,9 +21,9 @@ package com.amazonaws.athena.connectors.oracle;
 
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredential;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.athena.connectors.jdbc.connection.StaticJdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.JdbcCredential;
+import com.amazonaws.athena.connector.credentials.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.StaticJdbcCredentialProvider;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -19,10 +19,10 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
+import com.amazonaws.athena.connector.credentials.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import org.apache.commons.lang3.Validate;
 
 import java.sql.Connection;

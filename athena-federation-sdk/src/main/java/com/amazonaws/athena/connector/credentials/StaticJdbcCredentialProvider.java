@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.connection;
+package com.amazonaws.athena.connector.credentials;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;

@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.connection;
+package com.amazonaws.athena.connector.credentials;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.credentials.JdbcCredentialProvider;
+
 import java.sql.Connection;
 
 /**

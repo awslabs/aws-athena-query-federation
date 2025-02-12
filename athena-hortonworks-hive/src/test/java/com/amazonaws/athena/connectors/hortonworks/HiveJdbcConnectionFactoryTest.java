@@ -18,6 +18,9 @@ package com.amazonaws.athena.connectors.hortonworks;/*-
  * #L%
  */
 
+import com.amazonaws.athena.connector.credentials.JdbcCredential;
+import com.amazonaws.athena.connector.credentials.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.StaticJdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.*;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
@@ -32,7 +35,7 @@ import java.util.Map;
 public class HiveJdbcConnectionFactoryTest {
     @Test(expected = RuntimeException.class)
     public void getConnectionTest() throws ClassNotFoundException, SQLException {
-        JdbcCredential expectedCredential = new JdbcCredential("hive", "hive");
+        com.amazonaws.athena.connector.credentials.JdbcCredential expectedCredential = new JdbcCredential("hive", "hive");
         JdbcCredentialProvider jdbcCredentialProvider = new StaticJdbcCredentialProvider(expectedCredential);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
                 "hive2://jdbc:hive2://23.21.178.97:10000/athena;AuthMech=3;UID=hive;PWD=''", "hive");
