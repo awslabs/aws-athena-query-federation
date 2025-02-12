@@ -76,6 +76,7 @@ public class EnvironmentProperties
                             .builder()
                             .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)));
             if (lambdaEnvironment.containsKey(GLUE_ENDPOINT)) {
+                logger.info("Using custom endpoint {}", lambdaEnvironment.get(GLUE_ENDPOINT));
                 awsGlue.endpointOverride(new URI(lambdaEnvironment.get(GLUE_ENDPOINT)));
             }
             GetConnectionResponse glueConnection = awsGlue.build().getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
