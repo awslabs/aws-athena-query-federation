@@ -196,7 +196,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName());
+            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName(), getTableRequest.getTableName().getTableName());
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -243,7 +243,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype.
-            stmt.setString(1, tableName.getSchemaName().toUpperCase() + "." + tableName.getTableName().toUpperCase());
+            stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
             try (ResultSet dataTypeResultSet = stmt.executeQuery()) {
                 while (dataTypeResultSet.next()) {
                     dataType = dataTypeResultSet.getString("DATA_TYPE");
