@@ -164,7 +164,7 @@
                 <version>${mvn.shade.plugin.version}</version>
                 <configuration>
                     <createDependencyReducedPom>true</createDependencyReducedPom>
-                    <shadeTestJar>true</shadeTestJar>
+                    <shadeTestJar>false</shadeTestJar>
                     <filters>
                         <filter>
                             <artifact>*:*</artifact>
