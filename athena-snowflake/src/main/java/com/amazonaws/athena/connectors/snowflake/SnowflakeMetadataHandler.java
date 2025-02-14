@@ -469,7 +469,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
             boolean found = false;
             while (resultSet.next()) {
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
@@ -479,21 +479,21 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
                 if (dataType != null && STRING_ARROW_TYPE_MAP.containsKey(dataType.toUpperCase())) {
-                    columnType = STRING_ARROW_TYPE_MAP.get(dataType.toUpperCase());
+                    columnType = Optional.of(STRING_ARROW_TYPE_MAP.get(dataType.toUpperCase()));
                 }
                 /**
                  * converting into VARCHAR for not supported data types.
                  */
-                if (columnType == null) {
-                    columnType = Types.MinorType.VARCHAR.getType();
+                if (columnType.isEmpty()) {
+                    columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
-                if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                    columnType = Types.MinorType.VARCHAR.getType();
+                if (columnType.isPresent() && !SupportedTypes.isSupported(columnType.get())) {
+                    columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
                     LOGGER.debug(" AddField Schema Building...()  ");
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     found = true;
                 }
                 else {
