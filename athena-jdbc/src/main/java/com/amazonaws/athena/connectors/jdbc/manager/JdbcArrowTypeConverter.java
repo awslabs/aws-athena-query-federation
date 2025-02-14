@@ -34,7 +34,7 @@ import java.util.Optional;
  */
 public final class JdbcArrowTypeConverter
 {
-    private static final int DEFAULT_PRECISION = 38;
+    public static final int DEFAULT_PRECISION = 38;
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcArrowTypeConverter.class);
 
     private JdbcArrowTypeConverter() {}
