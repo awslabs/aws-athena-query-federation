@@ -164,6 +164,9 @@
                 <version>${mvn.shade.plugin.version}</version>
                 <configuration>
                     <createDependencyReducedPom>true</createDependencyReducedPom>
+                    <!--This should never be set to true
+                    It will cause all sorts of class-path issue with Arrow RootAllocator
+                    due to it being shaded | If changed; test from CLI and NOT IntelliJ -->
                     <shadeTestJar>false</shadeTestJar>
                     <filters>
                         <filter>
