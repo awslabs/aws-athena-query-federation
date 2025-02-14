@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.docdb;
 
-import com.amazonaws.athena.connector.credentials.DefaultCredentials;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -47,8 +45,6 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.docdb.DocDBFieldResolver.DEFAULT_FIELD_RESOLVER;
@@ -76,10 +72,6 @@ public class DocDBRecordHandler
 
     // This needs to be turned on if the user is using a Glue table and their docdb tables contain cased column names
     private static final String DISABLE_PROJECTION_AND_CASING_ENV = "disable_projection_and_casing";
-    private static final String SECRET_PATTERN = "(\\$\\{[a-zA-Z0-9-\\/_\\-\\.\\+=@]+\\})";
-    private static final String SECRET_NAME_PATTERN = "\\$\\{([a-zA-Z0-9-\\/_\\-\\.\\+=@]+)\\}";
-    private static final Pattern PATTERN = Pattern.compile(SECRET_PATTERN);
-    private static final Pattern NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN);
 
     private final DocDBConnectionFactory connectionFactory;
 
@@ -117,34 +109,8 @@ public class DocDBRecordHandler
         if (connStr == null) {
             throw new RuntimeException(DOCDB_CONN_STR + " Split property is null! Unable to create connection.");
         }
-        String endpoint = connStr;
-        try {
-            endpoint = resolveWithDefaultCredentials(connStr);
-        }
-        catch (RuntimeException e) {
-            logger.info("Credentials are not in json format. Falling back to <username>:<password>...");
-        }
-        endpoint = resolveSecrets(endpoint); // resolve secrets is no-op if user:password is defined
+        String endpoint = resolveWithDefaultCredentials(connStr);
         return connectionFactory.getOrCreateConn(endpoint);
-    }
-
-    private String resolveWithDefaultCredentials(String connStr) throws RuntimeException
-    {
-        Matcher m = PATTERN.matcher(connStr);
-        String result = connStr;
-        while (m.find()) {
-            String nextSecret = m.group(1);
-            Matcher m1 = NAME_PATTERN.matcher(nextSecret);
-            m1.find();
-            result = result.replace(nextSecret, useDefaultCredentials(m1.group(1)));
-        }
-        return result;
-    }
-
-    private String useDefaultCredentials(String secret) throws RuntimeException
-    {
-        DefaultCredentials defaultCredentials = new DefaultCredentialsProvider(getSecret(secret)).getCredential();
-        return defaultCredentials.getUser() + ":" + defaultCredentials.getPassword();
     }
 
     private static Map<String, Object> documentAsMap(Document document, boolean caseInsensitive)

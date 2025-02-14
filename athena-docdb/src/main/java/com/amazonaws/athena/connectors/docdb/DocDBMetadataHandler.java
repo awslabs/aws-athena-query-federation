@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.docdb;
 
-import com.amazonaws.athena.connector.credentials.DefaultCredentials;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -65,8 +63,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -106,10 +102,6 @@ public class DocDBMetadataHandler
     private static final int SCHEMA_INFERRENCE_NUM_DOCS = 10;
     // used to filter out Glue databases which lack the docdb-metadata-flag in the URI.
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(DOCDB_METADATA_FLAG));
-    private static final String SECRET_PATTERN = "(\\$\\{[a-zA-Z0-9-\\/_\\-\\.\\+=@]+\\})";
-    private static final String SECRET_NAME_PATTERN = "\\$\\{([a-zA-Z0-9-\\/_\\-\\.\\+=@]+)\\}";
-    private static final Pattern PATTERN = Pattern.compile(SECRET_PATTERN);
-    private static final Pattern NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN);
 
     private final GlueClient glue;
     private final DocDBConnectionFactory connectionFactory;
@@ -141,34 +133,8 @@ public class DocDBMetadataHandler
     private MongoClient getOrCreateConn(MetadataRequest request)
     {
         String connStr = getConnStr(request);
-        String endpoint = connStr;
-        try {
-            endpoint = resolveWithDefaultCredentials(connStr);
-        }
-        catch (RuntimeException e) {
-            logger.info("Credentials are not in json format. Falling back to <username>:<password>...");
-        }
-        endpoint = resolveSecrets(endpoint); // resolve secrets is no-op if user:password is defined
+        String endpoint = resolveWithDefaultCredentials(connStr);
         return connectionFactory.getOrCreateConn(endpoint);
-    }
-
-    private String resolveWithDefaultCredentials(String connStr) throws RuntimeException
-    {
-        Matcher m = PATTERN.matcher(connStr);
-        String result = connStr;
-        while (m.find()) {
-            String nextSecret = m.group(1);
-            Matcher m1 = NAME_PATTERN.matcher(nextSecret);
-            m1.find();
-            result = result.replace(nextSecret, useDefaultCredentials(m1.group(1)));
-        }
-        return result;
-    }
-
-    private String useDefaultCredentials(String secret) throws RuntimeException
-    {
-        DefaultCredentials defaultCredentials = new DefaultCredentialsProvider(getSecret(secret)).getCredential();
-        return defaultCredentials.getUser() + ":" + defaultCredentials.getPassword();
     }
 
     /**
