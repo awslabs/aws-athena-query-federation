@@ -89,6 +89,10 @@ public class CachableSecretsManager
 
     public String resolveWithDefaultCredentials(String rawString)
     {
+        if (rawString == null) {
+            return rawString;
+        }
+
         Matcher m = PATTERN.matcher(rawString);
         String result = rawString;
         while (m.find()) {
