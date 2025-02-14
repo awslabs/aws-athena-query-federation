@@ -19,8 +19,8 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
-import com.amazonaws.athena.connector.credentials.JdbcCredentialProvider;
-import com.amazonaws.athena.connector.credentials.RdsSecretsCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -128,11 +128,11 @@ public abstract class JdbcRecordHandler
         return jdbcConnectionFactory;
     }
 
-    protected JdbcCredentialProvider getCredentialProvider()
+    protected CredentialsProvider getCredentialProvider()
     {
         final String secretName = this.databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
-            return new RdsSecretsCredentialProvider(getSecret(secretName));
+            return new DefaultCredentialsProvider(getSecret(secretName));
         }
 
         return null;

@@ -19,8 +19,8 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
-import com.amazonaws.athena.connector.credentials.JdbcCredentialProvider;
-import com.amazonaws.athena.connector.credentials.RdsSecretsCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -130,12 +130,12 @@ public abstract class JdbcMetadataHandler
         return jdbcConnectionFactory;
     }
 
-    protected JdbcCredentialProvider getCredentialProvider()
+    protected CredentialsProvider getCredentialProvider()
     {
         final String secretName = databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
             LOGGER.info("Using Secrets Manager.");
-            return new RdsSecretsCredentialProvider(getSecret(secretName));
+            return new DefaultCredentialsProvider(getSecret(secretName));
         }
 
         return null;

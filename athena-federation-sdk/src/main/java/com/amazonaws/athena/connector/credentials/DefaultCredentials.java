@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-elasticsearch
+ * athena-jdbc
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.elasticsearch;
+package com.amazonaws.athena.connector.credentials;
 
 import org.apache.commons.lang3.Validate;
 
@@ -26,7 +26,7 @@ import java.util.Objects;
 /**
  * Encapsulates database connection user name and password information.
  */
-public class ElasticsearchCredential
+public class DefaultCredentials
 {
     private final String user;
     private final String password;
@@ -35,7 +35,7 @@ public class ElasticsearchCredential
      * @param user Database user name.
      * @param password Database password.
      */
-    public ElasticsearchCredential(String user, String password)
+    public DefaultCredentials(String user, String password)
     {
         this.user = Validate.notBlank(user, "User must not be blank");
         this.password = Validate.notBlank(password, "Password must not be blank");
@@ -60,7 +60,7 @@ public class ElasticsearchCredential
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ElasticsearchCredential that = (ElasticsearchCredential) o;
+        DefaultCredentials that = (DefaultCredentials) o;
         return Objects.equals(getUser(), that.getUser()) &&
                 Objects.equals(getPassword(), that.getPassword());
     }

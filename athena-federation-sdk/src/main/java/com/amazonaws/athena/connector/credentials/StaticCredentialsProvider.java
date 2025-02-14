@@ -25,26 +25,26 @@ import org.apache.commons.lang3.Validate;
 /**
  * Static credential provider.
  */
-public class StaticJdbcCredentialProvider
-        implements JdbcCredentialProvider
+public class StaticCredentialsProvider
+        implements CredentialsProvider
 {
-    private final JdbcCredential jdbcCredential;
+    private final DefaultCredentials defaultCredentials;
 
     /**
-     * @param jdbcCredential JDBC credential. See {@link JdbcCredential}.
+     * @param defaultCredentials JDBC credential. See {@link DefaultCredentials}.
      */
-    public StaticJdbcCredentialProvider(final JdbcCredential jdbcCredential)
+    public StaticCredentialsProvider(final DefaultCredentials defaultCredentials)
     {
-        this.jdbcCredential = Validate.notNull(jdbcCredential, "jdbcCredential must not be null.");
+        this.defaultCredentials = Validate.notNull(defaultCredentials, "jdbcCredential must not be null.");
 
-        if (StringUtils.isAnyBlank(jdbcCredential.getUser(), jdbcCredential.getPassword())) {
+        if (StringUtils.isAnyBlank(defaultCredentials.getUser(), defaultCredentials.getPassword())) {
             throw new RuntimeException("User or password must not be blank.");
         }
     }
 
     @Override
-    public JdbcCredential getCredential()
+    public DefaultCredentials getCredential()
     {
-        return this.jdbcCredential;
+        return this.defaultCredentials;
     }
 }
