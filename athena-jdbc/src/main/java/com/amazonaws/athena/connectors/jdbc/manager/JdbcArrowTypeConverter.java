@@ -71,6 +71,11 @@ public final class JdbcArrowTypeConverter
         }
         catch (UnsupportedOperationException e) {
             LOGGER.warn("Error converting JDBC Type [{}] to arrow: {}", jdbcType, e.getMessage());
+            if (jdbcType == Types.TIMESTAMP_WITH_TIMEZONE) {
+                // Convert from TIMESTAMP_WITH_TIMEZONE to DateMilli
+                LOGGER.debug("Converting JDBC Type [{}] to arrow: {}", jdbcType, e.getMessage());
+                return Optional.of(new ArrowType.Date(DateUnit.MILLISECOND));
+            }
             return arrowTypeOptional;
         }
 
