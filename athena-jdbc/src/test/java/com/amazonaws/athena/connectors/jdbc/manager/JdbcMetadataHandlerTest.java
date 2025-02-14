@@ -181,9 +181,14 @@ public class JdbcMetadataHandlerTest
     public void doGetTable()
             throws Exception
     {
-        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
-        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
-                {Types.TIMESTAMP, 93, "testCol3", 0, 0},  {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "TYPE_NAME"};
+        Object[][] values = {
+                {Types.INTEGER, 12, "testCol1", 0, 0, "_int4"},
+                {Types.VARCHAR, 25, "testCol2", 0, 0, "VARCHAR"},
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0, "_timestamp"},
+                {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0, "_timestamp"},
+                {Types.ARRAY, 0, "testCol5", 0, 0, "_array"}
+        };
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
@@ -192,6 +197,7 @@ public class JdbcMetadataHandlerTest
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addListField("testCol5", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
