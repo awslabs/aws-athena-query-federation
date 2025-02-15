@@ -50,15 +50,24 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.NAME;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.SCHEMA_NAME;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.mock;
 
 public class JdbcMetadataHandlerTest
         extends TestBase
@@ -78,12 +87,12 @@ public class JdbcMetadataHandlerTest
     public void setup()
             throws Exception
     {
-        this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
+        this.jdbcConnectionFactory = mock(JdbcConnectionFactory.class);
+        this.connection = mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
-        this.athena = Mockito.mock(AthenaClient.class);
+        this.secretsManager = mock(SecretsManagerClient.class);
+        this.athena = mock(AthenaClient.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
@@ -106,8 +115,8 @@ public class JdbcMetadataHandlerTest
                 return null;
             }
         };
-        this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
-        this.blockAllocator = Mockito.mock(BlockAllocator.class);
+        this.federatedIdentity = mock(FederatedIdentity.class);
+        this.blockAllocator = mock(BlockAllocator.class);
         String[] columnNames = new String[] {"TABLE_SCHEM", "TABLE_NAME"};
         String[][] tableNameValues = new String[][]{new String[] {"testSchema", "testTable"}};
         this.resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
@@ -181,9 +190,14 @@ public class JdbcMetadataHandlerTest
     public void doGetTable()
             throws Exception
     {
-        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
-        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
-                {Types.TIMESTAMP, 93, "testCol3", 0, 0},  {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "TYPE_NAME"};
+        Object[][] values = {
+                {Types.INTEGER, 12, "testCol1", 0, 0, "_int4"},
+                {Types.VARCHAR, 25, "testCol2", 0, 0, "VARCHAR"},
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0, "_timestamp"},
+                {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0, "_timestamp"},
+                {Types.ARRAY, 0, "testCol5", 0, 0, "_array"}
+        };
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
@@ -192,6 +206,7 @@ public class JdbcMetadataHandlerTest
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addListField("testCol5", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
@@ -200,6 +215,49 @@ public class JdbcMetadataHandlerTest
 
         GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(
                 this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(inputTableName, getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema()
+            throws Exception
+    {
+        String query = "select testCol1 from testTable";
+
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "TYPE_NAME"};
+        Object[][] values = {
+                {Types.INTEGER, 12, "testCol1", 0, 0, "_int4"}
+        };
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
+        Schema expected = expectedSchemaBuilder.build();
+
+        TableName inputTableName = new TableName("testSchema", "testTable");
+
+        ResultSetMetaData resultSetMetadata = Mockito.mock(ResultSetMetaData.class);
+        Mockito.when(resultSetMetadata.getColumnCount()).thenReturn(values.length);
+        Mockito.when(resultSetMetadata.getColumnName(1)).thenReturn((String) values[0][2]);
+        Mockito.when(resultSetMetadata.getColumnLabel(1)).thenReturn((String) values[0][2]);
+        Mockito.when(resultSetMetadata.getPrecision(1)).thenReturn((Integer) values[0][3]);
+        Mockito.when(resultSetMetadata.getColumnDisplaySize(1)).thenReturn((Integer) values[0][4]);
+        Mockito.when(resultSetMetadata.getColumnType(1)).thenReturn(Types.INTEGER);
+
+        PreparedStatement preparedStatement = mock(PreparedStatement.class);
+        Mockito.when(preparedStatement.getMetaData()).thenReturn(resultSetMetadata);
+        Mockito.when(connection.prepareStatement(query)).thenReturn(preparedStatement);
+
+        Map<String, String> queryPassthroughParameters = Map.of(
+                SCHEMA_FUNCTION_NAME, "system.query",
+                ENABLE_QUERY_PASSTHROUGH, "true",
+                NAME, "query",
+                SCHEMA_NAME, "system",
+                QUERY, query);
+
+        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetQueryPassthroughSchema(
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, queryPassthroughParameters));
 
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
