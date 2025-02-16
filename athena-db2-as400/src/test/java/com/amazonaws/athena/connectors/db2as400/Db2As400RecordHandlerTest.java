@@ -29,7 +29,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -66,7 +66,7 @@ public class Db2As400RecordHandlerTest {
         this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new Db2As400QueryStringBuilder("`");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2As400Constants.NAME,
                 "db2as400://jdbc:as400://testhost;user=dummy;password=dummy;");

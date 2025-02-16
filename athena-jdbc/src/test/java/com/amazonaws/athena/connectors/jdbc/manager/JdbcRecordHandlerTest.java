@@ -38,7 +38,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -89,7 +89,7 @@ public class JdbcRecordHandlerTest
     {
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.amazonS3 = Mockito.mock(S3Client.class);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);

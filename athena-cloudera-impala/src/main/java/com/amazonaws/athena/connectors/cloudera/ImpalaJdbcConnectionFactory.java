@@ -20,10 +20,10 @@
 
 package com.amazonaws.athena.connectors.cloudera;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import org.apache.commons.lang3.Validate;
 
 import java.sql.Connection;
@@ -56,14 +56,14 @@ public class ImpalaJdbcConnectionFactory extends GenericJdbcConnectionFactory
     }
 
     @Override
-    public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
+    public Connection getConnection(final CredentialsProvider credentialsProvider)
     {
         try {
            final  String derivedJdbcString;
-            if (null != jdbcCredentialProvider) {
+            if (null != credentialsProvider) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement = String.format("UID=%s;PWD=%s",
-                        jdbcCredentialProvider.getCredential().getUser(), jdbcCredentialProvider.getCredential().getPassword());
+                        credentialsProvider.getCredential().getUser(), credentialsProvider.getCredential().getPassword());
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {

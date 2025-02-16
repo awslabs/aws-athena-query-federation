@@ -133,18 +133,10 @@ public class DocDBMetadataHandler
     private MongoClient getOrCreateConn(MetadataRequest request)
     {
         String connStr = getConnStr(request);
-        if (configOptions.containsKey(SECRET_NAME) && !hasEmbeddedSecret(connStr)) {
-            connStr = connStr.substring(0, 10) + "${" + configOptions.get(SECRET_NAME) + "}@" + connStr.substring(10);
-        } 
-        String endpoint = resolveSecrets(connStr);
+        String endpoint = resolveWithDefaultCredentials(connStr);
         return connectionFactory.getOrCreateConn(endpoint);
     }
 
-    private boolean hasEmbeddedSecret(String connStr)
-    {
-        return connStr.contains("${");
-    }
-    
     /**
      * Retrieves the DocDB connection details from an env variable matching the catalog name, if no such
      * env variable exists we fall back to the default env variable defined by DEFAULT_DOCDB.

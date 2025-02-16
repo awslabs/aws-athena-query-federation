@@ -39,7 +39,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.DateUnit;
@@ -97,7 +97,7 @@ public class RedshiftMetadataHandlerTest
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.redshiftMetadataHandler = new RedshiftMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
@@ -246,7 +246,7 @@ public class RedshiftMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
         RedshiftMetadataHandler redshiftMetadataHandler = new RedshiftMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 

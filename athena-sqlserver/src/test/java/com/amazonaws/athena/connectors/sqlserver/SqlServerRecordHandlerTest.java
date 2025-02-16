@@ -30,7 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -72,7 +72,7 @@ public class SqlServerRecordHandlerTest
         this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER ,new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SqlServerConstants.NAME,
                 "sqlserver://jdbc:sqlserver://hostname;databaseName=fakedatabase");

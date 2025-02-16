@@ -109,16 +109,8 @@ public class DocDBRecordHandler
         if (connStr == null) {
             throw new RuntimeException(DOCDB_CONN_STR + " Split property is null! Unable to create connection.");
         }
-        if (configOptions.containsKey(SECRET_NAME) && !hasEmbeddedSecret(connStr)) {
-            connStr = connStr.substring(0, 10) + "${" + configOptions.get(SECRET_NAME) + "}@" + connStr.substring(10);
-        }
-        String endpoint = resolveSecrets(connStr);
+        String endpoint = resolveWithDefaultCredentials(connStr);
         return connectionFactory.getOrCreateConn(endpoint);
-    }
-
-    private boolean hasEmbeddedSecret(String connStr) 
-    {
-        return connStr.contains("${");
     }
 
     private static Map<String, Object> documentAsMap(Document document, boolean caseInsensitive)

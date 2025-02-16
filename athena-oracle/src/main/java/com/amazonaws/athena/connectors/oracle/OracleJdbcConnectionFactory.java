@@ -20,10 +20,10 @@
 
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,13 +54,13 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
     }
 
     @Override
-    public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
+    public Connection getConnection(final CredentialsProvider credentialsProvider)
     {
         try {
             final String derivedJdbcString;
             Properties properties = new Properties();
 
-            if (null != jdbcCredentialProvider) {
+            if (null != credentialsProvider) {
                 //checking for tcps (Secure Communication) protocol as part of the connection string.
                 if (databaseConnectionConfig.getJdbcConnectionString().toLowerCase().contains("@tcps://")) {
                     LOGGER.info("Establishing connection over SSL..");
@@ -79,11 +79,11 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     LOGGER.info("Establishing normal connection..");
                 }
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                String password = jdbcCredentialProvider.getCredential().getPassword();
+                String password = credentialsProvider.getCredential().getPassword();
                 if (!password.contains("\"")) {
                     password = String.format("\"%s\"", password);
                 }
-                final String secretReplacement = String.format("%s/%s", jdbcCredentialProvider.getCredential().getUser(),
+                final String secretReplacement = String.format("%s/%s", credentialsProvider.getCredential().getUser(),
                         password);
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
                 return DriverManager.getConnection(derivedJdbcString, properties);

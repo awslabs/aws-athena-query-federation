@@ -17,17 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.connection;
+package com.amazonaws.athena.connector.credentials;
 
 /**
  * JDBC username and password provider.
  */
-public interface JdbcCredentialProvider
+public interface CredentialsProvider
 {
     /**
      * Retrieves credential for database.
      *
-     * @return JDBC credential. See {@link JdbcCredential}.
+     * @return JDBC credential. See {@link DefaultCredentials}.
      */
-    JdbcCredential getCredential();
+    DefaultCredentials getCredential();
 }

@@ -193,6 +193,11 @@ public abstract class MetadataHandler
         return secretsManager.resolveSecrets(rawString);
     }
 
+    protected String resolveWithDefaultCredentials(String rawString)
+    {
+        return secretsManager.resolveWithDefaultCredentials(rawString);
+    }
+
     protected String getSecret(String secretName)
     {
         return secretsManager.getSecret(secretName);

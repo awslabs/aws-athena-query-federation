@@ -30,16 +30,13 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField.Direction;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
@@ -52,10 +49,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -79,7 +73,7 @@ public class MySqlRecordHandlerTest
         this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new MySqlQueryStringBuilder("`", new MySqlFederationExpressionParser("`"));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", MYSQL_NAME,
                 "mysql://jdbc:mysql://hostname/user=A&password=B");
