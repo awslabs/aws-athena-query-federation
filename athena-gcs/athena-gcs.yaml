@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation', 'GCS', 'Google-Cloud-Storage', 'parquet', 'csv']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2025.7.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:
@@ -62,7 +62,7 @@ Resources:
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
-        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-gcs:2022.47.1'
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-gcs:2025.7.1'
         - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       Description: "Amazon Athena GCS Connector"
       Timeout: !Ref LambdaTimeout
