@@ -351,6 +351,11 @@ public class SynapseMetadataHandlerTest
                 {Types.TIMESTAMP, 93, 0, "testCol3"}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, 0, "testCol4"}};
         ResultSet resultSet2 = mockResultSet(columns, types2, values2, new AtomicInteger(-1));
 
+        String[] schema2 = {"TABLE_SCHEMA", "TABLE_NAME"};
+        int[] types3 = {Types.VARCHAR, Types.VARCHAR};
+        Object[][] values3 = {{"TESTSCHEMA", "TESTTABLE"}};
+        ResultSet resultSet3 = mockResultSet(schema2, types3, values3, new AtomicInteger(-1));
+
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
@@ -359,9 +364,21 @@ public class SynapseMetadataHandlerTest
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
-        PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
-        Mockito.when(connection.prepareStatement(nullable(String.class))).thenReturn(stmt);
-        Mockito.when(stmt.executeQuery()).thenReturn(resultSet);
+        PreparedStatement stmt1 = Mockito.mock(PreparedStatement.class);
+        Mockito.when(connection.prepareStatement(Mockito.eq("SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE, " +
+                        "C.PRECISION, C.SCALE " +
+                        "FROM sys.columns C " +
+                        "JOIN sys.types T " +
+                        "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
+                        "WHERE C.OBJECT_ID=OBJECT_ID(?)")))
+                .thenReturn(stmt1);
+        Mockito.when(stmt1.executeQuery()).thenReturn(resultSet);
+
+        PreparedStatement stmt2 = Mockito.mock(PreparedStatement.class);
+        Mockito.when(connection.prepareStatement(Mockito.eq("SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES " +
+                        "WHERE LOWER(TABLE_SCHEMA) = ? AND LOWER(TABLE_NAME) = ?")))
+                .thenReturn(stmt2);
+        Mockito.when(stmt2.executeQuery()).thenReturn(resultSet3);
 
         Mockito.when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname;databaseName=fakedatabase");
 
@@ -393,9 +410,26 @@ public class SynapseMetadataHandlerTest
                 {Types.TIMESTAMP, 93, 0, "testCol3"}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, 0, "testCol4"}};
         ResultSet resultSet2 = mockResultSet(columns, types2, values2, new AtomicInteger(-1));
 
-        PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
-        Mockito.when(connection.prepareStatement(nullable(String.class))).thenReturn(stmt);
-        Mockito.when(stmt.executeQuery()).thenReturn(resultSet);
+        String[] schema2 = {"TABLE_SCHEMA", "TABLE_NAME"};
+        int[] types3 = {Types.VARCHAR, Types.VARCHAR};
+        Object[][] values3 = {{"TESTSCHEMA", "TESTTABLE"}};
+        ResultSet resultSet3 = mockResultSet(schema2, types3, values3, new AtomicInteger(-1));
+
+        PreparedStatement stmt1 = Mockito.mock(PreparedStatement.class);
+        Mockito.when(connection.prepareStatement(Mockito.eq("SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE, " +
+                        "C.PRECISION, C.SCALE " +
+                        "FROM sys.columns C " +
+                        "JOIN sys.types T " +
+                        "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
+                        "WHERE C.OBJECT_ID=OBJECT_ID(?)")))
+                .thenReturn(stmt1);
+        Mockito.when(stmt1.executeQuery()).thenReturn(resultSet);
+
+        PreparedStatement stmt2 = Mockito.mock(PreparedStatement.class);
+        Mockito.when(connection.prepareStatement(Mockito.eq("SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES " +
+                        "WHERE LOWER(TABLE_SCHEMA) = ? AND LOWER(TABLE_NAME) = ?")))
+                .thenReturn(stmt2);
+        Mockito.when(stmt2.executeQuery()).thenReturn(resultSet3);
 
         Mockito.when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname-ondemand;databaseName=fakedatabase");
 
