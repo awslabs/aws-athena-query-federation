@@ -58,7 +58,7 @@ public class JdbcArrowTypeConverterTest
         Assert.assertEquals(Types.MinorType.LIST.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.ARRAY, 0, 0, com.google.common.collect.ImmutableMap.of()).get());
 
         //As of 18.1.0 Arrow does not support TIMESTAMP_WITH_TIMEZONE! Hence the arrow type returns an empty optional
-        Assert.assertTrue(JdbcArrowTypeConverter.toArrowType(java.sql.Types.TIMESTAMP_WITH_TIMEZONE, 0, 0, com.google.common.collect.ImmutableMap.of()).isEmpty());
+        Assert.assertEquals(Types.MinorType.DATEMILLI.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.TIMESTAMP_WITH_TIMEZONE, 0, 0, com.google.common.collect.ImmutableMap.of()).get());
         //Test if precision is more than the default
         Assert.assertEquals(new ArrowType.Decimal(JdbcArrowTypeConverter.DEFAULT_PRECISION , 3), JdbcArrowTypeConverter.toArrowType(java.sql.Types.DECIMAL, JdbcArrowTypeConverter.DEFAULT_PRECISION + 1, 3, com.google.common.collect.ImmutableMap.of()).get());
         //test for negative scale
