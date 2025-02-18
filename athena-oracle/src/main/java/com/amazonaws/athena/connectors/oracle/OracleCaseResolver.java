@@ -57,7 +57,8 @@ public class OracleCaseResolver
     {
         LOWER,      // casing mode to lower case everything (glue and trino lower case everything)
         UPPER,      // casing mode to upper case everything (oracle by default upper cases everything)
-        CASE_INSENSITIVE_SEARCH     // casing mode to perform case insensitive search
+        CASE_INSENSITIVE_SEARCH,     // casing mode to perform case insensitive search
+        NONE
     }
 
     public static TableName getAdjustedTableObjectName(final Connection connection, TableName tableName, Map<String, String> configOptions)
@@ -79,6 +80,10 @@ public class OracleCaseResolver
                 TableName lowerTableName = new TableName(tableName.getSchemaName().toLowerCase(), tableName.getTableName().toLowerCase());
                 LOGGER.info("casing mode is `LOWER`: adjusting casing from input to lower case for TableName object. TableName:{}", lowerTableName);
                 return lowerTableName;
+            case NONE:
+                TableName noOpsTableName = new TableName(tableName.getSchemaName(), tableName.getTableName());
+                LOGGER.info("casing mode is `NONE`: no ops on adjusting TableName object. TableName:{}", noOpsTableName);
+            default:
         }
         LOGGER.warn("casing mode is empty: not adjust casing from input for TableName object. TableName:{}", tableName);
         return tableName;
@@ -98,6 +103,9 @@ public class OracleCaseResolver
             case LOWER:
                 LOGGER.info("casing mode is `LOWER`: adjusting casing from input to lower case for Schema");
                 return schemaNameInput.toLowerCase();
+            case NONE:
+                LOGGER.info("casing mode is `NONE`: no-ops for Schema");
+                return schemaNameInput;
         }
 
         return schemaNameInput;
