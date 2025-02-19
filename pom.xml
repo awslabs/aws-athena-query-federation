@@ -9,6 +9,8 @@
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
@@ -28,7 +30,7 @@
         <fasterxml.jackson.version>2.18.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.2</surefire.failsafe.version>
         <log4j2Version>2.24.2</log4j2Version>
-        <apache.arrow.version>13.0.0</apache.arrow.version>
+        <apache.arrow.version>18.1.0</apache.arrow.version>
         <guava.version>33.4.0-jre</guava.version>
         <protobuf3.version>3.25.3</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>

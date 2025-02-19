@@ -275,17 +275,17 @@ public abstract class JdbcMetadataHandler
                 columnName = columnName.equals(columnLabel) ? columnName : columnLabel;
 
                 int precision = metadata.getPrecision(columnIndex);
-                ArrowType columnType = convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
+                Optional<ArrowType> columnType = convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
 
-                if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    if (columnType instanceof ArrowType.List) {
+                if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
+                    if (columnType.get() instanceof ArrowType.List) {
                         schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
                                 metadata.getTableName(columnIndex),
                                 metadata.getColumnDisplaySize(columnIndex),
                                 precision));
                     }
                     else {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     }
                 }
                 else {
@@ -311,7 +311,7 @@ public abstract class JdbcMetadataHandler
      * @param metadata
      * @return Arrow Type
      */
-    protected ArrowType convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
+    protected Optional<ArrowType> convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
     {
         int scale = metadata.getScale(columnIndex);
         int columnType = metadata.getColumnType(columnIndex);
@@ -345,21 +345,21 @@ public abstract class JdbcMetadataHandler
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
             boolean found = false;
             while (resultSet.next()) {
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
                         configOptions);
                 String columnName = resultSet.getString("COLUMN_NAME");
-                if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    if (columnType instanceof ArrowType.List) {
+                if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
+                    if (columnType.get() instanceof ArrowType.List) {
                         schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
                                 resultSet.getString("TYPE_NAME"),
                                 resultSet.getInt("COLUMN_SIZE"),
                                 resultSet.getInt("DECIMAL_DIGITS")));
                     }
                     else {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     }
                 }
                 else {
