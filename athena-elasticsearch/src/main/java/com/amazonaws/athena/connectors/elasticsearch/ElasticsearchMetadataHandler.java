@@ -63,10 +63,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static java.util.Objects.requireNonNull;
 
 /**
  * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
@@ -77,6 +80,10 @@ public class ElasticsearchMetadataHandler
         extends GlueMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchMetadataHandler.class);
+
+    // regular expression to match the old pattern of having domain name in `DOMAIN_ENDPOINT` field
+    private static final Pattern DOMAIN_NAME_WITH_ENDPOINT_PATTERN = Pattern.compile("^.+=https.*");
+    private static final String DEFAULT_DOMAIN_NAME = "default";
 
     // Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "elasticsearch";
@@ -153,13 +160,14 @@ public class ElasticsearchMetadataHandler
         ElasticsearchDomainMapProvider domainMapProvider,
         AwsRestHighLevelClientFactory clientFactory,
         long queryTimeout,
-        Map<String, String> configOptions)
+        Map<String, String> configOptions,
+        boolean simulateGlueConnection)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
         this.secretMap = new HashMap<>();
         this.domainMapProvider = domainMapProvider;
-        this.domainMap = this.domainMapProvider.getDomainMap(null);
+        this.domainMap = simulateGlueConnection ? resolveDomainMap(configOptions) : this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
         this.queryTimeout = queryTimeout;
@@ -167,21 +175,36 @@ public class ElasticsearchMetadataHandler
 
     protected Map<String, String> resolveDomainMap(Map<String, String> config)
     {
-        String secretName = config.getOrDefault(SECRET_NAME, "");
-        String domainEndpoint = config.getOrDefault(DOMAIN_ENDPOINT, "");
-        if (StringUtils.isNotBlank(secretName) && StringUtils.isNotBlank(domainEndpoint)) {
-            logger.info("Using Secrets Manager provided by Glue Connection secret_name.");
+        // Glue connection usage
+        String domainEndpoint;
+        if (StringUtils.isNotBlank(config.getOrDefault(DEFAULT_GLUE_CONNECTION, ""))) {
+            String secretName = requireNonNull(config.get(SECRET_NAME), String.format("Glue connection field: '%s' is required for Elastic Search connector", SECRET_NAME));
+            domainEndpoint = requireNonNull(config.get(DOMAIN_ENDPOINT), String.format("Glue connection field: '%s' is required for Elastic Search connector", DOMAIN_ENDPOINT));
+
+            domainEndpoint = appendDomainNameIfNeeded(domainEndpoint);
             this.secretMap.put(domainEndpoint.split("=")[0], new ElasticsearchCredentialProvider(getSecret(secretName)));
         }
         else {
-            logger.info("No secret_name provided as Config property.");
-            if (StringUtils.isBlank(domainEndpoint)) {
-                domainEndpoint = config.getOrDefault(DOMAIN_MAPPING, "");
-            }
+            // non-glue connection use case
+            domainEndpoint = config.getOrDefault(DOMAIN_MAPPING, "");
+            // resolve secret as non-glue connection use case can embedded secret name into domain.
             domainEndpoint = resolveSecrets(domainEndpoint);
         }
 
         return domainMapProvider.getDomainMap(domainEndpoint);
+    }
+
+    /*
+     Given glue connection doesn’t support multi domain, domain endpoint does not required a domain name anymore. We will automatically map the one and only domain as `default`
+     */
+    private String appendDomainNameIfNeeded(String domainEndpoint)
+    {
+        if (!DOMAIN_NAME_WITH_ENDPOINT_PATTERN.matcher(domainEndpoint).find()) {
+            logger.info("Glue Connection's `{}` field has no domain mapping, adding `default` as domain name", DOMAIN_ENDPOINT);
+            return DEFAULT_DOMAIN_NAME + "=" + domainEndpoint;
+        }
+
+        return domainEndpoint;
     }
 
     /**
@@ -467,5 +490,10 @@ public class ElasticsearchMetadataHandler
         logger.debug("convertField - fieldName: {}, glueType: {}", fieldName, glueType);
 
         return GlueFieldLexer.lex(fieldName, glueType, glueTypeMapper);
+    }
+
+    public Map<String, String> getDomainMap()
+    {
+        return domainMap;
     }
 }
