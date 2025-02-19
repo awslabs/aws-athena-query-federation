@@ -56,6 +56,11 @@ fi
 cd $(dirname $(find . -name ATHENA_INFRA_SPINUP_ROOT))/app;
 prefix="${CONNECTOR_NAME}CdkStack"
 
+#### Clean up ECR Repo
+echo "Deleting athena-federation-repository-${CONNECTOR_NAME} ECR Repo"
+aws ecr delete-repository --repository-name "athena-federation-repository-${CONNECTOR_NAME}" --force
+
+#### Finall destroy the stack
 npm install;
 npm run build;
 npm run cdk synth;

@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/porscheofficial/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2025.7.1
     SourceCodeUrl: 'https://github.com/porscheofficial/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -97,7 +97,7 @@ Resources:
       FunctionName: !Ref AthenaCatalogName
       PackageType: "Image"
       ImageUri: !Sub
-        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-dynamodb:2022.47.1'
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-dynamodb:2025.7.1'
         - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       Description: "Enables Amazon Athena to communicate with DynamoDB, making your tables accessible via SQL"
       Timeout: !Ref LambdaTimeout
@@ -110,7 +110,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -184,6 +184,6 @@ Resources:
           - Action:
               - kms:GenerateDataKey
             Effect: Allow
-            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
+            Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
       Roles:
         - !Ref FunctionRole

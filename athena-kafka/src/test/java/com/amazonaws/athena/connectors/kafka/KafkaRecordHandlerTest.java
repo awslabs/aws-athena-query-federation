@@ -122,21 +122,27 @@ public class KafkaRecordHandlerTest {
         MockitoAnnotations.initMocks(this);
 
         consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        ConsumerRecord<String, TopicResultSet> record1 = createConsumerRecord("myTopic", 0, "k1", createTopicResultSet("myTopic"));
-        ConsumerRecord<String, TopicResultSet> record2 = createConsumerRecord("myTopic", 0, "k2", createTopicResultSet("myTopic"));
+        ConsumerRecord<String, TopicResultSet> record1 = createConsumerRecord("myTopic", 0, 0, "k1", createTopicResultSet("myTopic"));
+        ConsumerRecord<String, TopicResultSet> record2 = createConsumerRecord("myTopic", 0, 1, "k2", createTopicResultSet("myTopic"));
+        ConsumerRecord<String, TopicResultSet> nullValueRecord = createConsumerRecord("myTopic", 0, 2, "k3", null);
         consumer.schedulePollTask(() -> {
             consumer.addRecord(record1);
             consumer.addRecord(record2);
+            consumer.addRecord(nullValueRecord);
         });
         avroConsumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        ConsumerRecord<String, GenericRecord> avroRecord = createAvroConsumerRecord("greetings", 0 , "k1", createGenericRecord("greetings"));
+        ConsumerRecord<String, GenericRecord> avroRecord = createAvroConsumerRecord("greetings", 0 , 0, "k1", createGenericRecord("greetings"));
+        ConsumerRecord<String, GenericRecord> avroNullValueRecord = createAvroConsumerRecord("greetings", 0 , 1, "k2", null);
         avroConsumer.schedulePollTask(() -> {
             avroConsumer.addRecord(avroRecord);
+            avroConsumer.addRecord(avroNullValueRecord);
         });
         protobufConsumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        ConsumerRecord<String, DynamicMessage> protobufRecord = createProtobufConsumerRecord("protobuftest", 0, "k1", createDynamicRecord());
+        ConsumerRecord<String, DynamicMessage> protobufRecord = createProtobufConsumerRecord("protobuftest", 0, 0, "k1", createDynamicRecord());
+        ConsumerRecord<String, DynamicMessage> protobufNullValueRecord = createProtobufConsumerRecord("protobuftest", 0, 1, "k2", null);
         protobufConsumer.schedulePollTask(() -> {
             protobufConsumer.addRecord(protobufRecord);
+            protobufConsumer.addRecord(protobufNullValueRecord);
         });
         spillConfig = SpillConfig.newBuilder()
                 .withEncryptionKey(encryptionKey)
@@ -173,7 +179,7 @@ public class KafkaRecordHandlerTest {
         offsets.put(new TopicPartition("myTopic", 0), 1L);
         consumer.updateEndOffsets(offsets);
 
-        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
+        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 2);
         Schema schema = createSchema(createCsvTopicSchema());
 
         mockedKafkaUtils.when(() -> KafkaUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
@@ -351,16 +357,16 @@ public class KafkaRecordHandlerTest {
                 0);
     }
 
-    private ConsumerRecord<String, TopicResultSet> createConsumerRecord(String topic, int partition, String key, TopicResultSet data) throws Exception {
-        return new ConsumerRecord<>(topic, partition, 0, key, data);
+    private ConsumerRecord<String, TopicResultSet> createConsumerRecord(String topic, int partition, long offset, String key, TopicResultSet data) throws Exception {
+        return new ConsumerRecord<>(topic, partition, offset, key, data);
     }
 
-    private ConsumerRecord<String, GenericRecord> createAvroConsumerRecord(String topic, int partition, String key, GenericRecord data) throws Exception {
-        return new ConsumerRecord<>(topic, partition, 0, key, data);
+    private ConsumerRecord<String, GenericRecord> createAvroConsumerRecord(String topic, int partition, long offset, String key, GenericRecord data) throws Exception {
+        return new ConsumerRecord<>(topic, partition, offset, key, data);
     }
 
-    private ConsumerRecord<String, DynamicMessage> createProtobufConsumerRecord(String topic, int partition, String key, DynamicMessage data) throws Exception {
-        return new ConsumerRecord<>(topic, partition, 0, key, data);
+    private ConsumerRecord<String, DynamicMessage> createProtobufConsumerRecord(String topic, int partition, long offset, String key, DynamicMessage data) throws Exception {
+        return new ConsumerRecord<>(topic, partition, offset, key, data);
     }
 
     private TopicResultSet createTopicResultSet(String topic) {

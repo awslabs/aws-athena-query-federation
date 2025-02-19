@@ -1,0 +1,152 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: AthenaElasticsearchConnector
+    Description: 'This connector enables Amazon Athena to communicate with your Elasticsearch instance(s).'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['athena-federation']
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2025.7.1
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+
+# Parameters are CloudFormation features to pass input
+# to your template when you create a stack
+Parameters:
+  AthenaCatalogName:
+    Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SecretNamePrefix:
+    Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena Elasticsearch Federation secret names can be prefixed with "AthenaESFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaESFederation*". Parameter value in this case should be "AthenaESFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
+    Type: String
+    Default: ""
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: "Lambda memory in MB (min 128 - 3008 max)."
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: "false"
+    Type: String
+  AutoDiscoverEndpoint:
+    Description: "Set to 'true' when using Amazon Elasticsearch Service. Otherwise, set to 'false' (DomainMapping is required when set to false)."
+    Default: "true"
+    Type: String
+  DomainMapping:
+    Description: "List of one or more domain-names and their respective endpoints (including secret credentials) in the format: domain1=endpoint1,domain2=endpoint2,... (e.g. movies=https://${secret-credentials}:www.mymovies.com)."
+    Default: ""
+    Type: String
+  QueryTimeoutCluster:
+    Description: "timeout period (in seconds) for Cluster-Health queries used in the generation of parallel scans (default is 10 seconds)."
+    Default: 10
+    Type: Number
+  QueryTimeoutSearch:
+    Description: "timeout period (in seconds) for Search queries used in the retrieval of documents from an index (default is 12 minutes)."
+    Default: 720
+    Type: Number
+  QueryScrollTimeout:
+    Description: "timeout period (in seconds) for scroll timeout used in the retrieval of documents (default is 60 seconds)."
+    Default: 60
+    Type: Number
+  IsVPCAccess:
+    AllowedValues:
+      - true
+      - false
+    Default: false
+    Description: "If ElasticSearch cluster is in VPC select true, [true, false] (default is false)"
+    Type: String
+  SecurityGroupIds:
+    Description: '**If IsVPCAccess is True**. Provide one or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: CommaDelimitedList
+    Default: ""
+  SubnetIds:
+    Description: '**If IsVPCAccess is True**. Provide one or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: CommaDelimitedList
+    Default: ""
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+
+Conditions:
+  IsVPCAccessSelected: !Equals [!Ref IsVPCAccess, true]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          auto_discover_endpoint: !Ref AutoDiscoverEndpoint
+          domain_mapping: !Ref DomainMapping
+          query_timeout_cluster: !Ref QueryTimeoutCluster
+          query_timeout_search: !Ref QueryTimeoutSearch
+          query_scroll_timeout: !Ref QueryScrollTimeout
+      FunctionName: !Sub "${AthenaCatalogName}"
+      Handler: "com.amazonaws.athena.connectors.elasticsearch.ElasticsearchCompositeHandler"
+      CodeUri: "./target/athena-elasticsearch-2025.7.1.jar"
+      Description: "The Elasticsearch Lambda Connector provides Athena users the ability to query data stored on Elasticsearch clusters."
+      Runtime: java11
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
+      Policies:
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - es:List*
+                - es:Describe*
+                - es:ESHttp*
+                - glue:GetTableVersions
+                - glue:GetPartitions
+                - glue:GetTables
+                - glue:GetTableVersion
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetPartition
+                - glue:GetDatabase
+                - athena:GetQueryExecution
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
+      VpcConfig:
+        SecurityGroupIds:
+          !If
+          - IsVPCAccessSelected
+          -
+            !Ref SecurityGroupIds
+          - !Ref "AWS::NoValue"
+        SubnetIds:
+          !If
+          - IsVPCAccessSelected
+          -
+            !Ref SubnetIds
+          - !Ref "AWS::NoValue"

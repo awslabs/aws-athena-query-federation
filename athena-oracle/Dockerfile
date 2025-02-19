@@ -1,4 +1,12 @@
-FROM public.ecr.aws/lambda/java:11
+# Argument for Java version, defaulting to 11
+ARG JAVA_VERSION=11
+# Use the specified version of Java
+FROM public.ecr.aws/lambda/java:${JAVA_VERSION}
+
+# Argument for Java tool options, defaulting to an empty string
+ARG JAVA_TOOL_OPTIONS=""
+# Set the JAVA_TOOL_OPTIONS environment variable for Java 17
+ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
 
 # Install necessary tools
 RUN yum update -y && yum install -y curl perl openssl
@@ -29,12 +37,12 @@ RUN echo "Trust store content is: " && \
     done
 
 # Copy function code and runtime dependencies from Maven layout
-COPY target/athena-oracle-2022.47.1.jar ${LAMBDA_TASK_ROOT}
+COPY target/athena-oracle-2025.7.1.jar ${LAMBDA_TASK_ROOT}
 # Unpack the jar
-RUN jar xf athena-oracle-2022.47.1.jar
+RUN jar xf athena-oracle-2025.7.1.jar
 
 # Clean up JAR
-RUN rm ${LAMBDA_TASK_ROOT}/athena-oracle-2022.47.1.jar
+RUN rm ${LAMBDA_TASK_ROOT}/athena-oracle-2025.7.1.jar
 
 # Command can be overwritten by providing a different command in the template directly.
 # No need to specify here (already defined in .yaml file because legacy and connections use different)

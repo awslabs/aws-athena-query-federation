@@ -81,8 +81,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
 
 public class SqlServerMetadataHandler extends JdbcMetadataHandler
 {
@@ -90,7 +93,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String ALL_PARTITIONS = "0";
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
     static final String PARTITION_FUNCTION = "PARTITION_FUNCTION";
     static final String PARTITIONING_COLUMN = "PARTITIONING_COLUMN";
 
@@ -403,20 +405,20 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
+            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName());
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
 
     @Override
-    protected ArrowType convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
+    protected Optional<ArrowType> convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
     {
         String dataType = metadata.getColumnTypeName(columnIndex);
         LOGGER.info("In convertDatasourceTypeToArrow: converting {}", dataType);
         if (dataType != null && SqlServerDataType.isSupported(dataType)) {
             LOGGER.debug("Sql Server  Datatype is support: {}", dataType);
-            return SqlServerDataType.fromType(dataType); 
+            return Optional.of(SqlServerDataType.fromType(dataType));
         }
         return super.convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
     }
@@ -458,7 +460,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             }
 
             while (resultSet.next()) {
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
@@ -470,18 +472,18 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("dataType: " + dataType);
 
                 if (dataType != null && SqlServerDataType.isSupported(dataType)) {
-                    columnType = SqlServerDataType.fromType(dataType);
+                    columnType = Optional.of(SqlServerDataType.fromType(dataType));
                 }
                 /**
                  * converting into VARCHAR for non supported data types.
                  */
-                if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
-                    columnType = Types.MinorType.VARCHAR.getType();
+                if (columnType.isEmpty() || !SupportedTypes.isSupported(columnType.get())) {
+                    columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
                 LOGGER.debug("columnType: " + columnType);
-                if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     found = true;
                 }
                 else {

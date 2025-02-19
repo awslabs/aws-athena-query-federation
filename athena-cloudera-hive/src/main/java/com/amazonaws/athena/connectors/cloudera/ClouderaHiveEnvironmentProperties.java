@@ -39,7 +39,7 @@ public class ClouderaHiveEnvironmentProperties extends JdbcEnvironmentProperties
     @Override
     protected String getJdbcParameters(Map<String, String> connectionProperties)
     {
-        String params = "?" + connectionProperties.getOrDefault(SESSION_CONFS, "");
+        String params = ";" + connectionProperties.getOrDefault(SESSION_CONFS, "");
 
         if (connectionProperties.containsKey(HIVE_CONFS)) {
             if (connectionProperties.containsKey(SESSION_CONFS)) {

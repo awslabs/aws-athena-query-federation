@@ -70,6 +70,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -77,7 +78,7 @@ public class SqlServerMetadataHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(SqlServerMetadataHandlerTest.class);
-    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SqlServerConstants.NAME,
     		  "sqlserver://jdbc:sqlserver://hostname;databaseName=fakedatabase");
     private SqlServerMetadataHandler sqlServerMetadataHandler;
@@ -109,7 +110,7 @@ public class SqlServerMetadataHandlerTest
     public void getPartitionSchema()
     {
         Assert.assertEquals(SchemaBuilder.newBuilder()
-                        .addField(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
+                        .addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
                 this.sqlServerMetadataHandler.getPartitionSchema("testCatalogName"));
     }
 
@@ -132,7 +133,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{"2"},{"3"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -150,10 +151,10 @@ public class SqlServerMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(Arrays.asList("[PARTITION_NUMBER : 1:::pf:::pc]","[PARTITION_NUMBER : 2:::pf:::pc]","[PARTITION_NUMBER : 3:::pf:::pc]"), actualValues);
+        Assert.assertEquals(Arrays.asList("[partition_number : 1:::pf:::pc]","[partition_number : 2:::pf:::pc]","[partition_number : 3:::pf:::pc]"), actualValues);
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
@@ -176,7 +177,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -196,10 +197,10 @@ public class SqlServerMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(Arrays.asList("[PARTITION_NUMBER : 0]"), actualValues);
+        Assert.assertEquals(Arrays.asList("[partition_number : 0]"), actualValues);
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
@@ -248,7 +249,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.INTEGER};
         Object[][] values = {{2}, {3}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -273,15 +274,15 @@ public class SqlServerMetadataHandlerTest
 
         Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
             com.google.common.collect.ImmutableMap.of(
-                sqlServerMetadataHandler.PARTITION_NUMBER, "1",
+                PARTITION_NUMBER, "1",
                 "PARTITIONING_COLUMN", "pc",
                 "PARTITION_FUNCTION", "pf"),
             com.google.common.collect.ImmutableMap.of(
-                sqlServerMetadataHandler.PARTITION_NUMBER, "2",
+                PARTITION_NUMBER, "2",
                 "PARTITIONING_COLUMN", "pc",
                 "PARTITION_FUNCTION", "pf"),
             com.google.common.collect.ImmutableMap.of(
-                sqlServerMetadataHandler.PARTITION_NUMBER, "3",
+                PARTITION_NUMBER, "3",
                 "PARTITIONING_COLUMN", "pc",
                 "PARTITION_FUNCTION", "pf"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
@@ -310,7 +311,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.INTEGER};
         Object[][] values = {{}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -329,7 +330,7 @@ public class SqlServerMetadataHandlerTest
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap(sqlServerMetadataHandler.PARTITION_NUMBER, "0"));
+        expectedSplits.add(Collections.singletonMap(PARTITION_NUMBER, "0"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -354,7 +355,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.INTEGER};
         Object[][] values = {{2},{3}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -375,7 +376,7 @@ public class SqlServerMetadataHandlerTest
 
         Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
             com.google.common.collect.ImmutableMap.of(
-                sqlServerMetadataHandler.PARTITION_NUMBER, "3",
+                PARTITION_NUMBER, "3",
                 "PARTITIONING_COLUMN", "pc",
                 "PARTITION_FUNCTION", "pf"));
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());

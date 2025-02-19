@@ -3,35 +3,35 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.47.1</version>
+        <version>2025.7.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-postgresql</artifactId>
-    <version>2022.47.1</version>
+    <version>2025.7.1</version>
     <packaging>jar</packaging>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2022.47.1</version>
+            <version>2025.7.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.47.1</version>
+            <version>2025.7.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.47.1</version>
+            <version>2025.7.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.4</version>
+            <version>42.7.5</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>

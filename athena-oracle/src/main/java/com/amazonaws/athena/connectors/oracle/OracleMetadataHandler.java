@@ -62,7 +62,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -76,10 +75,10 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.MODULUS_FUNCTION_NAME;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
@@ -95,11 +94,9 @@ public class OracleMetadataHandler
     static final String BLOCK_PARTITION_COLUMN_NAME = "PARTITION_NAME".toLowerCase();
     static final String ALL_PARTITIONS = "0";
     static final String PARTITION_COLUMN_NAME = "PARTITION_NAME".toLowerCase();
-    static final String CASING_MODE = "casing_mode";
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private static final String COLUMN_NAME = "COLUMN_NAME";
-    private static final String ORACLE_QUOTE_CHARACTER = "\"";
 
     static final String LIST_PAGINATED_TABLES_QUERY = "SELECT TABLE_NAME as \"TABLE_NAME\", OWNER as \"TABLE_SCHEM\" FROM all_tables WHERE owner = ? ORDER BY TABLE_NAME OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
 
@@ -158,10 +155,11 @@ public class OracleMetadataHandler
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), transformString(getTableLayoutRequest.getTableName().getSchemaName(), true),
-                transformString(getTableLayoutRequest.getTableName().getTableName(), true));
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-          List<String> parameters = Arrays.asList(transformString(getTableLayoutRequest.getTableName().getTableName(), true));
+            TableName casedTableName = getTableLayoutRequest.getTableName();
+            LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), casedTableName.getSchemaName(),
+                casedTableName.getTableName());
+            List<String> parameters = Arrays.asList(OracleCaseResolver.convertToLiteral(casedTableName.getTableName())); 
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
                 ResultSet resultSet = preparedStatement.executeQuery()) {
                 // Return a single partition if no partitions defined
@@ -256,7 +254,8 @@ public class OracleMetadataHandler
         int t = token != null ? Integer.parseInt(token) : 0;
 
         LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
-        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
+        String casedSchemaName = OracleCaseResolver.getAdjustedSchemaName(connection, listTablesRequest.getSchemaName(), configOptions);
+        List<TableName> paginatedTables = getPaginatedTables(connection, casedSchemaName, t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
     }
@@ -310,7 +309,7 @@ public class OracleMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(transformString(getTableRequest.getTableName().getSchemaName(), false), transformString(getTableRequest.getTableName().getTableName(), false));
+            TableName tableName = OracleCaseResolver.getAdjustedTableObjectName(connection, getTableRequest.getTableName(), configOptions);
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -355,7 +354,7 @@ public class OracleMetadataHandler
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
             while (resultSet.next()) {
-                ArrowType arrowColumnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> arrowColumnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
@@ -363,75 +362,59 @@ public class OracleMetadataHandler
 
                 String columnName = resultSet.getString(COLUMN_NAME);
                 int jdbcColumnType = resultSet.getInt("DATA_TYPE");
-                int scale = resultSet.getInt("COLUMN_SIZE");
+                int precision = resultSet.getInt("COLUMN_SIZE");
+                int scale = resultSet.getInt("DECIMAL_DIGITS");
 
                 LOGGER.debug("columnName: {}", columnName);
-                LOGGER.debug("arrowColumnType: {}", arrowColumnType);
                 LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
+                LOGGER.debug("precision: {}", precision);
+                LOGGER.debug("scale: {}", scale);
+                LOGGER.debug("arrowColumnType: {}", arrowColumnType);
 
                 /**
                  * below data type conversion doing since a framework not giving appropriate
                  * data types for oracle data types.
                  */
 
-                /** Handling TIMESTAMP, DATE, 0 Precision **/
-                if (arrowColumnType != null && arrowColumnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
+                /** Convert 0 scale Decimals to integer **/
+                if (arrowColumnType.isPresent() && arrowColumnType.get().getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
                     String[] data = arrowColumnType.toString().split(",");
-                    if (scale == 0 || Integer.parseInt(data[1].trim()) < 0) {
-                        arrowColumnType = Types.MinorType.BIGINT.getType();
+                    if (Integer.parseInt(data[1].trim()) <= 0) {
+                        arrowColumnType = Optional.of(Types.MinorType.BIGINT.getType());
                     }
                 }
 
                 /**
                  * Converting an Oracle date data type into DATEDAY MinorType
                  */
-                if (jdbcColumnType == java.sql.Types.TIMESTAMP && scale == 7) {
-                    arrowColumnType = Types.MinorType.DATEDAY.getType();
+                if (jdbcColumnType == java.sql.Types.TIMESTAMP && precision == 7) {
+                    arrowColumnType = Optional.of(Types.MinorType.DATEDAY.getType());
                 }
 
                 /**
                  * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
                  */
                 if (jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
-                    arrowColumnType = Types.MinorType.DATEMILLI.getType();
+                    arrowColumnType = Optional.of(Types.MinorType.DATEMILLI.getType());
                 }
 
-                if (arrowColumnType != null && !SupportedTypes.isSupported(arrowColumnType)) {
+                if (arrowColumnType.isPresent() && !SupportedTypes.isSupported(arrowColumnType.get())) {
                     LOGGER.warn("getSchema: Unable to map type JDBC type [{}] for column[{}] to a supported type, attempted {}", jdbcColumnType, columnName, arrowColumnType);
-                    arrowColumnType = Types.MinorType.VARCHAR.getType();
+                    arrowColumnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                if (arrowColumnType == null) {
+                if (arrowColumnType.isEmpty()) {
                     LOGGER.warn("getSchema: column[{}]  type is null setting it to varchar | JDBC Type is [{}]", columnName, jdbcColumnType);
-                    arrowColumnType = Types.MinorType.VARCHAR.getType();
+                    arrowColumnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
-                schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType).build());
+
+                LOGGER.debug("new arrowColumnType: {}", arrowColumnType);
+                schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType.get()).build());
             }
 
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             LOGGER.debug("Oracle Table Schema" + schemaBuilder.toString());
             return schemaBuilder.build();
         }
-    }
-
-    /**
-     * Always adds double quotes around the string
-     * If the lambda uses a glue connection, return the string as is (lowercased by the trino engine)
-     * Otherwise uppercase it (the default of oracle)
-     * @param str
-     * @param quote
-     * @return
-     */
-    private String transformString(String str, boolean quote)
-    {
-        boolean isGlueConnection = StringUtils.isNotBlank(configOptions.get(DEFAULT_GLUE_CONNECTION));
-        boolean uppercase = configOptions.getOrDefault(CASING_MODE, isGlueConnection ? "lower" : "upper").toLowerCase().equals("upper");
-        if (uppercase) {
-            str = str.toUpperCase();
-        }
-        if (quote && !str.contains(ORACLE_QUOTE_CHARACTER)) {
-            str = ORACLE_QUOTE_CHARACTER + str + ORACLE_QUOTE_CHARACTER;
-        }
-        return str;
     }
 }

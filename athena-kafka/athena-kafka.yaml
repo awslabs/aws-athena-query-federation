@@ -11,7 +11,7 @@ Metadata:
       - kafka
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2025.7.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AuthType:
@@ -104,7 +104,7 @@ Resources:
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
-        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-kafka:2022.47.1'
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-kafka:2025.7.1'
         - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       Description: "Enables Amazon Athena to communicate with Kafka clusters"
       Timeout: !Ref LambdaTimeout
@@ -120,7 +120,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:

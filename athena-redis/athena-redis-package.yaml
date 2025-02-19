@@ -1,0 +1,120 @@
+Transform: 'AWS::Serverless-2016-10-31'
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaRedisConnector
+    Description: 'This connector enables Amazon Athena to communicate with your Redis instance(s), making your Redis data accessible via SQL.'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels:
+      - athena-federation
+    HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+    SemanticVersion: 2025.7.1
+    SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+Parameters:
+  AthenaCatalogName:
+    Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: 'false'
+    Type: String
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  SecretNameOrPrefix:
+    Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. redis-*).'
+    Type: String
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+  QPTConnectionEndpoint:
+    Description: "(Optional) The hostname:port:password of the Redis server that contains data for this table optionally using SecretsManager (e.g. ${secret_name}). Used for Query Pass Through queries only."
+    Default: ''
+    Type: String
+  QPTConnectionSSL:
+    Description: "(Optional) When True, creates a Redis connection that uses SSL/TLS. Used for Query Pass Through queries only."
+    Default: 'false'
+    Type: String
+  QPTConnectionCluster:
+    Description: "(Optional) When True, enables support for clustered Redis instances. Used for Query Pass Through queries only."
+    Default: 'false'
+    Type: String
+  QPTConnectionDBNumber:
+    Description: "(Optional) Set this number (for example 1, 2, or 3) to read from a non-default Redis database. Used for Query Pass Through queries only."
+    Default: 0
+    Type: Number
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          qpt_endpoint: !Ref QPTConnectionEndpoint
+          qpt_ssl: !Ref QPTConnectionSSL
+          qpt_cluster: !Ref QPTConnectionCluster
+          qpt_db_number: !Ref QPTConnectionDBNumber
+      FunctionName: !Ref AthenaCatalogName
+      Handler: "com.amazonaws.athena.connectors.redis.RedisCompositeHandler"
+      CodeUri: "./target/athena-redis-2025.7.1.jar"
+      Description: "Enables Amazon Athena to communicate with Redis, making your Redis data accessible via SQL"
+      Runtime: java11
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
+      Policies:
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - glue:GetTableVersions
+                - glue:GetPartitions
+                - glue:GetTables
+                - glue:GetTableVersion
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetPartition
+                - glue:GetDatabase
+                - athena:GetQueryExecution
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
+        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds

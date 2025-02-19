@@ -4,39 +4,39 @@
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
-    <version>2022.47.1</version>
+    <version>2025.7.1</version>
     <name>AWS Athena Query Federation</name>
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
     <properties>
-        <!-- Uncomment to target java 8 -->
-        <!--<maven.compiler.release>8</maven.compiler.release>-->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.29.29</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.30.16</aws-sdk-v2.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.105.0</jsii.version>
+        <jsii.version>1.106.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.16</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.9.2</jqwik.version>
-        <assertj.version>3.26.3</assertj.version>
+        <assertj.version>3.27.3</assertj.version>
         <testng.version>7.10.2</testng.version>
-         <!--- to meet engine version 2.12.6 -->
+        <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.18.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.2</surefire.failsafe.version>
         <log4j2Version>2.24.2</log4j2Version>
-        <apache.arrow.version>13.0.0</apache.arrow.version>
-        <guava.version>33.3.1-jre</guava.version>
+        <apache.arrow.version>18.1.0</apache.arrow.version>
+        <guava.version>33.4.0-jre</guava.version>
         <protobuf3.version>3.25.3</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
-        <mssql.jdbc.version>12.9.0.jre11-preview</mssql.jdbc.version>
+        <mssql.jdbc.version>12.8.1.jre11</mssql.jdbc.version>
         <commons.cli.version>1.9.0</commons.cli.version>
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
@@ -53,7 +53,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.11.3</version>
+                <version>5.11.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -154,6 +154,13 @@
         <module>athena-clickhouse</module>
     </modules>
     <dependencies>
+        <dependency>
+            <!-- Setting this dependency to provided with the range version will ensure to exclude it from all transitive depndencies -->
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+            <version>[1.2,)</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
@@ -385,6 +392,52 @@
         </plugins>
     </build>
     <profiles>
+        <profile>
+            <id>java8</id>
+            <activation>
+                <jdk>1.8</jdk>
+            </activation>
+            <properties>
+                <maven.compiler.release>8</maven.compiler.release>
+            </properties>
+        </profile>
+        <profile>
+            <id>java17</id>
+            <activation>
+                <jdk>17</jdk>
+            </activation>
+            <properties>
+                <maven.compiler.release>17</maven.compiler.release>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${surefire.failsafe.version}</version>
+                        <configuration>
+                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
+                            <excludes>
+                                <exclude>*IntegTest</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <version>${surefire.failsafe.version}</version>
+                        <configuration>
+                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
+                            <forkCount>3C</forkCount>
+                            <reuseForks>false</reuseForks>
+                            <includes>
+                                <include>*IntegTest</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>release</id>
             <distributionManagement>
