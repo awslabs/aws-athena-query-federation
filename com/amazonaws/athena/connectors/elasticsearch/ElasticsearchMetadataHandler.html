@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -249,7 +249,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected </code></td>
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,com.amazonaws.athena.connectors.elasticsearch.ElasticsearchDomainMapProvider,com.amazonaws.athena.connectors.elasticsearch.AwsRestHighLevelClientFactory,long,java.util.Map)">ElasticsearchMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,com.amazonaws.athena.connectors.elasticsearch.ElasticsearchDomainMapProvider,com.amazonaws.athena.connectors.elasticsearch.AwsRestHighLevelClientFactory,long,java.util.Map,boolean)">ElasticsearchMetadataHandler</a></span>&#8203;(software.amazon.awssdk.services.glue.GlueClient&nbsp;awsGlue,
                             <a href="../../connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
                             software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;awsSecretsManager,
                             software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
@@ -258,7 +258,8 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
                             <a href="ElasticsearchDomainMapProvider.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchDomainMapProvider</a>&nbsp;domainMapProvider,
                             <a href="AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.athena.connectors.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory,
                             long&nbsp;queryTimeout,
-                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
+                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions,
+                            boolean&nbsp;simulateGlueConnection)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -336,6 +337,11 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 </td>
 </tr>
 <tr id="i7" class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDomainMap()">getDomainMap</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a></span>&#8203;(<a href="../../connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../../connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
@@ -344,7 +350,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <div class="block">Elasticsearch does not support partitioning so this method is a NoOp.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resolveDomainMap(java.util.Map)">resolveDomainMap</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;config)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -459,7 +465,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <pre>public&nbsp;ElasticsearchMetadataHandler&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 </li>
 </ul>
-<a id="&lt;init&gt;(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,com.amazonaws.athena.connectors.elasticsearch.ElasticsearchDomainMapProvider,com.amazonaws.athena.connectors.elasticsearch.AwsRestHighLevelClientFactory,long,java.util.Map)">
+<a id="&lt;init&gt;(software.amazon.awssdk.services.glue.GlueClient,com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,com.amazonaws.athena.connectors.elasticsearch.ElasticsearchDomainMapProvider,com.amazonaws.athena.connectors.elasticsearch.AwsRestHighLevelClientFactory,long,java.util.Map,boolean)">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -474,7 +480,8 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
                                        <a href="ElasticsearchDomainMapProvider.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchDomainMapProvider</a>&nbsp;domainMapProvider,
                                        <a href="AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.athena.connectors.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory,
                                        long&nbsp;queryTimeout,
-                                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
+                                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions,
+                                       boolean&nbsp;simulateGlueConnection)</pre>
 </li>
 </ul>
 </li>
@@ -672,7 +679,7 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <a id="convertField(java.lang.String,java.lang.String)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>convertField</h4>
 <pre class="methodSignature">protected&nbsp;org.apache.arrow.vector.types.pojo.Field&nbsp;convertField&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;fieldName,
@@ -690,6 +697,15 @@ extends <a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><code>GlueMetadataHandler</code></a></dd>
 </dl>
+</li>
+</ul>
+<a id="getDomainMap()">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getDomainMap</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;getDomainMap()</pre>
 </li>
 </ul>
 </li>
