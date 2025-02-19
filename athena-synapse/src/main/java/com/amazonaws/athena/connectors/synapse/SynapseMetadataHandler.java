@@ -321,8 +321,8 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName exactObjectName = getExactCaseObjectName(connection, getTableRequest.getTableName());
-            return new GetTableResponse(getTableRequest.getCatalogName(), exactObjectName, getSchema(connection, exactObjectName, partitionSchema),
+            TableName tableName = SynapseCaseInsensitiveResolver.getAdjustedTableObjectNameBasedOnConfig(connection, getTableRequest.getTableName(), configOptions);
+            return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
@@ -506,32 +506,5 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                 escapeNamePattern(tableHandle.getSchemaName(), escape),
                 escapeNamePattern(tableHandle.getTableName(), escape),
                 null);
-    }
-
-    /**
-     * Retrieves the exact schema and table name from the synapse database.
-     *
-     * @param connection The database connection.
-     * @param tableName  TableName to  validate and convert.
-     * @return The exact case-sensitive TableName.
-     * @throws SQLException If a database connection failures.
-     */
-    private TableName getExactCaseObjectName(Connection connection, TableName tableName) throws SQLException
-    {
-        // SQL query to fetch the exact case-sensitive schema and table name.
-        String query = "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES " +
-                "WHERE LOWER(TABLE_SCHEMA) = ? AND LOWER(TABLE_NAME) = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, tableName.getSchemaName().toLowerCase());
-            stmt.setString(2, tableName.getTableName().toLowerCase());
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    // If a matching record is found, return the exact case-sensitive schema and table name.
-                    return new TableName(rs.getString("TABLE_SCHEMA"), rs.getString("TABLE_NAME"));
-                }
-            }
-        }
-        // Throw an exception if no matching schema and table name is found.
-        throw new RuntimeException(String.format("Object %s.%s not found", tableName.getSchemaName(), tableName.getTableName()));
     }
 }
