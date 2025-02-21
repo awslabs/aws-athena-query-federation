@@ -176,5 +176,8 @@ public class CacheableSecretsManagerTest
             fail("Should not see this!");
         }
         catch (RuntimeException ex) {}
+
+        String nullTest = null;
+        assertNull(cachableSecretsManager.resolveWithDefaultCredentials(nullTest));
     }
 }
