@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+
 import java.sql.Connection;
 
 /**
@@ -29,8 +31,8 @@ public interface JdbcConnectionFactory
     /**
      * Retrieves database connection for a database type.
      *
-     * @param jdbcCredentialProvider jdbc user and password provider.
+     * @param credentialsProvider jdbc user and password provider.
      * @return JDBC connection. See {@link Connection}.
      */
-    Connection getConnection(JdbcCredentialProvider jdbcCredentialProvider) throws Exception;
+    Connection getConnection(CredentialsProvider credentialsProvider) throws Exception;
 }

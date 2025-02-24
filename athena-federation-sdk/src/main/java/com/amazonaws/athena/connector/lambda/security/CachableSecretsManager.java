@@ -20,6 +20,8 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
+import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +85,35 @@ public class CachableSecretsManager
             result = result.replace(nextSecret, getSecret(m1.group(1)));
         }
         return result;
+    }
+
+    public String resolveWithDefaultCredentials(String rawString)
+    {
+        if (rawString == null) {
+            return rawString;
+        }
+
+        Matcher m = PATTERN.matcher(rawString);
+        String result = rawString;
+        while (m.find()) {
+            String nextSecret = m.group(1);
+            Matcher m1 = NAME_PATTERN.matcher(nextSecret);
+            m1.find();
+            try {
+                result = result.replace(nextSecret, useDefaultCredentials(m1.group(1)));
+            }
+            catch (RuntimeException e) {
+                logger.info("Credentials are not in json format. Falling back to <username>:<password>...");
+                result = result.replace(nextSecret, getSecret(m1.group(1)));
+            }
+        }
+        return result;
+    }
+
+    private String useDefaultCredentials(String secret) throws RuntimeException
+    {
+        DefaultCredentials defaultCredentials = new DefaultCredentialsProvider(getSecret(secret)).getCredential();
+        return defaultCredentials.getUser() + ":" + defaultCredentials.getPassword();
     }
 
     /**

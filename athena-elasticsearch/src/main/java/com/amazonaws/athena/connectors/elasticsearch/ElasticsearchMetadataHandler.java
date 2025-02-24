@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -110,7 +111,7 @@ public class ElasticsearchMetadataHandler
 
     // A Map of the domain-names and their respective endpoints.
     private Map<String, String> domainMap;
-    private Map<String, ElasticsearchCredentialProvider> secretMap;
+    private Map<String, DefaultCredentialsProvider> secretMap;
 
     // Env. variable that holds the query timeout period for the Cluster-Health queries.
     private static final String QUERY_TIMEOUT_CLUSTER = "query_timeout_cluster";
@@ -175,14 +176,13 @@ public class ElasticsearchMetadataHandler
 
     protected Map<String, String> resolveDomainMap(Map<String, String> config)
     {
-        // Glue connection usage
         String domainEndpoint;
         if (StringUtils.isNotBlank(config.getOrDefault(DEFAULT_GLUE_CONNECTION, ""))) {
             String secretName = requireNonNull(config.get(SECRET_NAME), String.format("Glue connection field: '%s' is required for Elastic Search connector", SECRET_NAME));
             domainEndpoint = requireNonNull(config.get(DOMAIN_ENDPOINT), String.format("Glue connection field: '%s' is required for Elastic Search connector", DOMAIN_ENDPOINT));
 
             domainEndpoint = appendDomainNameIfNeeded(domainEndpoint);
-            this.secretMap.put(domainEndpoint.split("=")[0], new ElasticsearchCredentialProvider(getSecret(secretName)));
+            this.secretMap.put(domainEndpoint.split("=")[0], new DefaultCredentialsProvider(getSecret(secretName)));
         }
         else {
             // non-glue connection use case
@@ -244,7 +244,7 @@ public class ElasticsearchMetadataHandler
 
         String endpoint = getDomainEndpoint(request.getSchemaName());
         String domain = request.getSchemaName();
-        ElasticsearchCredentialProvider creds = secretMap.get(domain);
+        DefaultCredentialsProvider creds = secretMap.get(domain);
         String username = creds != null ? creds.getCredential().getUser() : "";
         String password = creds != null ? creds.getCredential().getPassword() : "";
         AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
@@ -357,7 +357,7 @@ public class ElasticsearchMetadataHandler
         }
         String endpoint = getDomainEndpoint(domain);
 
-        ElasticsearchCredentialProvider creds = secretMap.get(domain);
+        DefaultCredentialsProvider creds = secretMap.get(domain);
         String username = creds != null ? creds.getCredential().getUser() : "";
         String password = creds != null ? creds.getCredential().getPassword() : "";
         AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
@@ -404,7 +404,7 @@ public class ElasticsearchMetadataHandler
     private Schema getSchema(String index, String endpoint, String domain)
     {
         Schema schema;
-        ElasticsearchCredentialProvider creds = secretMap.get(domain);
+        DefaultCredentialsProvider creds = secretMap.get(domain);
         String username = creds != null ? creds.getCredential().getUser() : "";
         String password = creds != null ? creds.getCredential().getPassword() : "";
         AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
