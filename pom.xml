@@ -25,7 +25,7 @@
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.9.2</jqwik.version>
         <assertj.version>3.27.3</assertj.version>
-        <testng.version>7.10.2</testng.version>
+        <testng.version>7.11.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.18.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.2</surefire.failsafe.version>
