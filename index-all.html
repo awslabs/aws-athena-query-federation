@@ -2026,6 +2026,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/QueryFactory.html#createVerticaExportQueryBuilder()">createVerticaExportQueryBuilder()</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/QueryFactory.html" title="class in com.amazonaws.athena.connectors.vertica.query">QueryFactory</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials"><span class="typeNameLink">CredentialsProvider</span></a> - Interface in <a href="com/amazonaws/athena/connector/credentials/package-summary.html">com.amazonaws.athena.connector.credentials</a></dt>
+<dd>
+<div class="block">JDBC username and password provider.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/credentials/CrossAccountCredentialsProvider.html" title="class in com.amazonaws.athena.connector.credentials"><span class="typeNameLink">CrossAccountCredentialsProvider</span></a> - Class in <a href="com/amazonaws/athena/connector/credentials/package-summary.html">com.amazonaws.athena.connector.credentials</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/credentials/CrossAccountCredentialsProviderV2.html" title="class in com.amazonaws.athena.connectors.dynamodb.credentials"><span class="typeNameLink">CrossAccountCredentialsProviderV2</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/credentials/package-summary.html">com.amazonaws.athena.connectors.dynamodb.credentials</a></dt>
@@ -2471,6 +2475,18 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#DEFAULT_SCHEMA">DEFAULT_SCHEMA</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#DEFAULT_TIME_ZONE">DEFAULT_TIME_ZONE</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html" title="class in com.amazonaws.athena.connector.credentials"><span class="typeNameLink">DefaultCredentials</span></a> - Class in <a href="com/amazonaws/athena/connector/credentials/package-summary.html">com.amazonaws.athena.connector.credentials</a></dt>
+<dd>
+<div class="block">Encapsulates database connection user name and password information.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html#%3Cinit%3E(java.lang.String,java.lang.String)">DefaultCredentials(String, String)</a></span> - Constructor for class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html" title="class in com.amazonaws.athena.connector.credentials">DefaultCredentials</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/credentials/DefaultCredentialsProvider.html" title="class in com.amazonaws.athena.connector.credentials"><span class="typeNameLink">DefaultCredentialsProvider</span></a> - Class in <a href="com/amazonaws/athena/connector/credentials/package-summary.html">com.amazonaws.athena.connector.credentials</a></dt>
+<dd>
+<div class="block">Encapsulates RDS secrets deserialization.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/DefaultCredentialsProvider.html#%3Cinit%3E(java.lang.String)">DefaultCredentialsProvider(String)</a></span> - Constructor for class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/DefaultCredentialsProvider.html" title="class in com.amazonaws.athena.connector.credentials">DefaultCredentialsProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue"><span class="typeNameLink">DefaultGlueType</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/metadata/glue/package-summary.html">com.amazonaws.athena.connector.lambda.metadata.glue</a></dt>
 <dd>
@@ -3605,24 +3621,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCompositeHandler.html#%3Cinit%3E()">ElasticsearchCompositeHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCompositeHandler.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchCompositeHandler</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html" title="class in com.amazonaws.athena.connectors.elasticsearch"><span class="typeNameLink">ElasticsearchCredential</span></a> - Class in <a href="com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a></dt>
-<dd>
-<div class="block">Encapsulates database connection user name and password information.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html#%3Cinit%3E(java.lang.String,java.lang.String)">ElasticsearchCredential(String, String)</a></span> - Constructor for class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchCredential</a></dt>
-<dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredentialProvider.html" title="class in com.amazonaws.athena.connectors.elasticsearch"><span class="typeNameLink">ElasticsearchCredentialProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a></dt>
-<dd>
-<div class="block">Encapsulates Elasticsearch secrets deserialization, stored in following JSON format (showing minimal required for extraction):
- <code>
- {
-     "username": "${user}",
-     "password": "${password}"
- }
- </code></div>
-</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredentialProvider.html#%3Cinit%3E(java.lang.String)">ElasticsearchCredentialProvider(String)</a></span> - Constructor for class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredentialProvider.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchCredentialProvider</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchDomainMapProvider.html" title="class in com.amazonaws.athena.connectors.elasticsearch"><span class="typeNameLink">ElasticsearchDomainMapProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a></dt>
 <dd>
 <div class="block">This class provides a method for creating a map between the domain-names and their associated endpoints.</div>
@@ -3790,6 +3788,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">$cast function result type is determined by the <code>Call#getType()</code>
  Cast is nuanced and very connector specific.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html" title="class in com.amazonaws.athena.connector.credentials">DefaultCredentials</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>
 <div class="block">Provides some basic equality checking for a Block.</div>
@@ -3878,13 +3878,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchCredential</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfig.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionInfo.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredential</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitInfo</a></dt>
 <dd>&nbsp;</dd>
@@ -4626,25 +4622,25 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html#getConjucts()">getConjucts()</a></span> - Method in class com.amazonaws.athena.connectors.timestream.query.<a href="com/amazonaws/athena/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.athena.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveJdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/HiveJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/HiveJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.cloudera">HiveJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/ImpalaJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/ImpalaJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.cloudera">ImpalaJdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/ImpalaJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/ImpalaJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.cloudera">ImpalaJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2JdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2JdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2JdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2JdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2JdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2JdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hortonworks/HiveJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.athena.connectors.hortonworks.<a href="com/amazonaws/athena/connectors/hortonworks/HiveJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hortonworks">HiveJdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hortonworks/HiveJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.hortonworks.<a href="com/amazonaws/athena/connectors/hortonworks/HiveJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hortonworks">HiveJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in interface com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in interface com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></dt>
 <dd>
 <div class="block">Retrieves database connection for a database type.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/oracle/OracleJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.athena.connectors.oracle.<a href="com/amazonaws/athena/connectors/oracle/OracleJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.oracle">OracleJdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/oracle/OracleJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.oracle.<a href="com/amazonaws/athena/connectors/oracle/OracleJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.oracle">OracleJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/sqlserver/SqlServerJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.athena.connectors.sqlserver.<a href="com/amazonaws/athena/connectors/sqlserver/SqlServerJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.sqlserver">SqlServerJdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/sqlserver/SqlServerJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.sqlserver.<a href="com/amazonaws/athena/connectors/sqlserver/SqlServerJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.sqlserver">SqlServerJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/synapse/SynapseJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.athena.connectors.synapse.<a href="com/amazonaws/athena/connectors/synapse/SynapseJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.synapse">SynapseJdbcConnectionFactory</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/synapse/SynapseJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.synapse.<a href="com/amazonaws/athena/connectors/synapse/SynapseJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.synapse">SynapseJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudera/ClouderaHiveEnvironmentProperties.html#getConnectionStringPrefix(java.util.Map)">getConnectionStringPrefix(Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.cloudera.<a href="com/amazonaws/athena/connectors/cloudera/ClouderaHiveEnvironmentProperties.html" title="class in com.amazonaws.athena.connectors.cloudera">ClouderaHiveEnvironmentProperties</a></dt>
 <dd>&nbsp;</dd>
@@ -4751,15 +4747,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns the continuation token that, if present, can be used to request the next batch of splits.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredentialProvider.html#getCredential()">getCredential()</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredentialProvider.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchCredentialProvider</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredentialProvider.html#getCredential()">getCredential()</a></span> - Method in interface com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredentialProvider.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredentialProvider</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/CredentialsProvider.html#getCredential()">getCredential()</a></span> - Method in interface com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a></dt>
 <dd>
 <div class="block">Retrieves credential for database.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/RdsSecretsCredentialProvider.html#getCredential()">getCredential()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/RdsSecretsCredentialProvider.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">RdsSecretsCredentialProvider</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/DefaultCredentialsProvider.html#getCredential()">getCredential()</a></span> - Method in class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/DefaultCredentialsProvider.html" title="class in com.amazonaws.athena.connector.credentials">DefaultCredentialsProvider</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/StaticJdbcCredentialProvider.html#getCredential()">getCredential()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/StaticJdbcCredentialProvider.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">StaticJdbcCredentialProvider</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/StaticCredentialsProvider.html#getCredential()">getCredential()</a></span> - Method in class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/StaticCredentialsProvider.html" title="class in com.amazonaws.athena.connector.credentials">StaticCredentialsProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#getCredentialProvider()">getCredentialProvider()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
@@ -5768,14 +5762,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/teradata/TeradataQueryStringBuilder.html#getPartitionWhereClauses(com.amazonaws.athena.connector.lambda.domain.Split)">getPartitionWhereClauses(Split)</a></span> - Method in class com.amazonaws.athena.connectors.teradata.<a href="com/amazonaws/athena/connectors/teradata/TeradataQueryStringBuilder.html" title="class in com.amazonaws.athena.connectors.teradata">TeradataQueryStringBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html#getPassword()">getPassword()</a></span> - Method in class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html" title="class in com.amazonaws.athena.connector.credentials">DefaultCredentials</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/data/SecretsManagerCredentials.html#getPassword()">getPassword()</a></span> - Method in class com.amazonaws.athena.connector.integ.data.<a href="com/amazonaws/athena/connector/integ/data/SecretsManagerCredentials.html" title="class in com.amazonaws.athena.connector.integ.data">SecretsManagerCredentials</a></dt>
 <dd>
 <div class="block">Public accessor to the password retrieved from SecretsManager.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html#getPassword()">getPassword()</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchCredential</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html#getPassword()">getPassword()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredential</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html#getPos()">getPos()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser.Token</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#getPreparedStatementSQL()">getPreparedStatementSQL()</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
@@ -6564,9 +6556,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns number of bytes in the Apache Arrow Pool that are used.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html#getUser()">getUser()</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchCredential</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html#getUser()">getUser()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredential</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html#getUser()">getUser()</a></span> - Method in class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html" title="class in com.amazonaws.athena.connector.credentials">DefaultCredentials</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/data/SecretsManagerCredentials.html#getUsername()">getUsername()</a></span> - Method in class com.amazonaws.athena.connector.integ.data.<a href="com/amazonaws/athena/connector/integ/data/SecretsManagerCredentials.html" title="class in com.amazonaws.athena.connector.integ.data">SecretsManagerCredentials</a></dt>
 <dd>
@@ -6755,6 +6745,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#HASH_KEY_NAME_METADATA">HASH_KEY_NAME_METADATA</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/DefaultCredentials.html" title="class in com.amazonaws.athena.connector.credentials">DefaultCredentials</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>
 <div class="block">Provides some basic hashcode capabilities for the Block.</div>
@@ -6843,13 +6835,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchCredential.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchCredential</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfig.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionInfo.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredential</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitInfo</a></dt>
 <dd>&nbsp;</dd>
@@ -7540,16 +7528,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection"><span class="typeNameLink">JdbcConnectionFactory</span></a> - Interface in <a href="com/amazonaws/athena/connectors/jdbc/connection/package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></dt>
 <dd>
 <div class="block">Factory abstracts creation of JDBC connection to database.</div>
-</dd>
-<dt><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.athena.connectors.jdbc.connection"><span class="typeNameLink">JdbcCredential</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/connection/package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></dt>
-<dd>
-<div class="block">Encapsulates database connection user name and password information.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html#%3Cinit%3E(java.lang.String,java.lang.String)">JdbcCredential(String, String)</a></span> - Constructor for class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredential</a></dt>
-<dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connectors/jdbc/connection/JdbcCredentialProvider.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection"><span class="typeNameLink">JdbcCredentialProvider</span></a> - Interface in <a href="com/amazonaws/athena/connectors/jdbc/connection/package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></dt>
-<dd>
-<div class="block">JDBC username and password provider.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connectors/jdbc/JdbcEnvironmentProperties.html" title="class in com.amazonaws.athena.connectors.jdbc"><span class="typeNameLink">JdbcEnvironmentProperties</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/package-summary.html">com.amazonaws.athena.connectors.jdbc</a></dt>
 <dd>&nbsp;</dd>
@@ -9086,12 +9064,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/rdf/RDFHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.neptune.NeptuneConnection)">RDFHandler(NeptuneConnection)</a></span> - Constructor for class com.amazonaws.athena.connectors.neptune.rdf.<a href="com/amazonaws/athena/connectors/neptune/rdf/RDFHandler.html" title="class in com.amazonaws.athena.connectors.neptune.rdf">RDFHandler</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connectors/jdbc/connection/RdsSecretsCredentialProvider.html" title="class in com.amazonaws.athena.connectors.jdbc.connection"><span class="typeNameLink">RdsSecretsCredentialProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/connection/package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></dt>
-<dd>
-<div class="block">Encapsulates RDS secrets deserialization.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/RdsSecretsCredentialProvider.html#%3Cinit%3E(java.lang.String)">RdsSecretsCredentialProvider(String)</a></span> - Constructor for class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/RdsSecretsCredentialProvider.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">RdsSecretsCredentialProvider</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/RdsTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables"><span class="typeNameLink">RdsTableProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/aws/cmdb/tables/package-summary.html">com.amazonaws.athena.connectors.aws.cmdb.tables</a></dt>
 <dd>
 <div class="block">Maps your RDS instances to a table.</div>
@@ -9476,6 +9448,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
  repalced by the corresponding value of the secret in AWS Secrets Manager with that name.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/RecordHandler.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/RecordHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">RecordHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchUtils.html#RESULT_TIMEOUT">RESULT_TIMEOUT</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchUtils.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/connection/ResultProcessor.html" title="interface in com.amazonaws.athena.connectors.hbase.connection"><span class="typeNameLink">ResultProcessor</span></a>&lt;<a href="com/amazonaws/athena/connectors/hbase/connection/ResultProcessor.html" title="type parameter in ResultProcessor">T</a>&gt; - Interface in <a href="com/amazonaws/athena/connectors/hbase/connection/package-summary.html">com.amazonaws.athena.connectors.hbase.connection</a></dt>
@@ -10571,11 +10549,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/qpt/CloudwatchQueryPassthrough.html#STARTTIME">STARTTIME</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.qpt.<a href="com/amazonaws/athena/connectors/cloudwatch/qpt/CloudwatchQueryPassthrough.html" title="class in com.amazonaws.athena.connectors.cloudwatch.qpt">CloudwatchQueryPassthrough</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connectors/jdbc/connection/StaticJdbcCredentialProvider.html" title="class in com.amazonaws.athena.connectors.jdbc.connection"><span class="typeNameLink">StaticJdbcCredentialProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/connection/package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></dt>
+<dt><a href="com/amazonaws/athena/connector/credentials/StaticCredentialsProvider.html" title="class in com.amazonaws.athena.connector.credentials"><span class="typeNameLink">StaticCredentialsProvider</span></a> - Class in <a href="com/amazonaws/athena/connector/credentials/package-summary.html">com.amazonaws.athena.connector.credentials</a></dt>
 <dd>
 <div class="block">Static credential provider.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/StaticJdbcCredentialProvider.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredential)">StaticJdbcCredentialProvider(JdbcCredential)</a></span> - Constructor for class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/StaticJdbcCredentialProvider.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">StaticJdbcCredentialProvider</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/StaticCredentialsProvider.html#%3Cinit%3E(com.amazonaws.athena.connector.credentials.DefaultCredentials)">StaticCredentialsProvider(DefaultCredentials)</a></span> - Constructor for class com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/StaticCredentialsProvider.html" title="class in com.amazonaws.athena.connector.credentials">StaticCredentialsProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#STATISTIC_FIELD">STATISTIC_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>

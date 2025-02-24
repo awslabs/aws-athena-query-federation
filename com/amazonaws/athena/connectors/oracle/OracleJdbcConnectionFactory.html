@@ -222,7 +222,7 @@ extends <a href="../jdbc/connection/GenericJdbcConnectionFactory.html" title="cl
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection</a></span>&#8203;(<a href="../jdbc/connection/JdbcCredentialProvider.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredentialProvider</a>&nbsp;jdbcCredentialProvider)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection</a></span>&#8203;(<a href="../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a>&nbsp;credentialsProvider)</code></th>
 <td class="colLast">
 <div class="block">Retrieves database connection for a database type.</div>
 </td>
@@ -312,22 +312,22 @@ extends <a href="../jdbc/connection/GenericJdbcConnectionFactory.html" title="cl
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">
+<a id="getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getConnection</h4>
-<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;getConnection&#8203;(<a href="../jdbc/connection/JdbcCredentialProvider.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredentialProvider</a>&nbsp;jdbcCredentialProvider)</pre>
-<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../jdbc/connection/JdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">JdbcConnectionFactory</a></code></span></div>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;getConnection&#8203;(<a href="../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a>&nbsp;credentialsProvider)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../jdbc/connection/JdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">JdbcConnectionFactory</a></code></span></div>
 <div class="block">Retrieves database connection for a database type.</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../jdbc/connection/JdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection</a></code>&nbsp;in interface&nbsp;<code><a href="../jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></code></dd>
+<dd><code><a href="../jdbc/connection/JdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection</a></code>&nbsp;in interface&nbsp;<code><a href="../jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></code></dd>
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
-<dd><code><a href="../jdbc/connection/GenericJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></code></dd>
+<dd><code><a href="../jdbc/connection/GenericJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">GenericJdbcConnectionFactory</a></code></dd>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>jdbcCredentialProvider</code> - jdbc user and password provider.</dd>
+<dd><code>credentialsProvider</code> - jdbc user and password provider.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>JDBC connection. See <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink"><code>Connection</code></a>.</dd>
 </dl>

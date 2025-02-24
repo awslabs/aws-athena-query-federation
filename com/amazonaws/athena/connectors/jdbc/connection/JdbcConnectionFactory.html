@@ -152,7 +152,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">getConnection</a></span>&#8203;(<a href="JdbcCredentialProvider.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredentialProvider</a>&nbsp;jdbcCredentialProvider)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection</a></span>&#8203;(<a href="../../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a>&nbsp;credentialsProvider)</code></th>
 <td class="colLast">
 <div class="block">Retrieves database connection for a database type.</div>
 </td>
@@ -174,18 +174,18 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="getConnection(com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider)">
+<a id="getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getConnection</h4>
-<pre class="methodSignature"><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;getConnection&#8203;(<a href="JdbcCredentialProvider.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcCredentialProvider</a>&nbsp;jdbcCredentialProvider)
+<pre class="methodSignature"><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;getConnection&#8203;(<a href="../../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a>&nbsp;credentialsProvider)
                   throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></pre>
 <div class="block">Retrieves database connection for a database type.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>jdbcCredentialProvider</code> - jdbc user and password provider.</dd>
+<dd><code>credentialsProvider</code> - jdbc user and password provider.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>JDBC connection. See <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink"><code>Connection</code></a>.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
