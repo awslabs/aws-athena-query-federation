@@ -55,6 +55,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.microsoft.sqlserver.jdbc.SQLServerException;
@@ -85,6 +86,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
 
 public class SqlServerMetadataHandler extends JdbcMetadataHandler
@@ -178,7 +180,45 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     }
 
     @Override
-    protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
+            throws Exception
+    {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
+                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
+            String schemaName = SqlServerCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(connection, listTablesRequest.getSchemaName(), configOptions);
+
+            String token = listTablesRequest.getNextToken();
+            int pageSize = listTablesRequest.getPageSize();
+
+            if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) { // perform no pagination
+                LOGGER.info("doListTables - NO pagination");
+                return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, schemaName), null);
+            }
+
+            LOGGER.info("doListTables - pagination");
+            return listPaginatedTables(connection, listTablesRequest, schemaName);
+        }
+    }
+
+    private List<TableName> listTablesNoPagination(final Connection jdbcConnection, final String databaseName)
+            throws SQLException
+    {
+        LOGGER.debug("listTables, databaseName:" + databaseName);
+        try (ResultSet resultSet = jdbcConnection.getMetaData().getTables(
+                jdbcConnection.getCatalog(),
+                databaseName,
+                null,
+                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})) {
+            ImmutableList.Builder<TableName> list = ImmutableList.builder();
+            while (resultSet.next()) {
+                list.add(JDBCUtil.getSchemaTableName(resultSet));
+            }
+            return list.build();
+        }
+    }
+
+    protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest, String schemaName) throws SQLException
     {
         String token = listTablesRequest.getNextToken();
         int pageSize = listTablesRequest.getPageSize();
@@ -186,7 +226,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         int t = token != null ? Integer.parseInt(token) : 0;
 
         LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
-        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, schemaName, t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
     }

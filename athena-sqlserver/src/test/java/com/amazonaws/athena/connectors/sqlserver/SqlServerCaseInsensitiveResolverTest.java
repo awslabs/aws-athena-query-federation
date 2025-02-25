@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.when;
 public class SqlServerCaseInsensitiveResolverTest
 {
 
+    private static final String SCHEMA_NAME = "testschema";
     private Connection mockConnection;
     private ResultSet mockResultSet;
 
@@ -51,6 +53,56 @@ public class SqlServerCaseInsensitiveResolverTest
 
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockStmt);
         when(mockStmt.executeQuery()).thenReturn(mockResultSet);
+    }
+
+    @Test
+    public void getAdjustedSchemaNameCaseInsensitiveSearch() throws Exception {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("casingMode", "CASE_INSENSITIVE_SEARCH");
+
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getString(anyString())).thenReturn("testschema");
+
+        String result = SqlServerCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(mockConnection, SCHEMA_NAME, configOptions);
+
+        Assert.assertEquals("testschema", result);
+    }
+
+    @Test
+    public void getAdjustedSchemaNameNone() {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("casingMode", "NONE");
+
+        String result = SqlServerCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(mockConnection, SCHEMA_NAME, configOptions);
+        Assert.assertEquals(SCHEMA_NAME, result);
+    }
+
+    @Test
+    public void getSchemaNameCaseInsensitivelySuccess() throws Exception {
+        when(mockResultSet.next()).thenReturn(true, false);
+        when(mockResultSet.getString(anyString())).thenReturn("testschema");
+
+        String result = SqlServerCaseInsensitiveResolver.getSchemaNameCaseInsensitively(mockConnection, SCHEMA_NAME);
+
+        Assert.assertEquals("testschema", result);
+    }
+
+    @Test
+    public void getSchemaNameCaseInsensitivelyZeroMatches() throws Exception {
+        when(mockResultSet.next()).thenReturn(false);
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> SqlServerCaseInsensitiveResolver.getSchemaNameCaseInsensitively(mockConnection, SCHEMA_NAME));
+
+        Assert.assertTrue(exception.getMessage().contains("Schema name case insensitive match failed"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void getSchemaNameCaseInsensitivelySQLException() throws Exception {
+        PreparedStatement mockStmt = mock(PreparedStatement.class);
+        when(mockStmt.executeQuery()).thenThrow(new SQLException("Database error"));
+
+        SqlServerCaseInsensitiveResolver.getSchemaNameCaseInsensitively(mockConnection, SCHEMA_NAME);
     }
 
     @Test
