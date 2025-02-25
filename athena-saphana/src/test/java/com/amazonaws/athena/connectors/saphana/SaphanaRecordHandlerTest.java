@@ -30,7 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -71,7 +71,7 @@ public class SaphanaRecordHandlerTest
         this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new SaphanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER, new SaphanaFederationExpressionParser(SAPHANA_QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SaphanaConstants.SAPHANA_NAME,
                 "saphana://jdbc:saphana://115.113.87.100/TMODE=ANSI,CHARSET=UTF8,DATABASE=TEST,USER=DBC,PASSWORD=DBC");

@@ -21,8 +21,6 @@ package com.amazonaws.athena.connectors.clickhouse;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -31,16 +29,13 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import net.jqwik.api.Table;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -58,10 +53,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -89,7 +82,7 @@ public class ClickHouseMetadataHandlerTest
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
@@ -152,7 +145,7 @@ public class ClickHouseMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
         ClickHouseMetadataHandler metadataHandler = new ClickHouseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 

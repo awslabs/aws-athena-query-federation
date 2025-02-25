@@ -44,7 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.vertica.query.QueryFactory;
 import com.amazonaws.athena.connectors.vertica.query.VerticaExportQueryBuilder;
 import com.google.common.collect.ImmutableList;
@@ -146,7 +146,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         this.verticaMetadataHandler = new VerticaMetadataHandler(databaseConnectionConfig, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), amazonS3, verticaSchemaUtils);

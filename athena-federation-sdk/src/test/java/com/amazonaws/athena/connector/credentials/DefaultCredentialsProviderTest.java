@@ -17,35 +17,35 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.connection;
+package com.amazonaws.athena.connector.credentials;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-public class JdbcCredentialProviderTest
+public class DefaultCredentialsProviderTest
 {
 
     @Test
     public void getStaticCredential()
     {
-        JdbcCredential expectedCredential = new JdbcCredential("testUser", "testPassword");
-        JdbcCredentialProvider jdbcCredentialProvider = new StaticJdbcCredentialProvider(expectedCredential);
+        DefaultCredentials expectedCredential = new DefaultCredentials("testUser", "testPassword");
+        CredentialsProvider credentialsProvider = new StaticCredentialsProvider(expectedCredential);
 
-        Assert.assertEquals(expectedCredential, jdbcCredentialProvider.getCredential());
+        Assert.assertEquals(expectedCredential, credentialsProvider.getCredential());
     }
 
     @Test
     public void getRdsSecretsCredential()
     {
-        JdbcCredential expectedCredential = new JdbcCredential("testUser", "testPassword");
-        JdbcCredentialProvider jdbcCredentialProvider = new RdsSecretsCredentialProvider("{\"username\": \"testUser\", \"password\": \"testPassword\"}");
+        DefaultCredentials expectedCredential = new DefaultCredentials("testUser", "testPassword");
+        CredentialsProvider credentialsProvider = new DefaultCredentialsProvider("{\"username\": \"testUser\", \"password\": \"testPassword\"}");
 
-        Assert.assertEquals(expectedCredential, jdbcCredentialProvider.getCredential());
+        Assert.assertEquals(expectedCredential, credentialsProvider.getCredential());
     }
 
     @Test(expected = RuntimeException.class)
     public void getRdsSecretsCredentialIOException()
     {
-        new RdsSecretsCredentialProvider("");
+        new DefaultCredentialsProvider("");
     }
 }

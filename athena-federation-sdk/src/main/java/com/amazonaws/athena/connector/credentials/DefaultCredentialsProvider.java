@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-elasticsearch
+ * athena-jdbc
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.elasticsearch;
+package com.amazonaws.athena.connector.credentials;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -28,7 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Encapsulates Elasticsearch secrets deserialization, stored in following JSON format (showing minimal required for extraction):
+ * Encapsulates RDS secrets deserialization. AWS Secrets Manager managed RDS credentials are stored in following JSON format (showing minimal required for extraction):
  * <code>
  * {
  *     "username": "${user}",
@@ -36,33 +36,37 @@ import java.util.Map;
  * }
  * </code>
  */
-public class ElasticsearchCredentialProvider
+public class DefaultCredentialsProvider
+        implements CredentialsProvider
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchCredentialProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCredentialsProvider.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private final ElasticsearchCredential elasticsearchCredential;
+    private final DefaultCredentials defaultCredentials;
 
-    public ElasticsearchCredentialProvider(final String secretString)
+    public DefaultCredentialsProvider(final String secretString)
     {
-        Map<String, String> elasticsearchSecrets;
+        Map<String, String> rdsSecrets;
         try {
             Map<String, String> originalMap = OBJECT_MAPPER.readValue(secretString, HashMap.class);
 
-            elasticsearchSecrets = new HashMap<>();
+            rdsSecrets = new HashMap<>();
             for (Map.Entry<String, String> entry : originalMap.entrySet()) {
-                elasticsearchSecrets.put(entry.getKey().toLowerCase(), entry.getValue());
+                if (entry.getKey().equalsIgnoreCase("username") || entry.getKey().equalsIgnoreCase("password")) {
+                    rdsSecrets.put(entry.getKey().toLowerCase(), entry.getValue());
+                }
             }
         }
         catch (IOException ioException) {
-            throw new RuntimeException("Could not deserialize Elasticsearch credentials into HashMap", ioException);
+            throw new RuntimeException("Could not deserialize RDS credentials into HashMap", ioException);
         }
 
-        this.elasticsearchCredential = new ElasticsearchCredential(elasticsearchSecrets.get("username"), elasticsearchSecrets.get("password"));
+        this.defaultCredentials = new DefaultCredentials(rdsSecrets.get("username"), rdsSecrets.get("password"));
     }
 
-    public ElasticsearchCredential getCredential()
+    @Override
+    public DefaultCredentials getCredential()
     {
-        return this.elasticsearchCredential;
+        return this.defaultCredentials;
     }
 }
