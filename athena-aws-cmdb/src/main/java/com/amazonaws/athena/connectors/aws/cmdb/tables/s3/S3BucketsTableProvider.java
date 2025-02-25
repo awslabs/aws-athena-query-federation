@@ -30,11 +30,14 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.GetBucketAclRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketAclResponse;
 import software.amazon.awssdk.services.s3.model.Owner;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
  * Maps your S3 Objects to a table.
@@ -43,6 +46,7 @@ public class S3BucketsTableProvider
         implements TableProvider
 {
     private static final Schema SCHEMA;
+    private static final Logger log = LoggerFactory.getLogger(S3BucketsTableProvider.class);
     private S3Client amazonS3;
 
     public S3BucketsTableProvider(S3Client amazonS3)
@@ -106,13 +110,18 @@ public class S3BucketsTableProvider
             boolean matched = true;
             matched &= block.offerValue("bucket_name", row, bucket.name());
             matched &= block.offerValue("create_date", row, bucket.creationDate());
+            try {
+                GetBucketAclResponse response = amazonS3.getBucketAcl(GetBucketAclRequest.builder().bucket(bucket.name()).build());
 
-            GetBucketAclResponse response = amazonS3.getBucketAcl(GetBucketAclRequest.builder().bucket(bucket.name()).build());
-
-            Owner owner = response.owner();
-            if (owner != null) {
-                matched &= block.offerValue("owner_name", row, owner.displayName());
-                matched &= block.offerValue("owner_id", row, owner.id());
+                Owner owner = response.owner();
+                if (owner != null) {
+                    matched &= block.offerValue("owner_name", row, owner.displayName());
+                    matched &= block.offerValue("owner_id", row, owner.id());
+                }
+            }
+            catch (S3Exception s3Exception) {
+                log.warn("Skipping S3 bucket: {}, due to exception from S3: {}", bucket.name(), s3Exception.getMessage());
+                matched = false;
             }
 
             return matched ? 1 : 0;
