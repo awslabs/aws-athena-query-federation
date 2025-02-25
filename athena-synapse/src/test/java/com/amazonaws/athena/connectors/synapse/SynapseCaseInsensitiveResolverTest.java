@@ -92,4 +92,55 @@ public class SynapseCaseInsensitiveResolverTest {
 
         SynapseCaseInsensitiveResolver.getObjectNameCaseInsensitively(mockConnection, inputTableName);
     }
+
+    @Test
+    public void getAdjustedSchemaNameCaseInsensitively() throws SQLException {
+        String inputSchemaName = "schema";
+        String expectedSchemaName = "SCHEMA";
+
+        when(mockResultSet.next()).thenReturn(true, false);
+        when(mockResultSet.getString("SCHEMA_NAME")).thenReturn("SCHEMA");
+
+        Map<String, String> config = new HashMap<>();
+        config.put("casing_mode", "CASE_INSENSITIVE_SEARCH");
+
+        String result = SynapseCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(mockConnection, inputSchemaName, config);
+        Assert.assertEquals(expectedSchemaName, result);
+    }
+
+    @Test
+    public void getAdjustedSchemaNameNoConfig() throws SQLException {
+        String inputSchemaName = "schema";
+        String result = SynapseCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(mockConnection, inputSchemaName, Collections.emptyMap());
+        Assert.assertEquals(inputSchemaName, result);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void getAdjustedSchemaNameInvalidCasingMode() throws SQLException {
+        String inputSchemaName = "schema";
+        Map<String, String> config = new HashMap<>();
+        config.put("casing_mode", "INVALID_MODE");
+
+        SynapseCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(mockConnection, inputSchemaName, config);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void getSchemaNameCaseInsensitivelyMultiMatches() throws SQLException {
+        String inputSchemaName = "schema";
+
+        when(mockResultSet.next()).thenReturn(true, true, false);
+        when(mockResultSet.getString("SCHEMA_NAME")).thenReturn("SCHEMA");
+
+        SynapseCaseInsensitiveResolver.getSchemaNameCaseInsensitively(mockConnection, inputSchemaName);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void getSchemaNameNotFound() throws SQLException {
+        String inputSchemaName = "nonexistent_schema";
+
+        when(mockResultSet.next()).thenReturn(false);
+        when(mockResultSet.getString("SCHEMA_NAME")).thenReturn(null);
+
+        SynapseCaseInsensitiveResolver.getSchemaNameCaseInsensitively(mockConnection, inputSchemaName);
+    }
 }

@@ -34,6 +34,7 @@ public class SynapseCaseInsensitiveResolver
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SynapseCaseInsensitiveResolver.class);
     private static final String OBJECT_NAME_QUERY_TEMPLATE = "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE LOWER(TABLE_SCHEMA) = ? AND LOWER(TABLE_NAME) = ?";
+    private static final String SCHEMA_NAME_QUERY_TEMPLATE = "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE LOWER(SCHEMA_NAME) = ?";
     private static final String CASING_MODE = "casing_mode";
 
     private SynapseCaseInsensitiveResolver()
@@ -92,6 +93,51 @@ public class SynapseCaseInsensitiveResolver
         }
         // Throw an exception if no matching schema and table name is found.
         throw new RuntimeException(String.format("Object %s.%s not found", tableName.getSchemaName(), tableName.getTableName()));
+    }
+
+    public static String getAdjustedSchemaNameBasedOnConfig(final Connection connection, String schemaNameInput, Map<String, String> configOptions)
+            throws SQLException
+    {
+        SynapseCasingMode casingMode = getCasingMode(configOptions);
+        switch (casingMode) {
+            case CASE_INSENSITIVE_SEARCH:
+                LOGGER.info("casing mode is `CASE_INSENSITIVE_SEARCH`: adjusting casing from Synapse case insensitive search for Schema...");
+                return getSchemaNameCaseInsensitively(connection, schemaNameInput);
+            case NONE:
+                LOGGER.info("casing mode is `NONE`: not adjust casing from input for Schema");
+                return schemaNameInput;
+        }
+
+        return schemaNameInput;
+    }
+
+    /**
+     * Retrieves the exact schema name from the synapse database.
+     *
+     * @param connection The database connection.
+     * @param schemaNameInput SchemaName to validate and convert.
+     * @return The exact case-sensitive SchemaName.
+     * @throws SQLException If a database connection failures.
+     */
+    public static String getSchemaNameCaseInsensitively(Connection connection, String schemaNameInput) throws SQLException
+    {
+        try (PreparedStatement stmt = connection.prepareStatement(SCHEMA_NAME_QUERY_TEMPLATE)) {
+            stmt.setString(1, schemaNameInput.toLowerCase());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String matchedSchema = rs.getString("SCHEMA_NAME");
+
+                    // Check if another match found
+                    if (rs.next()) {
+                        throw new RuntimeException(String.format("Multiple matches found for schema %s", schemaNameInput));
+                    }
+                    // Return the exact case-sensitive schema name.
+                    return matchedSchema;
+                }
+            }
+        }
+        // Throw an exception if no matching schema found.
+        throw new RuntimeException(String.format("Schema %s not found", schemaNameInput));
     }
 
     /**
