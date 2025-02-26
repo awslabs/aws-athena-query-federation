@@ -90,14 +90,14 @@ Resources:
               - rds:ListTagsForResource
               - athena:GetQueryExecution
               - s3:ListBucket
+              - s3:ListAllMyBuckets
+              - s3:GetBucketAcl
               - athena:GetQueryExecution
             Effect: Allow
             Resource: '*'
           - Action:
               - s3:GetObject
               - s3:ListBucket
-              - s3:ListAllMyBuckets
-              - s3:GetBucketAcl
               - s3:GetBucketLocation
               - s3:GetObjectVersion
               - s3:PutObject
