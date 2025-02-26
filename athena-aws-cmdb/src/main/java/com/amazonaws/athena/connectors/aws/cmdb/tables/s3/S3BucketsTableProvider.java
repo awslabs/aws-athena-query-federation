@@ -120,7 +120,7 @@ public class S3BucketsTableProvider
                 }
             }
             catch (S3Exception s3Exception) {
-                log.warn("Skipping S3 bucket: {}, due to exception from S3: {}", bucket.name(), s3Exception.getMessage());
+                log.warn("Skipping S3 bucket: {}, due to exception from S3:getBucketAcl, message: {}", bucket.name(), s3Exception.getMessage());
                 matched = false;
             }
 
