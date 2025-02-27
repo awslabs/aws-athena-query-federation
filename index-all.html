@@ -2101,6 +2101,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionInfo.html#%3Cinit%3E(java.lang.String,int)">DatabaseConnectionInfo(String, int)</a></span> - Constructor for class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionInfo</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2"><span class="typeNameLink">DataLakeGen2CaseInsensitiveResolver</span></a> - Class in <a href="com/amazonaws/athena/connectors/datalakegen2/package-summary.html">com.amazonaws.athena.connectors.datalakegen2</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CompositeHandler.html" title="class in com.amazonaws.athena.connectors.datalakegen2"><span class="typeNameLink">DataLakeGen2CompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/datalakegen2/package-summary.html">com.amazonaws.athena.connectors.datalakegen2</a></dt>
 <dd>
 <div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -3279,6 +3281,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Supports a set of static tables defined by: TABLES</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2MetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2MetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2">Db2MetadataHandler</a></dt>
 <dd>
 <div class="block">Overridden this method to fetch table(s) for selected schema in Athena Data window.</div>
@@ -4436,9 +4440,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/oracle/OracleCaseResolver.html#getAdjustedSchemaName(java.sql.Connection,java.lang.String,java.util.Map)">getAdjustedSchemaName(Connection, String, Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.oracle.<a href="com/amazonaws/athena/connectors/oracle/OracleCaseResolver.html" title="class in com.amazonaws.athena.connectors.oracle">OracleCaseResolver</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html#getAdjustedSchemaNameBasedOnConfig(java.sql.Connection,java.lang.String,java.util.Map)">getAdjustedSchemaNameBasedOnConfig(Connection, String, Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2CaseInsensitiveResolver</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCaseInsensitiveResolver.html#getAdjustedSchemaNameBasedOnConfig(java.sql.Connection,java.lang.String,java.util.Map)">getAdjustedSchemaNameBasedOnConfig(Connection, String, Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeCaseInsensitiveResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/oracle/OracleCaseResolver.html#getAdjustedTableObjectName(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,java.util.Map)">getAdjustedTableObjectName(Connection, TableName, Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.oracle.<a href="com/amazonaws/athena/connectors/oracle/OracleCaseResolver.html" title="class in com.amazonaws.athena.connectors.oracle">OracleCaseResolver</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html#getAdjustedTableObjectNameBasedOnConfig(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,java.util.Map)">getAdjustedTableObjectNameBasedOnConfig(Connection, TableName, Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2CaseInsensitiveResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCaseInsensitiveResolver.html#getAdjustedTableObjectNameBasedOnConfig(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,java.util.Map)">getAdjustedTableObjectNameBasedOnConfig(Connection, TableName, Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeCaseInsensitiveResolver</a></dt>
 <dd>&nbsp;</dd>
@@ -5429,6 +5437,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html#getNumSplits()">getNumSplits()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitInfo</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html#getObjectNameCaseInsensitively(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName)">getObjectNameCaseInsensitively(Connection, TableName)</a></span> - Static method in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2CaseInsensitiveResolver</a></dt>
+<dd>
+<div class="block">Retrieves the exact schema and table name from DataLake Gen2.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#getOperatorType()">getOperatorType()</a></span> - Method in enum com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/DataSourceOptimizations.html#getOptimization()">getOptimization()</a></span> - Method in enum com.amazonaws.athena.connector.lambda.metadata.optimizations.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/DataSourceOptimizations.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.optimizations">DataSourceOptimizations</a></dt>
@@ -6033,6 +6045,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/ListTablesRequest.html#getSchemaName()">getSchemaName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a></dt>
 <dd>
 <div class="block">Returns the schema name that tables should be listed for.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html#getSchemaNameCaseInsensitively(java.sql.Connection,java.lang.String)">getSchemaNameCaseInsensitively(Connection, String)</a></span> - Static method in class com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2CaseInsensitiveResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2CaseInsensitiveResolver</a></dt>
+<dd>
+<div class="block">Retrieves the exact schema name from the DataLake Gen2.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/oracle/OracleCaseResolver.html#getSchemaNameCaseInsensitively(java.sql.Connection,java.lang.String)">getSchemaNameCaseInsensitively(Connection, String)</a></span> - Static method in class com.amazonaws.athena.connectors.oracle.<a href="com/amazonaws/athena/connectors/oracle/OracleCaseResolver.html" title="class in com.amazonaws.athena.connectors.oracle">OracleCaseResolver</a></dt>
 <dd>&nbsp;</dd>
