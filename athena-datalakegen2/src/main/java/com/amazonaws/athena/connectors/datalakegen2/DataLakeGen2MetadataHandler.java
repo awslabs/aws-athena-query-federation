@@ -36,6 +36,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -48,6 +50,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
@@ -81,7 +84,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(DataLakeGen2MetadataHandler.class);
 
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
+    static final String PARTITION_NUMBER = "partition_number";
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -197,7 +200,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
+            TableName tableName = DataLakeGen2CaseInsensitiveResolver.getAdjustedTableObjectNameBasedOnConfig(connection, getTableRequest.getTableName(), configOptions);
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -229,8 +232,8 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         LOGGER.info("Inside getSchema");
 
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
-                "FROM SYS.COLUMNS C " +
-                "JOIN SYS.TYPES T " +
+                "FROM sys.columns C " +
+                "JOIN sys.types T " +
                 "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
                 "WHERE C.OBJECT_ID=OBJECT_ID(?)";
 
@@ -244,7 +247,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype.
-            stmt.setString(1, tableName.getSchemaName().toUpperCase() + "." + tableName.getTableName().toUpperCase());
+            stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
             try (ResultSet dataTypeResultSet = stmt.executeQuery()) {
                 while (dataTypeResultSet.next()) {
                     dataType = dataTypeResultSet.getString("DATA_TYPE");
@@ -303,5 +306,36 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                 escapeNamePattern(tableHandle.getSchemaName(), escape),
                 escapeNamePattern(tableHandle.getTableName(), escape),
                 null);
+    }
+
+    @Override
+    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
+            throws Exception
+    {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
+                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
+            String adjustedSchemaName = DataLakeGen2CaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(connection, listTablesRequest.getSchemaName(), configOptions);
+            // TODO: Implement pagination if supported by DataLake Gen2
+            LOGGER.info("doListTables - NO pagination");
+            return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, adjustedSchemaName), null);
+        }
+    }
+
+    private List<TableName> listTablesNoPagination(final Connection jdbcConnection, final String databaseName)
+            throws SQLException
+    {
+        LOGGER.debug("listTables, databaseName:" + databaseName);
+        try (ResultSet resultSet = jdbcConnection.getMetaData().getTables(
+                jdbcConnection.getCatalog(),
+                databaseName,
+                null,
+                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})) {
+            ImmutableList.Builder<TableName> list = ImmutableList.builder();
+            while (resultSet.next()) {
+                list.add(JDBCUtil.getSchemaTableName(resultSet));
+            }
+            return list.build();
+        }
     }
 }
