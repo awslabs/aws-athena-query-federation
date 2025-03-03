@@ -20,9 +20,12 @@ package com.amazonaws.athena.connector.lambda.data.projectors;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,8 +44,8 @@ public class ListArrowValueProjector
 
         List<Field> children = listReader.getField().getChildren();
         if (children.size() != 1) {
-            throw new RuntimeException("Unexpected number of children for ListProjector field "
-                    + listReader.getField().getName());
+            throw new AthenaConnectorException("Unexpected number of children for ListProjector field "
+                    + listReader.getField().getName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         Types.MinorType minorType = Types.getMinorTypeForArrowType(children.get(0).getType());
         projection = createValueProjection(minorType);
