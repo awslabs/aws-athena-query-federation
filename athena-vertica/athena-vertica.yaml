@@ -103,7 +103,9 @@ Resources:
                 - s3:ListBucket
               Effect: Allow
               Resource:
-                - !Sub 'arn:${AWS::Partition}:s3:::${VerticaExportBucket}'
+                - !Sub
+                  - "arn:${AWS::Partition}:s3:::${BucketName}"
+                  - BucketName: !Select [ 0, !Split [ '/', !Ref VerticaExportBucket ] ]
                 - !Sub 'arn:${AWS::Partition}:s3:::${SpillBucket}'
           Version: '2012-10-17'
         - Statement:

@@ -107,6 +107,8 @@ public class VerticaMetadataHandler
 
     private final JdbcQueryPassthrough queryPassthrough = new JdbcQueryPassthrough();
 
+    private static final String SEPARATOR = "/";
+
     public VerticaMetadataHandler(Map<String, String> configOptions)
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(VERTICA_NAME, configOptions), configOptions);
@@ -369,12 +371,26 @@ public class VerticaMetadataHandler
         FieldReader fieldReaderAwsRegion = request.getPartitions().getFieldReader("awsRegionSql");
         String awsRegionSql  = fieldReaderAwsRegion.readText().toString();
 
-        List<S3Object> s3ObjectsList = getlistExportedObjects(exportBucket, queryId);
+        // Split the string by the first occurrence of "/"
+        String[] s3ExportBucketPath = exportBucket.split(SEPARATOR, 2); // The '2' limits the split to 2 parts
+        String s3ExportBucketName;
+        String remainingPath;
+
+        if (s3ExportBucketPath.length == 2) {
+            s3ExportBucketName = s3ExportBucketPath[0];
+            remainingPath = s3ExportBucketPath[1] + SEPARATOR;
+        } else {
+            s3ExportBucketName = s3ExportBucket;
+            remainingPath = "";
+        }
+        String prefix = remainingPath + queryId;
+
+        List<S3Object> s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
         if (s3ObjectsList.isEmpty()) {
             // Execute queries on Vertica if S3 export bucket does not contain objects for given queryId
             executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
             // Retrieve the S3 objects list for given queryId
-            s3ObjectsList = getlistExportedObjects(exportBucket, queryId);
+            s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
         }
 
         Split split;
@@ -386,7 +402,7 @@ public class VerticaMetadataHandler
             {
                 split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
                         .add(VERTICA_SPLIT_QUERY_ID, queryID)
-                        .add(VERTICA_SPLIT_EXPORT_BUCKET, exportBucket)
+                        .add(VERTICA_SPLIT_EXPORT_BUCKET, s3ExportBucketName)
                         .add(VERTICA_SPLIT_OBJECT_KEY, s3Object.key())
                         .build();
                 splits.add(split);
@@ -432,13 +448,13 @@ public class VerticaMetadataHandler
     /*
      * Get the list of all the exported S3 objects
      */
-    private List<S3Object> getlistExportedObjects(String s3ExportBucket, String queryId){
+    private List<S3Object> getlistExportedObjects(String s3ExportBucket, String prefix){
         ListObjectsResponse listObjectsResponse;
         try
         {
             listObjectsResponse = amazonS3.listObjects(ListObjectsRequest.builder()
                     .bucket(s3ExportBucket)
-                    .prefix(queryId)
+                    .prefix(prefix)
                     .build());
         }
         catch (SdkClientException e)
