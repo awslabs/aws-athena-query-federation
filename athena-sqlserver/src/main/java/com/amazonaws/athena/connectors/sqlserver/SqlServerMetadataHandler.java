@@ -55,6 +55,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.microsoft.sqlserver.jdbc.SQLServerException;
@@ -85,6 +86,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
 
 public class SqlServerMetadataHandler extends JdbcMetadataHandler
@@ -104,8 +106,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * (When non-partitioned table have indexes partition_number will be 1, so these rows will be skipped with where condition)
      * table have both index and partition - rows will be returned with different partition_number as we are using distinct in the query.
      */
-    static final String GET_PARTITIONS_QUERY = "select distinct PARTITION_NUMBER from SYS.DM_DB_PARTITION_STATS where object_id = OBJECT_ID(?) and partition_number > 1 "; //'dbo.MyPartitionTable'
-    static final String ROW_COUNT_QUERY = "select count(distinct PARTITION_NUMBER) as row_count from SYS.DM_DB_PARTITION_STATS where object_id = OBJECT_ID(?) and partition_number > 1 ";
+    static final String GET_PARTITIONS_QUERY = "select distinct PARTITION_NUMBER from sys.dm_db_partition_stats where object_id = OBJECT_ID(?) and partition_number > 1 "; //'dbo.MyPartitionTable'
+    static final String ROW_COUNT_QUERY = "select count(distinct PARTITION_NUMBER) as row_count from sys.dm_db_partition_stats where object_id = OBJECT_ID(?) and partition_number > 1 ";
 
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
@@ -132,7 +134,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "WHERE t.object_id = (select object_id from sys.objects o where o.name = ? " +
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
-    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT o.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('U', 'V') and s.name = ? ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT o.name AS \"table_name\", s.name AS \"table_schem\" FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('U', 'V') and s.name = ? ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
 
     public SqlServerMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -178,7 +180,45 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     }
 
     @Override
-    protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
+            throws Exception
+    {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
+                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
+            String schemaName = SqlServerCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(connection, listTablesRequest.getSchemaName(), configOptions);
+
+            String token = listTablesRequest.getNextToken();
+            int pageSize = listTablesRequest.getPageSize();
+
+            if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) { // perform no pagination
+                LOGGER.info("doListTables - NO pagination");
+                return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, schemaName), null);
+            }
+
+            LOGGER.info("doListTables - pagination");
+            return listPaginatedTables(connection, listTablesRequest, schemaName);
+        }
+    }
+
+    private List<TableName> listTablesNoPagination(final Connection jdbcConnection, final String databaseName)
+            throws SQLException
+    {
+        LOGGER.debug("listTables, databaseName:" + databaseName);
+        try (ResultSet resultSet = jdbcConnection.getMetaData().getTables(
+                jdbcConnection.getCatalog(),
+                databaseName,
+                null,
+                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})) {
+            ImmutableList.Builder<TableName> list = ImmutableList.builder();
+            while (resultSet.next()) {
+                list.add(JDBCUtil.getSchemaTableName(resultSet));
+            }
+            return list.build();
+        }
+    }
+
+    protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest, String schemaName) throws SQLException
     {
         String token = listTablesRequest.getNextToken();
         int pageSize = listTablesRequest.getPageSize();
@@ -186,7 +226,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
         int t = token != null ? Integer.parseInt(token) : 0;
 
         LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
-        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, schemaName, t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
     }
@@ -405,7 +445,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName());
+            TableName tableName = SqlServerCaseInsensitiveResolver.getAdjustedTableObjectNameBasedOnConfig(connection, getTableRequest.getTableName(), configOptions);
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -435,8 +475,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             throws Exception
     {
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
-                "FROM SYS.COLUMNS C " +
-                "JOIN SYS.TYPES T " +
+                "FROM sys.columns C " +
+                "JOIN sys.types T " +
                 "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
                 "WHERE C.OBJECT_ID=OBJECT_ID(?)";
 
