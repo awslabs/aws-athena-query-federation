@@ -39,6 +39,8 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
+import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -71,7 +73,19 @@ public class MultiplexingJdbcMetadataHandler
         DatabaseConnectionConfig databaseConnectionConfig,
         java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+       this(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions, new DefaultJDBCCaseResolver(databaseConnectionConfig.getEngine()));
+    }
+
+    protected MultiplexingJdbcMetadataHandler(
+            SecretsManagerClient secretsManager,
+            AthenaClient athena,
+            JdbcConnectionFactory jdbcConnectionFactory,
+            Map<String, JdbcMetadataHandler> metadataHandlerMap,
+            DatabaseConnectionConfig databaseConnectionConfig,
+            java.util.Map<String, String> configOptions,
+            JDBCCaseResolver caseResolver)
+    {
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, caseResolver);
         this.metadataHandlerMap = Validate.notEmpty(metadataHandlerMap, "metadataHandlerMap must not be empty");
 
         if (this.metadataHandlerMap.size() > MAX_CATALOGS_TO_MULTIPLEX) {

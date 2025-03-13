@@ -36,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connectors.datalakegen2.resolver.DataLakeGen2CaseResolver;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -103,7 +104,7 @@ public class DataLakeGen2MetadataHandlerTest
         this.secretsManager = mock(SecretsManagerClient.class);
         this.athena = mock(AthenaClient.class);
         when(this.secretsManager.getSecretValue(eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}").build());
-        this.dataLakeGen2MetadataHandler = new DataLakeGen2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
+        this.dataLakeGen2MetadataHandler = new DataLakeGen2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new DataLakeGen2CaseResolver(DataLakeGen2Constants.NAME));
         this.federatedIdentity = mock(FederatedIdentity.class);
     }
 
@@ -157,7 +158,7 @@ public class DataLakeGen2MetadataHandlerTest
         JdbcConnectionFactory jdbcConnectionFactory = mock(JdbcConnectionFactory.class);
         when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        DataLakeGen2MetadataHandler dataLakeGen2MetadataHandler = new DataLakeGen2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
+        DataLakeGen2MetadataHandler dataLakeGen2MetadataHandler = new DataLakeGen2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new DataLakeGen2CaseResolver(DataLakeGen2Constants.NAME));
 
         dataLakeGen2MetadataHandler.doGetTableLayout(mock(BlockAllocator.class), getTableLayoutRequest);
     }
