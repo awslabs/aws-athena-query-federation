@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connector.lambda;
 
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,8 +26,6 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.GetQueryExecutionRequest;
 import software.amazon.awssdk.services.athena.model.GetQueryExecutionResponse;
 import software.amazon.awssdk.services.athena.model.InvalidRequestException;
-import software.amazon.awssdk.services.glue.model.ErrorDetails;
-import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
