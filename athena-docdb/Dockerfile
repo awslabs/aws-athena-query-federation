@@ -9,7 +9,7 @@ ARG JAVA_TOOL_OPTIONS=""
 ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
 
 # Install necessary tools
-RUN yum update -y && yum install -y curl perl openssl
+RUN yum update -y && yum install -y curl perl openssl-1.0.2k-24.amzn2.0.14
 
 # Copy function code and runtime dependencies from Maven layout
 COPY target/athena-docdb-2022.47.1.jar ${LAMBDA_TASK_ROOT}
