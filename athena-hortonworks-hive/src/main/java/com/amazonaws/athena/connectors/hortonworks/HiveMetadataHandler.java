@@ -35,8 +35,6 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -54,7 +52,6 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +59,6 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -75,7 +71,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
@@ -286,26 +281,6 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
     {
         return String.valueOf(partition);
     }
-    /**
-     * Used to get definition (field names, types, descriptions, etc...) of a Hive Table.
-     *
-     * @param blockAllocator Tool for creating and managing Apache Arrow Blocks.
-     * @param getTableRequest Provides details on who made the request and which Athena catalog, database, and Hive table they are querying.
-     * @return A GetTableResponse which primarily contains:
-     * 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
-     * 2. A Set of Strings of partition column names (or empty if the table isn't partitioned).
-     */
-    @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(),
-                    getSchema(connection, getTableRequest.getTableName(), partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-    }
 
     /**
      * Used to convert Hive data types to Apache arrow data types
@@ -315,7 +290,8 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
      * @return Schema  Holds Table schema along with partition schema. See {@link Schema}
      * @throws Exception An Exception should be thrown for database connection failures , query syntax errors and so on.
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws Exception
+    @Override
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
@@ -378,22 +354,6 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             return schemaBuilder.build();
         }
-    }
-
-    /**
-     *  used to get all Arrow metadata information about a table.
-     * @param catalogName  catalog name
-     * @param tableHandle Holds table name and schema name. see {@link TableName}
-     * @param metadata  Database metadata
-     * @return A result set contains table metadata (data type , size and so on).
-     * @throws SQLException A SQLException should be thrown for database connection failures , query syntax errors and so on.
-     */
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(catalogName, escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape), null);
     }
 
     /**

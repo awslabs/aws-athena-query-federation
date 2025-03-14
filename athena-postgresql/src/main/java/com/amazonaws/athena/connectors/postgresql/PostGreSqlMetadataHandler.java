@@ -47,6 +47,8 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.postgresql.resolver.PostGreSqlJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -113,7 +115,10 @@ public class PostGreSqlMetadataHandler
 
     public PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT)), configOptions);
+        super(databaseConnectionConfig,
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT)),
+                configOptions,
+                new PostGreSqlJDBCCaseResolver(POSTGRES_NAME));
     }
 
     @VisibleForTesting
@@ -124,12 +129,25 @@ public class PostGreSqlMetadataHandler
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+        this(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, new PostGreSqlJDBCCaseResolver(POSTGRES_NAME));
     }
 
-    protected PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory genericJdbcConnectionFactory, java.util.Map<String, String> configOptions)
+    @VisibleForTesting
+    protected PostGreSqlMetadataHandler(
+            DatabaseConnectionConfig databaseConnectionConfig,
+            SecretsManagerClient secretsManager,
+            AthenaClient athena,
+            JdbcConnectionFactory jdbcConnectionFactory,
+            java.util.Map<String, String> configOptions,
+            JDBCCaseResolver resolver)
     {
-        super(databaseConnectionConfig, genericJdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, resolver);
+    }
+
+    // This is used by Redshift connector to extends
+    protected PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory genericJdbcConnectionFactory, java.util.Map<String, String> configOptions, JDBCCaseResolver resolver)
+    {
+        super(databaseConnectionConfig, genericJdbcConnectionFactory, configOptions, resolver);
     }
 
     @Override
@@ -284,10 +302,25 @@ public class PostGreSqlMetadataHandler
         LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
         List<TableName> paginatedTables = getPaginatedResults(connection, listTablesRequest.getSchemaName(), t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
+        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize);
 
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
     }
 
+    protected List<TableName> getPaginatedResults(Connection connection, String databaseName, int token, int limit) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setString(2, databaseName);
+        preparedStatement.setInt(3, limit);
+        preparedStatement.setInt(4, token);
+        LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
+    }
+
+    /*
+    Override because we need to return tables and MV views
+     */
     @Override
     protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
             throws SQLException
@@ -302,70 +335,14 @@ public class PostGreSqlMetadataHandler
         return list.build();
     }
 
-    protected String caseInsensitiveNameResolver(PreparedStatement preparedStatement, String tableName, String databaseName) throws SQLException
+    // Add no op method in redshift because no materialized view, they get treated as regular views
+    private List<TableName> getMaterializedViews(Connection connection, String databaseName) throws SQLException
     {
-        String resolvedName = null;
-        try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            if (resultSet.next()) {
-                resolvedName = resultSet.getString("table_name");
-                if (resultSet.next()) {
-                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
-                }
-                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
-            }
-            else {
-                return null;
-            }
-        }
-        return resolvedName;
-    }
-
-    @Override
-    protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
-                                                     final String tableName) throws Exception
-    {
-        return caseInsensitiveTableMaterialViewMatch(connection, databaseName, tableName);
-    }
-
-    protected String caseInsensitiveSchemaResolver(Connection connection, String databaseName) throws SQLException
-    {
-        String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
+        String sql = "select matviewname as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" from pg_catalog.pg_matviews mv where has_table_privilege(format('%I.%I', mv.schemaname, mv.matviewname), 'select') and schemaname = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
         preparedStatement.setString(1, databaseName);
-        preparedStatement.setString(2, databaseName);
-
-        String resolvedSchemaName = null;
-        try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            if (resultSet.next()) {
-                resolvedSchemaName = resultSet.getString("schema_name");
-                LOGGER.info("Resolved Schema from Case Insensitive look up : {}", resolvedSchemaName);
-            }
-        }
-        return resolvedSchemaName;
-    }
-
-    public TableName caseInsensitiveTableMaterialViewMatch(Connection connection, final String databaseName,
-                                                     final String tableName) throws Exception
-    {
-        String resolvedSchemaName = caseInsensitiveSchemaResolver(connection, databaseName);
-        if (resolvedSchemaName == null) {
-            throw new RuntimeException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName));
-        }
-
-        String resolvedTableName;
-        PreparedStatement preparedStatement = JDBCUtil.getTableNameQuery(connection, tableName, resolvedSchemaName);
-        resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
-
-        if (resolvedTableName == null) {
-            LOGGER.info(String.format("'%s' not found in case insensitive table look up. Looking for '%s' as case insensitive materialized view", tableName, tableName));
-
-            preparedStatement = getMaterializedViewOrExternalTable(connection, tableName, resolvedSchemaName);
-            resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
-            if (resolvedTableName == null) {
-                throw new RuntimeException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName));
-            }
-        }
-        return new TableName(resolvedSchemaName, resolvedTableName);
+        LOGGER.debug("Prepared Statement for getting Materialized View in schema {} : {}", databaseName, preparedStatement);
+        return JDBCUtil.getTableMetadata(preparedStatement, MATERIALIZED_VIEWS);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)
@@ -415,48 +392,6 @@ public class PostGreSqlMetadataHandler
             default:
                 return super.getArrayArrowTypeFromTypeName(typeName, precision, scale);
         }
-    }
-
-    protected List<TableName> getPaginatedResults(Connection connection, String databaseName, int token, int limit) throws SQLException
-    {
-        PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
-        preparedStatement.setString(1, databaseName);
-        preparedStatement.setString(2, databaseName);
-        preparedStatement.setInt(3, limit);
-        preparedStatement.setInt(4, token);
-        LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
-        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
-    }
-
-    // Add no op method in redshift because no materialized view, they get treated as regular views
-    private List<TableName> getMaterializedViews(Connection connection, String databaseName) throws SQLException
-    {
-        String sql = "select matviewname as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" from pg_catalog.pg_matviews mv where has_table_privilege(format('%I.%I', mv.schemaname, mv.matviewname), 'select') and schemaname = ?";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, databaseName);
-        LOGGER.debug("Prepared Statement for getting Materialized View in schema {} : {}", databaseName, preparedStatement);
-        return JDBCUtil.getTableMetadata(preparedStatement, MATERIALIZED_VIEWS);
-    }
-
-    /**
-     * Returns Materialized View for Postgresql Or External Tables for Redshift - Case Insensitive
-     * Note: Redshift maintain Materialized View in the normal schema metadata as regular tables;
-     *       however maintains External Tables in a separate metadata tables
-     * @param connection
-     * @param matviewname
-     * @param databaseName
-     * @return Prepared Statement
-     * @throws SQLException
-     */
-    protected PreparedStatement getMaterializedViewOrExternalTable(Connection connection, String matviewname, String databaseName) throws SQLException
-    {
-        String sql = "select matviewname as \"TABLE_NAME\" from pg_catalog.pg_matviews mv where (matviewname = ? or lower(matviewname) = ?) and schemaname = ?";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, matviewname);
-        preparedStatement.setString(2, matviewname);
-        preparedStatement.setString(3, databaseName);
-        LOGGER.debug("Prepared statement for getting name of Materialized View with Case Insensitive Look Up: {}", preparedStatement);
-        return preparedStatement;
     }
 
     /**

@@ -139,59 +139,59 @@ public final class JDBCUtil
         return recordHandlerMap.build();
     }
 
-    public static TableName informationSchemaCaseInsensitiveTableMatch(Connection connection, final String databaseName,
-                                                     final String tableName) throws Exception
-    {
-        // Gets case insensitive schema name
-        String resolvedSchemaName = null;
-        PreparedStatement statement = getSchemaNameQuery(connection, databaseName);
-        try (ResultSet resultSet = statement.executeQuery()) {
-            if (resultSet.next()) {
-                resolvedSchemaName = resultSet.getString("schema_name");
-            }
-            else {
-                throw new RuntimeException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName));
-            }
-        }
+//    public static TableName informationSchemaCaseInsensitiveTableMatch(Connection connection, final String databaseName,
+//                                                     final String tableName) throws Exception
+//    {
+//        // Gets case insensitive schema name
+//        String resolvedSchemaName = null;
+//        PreparedStatement statement = getSchemaNameQuery(connection, databaseName);
+//        try (ResultSet resultSet = statement.executeQuery()) {
+//            if (resultSet.next()) {
+//                resolvedSchemaName = resultSet.getString("schema_name");
+//            }
+//            else {
+//                throw new RuntimeException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName));
+//            }
+//        }
+//
+//        // passes actual cased schema name to query for tableName
+//        String resolvedName = null;
+//        statement = getTableNameQuery(connection, tableName, resolvedSchemaName);
+//        try (ResultSet resultSet = statement.executeQuery()) {
+//            if (resultSet.next()) {
+//                resolvedName = resultSet.getString("table_name");
+//                if (resultSet.next()) {
+//                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
+//                }
+//                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
+//            }
+//            else {
+//                throw new RuntimeException(String.format("During TABLE Case Insensitive look up could not find Table '%s' in Database '%s'", tableName, databaseName));
+//            }
+//        }
+//
+//        return new TableName(resolvedSchemaName, resolvedName);
+//    }
 
-        // passes actual cased schema name to query for tableName
-        String resolvedName = null;
-        statement = getTableNameQuery(connection, tableName, resolvedSchemaName);
-        try (ResultSet resultSet = statement.executeQuery()) {
-            if (resultSet.next()) {
-                resolvedName = resultSet.getString("table_name");
-                if (resultSet.next()) {
-                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
-                }
-                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
-            }
-            else {
-                throw new RuntimeException(String.format("During TABLE Case Insensitive look up could not find Table '%s' in Database '%s'", tableName, databaseName));
-            }
-        }
-
-        return new TableName(resolvedSchemaName, resolvedName);
-    }
-
-    public static PreparedStatement getTableNameQuery(Connection connection, String tableName, String databaseName) throws SQLException
-    {
-        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, tableName);
-        preparedStatement.setString(2, tableName);
-        preparedStatement.setString(3, databaseName);
-        LOGGER.debug("Prepared Statement for getting table name with Case Insensitive Look Up in schema {} : {}", databaseName, preparedStatement);
-        return preparedStatement;
-    }
-
-    public static PreparedStatement getSchemaNameQuery(Connection connection, String databaseName) throws SQLException
-    {
-        String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, databaseName);
-        preparedStatement.setString(2, databaseName);
-        return preparedStatement;
-    }
+//    public static PreparedStatement getTableNameQuery(Connection connection, String tableName, String databaseName) throws SQLException
+//    {
+//        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+//        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+//        preparedStatement.setString(1, tableName);
+//        preparedStatement.setString(2, tableName);
+//        preparedStatement.setString(3, databaseName);
+//        LOGGER.debug("Prepared Statement for getting table name with Case Insensitive Look Up in schema {} : {}", databaseName, preparedStatement);
+//        return preparedStatement;
+//    }
+//
+//    public static PreparedStatement getSchemaNameQuery(Connection connection, String databaseName) throws SQLException
+//    {
+//        String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
+//        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+//        preparedStatement.setString(1, databaseName);
+//        preparedStatement.setString(2, databaseName);
+//        return preparedStatement;
+//    }
 
     public static List<TableName> getTables(Connection connection, String databaseName) throws SQLException
     {

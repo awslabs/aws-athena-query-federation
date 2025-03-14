@@ -41,6 +41,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
+import com.amazonaws.athena.connectors.synapse.resolver.SynapseJDBCCaseResolver;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
@@ -107,7 +108,7 @@ public class SynapseMetadataHandlerTest
         this.secretsManager = mock(SecretsManagerClient.class);
         this.athena = mock(AthenaClient.class);
         when(this.secretsManager.getSecretValue(eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}").build());
-        this.synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
+        this.synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SynapseJDBCCaseResolver(SynapseConstants.NAME));
         this.federatedIdentity = mock(FederatedIdentity.class);
     }
 
@@ -204,7 +205,7 @@ public class SynapseMetadataHandlerTest
         JdbcConnectionFactory jdbcConnectionFactory = mock(JdbcConnectionFactory.class);
         when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        SynapseMetadataHandler synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
+        SynapseMetadataHandler synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SynapseJDBCCaseResolver(SynapseConstants.NAME));
 
         synapseMetadataHandler.doGetTableLayout(mock(BlockAllocator.class), getTableLayoutRequest);
     }

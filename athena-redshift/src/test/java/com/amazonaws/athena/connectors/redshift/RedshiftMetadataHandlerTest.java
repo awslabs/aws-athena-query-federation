@@ -127,6 +127,16 @@ public class RedshiftMetadataHandlerTest
         ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
+        // insensitive search schema
+        String sql = "SELECT nspname FROM pg_namespace WHERE lower(nspname) = ?";
+        PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
+        preparedSchemaStatement.setString(1, "testSchema");
+
+        String[] columnNames = new String[] {"nspname"};
+        String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+        ResultSet caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult, caseInsensitiveSchemaResult);
+
         ListTablesResponse listTablesResponse = this.redshiftMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", null, 1));
@@ -140,10 +150,13 @@ public class RedshiftMetadataHandlerTest
         ResultSet nextResultSet = mockResultSet(schema, nextValues, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(nextResultSet);
 
+        ResultSet caseInsensitiveSchemaResult2 = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult2);
+
         listTablesResponse = this.redshiftMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "testSchema", "1", 1));
-        Assert.assertEquals("2", listTablesResponse.getNextToken());
+                        "testCatalog", "testSchema", "1", 2));
+        Assert.assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(nextExpected, listTablesResponse.getTables().toArray());
     }
 
@@ -367,27 +380,24 @@ public class RedshiftMetadataHandlerTest
                 .forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
-        ResultSet caseInsensitiveSchemaResult = Mockito.mock(ResultSet.class);
-        String sql = "SELECT nspname FROM pg_namespace WHERE (nspname = ? or lower(nspname) = ?)";
+        String sql = "SELECT nspname FROM pg_namespace WHERE lower(nspname) = ?";
         PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
-        preparedSchemaStatement.setString(1, "testschema");
-        preparedSchemaStatement.setString(2, "testschema");
+        preparedSchemaStatement.setString(1, "testSchema");
 
         String[] columnNames = new String[] {"nspname"};
         String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
-        caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        ResultSet caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult, caseInsensitiveSchemaResult);
 
-        Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult);
 
         TableName inputTableName = new TableName("testSchema", "testtable");
         columnNames = new String[] {"table_name"};
         tableNameValues = new String[][]{new String[] {"testTable"}};
         ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-        sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
+        sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND lower(table_name) = ?";
         PreparedStatement preparedStatement = this.connection.prepareStatement(sql);
-        preparedStatement.setString(1, "testtable");
+        preparedStatement.setString(1, "testSchema");
         preparedStatement.setString(2, "testtable");
-        preparedStatement.setString(3, "testSchema");
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
         String resolvedTableName = "testTable";
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), resolvedTableName, null)).thenReturn(resultSet);

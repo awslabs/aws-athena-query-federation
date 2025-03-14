@@ -36,14 +36,13 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.lambda.resolver.CaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -52,6 +51,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
+import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -66,7 +66,6 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -76,7 +75,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.DATA_TYPE_QUERY_FOR_TABLE;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.DATA_TYPE_QUERY_FOR_VIEW;
@@ -108,12 +106,20 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig,
+                secretsManager,
+                athena,
+                jdbcConnectionFactory,
+                configOptions,
+                new DefaultJDBCCaseResolver(databaseConnectionConfig.getEngine(), CaseResolver.FederationSDKCasingMode.ANNOTATION, CaseResolver.FederationSDKCasingMode.NONE));
     }
 
     public SaphanaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-            super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
+            super(databaseConnectionConfig,
+                    jdbcConnectionFactory,
+                    configOptions,
+                    new DefaultJDBCCaseResolver(databaseConnectionConfig.getEngine(), CaseResolver.FederationSDKCasingMode.ANNOTATION, CaseResolver.FederationSDKCasingMode.NONE));
     }
 
     /**
@@ -267,18 +273,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         return String.valueOf(partition);
     }
 
-    @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = getTableFromMetadata(getTableRequest.getCatalogName(), getTableRequest.getTableName(), connection.getMetaData());
-            GetTableResponse getTableResponse = new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-            return getTableResponse;
-        }
-    }
     /**
      *
      * @param jdbcConnection
@@ -287,7 +281,8 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
      * @return
      * @throws Exception
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    @Override
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
         LOGGER.debug("SaphanaMetadataHandler:getSchema starting");
@@ -375,17 +370,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         return schemaBuilder.build();
     }
 
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(
-                catalogName,
-                escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape),
-                null);
-    }
-
     /**
      * Logic to fetch column datatypes of table and view to handle data-type specific logic
      * @param connection
@@ -411,83 +395,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         else {
             LOGGER.debug("Metadata available for TABLE: " + tableName.getTableName());
             return dataTypeResultSet;
-        }
-    }
-
-    /**
-     * Logic to handle case sensitivity of table name and schema name
-     * @param catalogName
-     * @param tableHandle
-     * @param metadata
-     * @return
-     * @throws SQLException
-     */
-    protected TableName getTableFromMetadata(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        TableName tableName = findTableNameFromQueryHint(tableHandle);
-        //check for presence exact table and schema name returned by findTableNameFromQueryHint method by invoking metadata.getTables method
-        ResultSet resultSet = metadata.getTables(catalogName, tableName.getSchemaName(), tableName.getTableName(), null);
-        while (resultSet.next()) {
-            if (tableName.getTableName().equals(resultSet.getString(3))) {
-                tableName = new TableName(tableName.getSchemaName(), resultSet.getString(3));
-                return tableName;
-            }
-        }
-        // if table not found in above step, check for presence of input table by doing pattern search
-        ResultSet rs = metadata.getTables(catalogName, tableName.getSchemaName().toUpperCase(), "%", null);
-        while (rs.next()) {
-            if (tableName.getTableName().equalsIgnoreCase(rs.getString(3))) {
-                tableName = new TableName(tableName.getSchemaName().toUpperCase(), rs.getString(3));
-                return tableName;
-            }
-        }
-        return tableName;
-    }
-
-    /**
-     * Finding table name from query hint
-     * In sap hana schemas and tables can be case sensitive, but executed query from athena sends table and schema names
-     * in lower case, this has been handled by appending query hint to the table name as below
-     * "lambda:lambdaname".SCHEMA_NAME."TABLE_NAME@schemacase=upper&tablecase=upper"
-     * @param table
-     * @return
-     */
-    protected TableName findTableNameFromQueryHint(TableName table)
-    {
-        //if no query hints has been passed then return input table name
-        if (!table.getTableName().contains("@")) {
-            return table;
-        }
-        //analyze the hint to find table and schema case
-        String[] tbNameWithQueryHint = table.getTableName().split("@");
-        String[] hintDetails = tbNameWithQueryHint[1].split("&");
-        String schemaCase = SaphanaConstants.CASE_UPPER;
-        String tableCase = SaphanaConstants.CASE_UPPER;
-        String tableName = tbNameWithQueryHint[0];
-        for (String str : hintDetails) {
-            String[] hintDetail = str.split("=");
-            if (hintDetail[0].contains("schema")) {
-                schemaCase = hintDetail[1];
-            }
-            else if (hintDetail[0].contains("table")) {
-                tableCase = hintDetail[1];
-            }
-        }
-        if (schemaCase.equalsIgnoreCase(SaphanaConstants.CASE_UPPER) && tableCase.equalsIgnoreCase(SaphanaConstants.CASE_UPPER)) {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toUpperCase());
-        }
-        else if (schemaCase.equalsIgnoreCase(SaphanaConstants.CASE_LOWER) && tableCase.equalsIgnoreCase(SaphanaConstants.CASE_LOWER)) {
-            return new TableName(table.getSchemaName().toLowerCase(), tableName.toLowerCase());
-        }
-        else if (schemaCase.equalsIgnoreCase(SaphanaConstants.CASE_LOWER) && tableCase.equalsIgnoreCase(SaphanaConstants.CASE_UPPER)) {
-            return new TableName(table.getSchemaName().toLowerCase(), tableName.toUpperCase());
-        }
-        else if (schemaCase.equalsIgnoreCase(SaphanaConstants.CASE_UPPER) && tableCase.equalsIgnoreCase(SaphanaConstants.CASE_LOWER)) {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toLowerCase());
-        }
-        else {
-            return new TableName(table.getSchemaName().toUpperCase(), tableName.toUpperCase());
         }
     }
 
