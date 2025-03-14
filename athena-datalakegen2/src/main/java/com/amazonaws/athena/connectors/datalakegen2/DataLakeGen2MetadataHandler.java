@@ -95,7 +95,10 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
      */
     public DataLakeGen2MetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new DataLakeGen2JdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig,
+                new DataLakeGen2JdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
+                new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)),
+                configOptions);
     }
 
     public DataLakeGen2MetadataHandler(

@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-synapse
+ * athena-snowflake
  * %%
  * Copyright (C) 2019 - 2025 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.synapse.resolver;
+package com.amazonaws.athena.connectors.mysql.resolver;
 
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import org.slf4j.Logger;
@@ -25,19 +25,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-public class SynapseJDBCCaseResolver
+public class MySqlJDBCCaseResolver
         extends DefaultJDBCCaseResolver
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SynapseJDBCCaseResolver.class);
-    private static final String TABLE_NAME_QUERY_TEMPLATE = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND LOWER(TABLE_NAME) = ?";
-    private static final String SCHEMA_NAME_QUERY_TEMPLATE = "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE LOWER(SCHEMA_NAME) = ?";
+    private static final Logger LOGGER = LoggerFactory.getLogger(MySqlJDBCCaseResolver.class);
+    private static final String SCHEMA_NAME_QUERY_TEMPLATE = "SELECT schema_name FROM information_schema.schemata WHERE lower(schema_name) = ?";
+    private static final String TABLE_NAME_QUERY_TEMPLATE = "SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND lower(table_name) = ?";
+    private static final String SCHEMA_NAME_COLUMN_KEY = "schema_name";
+    private static final String TABLE_NAME_COLUMN_KEY = "table_name";
 
-    private static final String SCHEMA_NAME_COLUMN_KEY = "SCHEMA_NAME";
-    private static final String TABLE_NAME_COLUMN_KEY = "TABLE_NAME";
-
-    public SynapseJDBCCaseResolver(String sourceType)
+    public MySqlJDBCCaseResolver(String sourceType)
     {
-        super(sourceType, FederationSDKCasingMode.NONE, FederationSDKCasingMode.LOWER);
+        super(sourceType, FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH, FederationSDKCasingMode.NONE);
     }
 
     @Override

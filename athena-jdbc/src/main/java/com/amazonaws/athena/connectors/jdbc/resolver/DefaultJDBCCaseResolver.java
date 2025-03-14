@@ -69,19 +69,23 @@ public class DefaultJDBCCaseResolver extends JDBCCaseResolver
     protected List<String> doGetTableNameCaseInsensitively(final Connection connection, String schemaNameInCorrectCase, String tableNameInput, Map<String, String> configOptions)
     {
         List<String> results = new ArrayList<>();
-        try (PreparedStatement preparedStatement = new PreparedStatementBuilder()
-                .withConnection(connection)
-                .withQuery(getCaseInsensitivelyTableNameQueryTemplate())
-                .withParameters(List.of(schemaNameInCorrectCase, tableNameInput.toLowerCase())).build();
-                ResultSet resultSet = preparedStatement.executeQuery()) {
-            while (resultSet.next()) {
-                String schemaNameCandidate = resultSet.getString(getCaseInsensitivelyTableNameColumnKey());
-                LOGGER.debug("Case insensitive search on columLabel: {}, schema name: {}", getCaseInsensitivelyTableNameColumnKey(), schemaNameCandidate);
-                results.add(schemaNameCandidate);
+        List<String> caseInsensitivelyTableNameQueryTemplate = getCaseInsensitivelyTableNameQueryTemplate();
+        LOGGER.debug("Number of query templates: {} for case insensitive search for tableName", caseInsensitivelyTableNameQueryTemplate.size());
+        for (String tableNameQueryTemplate : caseInsensitivelyTableNameQueryTemplate) {
+            try (PreparedStatement preparedStatement = new PreparedStatementBuilder()
+                    .withConnection(connection)
+                    .withQuery(tableNameQueryTemplate)
+                    .withParameters(List.of(schemaNameInCorrectCase, tableNameInput.toLowerCase())).build();
+                    ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    String schemaNameCandidate = resultSet.getString(getCaseInsensitivelyTableNameColumnKey());
+                    LOGGER.debug("Case insensitive search on columLabel: {}, schema name: {}", getCaseInsensitivelyTableNameColumnKey(), schemaNameCandidate);
+                    results.add(schemaNameCandidate);
+                }
             }
-        }
-        catch (SQLException e) {
-            throw new RuntimeException(String.format("getTableNameCaseInsensitively query failed for schema: %s tableNameInput: %s", schemaNameInCorrectCase, tableNameInput), e);
+            catch (SQLException e) {
+                throw new RuntimeException(String.format("getTableNameCaseInsensitively query failed for schema: %s tableNameInput: %s", schemaNameInCorrectCase, tableNameInput), e);
+            }
         }
 
         return results;

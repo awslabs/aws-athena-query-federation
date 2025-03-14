@@ -129,7 +129,7 @@ public abstract class JDBCCaseResolver
     {
         List<String> strings = doGetTableNameCaseInsensitively(connection, schemaNameInCorrectCase, tableNameInput, configOptions);
         if (strings.size() != 1) {
-            throw new RuntimeException(String.format("Schema name case insensitive match failed, number of match : %d, values: %s", strings.size(), strings));
+            throw new RuntimeException(String.format("Table name case insensitive match failed, number of match : %d, values: %s", strings.size(), strings));
         }
 
         LOGGER.info("casing mode is `ANNOTATION`: adjusting casing for `Table` from {}, to {}", tableNameInput, strings.get(0));
@@ -151,7 +151,7 @@ public abstract class JDBCCaseResolver
         throw new UnsupportedOperationException(String.format("CASE_INSENSITIVE_SEARCH is not supported for type: '%s', please provide SchemaNameColumnKey", sourceType));
     }
 
-    protected String getCaseInsensitivelyTableNameQueryTemplate()
+    protected List<String> getCaseInsensitivelyTableNameQueryTemplate()
     {
         throw new UnsupportedOperationException(String.format("CASE_INSENSITIVE_SEARCH is not supported for type: '%s', please provide TableNameQuery", sourceType));
     }

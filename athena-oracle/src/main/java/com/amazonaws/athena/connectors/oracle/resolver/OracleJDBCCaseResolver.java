@@ -23,6 +23,8 @@ import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 public class OracleJDBCCaseResolver
         extends DefaultJDBCCaseResolver
 {
@@ -51,9 +53,9 @@ public class OracleJDBCCaseResolver
     }
 
     @Override
-    protected String getCaseInsensitivelyTableNameQueryTemplate()
+    protected List<String> getCaseInsensitivelyTableNameQueryTemplate()
     {
-        return TABLE_NAME_QUERY_TEMPLATE;
+        return List.of(TABLE_NAME_QUERY_TEMPLATE);
     }
 
     @Override

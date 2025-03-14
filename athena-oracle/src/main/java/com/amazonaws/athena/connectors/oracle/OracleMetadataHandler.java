@@ -254,10 +254,10 @@ public class OracleMetadataHandler
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
         List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
+
+        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize);
         // return next token is null when reaching end of files
-        return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                paginatedTables,
-                paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize));
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
     }
 
     /**
