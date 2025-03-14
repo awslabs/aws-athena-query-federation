@@ -64,8 +64,8 @@ import java.util.Set;
 public class ClickHouseMetadataHandler
         extends MySqlMetadataHandler
 {
-    static final String GET_PARTITIONS_QUERY = "SELECT DISTINCT partition_name FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = ? AND TABLE_SCHEMA = ? " +
-            "AND partition_name IS NOT NULL";
+    static final String GET_PARTITIONS_QUERY = "SELECT DISTINCT partition AS partition_name FROM system.parts " +
+            "WHERE table = ? AND database = ? AND partition IS NOT NULL";
     static final String BLOCK_PARTITION_COLUMN_NAME = "partition_name";
     static final String ALL_PARTITIONS = "*";
     static final String PARTITION_COLUMN_NAME = "partition_name";
@@ -73,7 +73,7 @@ public class ClickHouseMetadataHandler
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
     static final String LIST_PAGINATED_TABLES_QUERY = "SELECT DISTINCT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ? ORDER BY TABLE_NAME LIMIT ?, ?";
-    static final String LIST_SCHEMA_QUERY = "SELECT schema_name AS DATABASE_SCHEMA, schema_owner AS DATABASE_OWNER FROM INFORMATION_SCHEMA.schemata";
+    static final String LIST_SCHEMA_QUERY = "SELECT name AS DATABASE_SCHEMA FROM system.databases";
 
     /**
      * Instantiates handler to be used by Lambda function directly.
