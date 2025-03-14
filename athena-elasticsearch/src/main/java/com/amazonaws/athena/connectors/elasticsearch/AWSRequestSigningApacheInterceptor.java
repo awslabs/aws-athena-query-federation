@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.http.Header;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
@@ -35,6 +36,8 @@ import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
 import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -98,7 +101,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
             uriBuilder = new URIBuilder(request.getRequestLine().getUri());
         }
         catch (URISyntaxException e) {
-            throw new IOException("Invalid URI", e);
+            throw new AthenaConnectorException("Invalid URI", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
 
         // Build the SdkHttpFullRequest
@@ -111,7 +114,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
                     .headers(headerArrayToMap(request.getAllHeaders()));
         }
         catch (URISyntaxException e) {
-            throw new IOException("Invalid URI", e);
+            throw new AthenaConnectorException("Invalid URI", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
 
         // Set the endpoint (host) if present in the context
