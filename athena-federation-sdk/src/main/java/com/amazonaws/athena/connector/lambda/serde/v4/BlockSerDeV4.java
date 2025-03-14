@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.serde.v4;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorRegistry;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
@@ -35,6 +36,8 @@ import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -144,7 +147,7 @@ public class BlockSerDeV4
                 return allocatorRegistry.getOrCreateAllocator(allocatorId);
             }
             else {
-                throw new IllegalStateException("allocator and allocatorRegistry are both null");
+                throw new AthenaConnectorException("allocator and allocatorRegistry are both null", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
         }
 

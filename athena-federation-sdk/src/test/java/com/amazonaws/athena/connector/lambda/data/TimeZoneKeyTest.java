@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
@@ -31,7 +32,11 @@ import java.util.SortedSet;
 import static com.amazonaws.athena.connector.lambda.data.TimeZoneKey.MAX_TIME_ZONE_KEY;
 import static com.amazonaws.athena.connector.lambda.data.TimeZoneKey.UTC_KEY;
 import static java.util.Locale.ENGLISH;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Class for testing timezone to be used in encoding datetime value and timezone value to a single long
@@ -228,7 +233,7 @@ public class TimeZoneKeyTest
             TimeZoneKey.getTimeZoneKey(zoneId);
             fail("expect IllegalArgumentException");
         }
-        catch (IllegalArgumentException e) {
+        catch (AthenaConnectorException e) {
             // expected
         }
     }
