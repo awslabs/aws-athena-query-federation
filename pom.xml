@@ -143,9 +143,9 @@
         <module>athena-snowflake</module>
         <module>athena-teradata</module>
         <module>athena-saphana</module>
-<!--        <module>athena-cloudera-hive</module>-->
-<!--        <module>athena-cloudera-impala</module>-->
-<!--        <module>athena-hortonworks-hive</module>-->
+        <module>athena-cloudera-hive</module>
+        <module>athena-cloudera-impala</module>
+        <module>athena-hortonworks-hive</module>
         <module>athena-db2</module>
         <module>athena-db2-as400</module>
         <module>athena-msk</module>
