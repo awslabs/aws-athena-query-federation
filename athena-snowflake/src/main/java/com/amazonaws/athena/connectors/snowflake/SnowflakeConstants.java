@@ -26,20 +26,19 @@ public final class SnowflakeConstants
     public static final String SNOWFLAKE_DRIVER_CLASS = "com.snowflake.client.jdbc.SnowflakeDriver";
     public static final int SNOWFLAKE_DEFAULT_PORT = 1025;
     /**
-     * This constant limits the number of partitions. The default set to 50. A large number may cause a timeout issue.
-     * We arrived at this number after performance testing with datasets of different size
-     */
-    public static final int MAX_PARTITION_COUNT = 50;
-    /**
      * This constant limits the number of records to be returned in a single split.
      */
-    public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
     public static final String SNOWFLAKE_QUOTE_CHARACTER = "\"";
-    public static final String AUTH_CODE = "auth_code";
-    public static final String CLIENT_ID = "client_id";
-    public static final String TOKEN_URL = "token_url";
-    public static final String REDIRECT_URI = "redirect_uri";
-    public static final String CLIENT_SECRET = "client_secret";
+    /**
+     * A ssl file location constant to store the SSL certificate
+     * The file location is fixed at /tmp directory
+     * to retrieve ssl certificate location
+     */
+    public static final String SSL_CERT_FILE_LOCATION = "SSL_CERT_FILE";
+    public static final String SSL_CERT_FILE_LOCATION_VALUE = "/tmp/cacert.pem";
+    public static final String SNOWFLAKE_SPLIT_QUERY_ID = "query_id";
+    public static final String SNOWFLAKE_SPLIT_EXPORT_BUCKET = "exportBucket";
+    public static final String SNOWFLAKE_SPLIT_OBJECT_KEY = "s3ObjectKey";
 
     private SnowflakeConstants() {}
 }
