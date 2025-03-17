@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connector.credentials;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
