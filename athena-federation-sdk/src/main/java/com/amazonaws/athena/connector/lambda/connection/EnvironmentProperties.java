@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.GlueClientBuilder;
 import software.amazon.awssdk.services.glue.model.AuthenticationConfiguration;
 import software.amazon.awssdk.services.glue.model.Connection;
 import software.amazon.awssdk.services.glue.model.GetConnectionRequest;
@@ -44,6 +45,7 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 public class EnvironmentProperties
 {
     protected static final Logger logger = LoggerFactory.getLogger(EnvironmentProperties.class);
+    private static final String GLUE_ENDPOINT = "GLUE_ENDPOINT";
 
     public Map<String, String> createEnvironment() throws RuntimeException
     {
@@ -69,20 +71,15 @@ public class EnvironmentProperties
     {
         try {
             HashMap<String, String> lambdaEnvironment = new HashMap<>(System.getenv());
-            GlueClient awsGlue = GlueClient.builder()
+            GlueClientBuilder awsGlue = GlueClient.builder()
                     .httpClientBuilder(ApacheHttpClient
                             .builder()
-                            .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
-                    .build();
-            if (lambdaEnvironment.getOrDefault("USE_GAMMA_GLUE", "false").equals("true")) {
-                awsGlue = GlueClient.builder()
-                        .endpointOverride(new URI(String.format("https://glue-gamma.%s.amazonaws.com", lambdaEnvironment.get("AWS_REGION"))))
-                        .httpClientBuilder(ApacheHttpClient
-                                .builder()
-                                .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)))
-                        .build();
+                            .connectionTimeout(Duration.ofMillis(CONNECT_TIMEOUT)));
+            if (lambdaEnvironment.containsKey(GLUE_ENDPOINT)) {
+                logger.info("Using custom endpoint {}", lambdaEnvironment.get(GLUE_ENDPOINT));
+                awsGlue.endpointOverride(new URI(lambdaEnvironment.get(GLUE_ENDPOINT)));
             }
-            GetConnectionResponse glueConnection = awsGlue.getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
+            GetConnectionResponse glueConnection = awsGlue.build().getConnection(GetConnectionRequest.builder().name(glueConnectionName).build());
             logger.debug("Successfully retrieved connection {}", glueConnectionName);
             return glueConnection.connection();
         }

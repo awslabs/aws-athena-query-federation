@@ -32,8 +32,8 @@ public class ImpalaEnvironmentProperties extends JdbcEnvironmentProperties
     }
 
     @Override
-    protected String getDatabase(Map<String, String> connectionProperties)
+    protected String getJdbcParametersSeparator()
     {
-        return "/";
+        return ";";
     }
 }

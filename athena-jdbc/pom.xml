@@ -63,6 +63,10 @@
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-annotations</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>com.h2database</groupId>
+                    <artifactId>h2</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -136,7 +140,7 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
-            <version>4.9.0</version>
+            <version>4.9.3</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>
@@ -160,7 +164,10 @@
                 <version>${mvn.shade.plugin.version}</version>
                 <configuration>
                     <createDependencyReducedPom>true</createDependencyReducedPom>
-                    <shadeTestJar>true</shadeTestJar>
+                    <!--This should never be set to true
+                    It will cause all sorts of class-path issue with Arrow RootAllocator
+                    due to it being shaded | If changed; test from CLI and NOT IntelliJ -->
+                    <shadeTestJar>false</shadeTestJar>
                     <filters>
                         <filter>
                             <artifact>*:*</artifact>

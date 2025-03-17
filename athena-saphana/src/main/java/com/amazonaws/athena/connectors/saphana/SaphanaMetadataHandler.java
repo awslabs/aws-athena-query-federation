@@ -74,6 +74,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -318,7 +319,7 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                 String columnName = resultSet.getString(SaphanaConstants.COLUMN_NAME);
 
                 LOGGER.debug("SaphanaMetadataHandler:getSchema determining column type of column {}", columnName);
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
@@ -334,27 +335,27 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                  */
                 if (dataType != null
                         && (dataType.contains("ST_POINT") || dataType.contains("ST_GEOMETRY"))) {
-                    columnType = Types.MinorType.VARCHAR.getType();
+                    columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     isSpatialDataType = true;
                 }
                 /*
                  * converting into VARCHAR for Unsupported data types.
                  */
-                if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
-                    columnType = Types.MinorType.VARCHAR.getType();
+                if (columnType.isEmpty() || !SupportedTypes.isSupported(columnType.get())) {
+                    columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    LOGGER.debug("Adding column {} to schema of type {}", columnName, columnType);
+                if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
+                    LOGGER.debug("Adding column {} to schema of type {}", columnName, columnType.get());
 
                     if (isSpatialDataType) {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType)
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get())
                                 .addField(new Field(quoteColumnName(columnName) + TO_WELL_KNOWN_TEXT_FUNCTION,
-                                        new FieldType(true, columnType, null), com.google.common.collect.ImmutableList.of()))
+                                        new FieldType(true, columnType.get(), null), com.google.common.collect.ImmutableList.of()))
                                 .build());
                     }
                     else {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     }
 
                     found = true;
