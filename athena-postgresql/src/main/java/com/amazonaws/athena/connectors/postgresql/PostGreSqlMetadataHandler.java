@@ -228,7 +228,7 @@ public class PostGreSqlMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
-        LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+        LOGGER.info("doGetSplits, QueryId:{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
         if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
             LOGGER.info("QPT Split Requested");
             return setupQueryPassthroughSplit(getSplitsRequest);
@@ -419,5 +419,10 @@ public class PostGreSqlMetadataHandler
             }
         }
         return charColumns;
+    }
+
+    protected String wrapNameWithEscapedCharacter(String input)
+    {
+        return "\"" + input + "\"";
     }
 }
