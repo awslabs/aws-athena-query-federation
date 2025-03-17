@@ -457,7 +457,7 @@ public abstract class JdbcMetadataHandler
             if (!primaryKeyColumns.isEmpty()) {
                 try (Statement statement = jdbcConnection.createStatement();
                         ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
-                                tableName.getSchemaName(), tableName.getTableName()))) {
+                                wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
                     minMaxResultSet.next(); // expecting one result row
                     Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
 
@@ -507,5 +507,10 @@ public abstract class JdbcMetadataHandler
                 Split.newBuilder(spillLocation, makeEncryptionKey())
                         .applyProperties(qptArguments)
                         .build());
+    }
+
+    protected String wrapNameWithEscapedCharacter(String input)
+    {
+        return input;
     }
 }
