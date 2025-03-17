@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,6 +28,10 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -37,18 +40,26 @@ import static org.junit.Assert.assertEquals;
 public class NeptuneSchemaUtilsTest {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneSchemaUtilsTest.class);
 
-    private final Map<String, Object> objectMap = ImmutableMap.of(
-            "col1", "String",
-            "col2", 1,
-            "col3", 10.33,
-            "col4", true,
-            "col5", new BigInteger("12345678901234567890"));
-
     private final String COMPONENT_TYPE = "vertex";
 
     @Test
     public void getSchemaFromResults() {
         logger.info("getSchemaFromResults - enter");
+        List<String> listObj = new ArrayList<>();
+        listObj.add("Test");
+        listObj.add("Test1");
+
+        Map<String, Object> mapObj = new HashMap<>();
+        mapObj.put("col1", "String");
+        mapObj.put("col2", 1);
+        mapObj.put("col3", 10.33);
+        mapObj.put("col4", true);
+        mapObj.put("col5", new BigInteger("12345678901234567890"));
+        mapObj.put("col6", new Date());
+        mapObj.put("col7", listObj);
+        mapObj.put("col8", null);
+
+        Map<String, Object> objectMap = Collections.unmodifiableMap(mapObj);
         Schema schema = NeptuneSchemaUtils.getSchemaFromResults(objectMap, COMPONENT_TYPE, "test");
 
         assertEquals(schema.getFields().size(), objectMap.size());
@@ -57,6 +68,9 @@ public class NeptuneSchemaUtilsTest {
         assertEquals("FloatingPoint(DOUBLE)", schema.findField("col3").getType().toString());
         assertEquals("Bool", schema.findField("col4").getType().toString());
         assertEquals("Int(64, true)", schema.findField("col5").getType().toString());
+        assertEquals("Date(MILLISECOND)", schema.findField("col6").getType().toString());
+        assertEquals("Utf8", schema.findField("col7").getType().toString());
+        assertEquals("Utf8", schema.findField("col8").getType().toString());
 
         assertEquals(COMPONENT_TYPE, schema.getCustomMetadata().get(Constants.SCHEMA_COMPONENT_TYPE));
         logger.info("getSchemaFromResults - exit");
