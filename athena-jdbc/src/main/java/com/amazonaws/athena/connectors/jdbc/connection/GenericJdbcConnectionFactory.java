@@ -21,8 +21,6 @@ package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-import com.amazonaws.services.glue.model.ErrorDetails;
-import com.amazonaws.services.glue.model.FederationSourceErrorCode;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
