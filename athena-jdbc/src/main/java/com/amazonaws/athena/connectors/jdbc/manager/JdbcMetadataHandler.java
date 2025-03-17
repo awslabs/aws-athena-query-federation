@@ -509,7 +509,8 @@ public abstract class JdbcMetadataHandler
                         .build());
     }
 
-    protected String wrapNameWithEscapedCharacter(String input) {
+    protected String wrapNameWithEscapedCharacter(String input)
+    {
         return input;
     }
 }
