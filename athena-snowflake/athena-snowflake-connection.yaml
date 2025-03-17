@@ -87,6 +87,7 @@ Resources:
             Principal:
               Service:
                 - lambda.amazonaws.com
+              AWS: '*'
             Action:
               - "sts:AssumeRole"
 
@@ -127,14 +128,15 @@ Resources:
             Resource: '*'
           - Action:
               - s3:GetObject
+              - s3:GetObjectVersion
               - s3:ListBucket
               - s3:GetBucketLocation
-              - s3:GetObjectVersion
               - s3:PutObject
               - s3:PutObjectAcl
               - s3:GetLifecycleConfiguration
               - s3:PutLifecycleConfiguration
               - s3:DeleteObject
+              - s3:DeleteObjectVersion
             Effect: Allow
             Resource:
               - Fn::Sub:
@@ -151,6 +153,10 @@ Resources:
             Resource:
               - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
               - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+          - Action:
+              - lambda:GetFunction
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}'
 
   FunctionKmsPolicy:
     Condition: CreateKmsPolicy
