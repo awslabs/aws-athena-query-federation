@@ -20,12 +20,9 @@
 package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-<<<<<<< HEAD
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
-=======
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
->>>>>>> bb0c7868f (add JDBC Connection pool for performance improvement)
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,12 +32,8 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-<<<<<<< HEAD
-import java.sql.DriverManager;
+import java.sql.Connection;;
 import java.sql.SQLException;
-=======
->>>>>>> bb0c7868f (add JDBC Connection pool for performance improvement)
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
