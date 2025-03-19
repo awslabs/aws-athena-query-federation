@@ -198,11 +198,13 @@ public abstract class JdbcRecordHandler
                 };
     }
 
-    protected boolean enableCaseSensitivelyLookUpSession(Connection connection) {
+    protected boolean enableCaseSensitivelyLookUpSession(Connection connection)
+    {
         return false;
     }
 
-    protected boolean disableCaseSensitivelyLookUpSession(Connection connection) {
+    protected boolean disableCaseSensitivelyLookUpSession(Connection connection)
+    {
         return false;
     }
 
