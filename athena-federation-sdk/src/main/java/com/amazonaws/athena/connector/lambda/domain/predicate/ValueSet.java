@@ -21,9 +21,12 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.beans.Transient;
 import java.util.Collection;
@@ -112,7 +115,7 @@ public interface ValueSet
     @Transient
     default Ranges getRanges()
     {
-        throw new UnsupportedOperationException();
+        throw new AthenaConnectorException("Operation not supported", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
     }
 
     ValueSet intersect(BlockAllocator allocator, ValueSet other);

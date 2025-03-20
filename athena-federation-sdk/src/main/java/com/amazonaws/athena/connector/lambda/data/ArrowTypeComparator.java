@@ -20,12 +20,15 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.bouncycastle.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -115,7 +118,7 @@ public class ArrowTypeComparator
             default:
                 //logging because throwing in a comparator gets swallowed in many unit tests that use equality asserts
                 logger.warn("compare: Unknown type " + type + " object: " + lhs.getClass());
-                throw new IllegalArgumentException("Unknown type " + type + " object: " + lhs.getClass());
+                throw new AthenaConnectorException("Unknown type " + type + " object: " + lhs.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 }

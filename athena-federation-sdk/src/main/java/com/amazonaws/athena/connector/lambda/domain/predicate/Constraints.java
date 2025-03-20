@@ -21,9 +21,12 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.List;
 import java.util.Map;
@@ -174,7 +177,7 @@ public class Constraints
                 next.close();
             }
             catch (Exception ex) {
-                throw new RuntimeException(ex);
+                throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             }
         }
     }
