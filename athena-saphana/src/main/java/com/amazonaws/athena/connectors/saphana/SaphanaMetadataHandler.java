@@ -42,7 +42,6 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
-import com.amazonaws.athena.connector.lambda.resolver.CaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -51,7 +50,8 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
-import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.saphana.resolver.SaphanaJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -78,6 +78,7 @@ import java.util.Set;
 
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.DATA_TYPE_QUERY_FOR_TABLE;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.DATA_TYPE_QUERY_FOR_VIEW;
+import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.SAPHANA_NAME;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.SAPHANA_QUOTE_CHARACTER;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.TO_WELL_KNOWN_TEXT_FUNCTION;
 
@@ -104,14 +105,15 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         SecretsManagerClient secretsManager,
         AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
-        java.util.Map<String, String> configOptions)
+        java.util.Map<String, String> configOptions,
+        JDBCCaseResolver caseResolver)
     {
         super(databaseConnectionConfig,
                 secretsManager,
                 athena,
                 jdbcConnectionFactory,
                 configOptions,
-                new DefaultJDBCCaseResolver(databaseConnectionConfig.getEngine(), CaseResolver.FederationSDKCasingMode.ANNOTATION, CaseResolver.FederationSDKCasingMode.NONE));
+                caseResolver);
     }
 
     public SaphanaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
@@ -119,7 +121,7 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
             super(databaseConnectionConfig,
                     jdbcConnectionFactory,
                     configOptions,
-                    new DefaultJDBCCaseResolver(databaseConnectionConfig.getEngine(), CaseResolver.FederationSDKCasingMode.ANNOTATION, CaseResolver.FederationSDKCasingMode.NONE));
+                    new SaphanaJDBCCaseResolver(SAPHANA_NAME));
     }
 
     /**
