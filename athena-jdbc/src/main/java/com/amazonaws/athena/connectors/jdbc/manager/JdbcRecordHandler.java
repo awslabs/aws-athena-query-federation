@@ -146,6 +146,8 @@ public abstract class JdbcRecordHandler
                 readRecordsRequest.getSplit().getProperties());
         try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            enableCaseSensitivelyLookUpSession(connection); // For certain connectors, we require to apply session config first to enable case
+
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -171,7 +173,7 @@ public abstract class JdbcRecordHandler
                     rowsReturnedFromDatabase++;
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
-
+                disableCaseSensitivelyLookUpSession(connection); // For certain connectors, we require to apply session config first to enable case
                 connection.commit();
             }
         }
@@ -194,6 +196,14 @@ public abstract class JdbcRecordHandler
                     }
                     return true;
                 };
+    }
+
+    protected boolean enableCaseSensitivelyLookUpSession(Connection connection) {
+        return false;
+    }
+
+    protected boolean disableCaseSensitivelyLookUpSession(Connection connection) {
+        return false;
     }
 
     /**

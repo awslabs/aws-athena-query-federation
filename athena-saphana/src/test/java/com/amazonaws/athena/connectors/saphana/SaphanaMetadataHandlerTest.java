@@ -295,28 +295,6 @@ public class SaphanaMetadataHandlerTest
     }
 
     @Test
-    public void testFindTableNameFromQueryHint()
-            throws Exception
-    {
-        TableName inputTableName = new TableName("testSchema", "testTable@schemacase=upper&tablecase=upper");
-        TableName tableName = saphanaMetadataHandler.findTableNameFromQueryHint(inputTableName);
-        Assert.assertEquals(new TableName("TESTSCHEMA", "TESTTABLE"), tableName);
-
-        TableName inputTableName1 = new TableName("testSchema", "testTable@schemacase=upper&tablecase=lower");
-        TableName tableName1 = saphanaMetadataHandler.findTableNameFromQueryHint(inputTableName1);
-        Assert.assertEquals(new TableName("TESTSCHEMA", "testtable"), tableName1);
-
-        TableName inputTableName2 = new TableName("testSchema", "testTable@schemacase=lower&tablecase=lower");
-        TableName tableName2 = saphanaMetadataHandler.findTableNameFromQueryHint(inputTableName2);
-        Assert.assertEquals(new TableName("testschema", "testtable"), tableName2);
-
-        TableName inputTableName3 = new TableName("testSchema", "testTable@schemacase=lower&tablecase=upper");
-        TableName tableName3 = saphanaMetadataHandler.findTableNameFromQueryHint(inputTableName3);
-        Assert.assertEquals(new TableName("testschema", "TESTTABLE"), tableName3);
-
-    }
-
-    @Test
     public void doGetSplitsForView()
             throws Exception
     {
@@ -363,5 +341,67 @@ public class SaphanaMetadataHandlerTest
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
         this.saphanaMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+    }
+
+    @Test
+    public void doGetTableWithAnnotation()
+            throws Exception
+    {
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+
+        PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
+        Schema expected = expectedSchemaBuilder.build();
+
+        String schemaName = "testSchema";
+        String tableName = "testTable";
+        TableName inputTableName = new TableName(schemaName, tableName + "@schemaCase=upper&tableCase=lower");
+
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", schemaName.toUpperCase(), tableName.toLowerCase(), null)).thenReturn(resultSet);
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+
+        GetTableResponse getTableResponse = this.saphanaMetadataHandler.doGetTable(
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(new TableName(schemaName.toUpperCase(), tableName.toLowerCase()), getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void doGetTableNotFoundWithAnnotation()
+            throws Exception
+    {
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+
+        PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
+        Schema expected = expectedSchemaBuilder.build();
+
+        String schemaName = "testSchema";
+        String tableName = "testTable";
+        TableName inputTableName = new TableName(schemaName, tableName + "@schemaCase=upper&tableCase=lower");
+
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", schemaName, tableName.toLowerCase(), null)).thenReturn(resultSet);
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+
+        Assert.assertThrows(Exception.class, () -> this.saphanaMetadataHandler.doGetTable(
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap())));
     }
 }

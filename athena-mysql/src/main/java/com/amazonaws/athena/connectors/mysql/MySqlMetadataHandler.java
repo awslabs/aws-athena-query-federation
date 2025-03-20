@@ -46,6 +46,8 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.mysql.resolver.MySqlJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -108,7 +110,12 @@ public class MySqlMetadataHandler
 
     public MySqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
+        this(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new MySqlJDBCCaseResolver(MYSQL_NAME));
+    }
+
+    public MySqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions, JDBCCaseResolver caseResolver)
+    {
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions, caseResolver);
     }
 
     @VisibleForTesting
@@ -249,7 +256,9 @@ public class MySqlMetadataHandler
         List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
 
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
+        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize);
+        // return next token is null when reaching end of files
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
     }
 
     @Override
@@ -257,15 +266,7 @@ public class MySqlMetadataHandler
             throws SQLException
     {
         // Gets list of Tables and Views using Information Schema.tables
-
         return JDBCUtil.getTables(jdbcConnection, databaseName);
-    }
-
-    @Override
-    protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
-                                                     final String tableName) throws Exception
-    {
-        return JDBCUtil.informationSchemaCaseInsensitiveTableMatch(connection, databaseName, tableName);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)

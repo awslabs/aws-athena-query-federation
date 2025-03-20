@@ -37,6 +37,9 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_QUOTE_CHARACTER;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DRIVER_CLASS;
@@ -69,5 +72,25 @@ public class RedshiftRecordHandler
     RedshiftRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, configOptions);
+    }
+
+    @Override
+    protected boolean enableCaseSensitivelyLookUpSession(Connection connection) {
+        try {
+            return connection.createStatement().execute("SET enable_case_sensitive_identifier to TRUE;");
+        } catch (SQLException e) {
+            LOGGER.error("Failed to set enable_case_sensitive_identifier to TRUE for Redshift, ignore setting....", e);
+        }
+        return false;
+    }
+
+    @Override
+    protected boolean disableCaseSensitivelyLookUpSession(Connection connection) {
+        try {
+            return connection.createStatement().execute("SET enable_case_sensitive_identifier to FALSE;");
+        } catch (SQLException e) {
+            LOGGER.error("Failed to set enable_case_sensitive_identifier to FALSE for Redshift, ignore setting....", e);
+        }
+        return false;
     }
 }

@@ -34,28 +34,24 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connectors.datalakegen2.resolver.DataLakeGen2CaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +59,6 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -75,7 +70,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
 
@@ -101,7 +95,10 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
      */
     public DataLakeGen2MetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new DataLakeGen2JdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig,
+                new DataLakeGen2JdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
+                new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)),
+                configOptions);
     }
 
     public DataLakeGen2MetadataHandler(
@@ -109,7 +106,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new DataLakeGen2CaseResolver(DataLakeGen2Constants.NAME));
     }
 
     @VisibleForTesting
@@ -118,9 +115,10 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         SecretsManagerClient secretsManager,
         AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
-        java.util.Map<String, String> configOptions)
+        java.util.Map<String, String> configOptions,
+        JDBCCaseResolver caseResolver)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, caseResolver);
     }
 
     @Override
@@ -195,18 +193,6 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     }
 
     @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = DataLakeGen2CaseInsensitiveResolver.getAdjustedTableObjectNameBasedOnConfig(connection, getTableRequest.getTableName(), configOptions);
-            return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-    }
-
-    @Override
     protected Optional<ArrowType> convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
     {
         String dataType = metadata.getColumnTypeName(columnIndex);
@@ -226,7 +212,8 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
      * @return
      * @throws Exception
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    @Override
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
         LOGGER.info("Inside getSchema");
@@ -294,48 +281,6 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
 
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             return schemaBuilder.build();
-        }
-    }
-
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(
-                catalogName,
-                escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape),
-                null);
-    }
-
-    @Override
-    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
-                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-            String adjustedSchemaName = DataLakeGen2CaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(connection, listTablesRequest.getSchemaName(), configOptions);
-            // TODO: Implement pagination if supported by DataLake Gen2
-            LOGGER.info("doListTables - NO pagination");
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, adjustedSchemaName), null);
-        }
-    }
-
-    private List<TableName> listTablesNoPagination(final Connection jdbcConnection, final String databaseName)
-            throws SQLException
-    {
-        LOGGER.debug("listTables, databaseName:" + databaseName);
-        try (ResultSet resultSet = jdbcConnection.getMetaData().getTables(
-                jdbcConnection.getCatalog(),
-                databaseName,
-                null,
-                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})) {
-            ImmutableList.Builder<TableName> list = ImmutableList.builder();
-            while (resultSet.next()) {
-                list.add(JDBCUtil.getSchemaTableName(resultSet));
-            }
-            return list.build();
         }
     }
 }

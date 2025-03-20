@@ -30,10 +30,9 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connectors.clickhouse.resolver.ClickhouseJDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -95,7 +94,7 @@ public class ClickHouseMetadataHandler
 
     public ClickHouseMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new ClickhouseJDBCCaseResolver(ClickHouseConstants.NAME));
     }
 
     @VisibleForTesting
@@ -186,7 +185,9 @@ public class ClickHouseMetadataHandler
         List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
         LOGGER.debug("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
 
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
+        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize);
+
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
     }
 
     @Override
@@ -196,13 +197,6 @@ public class ClickHouseMetadataHandler
         // Gets list of Tables and Views using Information Schema.tables
 
         return ClickHouseUtil.getTables(jdbcConnection, databaseName);
-    }
-
-    @Override
-    protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
-                                                     final String tableName) throws Exception
-    {
-        return ClickHouseUtil.informationSchemaCaseInsensitiveTableMatch(connection, databaseName, tableName);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)
@@ -221,16 +215,7 @@ public class ClickHouseMetadataHandler
     }
 
     @Override
-    public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            LOGGER.debug("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
-        }
-    }
-
-    private Set<String> listDatabaseNames(final Connection jdbcConnection)
+    protected Set<String> listDatabaseNames(final Connection jdbcConnection)
             throws SQLException
     {
         try (ResultSet resultSet = jdbcConnection.createStatement().executeQuery(LIST_SCHEMA_QUERY)) {            
