@@ -127,7 +127,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "WHERE t.object_id = (select object_id from sys.objects o where o.name = ? " +
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
-    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT o.name AS \"table_name\", s.name AS \"table_schem\" FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('U', 'V') and s.name = ? ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT o.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('U', 'V') and s.name = ? ORDER BY TABLE_NAME OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
 
     public SqlServerMetadataHandler(java.util.Map<String, String> configOptions)
     {
