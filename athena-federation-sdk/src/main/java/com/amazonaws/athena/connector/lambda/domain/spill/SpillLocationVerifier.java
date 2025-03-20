@@ -17,12 +17,14 @@
  * limitations under the License.
  * #L%
  */
-
 package com.amazonaws.athena.connector.lambda.domain.spill;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -93,7 +95,7 @@ public class SpillLocationVerifier
                 state = BucketState.INVALID;
             }
             else {
-                throw new RuntimeException("Error while checking bucket ownership for " + bucket, ex);
+                throw new AthenaConnectorException(ex, "Error while checking bucket ownership for " + bucket, ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
             }
         }
         finally {
@@ -110,9 +112,9 @@ public class SpillLocationVerifier
     {
         switch (state) {
             case UNCHECKED:
-                throw new RuntimeException("Bucket state should have been checked already.");
+                throw new AthenaConnectorException("Bucket state should have been checked already.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             case INVALID:
-                throw new RuntimeException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket));
+                throw new AthenaConnectorException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             default:
                 return;
         }
