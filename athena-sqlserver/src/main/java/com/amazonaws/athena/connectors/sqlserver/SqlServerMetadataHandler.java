@@ -99,8 +99,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * (When non-partitioned table have indexes partition_number will be 1, so these rows will be skipped with where condition)
      * table have both index and partition - rows will be returned with different partition_number as we are using distinct in the query.
      */
-    static final String GET_PARTITIONS_QUERY = "select distinct PARTITION_NUMBER from SYS.DM_DB_PARTITION_STATS where object_id = OBJECT_ID(?) and partition_number > 1 "; //'dbo.MyPartitionTable'
-    static final String ROW_COUNT_QUERY = "select count(distinct PARTITION_NUMBER) as row_count from SYS.DM_DB_PARTITION_STATS where object_id = OBJECT_ID(?) and partition_number > 1 ";
+    static final String GET_PARTITIONS_QUERY = "select distinct PARTITION_NUMBER from sys.dm_db_partition_stats where object_id = OBJECT_ID(?) and partition_number > 1 "; //'dbo.MyPartitionTable'
+    static final String ROW_COUNT_QUERY = "select count(distinct PARTITION_NUMBER) as row_count from sys.dm_db_partition_stats where object_id = OBJECT_ID(?) and partition_number > 1 ";
 
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
@@ -127,7 +127,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "WHERE t.object_id = (select object_id from sys.objects o where o.name = ? " +
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
-    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT o.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('U', 'V') and s.name = ? ORDER BY table_name OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT o.name AS \"TABLE_NAME\", s.name AS \"TABLE_SCHEM\" FROM sys.objects o INNER JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('U', 'V') and s.name = ? ORDER BY TABLE_NAME OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;";
 
     public SqlServerMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -423,8 +423,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             throws Exception
     {
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
-                "FROM SYS.COLUMNS C " +
-                "JOIN SYS.TYPES T " +
+                "FROM sys.columns C " +
+                "JOIN sys.types T " +
                 "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
                 "WHERE C.OBJECT_ID=OBJECT_ID(?)";
 
