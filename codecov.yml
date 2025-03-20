@@ -1,0 +1,21 @@
+codecov:
+  # Documentation: https://docs.codecov.com/docs/codecovyml-reference#codecov
+  # Always Validate the file before submitting a PR as follows:
+  # curl --data-binary @codecov.yml https://codecov.io/validate
+  token: ${{ secrets.CODECOV_TOKEN }}
+  branch: master
+coverage:
+  precision: 2
+  round: down
+  range: "70...100" #https://docs.codecov.com/docs/coverage-configuration#section-range
+  status:
+    #https://docs.codecov.com/docs/commit-status
+    project:
+      default:
+        target: auto
+    patch:
+      default:
+        target: auto
+        threshold: 50% # Meaning this will be half of the required total coverage precentage
+
+
