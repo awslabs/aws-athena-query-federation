@@ -268,7 +268,7 @@ public class SnowflakeMetadataHandlerTest
             Block partitions = res.getPartitions();
 
             String actualQueryID = partitions.getFieldReader("queryId").readText().toString();
-            String expectedExportSql = "COPY INTO 's3://testS3Bucket/" + actualQueryID + "/' FROM (SELECT \"day\", \"month\", \"year\", \"preparedStmt\", \"queryId\" FROM \"schema1\".\"table1\"  WHERE ((\"day\" > ?)) AND ((\"month\" > ?)) AND ((\"year\" > ?))) STORAGE_INTEGRATION = defaulttestS3Bucket_integration HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 16777216";
+            String expectedExportSql = "COPY INTO 's3://testS3Bucket/snowflake_data/" + actualQueryID + "/' FROM (SELECT \"day\", \"month\", \"year\", \"preparedStmt\", \"queryId\" FROM \"schema1\".\"table1\"  WHERE ((\"day\" > ?)) AND ((\"month\" > ?)) AND ((\"year\" > ?))) STORAGE_INTEGRATION = defaulttestS3Bucket_integration HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 16777216";
 
             Assert.assertEquals(expectedExportSql, partitions.getFieldReader("preparedStmt").readText().toString());
 
