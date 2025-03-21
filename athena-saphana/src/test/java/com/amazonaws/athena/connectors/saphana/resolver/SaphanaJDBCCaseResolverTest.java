@@ -67,9 +67,9 @@ public class SaphanaJDBCCaseResolverTest extends TestBase
         assertThrows(UnsupportedOperationException.class, () -> saphana.getAdjustedSchemaNameString(mockConnection, schemaName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
         assertThrows(UnsupportedOperationException.class, () -> saphana.getAdjustedTableNameString(mockConnection, schemaName, tableName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
 
-        //default saphana case if no annotation is to upper case, this is for backward compatibility.
+        //if no annotation then return input table name.
         TableName adjustedTableNameObject = saphana.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableName), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name()));
-        assertEquals(new TableName(schemaName.toUpperCase(), tableName.toUpperCase()), adjustedTableNameObject);
+        assertEquals(new TableName(schemaName, tableName), adjustedTableNameObject);
 
         String tableNameAnnotation = "ApPlE@schemaCase=upper&tableCase=lower";
         adjustedTableNameObject = saphana.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableNameAnnotation), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name()));
