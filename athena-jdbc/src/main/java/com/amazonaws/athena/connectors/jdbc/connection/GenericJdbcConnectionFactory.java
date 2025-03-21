@@ -20,15 +20,19 @@
 package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -88,7 +92,19 @@ public class GenericJdbcConnectionFactory
         Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
 
         // create connection
-        return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+        Connection connection = null;
+        try {
+            connection = DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+        }
+        catch (SQLException e) {
+            if (e.getMessage().contains("Name or service not known")) {
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+            }
+            else if (e.getMessage().contains("Incorrect username or password was specified.")) {
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
+            }
+        }
+        return connection;
     }
 
     private String encodeValue(String value)
@@ -97,7 +113,8 @@ public class GenericJdbcConnectionFactory
             return URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
         }
         catch (UnsupportedEncodingException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException("Unsupported Encoding Exception: ",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).errorMessage(ex.getMessage()).build());
         }
     }
 }

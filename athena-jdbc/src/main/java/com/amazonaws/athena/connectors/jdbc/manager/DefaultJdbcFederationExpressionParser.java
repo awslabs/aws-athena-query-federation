@@ -20,8 +20,10 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.commons.lang3.NotImplementedException;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.List;
 
@@ -30,7 +32,8 @@ public class DefaultJdbcFederationExpressionParser extends FederationExpressionP
     @Override
     public String mapFunctionToDataSourceSyntax(FunctionName functionName, ArrowType type, List<String> arguments)
     {
-        throw new NotImplementedException("Subclass does not yet support complex expressions.");
+        throw new AthenaConnectorException("Subclass does not yet support complex expressions.",
+                ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
     }
     
 }
