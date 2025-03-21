@@ -1,8 +1,8 @@
 /*-
  * #%L
- * athena-jdbc
+ * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2019 - 2024 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.connection;
+package com.amazonaws.athena.connectors.hortonworks;
 
-/**
- * JDBC username and password provider.
- */
-public interface JdbcCredentialProvider
+import com.amazonaws.athena.connectors.jdbc.JdbcEnvironmentProperties;
+
+import java.util.Map;
+
+public class HortonworksEnvironmentProperties extends JdbcEnvironmentProperties
 {
-    /**
-     * Retrieves credential for database.
-     *
-     * @return JDBC credential. See {@link JdbcCredential}.
-     */
-    JdbcCredential getCredential();
+    @Override
+    protected String getConnectionStringPrefix(Map<String, String> connectionProperties)
+    {
+        return "hive://jdbc:hive2://";
+    }
 }

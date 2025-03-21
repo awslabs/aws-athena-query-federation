@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -45,6 +46,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.indices.GetDataStreamRequest;
 import org.elasticsearch.client.indices.GetIndexRequest;
@@ -58,13 +60,17 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static java.util.Objects.requireNonNull;
 
 /**
  * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
@@ -75,6 +81,10 @@ public class ElasticsearchMetadataHandler
         extends GlueMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchMetadataHandler.class);
+
+    // regular expression to match the old pattern of having domain name in `DOMAIN_ENDPOINT` field
+    private static final Pattern DOMAIN_NAME_WITH_ENDPOINT_PATTERN = Pattern.compile("^.+=https.*");
+    private static final String DEFAULT_DOMAIN_NAME = "default";
 
     // Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "elasticsearch";
@@ -89,8 +99,19 @@ public class ElasticsearchMetadataHandler
     // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
     // and the value = endpoint.
     private static final String DOMAIN_MAPPING = "domain_mapping";
+
+    // Individual domain endpoint which is associated with a Glue Connection
+    private static final String DOMAIN_ENDPOINT = "domain_endpoint";
+    // Secret Name that provides credentials
+    private static final String SECRET_NAME = "secret_name";
+
+    // credential keys of secret
+    protected static final String SECRET_USERNAME = "username";
+    protected static final String SECRET_PASSWORD = "password";
+
     // A Map of the domain-names and their respective endpoints.
     private Map<String, String> domainMap;
+    private Map<String, DefaultCredentialsProvider> secretMap;
 
     // Env. variable that holds the query timeout period for the Cluster-Health queries.
     private static final String QUERY_TIMEOUT_CLUSTER = "query_timeout_cluster";
@@ -120,12 +141,13 @@ public class ElasticsearchMetadataHandler
     {
         super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
+        this.secretMap = new HashMap<>();
         this.autoDiscoverEndpoint = configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true");
         this.domainMapProvider = new ElasticsearchDomainMapProvider(this.autoDiscoverEndpoint);
-        this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(configOptions.getOrDefault(DOMAIN_MAPPING, "")));
+        this.domainMap = resolveDomainMap(configOptions);
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
-        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, ""));
+        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, "10"));
     }
 
     @VisibleForTesting
@@ -139,15 +161,50 @@ public class ElasticsearchMetadataHandler
         ElasticsearchDomainMapProvider domainMapProvider,
         AwsRestHighLevelClientFactory clientFactory,
         long queryTimeout,
-        Map<String, String> configOptions)
+        Map<String, String> configOptions,
+        boolean simulateGlueConnection)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
+        this.secretMap = new HashMap<>();
         this.domainMapProvider = domainMapProvider;
-        this.domainMap = this.domainMapProvider.getDomainMap(null);
+        this.domainMap = simulateGlueConnection ? resolveDomainMap(configOptions) : this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
         this.queryTimeout = queryTimeout;
+    }
+
+    protected Map<String, String> resolveDomainMap(Map<String, String> config)
+    {
+        String domainEndpoint;
+        if (StringUtils.isNotBlank(config.getOrDefault(DEFAULT_GLUE_CONNECTION, ""))) {
+            String secretName = requireNonNull(config.get(SECRET_NAME), String.format("Glue connection field: '%s' is required for Elastic Search connector", SECRET_NAME));
+            domainEndpoint = requireNonNull(config.get(DOMAIN_ENDPOINT), String.format("Glue connection field: '%s' is required for Elastic Search connector", DOMAIN_ENDPOINT));
+
+            domainEndpoint = appendDomainNameIfNeeded(domainEndpoint);
+            this.secretMap.put(domainEndpoint.split("=")[0], new DefaultCredentialsProvider(getSecret(secretName)));
+        }
+        else {
+            // non-glue connection use case
+            domainEndpoint = config.getOrDefault(DOMAIN_MAPPING, "");
+            // resolve secret as non-glue connection use case can embedded secret name into domain.
+            domainEndpoint = resolveSecrets(domainEndpoint);
+        }
+
+        return domainMapProvider.getDomainMap(domainEndpoint);
+    }
+
+    /*
+     Given glue connection doesn’t support multi domain, domain endpoint does not required a domain name anymore. We will automatically map the one and only domain as `default`
+     */
+    private String appendDomainNameIfNeeded(String domainEndpoint)
+    {
+        if (!DOMAIN_NAME_WITH_ENDPOINT_PATTERN.matcher(domainEndpoint).find()) {
+            logger.info("Glue Connection's `{}` field has no domain mapping, adding `default` as domain name", DOMAIN_ENDPOINT);
+            return DEFAULT_DOMAIN_NAME + "=" + domainEndpoint;
+        }
+
+        return domainEndpoint;
     }
 
     /**
@@ -186,7 +243,11 @@ public class ElasticsearchMetadataHandler
         logger.debug("doListTables: enter - " + request);
 
         String endpoint = getDomainEndpoint(request.getSchemaName());
-        AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+        String domain = request.getSchemaName();
+        DefaultCredentialsProvider creds = secretMap.get(domain);
+        String username = creds != null ? creds.getCredential().getUser() : "";
+        String password = creds != null ? creds.getCredential().getPassword() : "";
+        AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
         // get regular indices from ES, ignore all system indices starting with period `.` (e.g. .kibana, .tasks, etc...)
         Stream<String> indicesStream = client.getAliases()
                 .stream()
@@ -245,8 +306,9 @@ public class ElasticsearchMetadataHandler
         // Supplement GLUE catalog if not present.
         if (schema == null) {
             String index = request.getTableName().getTableName();
-            String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
-            schema = getSchema(index, endpoint);
+            String domain = request.getTableName().getSchemaName();
+            String endpoint = getDomainEndpoint(domain);
+            schema = getSchema(index, endpoint, domain);
         }
 
         return new GetTableResponse(request.getCatalogName(), request.getTableName(),
@@ -293,9 +355,12 @@ public class ElasticsearchMetadataHandler
             domain = request.getTableName().getSchemaName();
             indx = request.getTableName().getTableName();
         }
-
         String endpoint = getDomainEndpoint(domain);
-        AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+
+        DefaultCredentialsProvider creds = secretMap.get(domain);
+        String username = creds != null ? creds.getCredential().getUser() : "";
+        String password = creds != null ? creds.getCredential().getPassword() : "";
+        AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
         // We send index request in case the table name is a data stream, a data stream can contains multiple indices which are created by ES
         // For non data stream, index name is same as table name
         GetIndexResponse indexResponse = client.indices().get(new GetIndexRequest(indx), RequestOptions.DEFAULT);
@@ -303,7 +368,7 @@ public class ElasticsearchMetadataHandler
         Set<Split> splits = Arrays.stream(indexResponse.getIndices())
                 .flatMap(index -> getShardsIDsFromES(client, index) // get all shards for an index.
                         .stream()
-                        .map(shardId -> new Split(makeSpillLocation(request), makeEncryptionKey(), ImmutableMap.of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString(), INDEX_KEY, index))) // make split for each (index + shardId) combination
+                        .map(shardId -> new Split(makeSpillLocation(request), makeEncryptionKey(), ImmutableMap.of(SECRET_USERNAME, username, SECRET_PASSWORD, password, domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString(), INDEX_KEY, index))) // make split for each (index + shardId) combination
                 )
                 .collect(Collectors.toSet());
 
@@ -328,17 +393,21 @@ public class ElasticsearchMetadataHandler
         }
         queryPassthrough.verify(request.getQueryPassthroughArguments());
         String index = request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
-        String endpoint = getDomainEndpoint(request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA));
-        Schema schema = getSchema(index, endpoint);
+        String domain = request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA);
+        String endpoint = getDomainEndpoint(domain);
+        Schema schema = getSchema(index, endpoint, domain);
 
         return new GetTableResponse(request.getCatalogName(), request.getTableName(),
                 (schema == null) ? SchemaBuilder.newBuilder().build() : schema, Collections.emptySet());
     }
 
-    private Schema getSchema(String index, String endpoint)
+    private Schema getSchema(String index, String endpoint, String domain)
     {
         Schema schema;
-        AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+        DefaultCredentialsProvider creds = secretMap.get(domain);
+        String username = creds != null ? creds.getCredential().getUser() : "";
+        String password = creds != null ? creds.getCredential().getPassword() : "";
+        AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
         try {
             Map<String, Object> mappings = client.getMapping(index);
             schema = ElasticsearchSchemaUtils.parseMapping(mappings);
@@ -421,5 +490,10 @@ public class ElasticsearchMetadataHandler
         logger.debug("convertField - fieldName: {}, glueType: {}", fieldName, glueType);
 
         return GlueFieldLexer.lex(fieldName, glueType, glueTypeMapper);
+    }
+
+    public Map<String, String> getDomainMap()
+    {
+        return domainMap;
     }
 }

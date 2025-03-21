@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -51,8 +53,6 @@ import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.athena.connectors.jdbc.connection.RdsSecretsCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
@@ -97,6 +97,7 @@ public abstract class JdbcRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
+    private static final String CLICKHOUSE_DB = "clickhouse";
 
     protected final JdbcQueryPassthrough queryPassthrough = new JdbcQueryPassthrough();
 
@@ -128,11 +129,11 @@ public abstract class JdbcRecordHandler
         return jdbcConnectionFactory;
     }
 
-    protected JdbcCredentialProvider getCredentialProvider()
+    protected CredentialsProvider getCredentialProvider()
     {
         final String secretName = this.databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
-            return new RdsSecretsCredentialProvider(getSecret(secretName));
+            return new DefaultCredentialsProvider(getSecret(secretName));
         }
 
         return null;
@@ -145,7 +146,13 @@ public abstract class JdbcRecordHandler
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
         try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
-            connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            String databaseProductName = connection.getMetaData().getDatabaseProductName();
+
+            // clickhouse does not support disabling auto-commit
+            if (!CLICKHOUSE_DB.equalsIgnoreCase(databaseProductName)) {
+                connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            }
+
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -172,7 +179,10 @@ public abstract class JdbcRecordHandler
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
-                connection.commit();
+                // clickhouse does not support commit/rollback, so skip commit() for clickhouse
+                if (!CLICKHOUSE_DB.equalsIgnoreCase(databaseProductName)) {
+                    connection.commit();
+                }
             }
         }
     }

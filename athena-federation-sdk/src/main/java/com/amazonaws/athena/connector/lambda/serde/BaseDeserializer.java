@@ -19,12 +19,15 @@
  */
 package com.amazonaws.athena.connector.lambda.serde;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -236,11 +239,11 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements 
     {
         jparser.nextToken();
         if (jparser.getCurrentToken() != JsonToken.FIELD_NAME) {
-            throw new IllegalStateException("Expected field name token but got " + jparser.getCurrentToken());
+            throw new AthenaConnectorException("Expected field name token but got " + jparser.getCurrentToken(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         String fieldNameToken = jparser.getCurrentName();
         if (expectedFieldName != null && !expectedFieldName.equals(fieldNameToken)) {
-            throw new IllegalStateException("Unexpected field[" + fieldNameToken + "] while expecting[" + expectedFieldName + "]");
+            throw new AthenaConnectorException("Unexpected field[" + fieldNameToken + "] while expecting[" + expectedFieldName + "]", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -254,7 +257,7 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements 
             throws IOException
     {
         if (!JsonToken.START_OBJECT.equals(token)) {
-            throw new IllegalStateException("Expected " + JsonToken.START_OBJECT + " found " + token.asString());
+            throw new AthenaConnectorException("Expected " + JsonToken.START_OBJECT + " found " + token.asString(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -268,7 +271,7 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements 
             throws IOException
     {
         if (!JsonToken.END_OBJECT.equals(jparser.nextToken())) {
-            throw new IllegalStateException("Expected " + JsonToken.END_OBJECT + " found " + jparser.getText());
+            throw new AthenaConnectorException("Expected " + JsonToken.END_OBJECT + " found " + jparser.getText(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -282,7 +285,7 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements 
             throws IOException
     {
         if (!JsonToken.START_ARRAY.equals(jparser.nextToken())) {
-            throw new IllegalStateException("Expected " + JsonToken.START_ARRAY + " found " + jparser.getText());
+            throw new AthenaConnectorException("Expected " + JsonToken.START_ARRAY + " found " + jparser.getText(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -296,7 +299,7 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements 
             throws IOException
     {
         if (!JsonToken.START_OBJECT.equals(jparser.nextToken())) {
-            throw new IllegalStateException("Expected " + JsonToken.START_OBJECT + " found " + jparser.getText());
+            throw new AthenaConnectorException("Expected " + JsonToken.START_OBJECT + " found " + jparser.getText(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -335,7 +338,7 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements 
         while (true) {
             JsonToken t = jparser.nextToken();
             if (t == null) {
-                throw new IllegalStateException("Expected " + JsonToken.END_OBJECT + " found " + jparser.getText());
+                throw new AthenaConnectorException("Expected " + JsonToken.END_OBJECT + " found " + jparser.getText(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
             if (t.isStructStart()) {
                 ++open;

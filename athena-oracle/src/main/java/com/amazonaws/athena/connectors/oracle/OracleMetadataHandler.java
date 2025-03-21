@@ -56,6 +56,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import oracle.jdbc.OracleTypes;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -72,9 +73,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -89,10 +90,10 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.S
 public class OracleMetadataHandler
         extends JdbcMetadataHandler
 {
-    static final String GET_PARTITIONS_QUERY = "Select DISTINCT PARTITION_NAME FROM USER_TAB_PARTITIONS where table_name= ?";
-    static final String BLOCK_PARTITION_COLUMN_NAME = "PARTITION_NAME";
+    static final String GET_PARTITIONS_QUERY = "Select DISTINCT PARTITION_NAME as \"partition_name\" FROM USER_TAB_PARTITIONS where table_name= ?";
+    static final String BLOCK_PARTITION_COLUMN_NAME = "PARTITION_NAME".toLowerCase();
     static final String ALL_PARTITIONS = "0";
-    static final String PARTITION_COLUMN_NAME = "PARTITION_NAME";
+    static final String PARTITION_COLUMN_NAME = "PARTITION_NAME".toLowerCase();
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     private static final String COLUMN_NAME = "COLUMN_NAME";
@@ -154,15 +155,17 @@ public class OracleMetadataHandler
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
-                getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-          List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getTableName().toUpperCase());
+            TableName casedTableName = getTableLayoutRequest.getTableName();
+            LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), casedTableName.getSchemaName(),
+                casedTableName.getTableName());
+            List<String> parameters = Arrays.asList(OracleCaseResolver.convertToLiteral(casedTableName.getTableName())); 
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
-                 ResultSet resultSet = preparedStatement.executeQuery()) {
+                ResultSet resultSet = preparedStatement.executeQuery()) {
                 // Return a single partition if no partitions defined
                 if (!resultSet.next()) {
                     blockWriter.writeRows((Block block, int rowNum) -> {
+                        LOGGER.debug("Parameters: " + BLOCK_PARTITION_COLUMN_NAME + " " + rowNum + " " + ALL_PARTITIONS);
                         block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
                         LOGGER.info("Adding partition {}", ALL_PARTITIONS);
                         //we wrote 1 row so we return 1
@@ -251,7 +254,8 @@ public class OracleMetadataHandler
         int t = token != null ? Integer.parseInt(token) : 0;
 
         LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
-        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
+        String casedSchemaName = OracleCaseResolver.getAdjustedSchemaName(connection, listTablesRequest.getSchemaName(), configOptions);
+        List<TableName> paginatedTables = getPaginatedTables(connection, casedSchemaName, t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, Integer.toString(t + pageSize));
     }
@@ -305,7 +309,7 @@ public class OracleMetadataHandler
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
+            TableName tableName = OracleCaseResolver.getAdjustedTableObjectName(connection, getTableRequest.getTableName(), configOptions);
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
@@ -348,86 +352,66 @@ public class OracleMetadataHandler
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
-        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            boolean found = false;
-            HashMap<String, String> hashMap = new HashMap<String, String>();
-            /**
-             * Getting original data type from oracle table for conversion
-             */
-            try
-                    (PreparedStatement stmt = connection.prepareStatement("select COLUMN_NAME ,DATA_TYPE from USER_TAB_COLS where  table_name =?")) {
-                stmt.setString(1, tableName.getTableName().toUpperCase());
-                ResultSet dataTypeResultSet = stmt.executeQuery();
-                while (dataTypeResultSet.next()) {
-                    hashMap.put(dataTypeResultSet.getString(COLUMN_NAME).trim(), dataTypeResultSet.getString("DATA_TYPE").trim());
-                }
-                while (resultSet.next()) {
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                            resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"),
-                            configOptions);
-                    String columnName = resultSet.getString(COLUMN_NAME);
-                    /** Handling TIMESTAMP,DATE, 0 Precesion**/
-                    if (columnType != null && columnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
-                        String[] data = columnType.toString().split(",");
-                        if (data[0].contains("0") || data[1].contains("0")) {
-                            columnType = Types.MinorType.BIGINT.getType();
-                        }
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
+            while (resultSet.next()) {
+                Optional<ArrowType> arrowColumnType = JdbcArrowTypeConverter.toArrowType(
+                        resultSet.getInt("DATA_TYPE"),
+                        resultSet.getInt("COLUMN_SIZE"),
+                        resultSet.getInt("DECIMAL_DIGITS"),
+                        configOptions);
 
-                        /** Handling negative scale issue */
-                        if (Integer.parseInt(data[1].trim().replace(")", "")) < 0.0) {
-                            columnType = Types.MinorType.VARCHAR.getType();
-                        }
-                    }
+                String columnName = resultSet.getString(COLUMN_NAME);
+                int jdbcColumnType = resultSet.getInt("DATA_TYPE");
+                int precision = resultSet.getInt("COLUMN_SIZE");
+                int scale = resultSet.getInt("DECIMAL_DIGITS");
 
-                    String dataType = hashMap.get(columnName);
-                    LOGGER.debug("columnName: " + columnName);
-                    LOGGER.debug("dataType: " + dataType);
-                    /**
-                     * below data type conversion  doing since framework not giving appropriate
-                     * data types for oracle data types..
-                     */
-                    /**
-                     * Converting oracle date data type into DATEDAY MinorType
-                     */
-                    if (dataType != null && (dataType.contains("date") || dataType.contains("DATE"))) {
-                        columnType = Types.MinorType.DATEDAY.getType();
-                    }
-                    /**
-                     * Converting oracle NUMBER data type into BIGINT  MinorType
-                     */
-                    if (dataType != null && (dataType.contains("NUMBER")) && columnType.getTypeID().toString().equalsIgnoreCase("Utf8")) {
-                        columnType = Types.MinorType.BIGINT.getType();
-                    }
+                LOGGER.debug("columnName: {}", columnName);
+                LOGGER.debug("jdbcColumnType: {}", jdbcColumnType);
+                LOGGER.debug("precision: {}", precision);
+                LOGGER.debug("scale: {}", scale);
+                LOGGER.debug("arrowColumnType: {}", arrowColumnType);
 
-                    /**
-                     * Converting oracle TIMESTAMP data type into DATEMILLI  MinorType
-                     */
-                    if (dataType != null && (dataType.contains("TIMESTAMP"))
-                    ) {
-                        columnType = Types.MinorType.DATEMILLI.getType();
-                    }
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
+                /**
+                 * below data type conversion doing since a framework not giving appropriate
+                 * data types for oracle data types.
+                 */
 
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        found = true;
-                    }
-                    else {
-                        LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                /** Convert 0 scale Decimals to integer **/
+                if (arrowColumnType.isPresent() && arrowColumnType.get().getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
+                    String[] data = arrowColumnType.toString().split(",");
+                    if (Integer.parseInt(data[1].trim()) <= 0) {
+                        arrowColumnType = Optional.of(Types.MinorType.BIGINT.getType());
                     }
                 }
+
+                /**
+                 * Converting an Oracle date data type into DATEDAY MinorType
+                 */
+                if (jdbcColumnType == java.sql.Types.TIMESTAMP && precision == 7) {
+                    arrowColumnType = Optional.of(Types.MinorType.DATEDAY.getType());
+                }
+
+                /**
+                 * Converting an Oracle TIMESTAMP_WITH_TZ & TIMESTAMP_WITH_LOCAL_TZ data type into DATEMILLI MinorType
+                 */
+                if (jdbcColumnType == OracleTypes.TIMESTAMPLTZ || jdbcColumnType == OracleTypes.TIMESTAMPTZ) {
+                    arrowColumnType = Optional.of(Types.MinorType.DATEMILLI.getType());
+                }
+
+                if (arrowColumnType.isPresent() && !SupportedTypes.isSupported(arrowColumnType.get())) {
+                    LOGGER.warn("getSchema: Unable to map type JDBC type [{}] for column[{}] to a supported type, attempted {}", jdbcColumnType, columnName, arrowColumnType);
+                    arrowColumnType = Optional.of(Types.MinorType.VARCHAR.getType());
+                }
+
+                if (arrowColumnType.isEmpty()) {
+                    LOGGER.warn("getSchema: column[{}]  type is null setting it to varchar | JDBC Type is [{}]", columnName, jdbcColumnType);
+                    arrowColumnType = Optional.of(Types.MinorType.VARCHAR.getType());
+                }
+
+                LOGGER.debug("new arrowColumnType: {}", arrowColumnType);
+                schemaBuilder.addField(FieldBuilder.newBuilder(columnName, arrowColumnType.get()).build());
             }
-            if (!found) {
-                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
-            }
+
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             LOGGER.debug("Oracle Table Schema" + schemaBuilder.toString());
             return schemaBuilder.build();

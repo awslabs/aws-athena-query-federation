@@ -18,6 +18,9 @@ package com.amazonaws.athena.connectors.cloudera;/*-
  * #L%
  */
 
+import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.StaticCredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.*;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
@@ -32,13 +35,13 @@ import java.util.Map;
 public class HiveJdbcConnectionFactoryTest {
     @Test(expected = SQLException.class)
     public void getConnectionTest() throws Exception {
-        JdbcCredential expectedCredential = new JdbcCredential("hive", "hive");
-        JdbcCredentialProvider jdbcCredentialProvider = new StaticJdbcCredentialProvider(expectedCredential);
+        DefaultCredentials expectedCredential = new DefaultCredentials("hive", "hive");
+        CredentialsProvider credentialsProvider = new StaticCredentialsProvider(expectedCredential);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
                 "hive2://jdbc:hive2://23.21.178.97:10000/athena;AuthMech=3;UID=hive;PWD=''", "hive");
         Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
         DatabaseConnectionInfo DatabaseConnectionInfo = new DatabaseConnectionInfo(HiveConstants.HIVE_DRIVER_CLASS,HiveConstants.HIVE_DEFAULT_PORT);
-        Connection connection =  new HiveJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,DatabaseConnectionInfo).getConnection(jdbcCredentialProvider);
+        Connection connection =  new HiveJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,DatabaseConnectionInfo).getConnection(credentialsProvider);
         String originalURL = connection.getMetaData().getURL();
         Driver drv = DriverManager.getDriver(originalURL);
         String driverClass = drv.getClass().getName();

@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.connection;
+package com.amazonaws.athena.connector.credentials;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -36,30 +36,37 @@ import java.util.Map;
  * }
  * </code>
  */
-public class RdsSecretsCredentialProvider
-        implements JdbcCredentialProvider
+public class DefaultCredentialsProvider
+        implements CredentialsProvider
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RdsSecretsCredentialProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCredentialsProvider.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private final JdbcCredential jdbcCredential;
+    private final DefaultCredentials defaultCredentials;
 
-    public RdsSecretsCredentialProvider(final String secretString)
+    public DefaultCredentialsProvider(final String secretString)
     {
         Map<String, String> rdsSecrets;
         try {
-            rdsSecrets = OBJECT_MAPPER.readValue(secretString, HashMap.class);
+            Map<String, String> originalMap = OBJECT_MAPPER.readValue(secretString, HashMap.class);
+
+            rdsSecrets = new HashMap<>();
+            for (Map.Entry<String, String> entry : originalMap.entrySet()) {
+                if (entry.getKey().equalsIgnoreCase("username") || entry.getKey().equalsIgnoreCase("password")) {
+                    rdsSecrets.put(entry.getKey().toLowerCase(), entry.getValue());
+                }
+            }
         }
         catch (IOException ioException) {
             throw new RuntimeException("Could not deserialize RDS credentials into HashMap", ioException);
         }
 
-        this.jdbcCredential = new JdbcCredential(rdsSecrets.get("username"), rdsSecrets.get("password"));
+        this.defaultCredentials = new DefaultCredentials(rdsSecrets.get("username"), rdsSecrets.get("password"));
     }
 
     @Override
-    public JdbcCredential getCredential()
+    public DefaultCredentials getCredential()
     {
-        return this.jdbcCredential;
+        return this.defaultCredentials;
     }
 }

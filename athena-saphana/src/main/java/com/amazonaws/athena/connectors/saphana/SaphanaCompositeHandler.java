@@ -35,6 +35,6 @@ public class SaphanaCompositeHandler
 {
     public SaphanaCompositeHandler()
     {
-        super(new SaphanaMetadataHandler(System.getenv()), new SaphanaRecordHandler(System.getenv()));
+        super(new SaphanaMetadataHandler(new SaphanaEnvironmentProperties().createEnvironment()), new SaphanaRecordHandler(new SaphanaEnvironmentProperties().createEnvironment()));
     }
 }

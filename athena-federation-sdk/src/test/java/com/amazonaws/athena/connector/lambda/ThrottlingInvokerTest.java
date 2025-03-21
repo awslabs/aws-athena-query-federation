@@ -20,14 +20,17 @@
 package com.amazonaws.athena.connector.lambda;
 
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import org.junit.Test;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
-import java.sql.Time;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -87,7 +90,7 @@ public class ThrottlingInvokerTest
         assertEquals(199, invoker.getDelay());
     }
 
-    @Test(expected = TimeoutException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void invokeWithThrottleTimeout()
             throws TimeoutException
     {
@@ -99,10 +102,10 @@ public class ThrottlingInvokerTest
                 .withFilter((Exception ex) -> ex instanceof FederationThrottleException)
                 .build();
 
-        invoker.invoke(() -> {throw new FederationThrottleException();}, 2_000);
+        invoker.invoke(() -> {throw new AthenaConnectorException("Throttling error", ErrorDetails.builder().errorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString()).build());}, 2_000);
     }
 
-    @Test(expected = FederationThrottleException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void invokeWithThrottleNoSpill()
             throws TimeoutException
     {
@@ -117,6 +120,6 @@ public class ThrottlingInvokerTest
                 .build();
 
         when(spiller.spilled()).thenReturn(false);
-        invoker.invoke(() -> {throw new RuntimeException();}, 2_000);
+        invoker.invoke(() -> {throw new AthenaConnectorException("Throttling error", ErrorDetails.builder().errorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString()).build());}, 2_000);
     }
 }

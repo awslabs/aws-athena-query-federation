@@ -25,7 +25,7 @@ Parameters:
     Description: 'Lambda memory in MB (min 128 - 3008 max).'
     Default: 3008
     Type: Number
-  SecretNameOrPrefix:
+  SecretName:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. database-*).'
     Type: String
   PermissionsBoundaryARN:
@@ -54,5 +54,5 @@ Resources:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretName}'
           Version: '2012-10-17'

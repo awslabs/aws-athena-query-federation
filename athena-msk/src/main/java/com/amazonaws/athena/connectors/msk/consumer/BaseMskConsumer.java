@@ -85,6 +85,10 @@ public abstract class BaseMskConsumer<T> implements MskConsumer
             }
 
             for (ConsumerRecord<String, T> record : records) {
+                if (record == null || record.value() == null) {
+                    LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
+                    return;
+                }
                 processRecord(spiller, splitParameters, record);
 
                 if (record.offset() >= splitParameters.endOffset) {

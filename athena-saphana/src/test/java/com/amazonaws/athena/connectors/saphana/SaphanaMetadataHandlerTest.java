@@ -31,7 +31,7 @@ import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -53,6 +53,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
+import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -68,7 +69,7 @@ public class SaphanaMetadataHandlerTest
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
     private BlockAllocator blockAllocator;
-    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PART_ID", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
 
 
     @Before
@@ -77,7 +78,7 @@ public class SaphanaMetadataHandlerTest
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
@@ -90,7 +91,7 @@ public class SaphanaMetadataHandlerTest
     public void getPartitionSchema()
     {
         Assert.assertEquals(SchemaBuilder.newBuilder()
-                        .addField(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
+                        .addField(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
                 this.saphanaMetadataHandler.getPartitionSchema("testCatalogName"));
     }
 
@@ -102,14 +103,14 @@ public class SaphanaMetadataHandlerTest
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
         Schema partitionSchema = this.saphanaMetadataHandler.getPartitionSchema("testCatalogName");
-        Set<String> partitionCols = new HashSet<>(Arrays.asList("PART_ID")); //partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        Set<String> partitionCols = new HashSet<>(Arrays.asList(BLOCK_PARTITION_COLUMN_NAME)); //partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
 
         Mockito.when(this.connection.prepareStatement(SaphanaConstants.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {"PART_ID"};
+        String[] columns = {BLOCK_PARTITION_COLUMN_NAME};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{"p0"}, {"p1"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -123,10 +124,10 @@ public class SaphanaMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Arrays.asList("[PART_ID : p0]", "[PART_ID : p1]"));
+        Assert.assertEquals(expectedValues, Arrays.asList("[part_id : p0]", "[part_id : p1]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
@@ -149,7 +150,7 @@ public class SaphanaMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(SaphanaConstants.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {"PART_ID"};
+        String[] columns = {BLOCK_PARTITION_COLUMN_NAME};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -165,10 +166,10 @@ public class SaphanaMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Collections.singletonList("[PART_ID : 0]"));
+        Assert.assertEquals(expectedValues, Collections.singletonList("[part_id : 0]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
@@ -186,7 +187,7 @@ public class SaphanaMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
         SaphanaMetadataHandler saphanaMetadataHandler = new SaphanaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 
@@ -203,7 +204,7 @@ public class SaphanaMetadataHandlerTest
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
 
-        String[] columns = {SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME};
+        String[] columns = {BLOCK_PARTITION_COLUMN_NAME};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{"p0"}, {"p1"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -224,8 +225,8 @@ public class SaphanaMetadataHandlerTest
         GetSplitsResponse getSplitsResponse = this.saphanaMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME, "p0"));
-        expectedSplits.add(Collections.singletonMap(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME, "p1"));
+        expectedSplits.add(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "p0"));
+        expectedSplits.add(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "p1"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -245,7 +246,7 @@ public class SaphanaMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(SaphanaConstants.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {"PART_ID"};
+        String[] columns = {BLOCK_PARTITION_COLUMN_NAME};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{"p0"}, {"p1"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -260,7 +261,7 @@ public class SaphanaMetadataHandlerTest
         GetSplitsResponse getSplitsResponse = this.saphanaMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap("PART_ID", "p1"));
+        expectedSplits.add(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "p1"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -279,7 +280,7 @@ public class SaphanaMetadataHandlerTest
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
 
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
@@ -339,7 +340,7 @@ public class SaphanaMetadataHandlerTest
         GetSplitsResponse getSplitsResponse = this.saphanaMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap(SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME, "0"));
+        expectedSplits.add(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "0"));
 
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
 

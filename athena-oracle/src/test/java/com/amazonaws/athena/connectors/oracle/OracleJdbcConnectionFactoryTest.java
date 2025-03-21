@@ -21,9 +21,9 @@ package com.amazonaws.athena.connectors.oracle;
 
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredential;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.athena.connectors.jdbc.connection.StaticJdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.StaticCredentialsProvider;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,12 +36,12 @@ public class OracleJdbcConnectionFactoryTest {
 
     @Test(expected = RuntimeException.class)
     public void getConnectionTest() throws SQLException {
-        JdbcCredential expectedCredential = new JdbcCredential("test", "test");
-        JdbcCredentialProvider jdbcCredentialProvider = new StaticJdbcCredentialProvider(expectedCredential);
+        DefaultCredentials expectedCredential = new DefaultCredentials("test", "test");
+        CredentialsProvider credentialsProvider = new StaticCredentialsProvider(expectedCredential);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", OracleConstants.ORACLE_NAME,
                 "oracle://jdbc:oracle:thin:username/password@//127.0.0.1:1521/orcl", "test");
         DatabaseConnectionInfo DatabaseConnectionInfo = new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS,OracleConstants.ORACLE_DEFAULT_PORT);
-        Connection connection =  new OracleJdbcConnectionFactory(databaseConnectionConfig, DatabaseConnectionInfo).getConnection(jdbcCredentialProvider);
+        Connection connection =  new OracleJdbcConnectionFactory(databaseConnectionConfig, DatabaseConnectionInfo).getConnection(credentialsProvider);
         String originalURL = connection.getMetaData().getURL();
         Driver drv = DriverManager.getDriver(originalURL);
         String driverClass = drv.getClass().getName();

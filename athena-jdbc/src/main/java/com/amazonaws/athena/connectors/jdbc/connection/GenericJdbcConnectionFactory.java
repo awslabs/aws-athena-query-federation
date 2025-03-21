@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +46,7 @@ public class GenericJdbcConnectionFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericJdbcConnectionFactory.class);
 
-    private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@-]+})";
+    private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@!-]+})";
     public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
     private final DatabaseConnectionInfo databaseConnectionInfo;
@@ -68,16 +69,16 @@ public class GenericJdbcConnectionFactory
     }
 
     @Override
-    public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
+    public Connection getConnection(final CredentialsProvider credentialsProvider)
             throws Exception
     {
         final String derivedJdbcString;
-        if (jdbcCredentialProvider != null) {
+        if (credentialsProvider != null) {
             Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
             derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
 
-            jdbcProperties.put("user", jdbcCredentialProvider.getCredential().getUser());
-            jdbcProperties.put("password", jdbcCredentialProvider.getCredential().getPassword());
+            jdbcProperties.put("user", credentialsProvider.getCredential().getUser());
+            jdbcProperties.put("password", credentialsProvider.getCredential().getPassword());
         }
         else {
             derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();

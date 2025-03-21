@@ -78,15 +78,16 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
+import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 
 public class Db2MetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Db2MetadataHandler.class);
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
     static final String PARTITIONING_COLUMN = "PARTITIONING_COLUMN";
     /**
      * DB2 has max number of partition 32,000
@@ -471,7 +472,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                 }
 
                 while (resultSet.next()) {
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                    Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                             resultSet.getInt("DATA_TYPE"),
                             resultSet.getInt("COLUMN_SIZE"),
                             resultSet.getInt("DECIMAL_DIGITS"),
@@ -484,27 +485,27 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                     If arrow type is struct then convert to VARCHAR, because struct is
                     considered as Unhandled type by JdbcRecordHandler's makeExtractor method.
                      */
-                    if (columnType != null && columnType.getTypeID().name().equalsIgnoreCase("Struct")) {
-                        columnType = Types.MinorType.VARCHAR.getType();
+                    if (columnType.isPresent() && columnType.get().getTypeID().name().equalsIgnoreCase("Struct")) {
+                        columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     }
 
                     /*
                      * Converting REAL, DOUBLE, DECFLOAT data types into FLOAT8 since framework is unable to map it by default
                      */
                     if ("real".equalsIgnoreCase(typeName) || "double".equalsIgnoreCase(typeName) || "decfloat".equalsIgnoreCase(typeName)) {
-                        columnType = Types.MinorType.FLOAT8.getType();
+                        columnType = Optional.of(Types.MinorType.FLOAT8.getType());
                     }
 
                     /*
                      * converting into VARCHAR for non supported data types.
                      */
-                    if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
+                    if (columnType.isEmpty() || !SupportedTypes.isSupported(columnType.get())) {
+                        columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     }
 
                     LOGGER.debug("columnType: " + columnType);
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                         found = true;
                     }
                     else {

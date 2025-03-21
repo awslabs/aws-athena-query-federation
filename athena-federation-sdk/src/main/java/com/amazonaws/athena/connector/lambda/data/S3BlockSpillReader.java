@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.data;
  */
 
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.BlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
@@ -30,6 +31,8 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -75,7 +78,7 @@ public class S3BlockSpillReader
             return block;
         }
         catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         finally {
             if (responseStream != null) {
@@ -110,7 +113,7 @@ public class S3BlockSpillReader
             return blockCrypto.decrypt(key, ByteStreams.toByteArray(responseStream));
         }
         catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         finally {
             if (responseStream != null) {
