@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.saphana.resolver;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
