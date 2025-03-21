@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -57,6 +58,8 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
@@ -239,7 +242,8 @@ public class PostGreSqlMetadataHandler
                     splits.add(splitBuilder.build());
 
                     if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
-                        throw new RuntimeException("Max splits supported with splitter " + MAX_SPLITS_PER_REQUEST);
+                        throw new AthenaConnectorException("Max splits supported with splitter " + MAX_SPLITS_PER_REQUEST,
+                                 ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                     }
 
                     splitterUsed = true;
@@ -309,7 +313,8 @@ public class PostGreSqlMetadataHandler
             if (resultSet.next()) {
                 resolvedName = resultSet.getString("table_name");
                 if (resultSet.next()) {
-                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
+                    throw new AthenaConnectorException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName),
+                            ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                 }
                 LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
             }
@@ -349,7 +354,8 @@ public class PostGreSqlMetadataHandler
     {
         String resolvedSchemaName = caseInsensitiveSchemaResolver(connection, databaseName);
         if (resolvedSchemaName == null) {
-            throw new RuntimeException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName));
+            throw new AthenaConnectorException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName),
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
         }
 
         String resolvedTableName;
@@ -362,7 +368,8 @@ public class PostGreSqlMetadataHandler
             preparedStatement = getMaterializedViewOrExternalTable(connection, tableName, resolvedSchemaName);
             resolvedTableName = caseInsensitiveNameResolver(preparedStatement, tableName, resolvedSchemaName);
             if (resolvedTableName == null) {
-                throw new RuntimeException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName));
+                throw new AthenaConnectorException(String.format("During Case Insensitive look up could not find '%s' in Database '%s'", tableName, resolvedSchemaName),
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
         }
         return new TableName(resolvedSchemaName, resolvedTableName);
