@@ -20,6 +20,10 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
@@ -60,11 +64,11 @@ public class LocalKeyFactory
             return future.get(1000, TimeUnit.MILLISECONDS);
         }
         catch (TimeoutException ex) {
-            throw new RuntimeException("Attempt to generate key took too long. There may be an issue where your platform does not have enough entropy in /dev/random. Consider using KmsKeyFactory instead", ex);
+            throw new AthenaConnectorException(ex, "Attempt to generate key took too long. There may be an issue where your platform does not have enough entropy in /dev/random. Consider using KmsKeyFactory instead", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString()).build());
         }
         catch (Exception ex) {
             // Rethrow unchecked because the underlying interface doesn't declare any throws
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         finally {
             future.cancel(true);

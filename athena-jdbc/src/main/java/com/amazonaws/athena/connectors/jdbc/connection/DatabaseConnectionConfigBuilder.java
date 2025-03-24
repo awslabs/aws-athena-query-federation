@@ -19,8 +19,11 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -115,7 +118,8 @@ public class DatabaseConnectionConfigBuilder
                 numberOfCatalogs++; // Mux is not supported with glue. Do not count
             }
             if (numberOfCatalogs > MUX_CATALOG_LIMIT) {
-                throw new RuntimeException("Too many database instances in mux. Max supported is " + MUX_CATALOG_LIMIT);
+                throw new AthenaConnectorException("Too many database instances in mux. Max supported is " + MUX_CATALOG_LIMIT,
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
         }
 
@@ -132,7 +136,8 @@ public class DatabaseConnectionConfigBuilder
             jdbcConnectionString = m.group(2);
         }
         else {
-            throw new RuntimeException("Invalid connection String for Catalog " + catalogName);
+            throw new AthenaConnectorException("Invalid connection String for Catalog " + catalogName,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         Validate.notBlank(dbType, "Database type must not be blank.");

@@ -19,10 +19,13 @@
  */
 package com.amazonaws.athena.connector.lambda.serde;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.google.common.collect.ImmutableMap;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.util.Map;
@@ -59,7 +62,7 @@ public class DelegatingDeserializer<T> extends BaseDeserializer<T>
             return delegateSerDe.doTypedDeserialize(jparser, ctxt);
         }
         else {
-            throw new IllegalStateException("No SerDe configured for " + type);
+            throw new AthenaConnectorException("No SerDe configured for " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
