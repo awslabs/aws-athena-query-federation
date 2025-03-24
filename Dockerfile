@@ -78,7 +78,7 @@ COPY \
   athena-vertica/target/athena-vertica-${VERSION}.jar \
   ${LAMBDA_TASK_ROOT}/
 
-# Run a shell loop to iterate over all jar files and extract each one.
-RUN for jar in ${LAMBDA_TASK_ROOT}/*.jar; do \
-      jar xf "$jar" && rm -f "$jar"; \
+# Run a shell loop to iterate over all jar/zip files and extract each one.
+RUN for file in ${LAMBDA_TASK_ROOT}/*.jar ${LAMBDA_TASK_ROOT}/*.zip; do \
+      jar xf "$file" && rm -f "$file"; \
 done
