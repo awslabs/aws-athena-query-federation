@@ -355,6 +355,12 @@ public class VerticaMetadataHandlerTest extends TestBase
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
 
         logger.info("doGetSplits: req[{}]", req);
+        doGetSplitsFunctionTest(req);
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket/testWithFolderPath");
+        doGetSplitsFunctionTest(req);
+    }
+
+    private void doGetSplitsFunctionTest(GetSplitsRequest req) {
         MetadataResponse rawResponse = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
         assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
