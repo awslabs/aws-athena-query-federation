@@ -9,7 +9,7 @@ ARG JAVA_TOOL_OPTIONS=""
 ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
 
 # Install necessary tools
-RUN yum update -y && yum install -y curl perl openssl-1.0.2k-24.amzn2.0.14
+RUN yum update -y && yum install -y curl perl openssl-1.0.2k-24.amzn2.0.14 openssl-snapsafe-libs
 
 ENV truststore=${LAMBDA_TASK_ROOT}/rds-truststore.jks
 ENV storepassword=federationStorePass
