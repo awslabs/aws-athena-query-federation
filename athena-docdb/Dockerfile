@@ -12,10 +12,10 @@ ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
 RUN yum update -y && yum install -y curl perl openssl-1.0.2k-24.amzn2.0.14 openssl-snapsafe-libs
 
 # Copy function code and runtime dependencies from Maven layout
-COPY target/athena-docdb-2022.47.1.jar ${LAMBDA_TASK_ROOT}
+COPY target/athena-docdb-2025.12.1.jar ${LAMBDA_TASK_ROOT}
 
 # Unpack the jar
-RUN jar xf athena-docdb-2022.47.1.jar
+RUN jar xf athena-docdb-2025.12.1.jar
 
 # Set up environment variables
 ENV truststore=${LAMBDA_TASK_ROOT}/rds-truststore.jks
