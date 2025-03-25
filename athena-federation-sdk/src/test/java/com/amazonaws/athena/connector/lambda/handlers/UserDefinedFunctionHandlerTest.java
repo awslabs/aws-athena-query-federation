@@ -29,16 +29,25 @@ import com.amazonaws.athena.connector.lambda.data.UnitTestBlockUtils;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
+import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
+import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -56,6 +65,8 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +76,9 @@ import static com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType.
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 public class UserDefinedFunctionHandlerTest
 {
@@ -108,6 +121,231 @@ public class UserDefinedFunctionHandlerTest
             int val = (int) UnitTestBlockUtils.getValue(fieldReader, pos);
             int expected = handler.test_scalar_udf(pos + 100, pos + 100);
             assertEquals(expected, val);
+        }
+    }
+
+    @Test
+    public void invocationWithTinyIntType()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                Byte.class,
+                "test_tiny_int",
+                true,
+                Byte.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            byte val = (byte) UnitTestBlockUtils.getValue(fieldReader, pos);
+            byte expected = handler.test_tiny_int((byte) (pos + 1));
+            assertEquals(expected, val);
+        }
+    }
+
+    @Test
+    public void invocationWithSmallIntType()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                Short.class,
+                "test_small_int",
+                true,
+                Short.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            short val = (short) UnitTestBlockUtils.getValue(fieldReader, pos);
+            short expected = handler.test_small_int((short) (pos + 1));
+            assertEquals(expected, val);
+        }
+    }
+
+    @Test
+    public void invocationWithFloat4Type()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Float.class, "test_float4", true, Float.class);
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            float val = fieldReader.readFloat();
+            float expected = handler.test_float4((float) (pos + 100.1));
+            assertEquals(expected, val, 0.0001); // Float comparison with precision
+        }
+    }
+
+    @Test
+    public void invocationWithFloat8Type()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                Double.class,
+                "test_float8",
+                true,
+                Double.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            double val = (double) UnitTestBlockUtils.getValue(fieldReader, pos);
+            double expected = handler.test_float8(pos + 0.5);
+            assertEquals(expected, val, 0.0001); // Allowing a small delta for floating-point precision
+        }
+    }
+
+    @Test
+    public void invocationWithBitType()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                Boolean.class,
+                "test_bit",
+                true,
+                Boolean.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            boolean val = (boolean) UnitTestBlockUtils.getValue(fieldReader, pos);
+            boolean expected = handler.test_bit(pos % 2 == 0); // Example logic: true for even, false for odd
+            assertEquals(expected, val);
+        }
+    }
+
+    @Test
+    public void invocationWithBigIntType()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                Long.class,
+                "test_big_int",
+                true,
+                Long.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            long val = (long) UnitTestBlockUtils.getValue(fieldReader, pos);
+            long expected = handler.test_big_int(pos + 1L); // Example logic: increment by 1
+            assertEquals(expected, val);
+        }
+    }
+
+    @Test
+    public void invocationWithVarcharType() throws Exception
+    {
+        int rowCount = 10;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                String.class,
+                "test_varchar",
+                true,
+                String.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            String val = (String) UnitTestBlockUtils.getValue(fieldReader, pos);
+            String expected = handler.test_varchar("row-" + pos);
+            assertEquals(expected, val);
+        }
+    }
+
+    @Test
+    public void invocationWithVarBinaryType()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                byte[].class,
+                "test_var_binary",
+                true,
+                byte[].class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            byte[] val = (byte[]) UnitTestBlockUtils.getValue(fieldReader, pos);
+            byte[] expected = handler.test_var_binary(String.format("Row-%d", pos + 1).getBytes());
+            assertArrayEquals(expected, val);
         }
     }
 
@@ -212,6 +450,23 @@ public class UserDefinedFunctionHandlerTest
     }
 
     @Test
+    public void pingHandleRequest() throws IOException
+    {
+        FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+        String catalog = "catalog";
+        String queryId = "queryId";
+        FederationRequest pingRequest = new PingRequest(identity, catalog, queryId);
+        ByteArrayOutputStream pingOutputStream = new ByteArrayOutputStream();
+        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
+        objectMapper.writeValue(pingOutputStream, pingRequest);
+        ByteArrayInputStream pingInputStream = new ByteArrayInputStream(pingOutputStream.toByteArray());
+        ByteArrayOutputStream pingTestOutputStream = new ByteArrayOutputStream();
+        handler.handleRequest(pingInputStream, pingTestOutputStream, mock(Context.class));
+        FederationResponse response = objectMapper.readValue(pingTestOutputStream.toByteArray(), FederationResponse.class);
+        assertNotNull(response);
+    }
+
+    @Test
     public void testMethodNotFound()
     {
         int rowCount = 20;
@@ -255,6 +510,18 @@ public class UserDefinedFunctionHandlerTest
 
     private void writeColumn(FieldVector fieldVector, int idx)
     {
+        if (fieldVector instanceof TinyIntVector) {
+            TinyIntVector tinyIntVector = (TinyIntVector) fieldVector;
+            tinyIntVector.setSafe(idx, (byte) (idx + 1));
+            return;
+        }
+
+        if (fieldVector instanceof SmallIntVector) {
+            SmallIntVector smallIntVector = (SmallIntVector) fieldVector;
+            smallIntVector.setSafe(idx, (short) (idx + 1));
+            return;
+        }
+
         if (fieldVector instanceof IntVector) {
             IntVector intVector = (IntVector) fieldVector;
             intVector.setSafe(idx, idx + 100);
@@ -269,13 +536,32 @@ public class UserDefinedFunctionHandlerTest
 
         if (fieldVector instanceof Float8Vector) {
             Float8Vector float8Vector = (Float8Vector) fieldVector;
-            float8Vector.setSafe(idx, idx + 100.2);
+            float8Vector.setSafe(idx, idx + 0.5);
+            return;
+        }
+
+        if (fieldVector instanceof BitVector) {
+            BitVector bitVector = (BitVector) fieldVector;
+            bitVector.setSafe(idx, idx % 2 == 0 ? 1 : 0); // Example logic: true for even, false for odd
+            return;
+        }
+
+        if (fieldVector instanceof BigIntVector) {
+            BigIntVector bigIntVector = (BigIntVector) fieldVector;
+            bigIntVector.setSafe(idx, idx + 1L); // Example logic: increment by 1
             return;
         }
 
         if (fieldVector instanceof VarCharVector) {
             VarCharVector varCharVector = (VarCharVector) fieldVector;
-            varCharVector.setSafe(idx, new Text(idx + "-my-varchar"));
+            varCharVector.setSafe(idx, new Text("row-" + idx));
+            return;
+        }
+
+        if (fieldVector instanceof VarBinaryVector) {
+            VarBinaryVector varBinaryVector = (VarBinaryVector) fieldVector;
+            String value = String.format("Row-%d", idx + 1); // Example value
+            varBinaryVector.setSafe(idx, value.getBytes());
             return;
         }
 
@@ -312,6 +598,14 @@ public class UserDefinedFunctionHandlerTest
 
     private Field getArrowField(Class type, String columnName)
     {
+        if (type == Byte.class) {
+            return new Field(columnName, FieldType.nullable(new ArrowType.Int(8, true)), null);
+        }
+
+        if (type == Short.class) {
+            return new Field(columnName, FieldType.nullable(new ArrowType.Int(16, true)), null);
+        }
+
         if (type == Integer.class) {
             return new Field(columnName, FieldType.nullable(new ArrowType.Int(32, true)), null);
         }
@@ -328,8 +622,16 @@ public class UserDefinedFunctionHandlerTest
             return new Field(columnName, FieldType.nullable(new ArrowType.Utf8()), null);
         }
 
+        if (type == byte[].class) {
+            return new Field(columnName, FieldType.nullable(new ArrowType.Binary()), null);
+        }
+
         if (type == Boolean.class) {
             return new Field(columnName, FieldType.nullable(new ArrowType.Bool()), null);
+        }
+
+        if (type == Long.class) {
+            return new Field(columnName, FieldType.nullable(new ArrowType.Int(64, true)), null);
         }
 
         if (type == List.class) {
@@ -343,7 +645,6 @@ public class UserDefinedFunctionHandlerTest
 
             Field childField1 = new Field("intVal", FieldType.nullable(new ArrowType.Int(32, true)), null);
             Field childField2 = new Field("doubleVal", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);
-            ;
 
             fieldBuilder.addField(childField1);
             fieldBuilder.addField(childField2);
@@ -365,6 +666,58 @@ public class UserDefinedFunctionHandlerTest
         public Integer test_scalar_udf(Integer col1, Integer col2)
         {
             return col1 + col2;
+        }
+
+        public Byte test_tiny_int(Byte input)
+        {
+            return (byte) (input * 2); // Example: doubling the input
+        }
+
+        public Short test_small_int(Short input)
+        {
+            return (short) (input * 3); // Example: tripling the input
+        }
+
+        public Float test_float4(Float col1)
+        {
+            return col1 + 1.5f; // Example: adding 1.5 to the input
+        }
+
+        public Double test_float8(Double input)
+        {
+            return input * 2.5; // Example: multiplying the input by 2.5
+        }
+
+        public Boolean test_bit(Boolean input)
+        {
+            return !input; // Example: invert the input
+        }
+
+        public Long test_big_int(Long input)
+        {
+            return input * 2; // Example: double the input
+        }
+        public ZonedDateTime test_date_milli(ZonedDateTime input)
+        {
+            return input.plusHours(1);
+        }
+
+        public String test_varchar(String input)
+        {
+            return input == null ? null : input.toUpperCase();
+        }
+
+        public byte[] test_var_binary(byte[] input)
+        {
+            // Example: reverse the input bytes
+            if (input == null) {
+                return null;
+            }
+            byte[] reversed = new byte[input.length];
+            for (int i = 0; i < input.length; i++) {
+                reversed[i] = input[input.length - 1 - i];
+            }
+            return reversed;
         }
 
         public Boolean test_scalar_function_with_null_value(Integer col1)
