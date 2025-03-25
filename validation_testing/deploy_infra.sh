@@ -32,6 +32,6 @@ EOF
 npm install;
 npm run build;
 npm run cdk synth;
-npm run cdk deploy ${CONNECTOR_NAME}CdkStack | echo "output from cdk deploy: ";
+npm run cdk deploy ${CONNECTOR_NAME}CdkStack > /dev/null;
 
 echo "FINISHED DEPLOYING INFRA FOR ${CONNECTOR_NAME}."
