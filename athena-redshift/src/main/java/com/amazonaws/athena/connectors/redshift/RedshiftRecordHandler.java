@@ -75,20 +75,24 @@ public class RedshiftRecordHandler
     }
 
     @Override
-    protected boolean enableCaseSensitivelyLookUpSession(Connection connection) {
+    protected boolean enableCaseSensitivelyLookUpSession(Connection connection)
+    {
         try {
             return connection.createStatement().execute("SET enable_case_sensitive_identifier to TRUE;");
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             LOGGER.error("Failed to set enable_case_sensitive_identifier to TRUE for Redshift, ignore setting....", e);
         }
         return false;
     }
 
     @Override
-    protected boolean disableCaseSensitivelyLookUpSession(Connection connection) {
+    protected boolean disableCaseSensitivelyLookUpSession(Connection connection)
+    {
         try {
             return connection.createStatement().execute("SET enable_case_sensitive_identifier to FALSE;");
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             LOGGER.error("Failed to set enable_case_sensitive_identifier to FALSE for Redshift, ignore setting....", e);
         }
         return false;
