@@ -76,6 +76,6 @@ public class OracleQueryStringBuilder
     @Override
     protected String appendLimitOffset(Split split, Constraints constraints)
     {
-        return emptyString;
+        return String.format(" FETCH FIRST %d ROWS ONLY ", constraints.getLimit());
     }
 }

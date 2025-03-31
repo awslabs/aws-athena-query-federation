@@ -46,11 +46,11 @@ public abstract class CaseResolver
 
     public enum FederationSDKCasingMode
     {
-        NONE,
+        NONE,       // casing mode to ignore adjustment.
         LOWER,      // casing mode to lower case everything (glue and trino lower case everything)
         UPPER,      // casing mode to upper case everything (oracle by default upper cases everything)
-        CASE_INSENSITIVE_SEARCH, //
-        ANNOTATION
+        CASE_INSENSITIVE_SEARCH, // casing mode to perform case_insensitive_search mode
+        ANNOTATION // casing mode to use annotation (legacy) in query
     }
 
     protected final FederationSDKCasingMode getCasingMode(Map<String, String> configOptions)
