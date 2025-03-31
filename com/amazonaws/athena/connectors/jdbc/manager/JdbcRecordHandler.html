@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":6,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
+var data = {"i0":10,"i1":6,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -253,16 +253,26 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 </td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code>protected boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#disableCaseSensitivelyLookUpSession(java.sql.Connection)">disableCaseSensitivelyLookUpSession</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>protected boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#enableCaseSensitivelyLookUpSession(java.sql.Connection)">enableCaseSensitivelyLookUpSession</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>protected <a href="../../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getCredentialProvider()">getCredentialProvider</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>protected <a href="../connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.athena.connectors.jdbc.connection">JdbcConnectionFactory</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getJdbcConnectionFactory()">getJdbcConnectionFactory</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>protected <a href="../../../connector/lambda/data/writers/extractors/Extractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors">Extractor</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeExtractor(org.apache.arrow.vector.types.pojo.Field,java.sql.ResultSet,java.util.Map)">makeExtractor</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/ResultSet.html?is-external=true" title="class or interface in java.sql" class="externalLink">ResultSet</a>&nbsp;resultSet,
@@ -271,14 +281,14 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <div class="block">Creates an Extractor for the given field.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>protected <a href="../../../connector/lambda/data/writers/fieldwriters/FieldWriterFactory.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">FieldWriterFactory</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#makeFactory(org.apache.arrow.vector.types.pojo.Field)">makeFactory</a></span>&#8203;(org.apache.arrow.vector.types.pojo.Field&nbsp;field)</code></th>
 <td class="colLast">
 <div class="block">Create a field extractor for complex List type.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></span>&#8203;(<a href="../../../connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;blockSpiller,
                   <a href="../../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest,
@@ -435,6 +445,24 @@ extends <a href="../../../connector/lambda/handlers/RecordHandler.html" title="c
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>Extractor for the List type.</dd>
 </dl>
+</li>
+</ul>
+<a id="enableCaseSensitivelyLookUpSession(java.sql.Connection)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>enableCaseSensitivelyLookUpSession</h4>
+<pre class="methodSignature">protected&nbsp;boolean&nbsp;enableCaseSensitivelyLookUpSession&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection)</pre>
+</li>
+</ul>
+<a id="disableCaseSensitivelyLookUpSession(java.sql.Connection)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>disableCaseSensitivelyLookUpSession</h4>
+<pre class="methodSignature">protected&nbsp;boolean&nbsp;disableCaseSensitivelyLookUpSession&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection)</pre>
 </li>
 </ul>
 <a id="makeExtractor(org.apache.arrow.vector.types.pojo.Field,java.sql.ResultSet,java.util.Map)">

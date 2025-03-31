@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10};
+var data = {"i0":10,"i1":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -180,7 +180,7 @@ extends <a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in c
 <!--   -->
 </a>
 <h3>Fields inherited from class&nbsp;com.amazonaws.athena.connectors.jdbc.manager.<a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></h3>
-<code><a href="../jdbc/manager/JdbcMetadataHandler.html#jdbcQueryPassthrough">jdbcQueryPassthrough</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#TABLES_AND_VIEWS">TABLES_AND_VIEWS</a></code></li>
+<code><a href="../jdbc/manager/JdbcMetadataHandler.html#caseResolver">caseResolver</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#jdbcQueryPassthrough">jdbcQueryPassthrough</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#TABLES_AND_VIEWS">TABLES_AND_VIEWS</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">
@@ -235,12 +235,6 @@ extends <a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in c
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#caseInsensitiveSchemaResolver(java.sql.Connection,java.lang.String)">caseInsensitiveSchemaResolver</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
-                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr id="i1" class="rowColor">
 <td class="colFirst"><code><a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesResponse</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">doGetDataSourceCapabilities</a></span>&#8203;(<a href="../../connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                            <a href="../../connector/lambda/metadata/GetDataSourceCapabilitiesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetDataSourceCapabilitiesRequest</a>&nbsp;request)</code></th>
@@ -248,18 +242,7 @@ extends <a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in c
 <div class="block">Used to describe the types of capabilities supported by a data source.</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
-<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMaterializedViewOrExternalTable(java.sql.Connection,java.lang.String,java.lang.String)">getMaterializedViewOrExternalTable</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
-                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
-                                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName)</code></th>
-<td class="colLast">
-<div class="block">Returns Materialized View for Postgresql Or External Tables for Redshift - Case Insensitive
- Note: Redshift maintain Materialized View in the normal schema metadata as regular tables;
-       however maintains External Tables in a separate metadata tables</div>
-</td>
-</tr>
-<tr id="i3" class="rowColor">
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPaginatedResults(java.sql.Connection,java.lang.String,int,int)">getPaginatedResults</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
                    <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName,
@@ -273,14 +256,14 @@ extends <a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in c
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connectors.postgresql.<a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></h3>
-<code><a href="../postgresql/PostGreSqlMetadataHandler.html#caseInsensitiveNameResolver(java.sql.PreparedStatement,java.lang.String,java.lang.String)">caseInsensitiveNameResolver</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#caseInsensitiveTableMaterialViewMatch(java.sql.Connection,java.lang.String,java.lang.String)">caseInsensitiveTableMaterialViewMatch</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#caseInsensitiveTableSearch(java.sql.Connection,java.lang.String,java.lang.String)">caseInsensitiveTableSearch</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#getArrayArrowTypeFromTypeName(java.lang.String,int,int)">getArrayArrowTypeFromTypeName</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#getCharColumns(java.sql.Connection,java.lang.String,java.lang.String)">getCharColumns</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#getPartitionSchema(java.lang.String)">getPartitionSchema</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables</a></code></li>
+<code><a href="../postgresql/PostGreSqlMetadataHandler.html#doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">doGetSplits</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#getArrayArrowTypeFromTypeName(java.lang.String,int,int)">getArrayArrowTypeFromTypeName</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#getCharColumns(java.sql.Connection,java.lang.String,java.lang.String)">getCharColumns</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#getPartitionSchema(java.lang.String)">getPartitionSchema</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables</a>, <a href="../postgresql/PostGreSqlMetadataHandler.html#wrapNameWithEscapedCharacter(java.lang.String)">wrapNameWithEscapedCharacter</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler">
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connectors.jdbc.manager.<a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></h3>
-<code><a href="../jdbc/manager/JdbcMetadataHandler.html#convertDatasourceTypeToArrow(int,int,java.util.Map,java.sql.ResultSetMetaData)">convertDatasourceTypeToArrow</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#escapeNamePattern(java.lang.String,java.lang.String)">escapeNamePattern</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getCredentialProvider()">getCredentialProvider</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getJdbcConnectionFactory()">getJdbcConnectionFactory</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName)">getSplitClauses</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#setupQueryPassthroughSplit(com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">setupQueryPassthroughSplit</a></code></li>
+<code><a href="../jdbc/manager/JdbcMetadataHandler.html#convertDatasourceTypeToArrow(int,int,java.util.Map,java.sql.ResultSetMetaData)">convertDatasourceTypeToArrow</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#escapeNamePattern(java.lang.String,java.lang.String)">escapeNamePattern</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getColumns(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.sql.DatabaseMetaData)">getColumns</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getCredentialProvider()">getCredentialProvider</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getJdbcConnectionFactory()">getJdbcConnectionFactory</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName)">getSplitClauses</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#listDatabaseNames(java.sql.Connection)">listDatabaseNames</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#setupQueryPassthroughSplit(com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">setupQueryPassthroughSplit</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">
@@ -344,23 +327,6 @@ extends <a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in c
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="caseInsensitiveSchemaResolver(java.sql.Connection,java.lang.String)">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>caseInsensitiveSchemaResolver</h4>
-<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;caseInsensitiveSchemaResolver&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
-                                            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName)
-                                     throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></pre>
-<dl>
-<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
-<dd><code><a href="../postgresql/PostGreSqlMetadataHandler.html#caseInsensitiveSchemaResolver(java.sql.Connection,java.lang.String)">caseInsensitiveSchemaResolver</a></code>&nbsp;in class&nbsp;<code><a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></code></dd>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code></dd>
-</dl>
-</li>
-</ul>
 <a id="doGetDataSourceCapabilities(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest)">
 <!--   -->
 </a>
@@ -388,7 +354,7 @@ extends <a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in c
 <a id="getPaginatedResults(java.sql.Connection,java.lang.String,int,int)">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>getPaginatedResults</h4>
 <pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt;&nbsp;getPaginatedResults&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
@@ -399,30 +365,6 @@ extends <a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in c
 <dl>
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
 <dd><code><a href="../postgresql/PostGreSqlMetadataHandler.html#getPaginatedResults(java.sql.Connection,java.lang.String,int,int)">getPaginatedResults</a></code>&nbsp;in class&nbsp;<code><a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></code></dd>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code></dd>
-</dl>
-</li>
-</ul>
-<a id="getMaterializedViewOrExternalTable(java.sql.Connection,java.lang.String,java.lang.String)">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>getMaterializedViewOrExternalTable</h4>
-<pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a>&nbsp;getMaterializedViewOrExternalTable&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
-                                                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
-                                                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName)
-                                                        throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></pre>
-<div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../postgresql/PostGreSqlMetadataHandler.html#getMaterializedViewOrExternalTable(java.sql.Connection,java.lang.String,java.lang.String)">PostGreSqlMetadataHandler</a></code></span></div>
-<div class="block">Returns Materialized View for Postgresql Or External Tables for Redshift - Case Insensitive
- Note: Redshift maintain Materialized View in the normal schema metadata as regular tables;
-       however maintains External Tables in a separate metadata tables</div>
-<dl>
-<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
-<dd><code><a href="../postgresql/PostGreSqlMetadataHandler.html#getMaterializedViewOrExternalTable(java.sql.Connection,java.lang.String,java.lang.String)">getMaterializedViewOrExternalTable</a></code>&nbsp;in class&nbsp;<code><a href="../postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.postgresql">PostGreSqlMetadataHandler</a></code></dd>
-<dt><span class="returnLabel">Returns:</span></dt>
-<dd>Prepared Statement</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code></dd>
 </dl>
