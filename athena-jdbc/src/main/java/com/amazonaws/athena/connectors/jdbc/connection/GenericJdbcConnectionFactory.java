@@ -21,6 +21,8 @@ package com.amazonaws.athena.connectors.jdbc.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +33,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
@@ -56,6 +57,7 @@ public class GenericJdbcConnectionFactory
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final Properties jdbcProperties;
+    private volatile HikariDataSource ds;
 
     /**
      * @param databaseConnectionConfig database connection configuration {@link DatabaseConnectionConfig}
@@ -88,13 +90,23 @@ public class GenericJdbcConnectionFactory
             derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
         }
 
-        // register driver
-        Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
+        if (ds == null) {
+            synchronized (GenericJdbcConnectionFactory.class) { // Synchronize on the class level
+                if (ds == null) { // Double-check to avoid creating more than one instance
+                    HikariConfig config2 = new HikariConfig();
+                    config2.setDriverClassName(databaseConnectionInfo.getDriverClassName());
+                    config2.setDataSourceProperties(jdbcProperties);
+                    config2.setJdbcUrl(derivedJdbcString);
+                    config2.setMinimumIdle(1);
+                    ds = new HikariDataSource(config2);
+                    LOGGER.debug("Create data source");
+                }
+            }
+        }
 
-        // create connection
         Connection connection = null;
         try {
-            connection = DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+            connection = ds.getConnection();
         }
         catch (SQLException e) {
             if (e.getMessage().contains("Name or service not known")) {
@@ -104,6 +116,7 @@ public class GenericJdbcConnectionFactory
                 throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString()).build());
             }
         }
+
         return connection;
     }
 

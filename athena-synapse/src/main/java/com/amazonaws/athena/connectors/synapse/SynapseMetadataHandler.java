@@ -35,10 +35,6 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -50,14 +46,14 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.synapse.resolver.SynapseJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +64,6 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -81,7 +76,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
 
@@ -108,8 +102,10 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
      */
     public SynapseMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new SynapseJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
-                new DatabaseConnectionInfo(SynapseConstants.DRIVER_CLASS, SynapseConstants.DEFAULT_PORT)), configOptions);
+        super(databaseConnectionConfig,
+                new SynapseJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(SynapseConstants.DRIVER_CLASS, SynapseConstants.DEFAULT_PORT)),
+                configOptions,
+                new SynapseJDBCCaseResolver(SynapseConstants.NAME));
     }
 
     @VisibleForTesting
@@ -118,9 +114,10 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         SecretsManagerClient secretsManager,
         AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
-        java.util.Map<String, String> configOptions)
+        java.util.Map<String, String> configOptions,
+        JDBCCaseResolver caseResolver)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, caseResolver);
     }
 
     @Override
@@ -313,23 +310,6 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         return String.valueOf(partition);
     }
 
-    /**
-     * @param blockAllocator
-     * @param getTableRequest
-     * @return
-     */
-    @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = SynapseCaseInsensitiveResolver.getAdjustedTableObjectNameBasedOnConfig(connection, getTableRequest.getTableName(), configOptions);
-            return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-    }
-
     @Override
     protected Optional<ArrowType> convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
     {
@@ -350,7 +330,8 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
      * @return
      * @throws Exception
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    @Override
+     protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
         LOGGER.info("Inside getSchema");
@@ -498,47 +479,5 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             }
         }
         return schemaBuilder;
-    }
-
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(
-                catalogName,
-                escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape),
-                null);
-    }
-
-    @Override
-    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
-                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-            String adjustedSchemaName = SynapseCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(connection, listTablesRequest.getSchemaName(), configOptions);
-            // TODO: Implement pagination if supported by azure synapse
-            LOGGER.info("doListTables - NO pagination");
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, adjustedSchemaName), null);
-        }
-    }
-
-    private List<TableName> listTablesNoPagination(final Connection jdbcConnection, final String databaseName)
-            throws SQLException
-    {
-        LOGGER.debug("listTables, databaseName:" + databaseName);
-        try (ResultSet resultSet = jdbcConnection.getMetaData().getTables(
-                jdbcConnection.getCatalog(),
-                databaseName,
-                null,
-                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})) {
-            ImmutableList.Builder<TableName> list = ImmutableList.builder();
-            while (resultSet.next()) {
-                list.add(JDBCUtil.getSchemaTableName(resultSet));
-            }
-            return list.build();
-        }
     }
 }

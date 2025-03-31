@@ -20,6 +20,7 @@
 
 package com.amazonaws.athena.connectors.clickhouse;
 
+import com.amazonaws.athena.connectors.clickhouse.resolver.ClickhouseJDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -62,6 +63,6 @@ public class ClickHouseMuxMetadataHandler
     protected ClickHouseMuxMetadataHandler(SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
           Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions, new ClickhouseJDBCCaseResolver(ClickHouseConstants.NAME));
     }
 }
