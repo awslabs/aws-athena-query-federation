@@ -5,15 +5,16 @@ FROM public.ecr.aws/lambda/java:${JAVA_VERSION}
 
 # Argument for Java tool options, defaulting to an empty string
 ARG JAVA_TOOL_OPTIONS=""
-# Set the JAVA_TOOL_OPTIONS environment variable for Java 17
-ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
+# Set the JAVA_TOOL_OPTIONS environment variable for Java 17 and for ssl
+ENV JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -Djavax.net.ssl.trustStore=/var/lang/lib/security/cacerts -Djavax.net.ssl.trustStorePassword=changeit"
 
 # Install necessary tools
 RUN yum update -y
 RUN yum install -y curl perl openssl11
 
-ENV truststore=${LAMBDA_TASK_ROOT}/rds-truststore.jks
-ENV storepassword=federationStorePass
+# Set up environment variables
+ENV truststore=/var/lang/lib/security/cacerts
+ENV storepassword=changeit
 
 # Download and process the RDS certificate
 RUN curl -sS "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" > ${LAMBDA_TASK_ROOT}/global-bundle.pem && \
