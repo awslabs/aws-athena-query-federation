@@ -248,7 +248,7 @@ public class SnowflakeQueryStringBuilder
         return columnName + " " + operator + " " + ((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? singleQuote(getObjectForWhereClause(columnName, value, type).toString()) : getObjectForWhereClause(columnName, value, type));
     }
 
-    private static Object getObjectForWhereClause(String columnName, Object value, ArrowType arrowType)
+    protected static Object getObjectForWhereClause(String columnName, Object value, ArrowType arrowType)
     {
         String val;
         StringBuilder tempVal;
@@ -278,12 +278,6 @@ public class SnowflakeQueryStringBuilder
                     LocalDateTime dateTime = LocalDateTime.parse(val);
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
                     return dateTime.format(formatter);
-                }
-                else if (val.contains("-")) {
-                    tempVal = new StringBuilder(val);
-                    tempVal = tempVal.length() == 19 ? tempVal.append(".0") : tempVal;
-                    val = String.format("%-26s", tempVal).replace(' ', '0').replace("T", " ");
-                    return val; // Returning as string formatted datetime
                 }
                 else {
                     long days = Long.parseLong(val);
