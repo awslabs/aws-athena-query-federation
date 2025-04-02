@@ -23,3 +23,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/validation_testing/cdk_federation_infra_provisioning/app"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "*"
