@@ -49,6 +49,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -74,6 +75,8 @@ import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -153,6 +156,8 @@ public abstract class JdbcRecordHandler
                 connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
             }
 
+            enableCaseSensitivelyLookUpSession(connection); // For certain connectors, we require to apply session config first to enable case
+
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -183,6 +188,7 @@ public abstract class JdbcRecordHandler
                 if (!CLICKHOUSE_DB.equalsIgnoreCase(databaseProductName)) {
                     connection.commit();
                 }
+                disableCaseSensitivelyLookUpSession(connection); // For certain connectors, we require to apply session config first to enable case
             }
         }
     }
@@ -204,6 +210,16 @@ public abstract class JdbcRecordHandler
                     }
                     return true;
                 };
+    }
+
+    protected boolean enableCaseSensitivelyLookUpSession(Connection connection)
+    {
+        return false;
+    }
+
+    protected boolean disableCaseSensitivelyLookUpSession(Connection connection)
+    {
+        return false;
     }
 
     /**
@@ -312,7 +328,8 @@ public abstract class JdbcRecordHandler
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             default:
-                throw new RuntimeException("Unhandled type " + fieldType);
+                throw new AthenaConnectorException("Unhandled type " + fieldType,
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
     }
 

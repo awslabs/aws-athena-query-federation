@@ -32,17 +32,12 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -57,23 +52,25 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.snowflake.resolver.SnowflakeJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -87,9 +84,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_NAME;
 
 /**
  * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns` in
@@ -145,9 +142,15 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      */
     public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig,
-                SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
-                new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS, SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)), configOptions);
+        this(databaseConnectionConfig,
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
+                new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS, SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)),
+                configOptions);
+    }
+
+    public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
+    {
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new SnowflakeJDBCCaseResolver(SNOWFLAKE_NAME));
     }
 
     @VisibleForTesting
@@ -156,9 +159,10 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         SecretsManagerClient secretsManager,
         AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
-        java.util.Map<String, String> configOptions)
+        java.util.Map<String, String> configOptions,
+        JDBCCaseResolver caseResolver)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, caseResolver);
     }
 
     @Override
@@ -184,11 +188,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
-    }
-
-    public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
-    {
-        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     @Override
@@ -376,59 +375,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         return String.valueOf(partition);
     }
 
-    @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
-            throws Exception
-    {
-        LOGGER.debug("doGetTable getTableName:{}", getTableRequest.getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = SnowflakeCaseInsensitiveResolver.getAdjustedTableObjectNameBasedOnConfig(connection, getTableRequest.getTableName(), configOptions);
-            GetTableResponse getTableResponse = new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-            return getTableResponse;
-        }
-    }
-
-    @Override
-    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
-                    listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-            String schemaName = SnowflakeCaseInsensitiveResolver.getAdjustedSchemaNameBasedOnConfig(connection, listTablesRequest.getSchemaName(), configOptions);
-
-            String token = listTablesRequest.getNextToken();
-            int pageSize = listTablesRequest.getPageSize();
-
-            if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) { // perform no pagination
-                LOGGER.info("doListTables - NO pagination");
-                return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, schemaName), null);
-            }
-
-            LOGGER.info("doListTables - pagination - NOT SUPPORTED - return all tables");
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), listTablesNoPagination(connection, schemaName), null);
-        }
-    }
-
-    private List<TableName> listTablesNoPagination(final Connection jdbcConnection, final String databaseName)
-            throws SQLException
-    {
-        LOGGER.debug("listTables, databaseName:" + databaseName);
-        try (ResultSet resultSet = jdbcConnection.getMetaData().getTables(
-                jdbcConnection.getCatalog(),
-                databaseName,
-                null,
-                new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})) {
-            ImmutableList.Builder<TableName> list = ImmutableList.builder();
-            while (resultSet.next()) {
-                list.add(JDBCUtil.getSchemaTableName(resultSet));
-            }
-            return list.build();
-        }
-    }
-
     /**
      *
      * @param jdbcConnection
@@ -437,7 +383,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * @return
      * @throws Exception
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    @Override
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
         LOGGER.debug("getSchema start, tableName:" + tableName);
@@ -501,49 +448,20 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 }
             }
             if (!found) {
-                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+                throw new AthenaConnectorException("Could not find table in " + tableName.getSchemaName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
             partitionSchema.getFields().forEach(schemaBuilder::addField);
+        }
+        catch (SnowflakeSQLException ex) {
+            throw new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
         }
         LOGGER.debug(schemaBuilder.toString());
         return schemaBuilder.build();
     }
 
-    /**
-     *
-     * @param catalogName
-     * @param tableHandle
-     * @param metadata
-     * @return
-     * @throws SQLException
-     */
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        LOGGER.debug("getColumns, catalogName:" + catalogName + ", tableHandle: " + tableHandle);
-        String escape = metadata.getSearchStringEscape();
-
-        ResultSet columns = metadata.getColumns(
-                catalogName,
-                escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape),
-                null);
-
-        return columns;
-    }
-
     @Override
-    public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
-        }
-    }
-
-    private static Set<String> listDatabaseNames(final Connection jdbcConnection)
-            throws Exception
+    protected Set<String> listDatabaseNames(final Connection jdbcConnection)
+            throws SQLException
     {
         try (ResultSet resultSet = jdbcConnection
                 .getMetaData()

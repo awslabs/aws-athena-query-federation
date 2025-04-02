@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
 import com.google.common.collect.ImmutableList;
@@ -27,6 +28,8 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -60,8 +63,9 @@ public final class JDBCUtil
             }
         }
 
-        throw new RuntimeException(String.format("Must provide default connection string parameter %s for database type %s",
-                DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY, databaseEngine));
+        throw new AthenaConnectorException(String.format("Must provide default connection string parameter %s for database type %s",
+                DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY, databaseEngine),
+                ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
     }
 
     /**
@@ -80,7 +84,8 @@ public final class JDBCUtil
         List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder().engine(metadataHandlerFactory.getEngine()).properties(configOptions).build();
 
         if (databaseConnectionConfigs.isEmpty()) {
-            throw new RuntimeException("At least one connection string required.");
+            throw new AthenaConnectorException("At least one connection string required.",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         boolean defaultPresent = false;
@@ -96,7 +101,9 @@ public final class JDBCUtil
         }
 
         if (!defaultPresent) {
-            throw new RuntimeException("Must provide connection parameters for default database instance " + DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY);
+            throw new AthenaConnectorException("Must provide connection parameters for default database instance " +
+                    DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         return metadataHandlerMap.build();
@@ -117,7 +124,8 @@ public final class JDBCUtil
         List<DatabaseConnectionConfig> databaseConnectionConfigs = new DatabaseConnectionConfigBuilder().engine(jdbcRecordHandlerFactory.getEngine()).properties(configOptions).build();
 
         if (databaseConnectionConfigs.isEmpty()) {
-            throw new RuntimeException("At least one connection string required.");
+            throw new AthenaConnectorException("At least one connection string required.",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         boolean defaultPresent = false;
@@ -133,64 +141,12 @@ public final class JDBCUtil
         }
 
         if (!defaultPresent) {
-            throw new RuntimeException("Must provide connection parameters for default database instance " + DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY);
+            throw new AthenaConnectorException("Must provide connection parameters for default database instance " +
+                    DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         return recordHandlerMap.build();
-    }
-
-    public static TableName informationSchemaCaseInsensitiveTableMatch(Connection connection, final String databaseName,
-                                                     final String tableName) throws Exception
-    {
-        // Gets case insensitive schema name
-        String resolvedSchemaName = null;
-        PreparedStatement statement = getSchemaNameQuery(connection, databaseName);
-        try (ResultSet resultSet = statement.executeQuery()) {
-            if (resultSet.next()) {
-                resolvedSchemaName = resultSet.getString("schema_name");
-            }
-            else {
-                throw new RuntimeException(String.format("During SCHEMA Case Insensitive look up could not find Database '%s'", databaseName));
-            }
-        }
-
-        // passes actual cased schema name to query for tableName
-        String resolvedName = null;
-        statement = getTableNameQuery(connection, tableName, resolvedSchemaName);
-        try (ResultSet resultSet = statement.executeQuery()) {
-            if (resultSet.next()) {
-                resolvedName = resultSet.getString("table_name");
-                if (resultSet.next()) {
-                    throw new RuntimeException(String.format("More than one table that matches '%s' was returned from Database %s", tableName, databaseName));
-                }
-                LOGGER.info("Resolved name from Case Insensitive look up : {}", resolvedName);
-            }
-            else {
-                throw new RuntimeException(String.format("During TABLE Case Insensitive look up could not find Table '%s' in Database '%s'", tableName, databaseName));
-            }
-        }
-
-        return new TableName(resolvedSchemaName, resolvedName);
-    }
-
-    public static PreparedStatement getTableNameQuery(Connection connection, String tableName, String databaseName) throws SQLException
-    {
-        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = ? or lower(table_name) = ?) AND table_schema = ?";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, tableName);
-        preparedStatement.setString(2, tableName);
-        preparedStatement.setString(3, databaseName);
-        LOGGER.debug("Prepared Statement for getting table name with Case Insensitive Look Up in schema {} : {}", databaseName, preparedStatement);
-        return preparedStatement;
-    }
-
-    public static PreparedStatement getSchemaNameQuery(Connection connection, String databaseName) throws SQLException
-    {
-        String sql = "SELECT schema_name FROM information_schema.schemata WHERE (schema_name = ? or lower(schema_name) = ?)";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, databaseName);
-        preparedStatement.setString(2, databaseName);
-        return preparedStatement;
     }
 
     public static List<TableName> getTables(Connection connection, String databaseName) throws SQLException
