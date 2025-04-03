@@ -85,6 +85,8 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                 final String secretReplacement = String.format("%s/%s", credentialsProvider.getCredential().getUser(),
                         password);
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
+                // register driver
+                Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
                 return DriverManager.getConnection(derivedJdbcString, properties);
             }
             else {
@@ -93,6 +95,9 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
+        }
+        catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
+            throw new RuntimeException(ex);
         }
     }
 }
