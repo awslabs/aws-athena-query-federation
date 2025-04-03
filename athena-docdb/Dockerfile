@@ -48,4 +48,4 @@ RUN echo "Trust store content is: " && \
     done
 
 # Set the CMD to your handler
-CMD [ "com.amazonaws.athena.connectors.docdb.DocDBCompositeHandler" ]
+# No need to specify here (already defined in .yaml file)
