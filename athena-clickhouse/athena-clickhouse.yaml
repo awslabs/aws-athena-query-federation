@@ -89,7 +89,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:

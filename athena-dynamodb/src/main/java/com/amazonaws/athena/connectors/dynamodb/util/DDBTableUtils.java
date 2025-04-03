@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.dynamodb.util;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.google.common.collect.ImmutableList;
@@ -42,8 +41,6 @@ import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughputDescr
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TableDescription;
-import software.amazon.awssdk.services.glue.model.ErrorDetails;
-import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.List;
 import java.util.Map;
@@ -170,7 +167,7 @@ public final class DDBTableUtils
                 logger.warn("Failed to retrieve table schema due to KMS issue, empty schema for table: {}. Error Message: {}", tableName, runtimeException.getMessage());
             }
             else {
-                throw new AthenaConnectorException(runtimeException.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString()).build());
+                throw runtimeException;
             }
         }
         return schemaBuilder.build();

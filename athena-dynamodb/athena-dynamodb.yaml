@@ -82,7 +82,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -102,42 +102,42 @@ Resources:
         Version: 2012-10-17
         Statement:
           - Action:
-             - dynamodb:DescribeTable
-             - dynamodb:ListTables
-             - dynamodb:Query
-             - dynamodb:Scan
-             - dynamodb:PartiQLSelect
-             - glue:GetTableVersions
-             - glue:GetPartitions
-             - glue:GetTables
-             - glue:GetTableVersion
-             - glue:GetDatabases
-             - glue:GetTable
-             - glue:GetPartition
-             - glue:GetDatabase
-             - athena:GetQueryExecution
+              - dynamodb:DescribeTable
+              - dynamodb:ListTables
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:PartiQLSelect
+              - glue:GetTableVersions
+              - glue:GetPartitions
+              - glue:GetTables
+              - glue:GetTableVersion
+              - glue:GetDatabases
+              - glue:GetTable
+              - glue:GetPartition
+              - glue:GetDatabase
+              - athena:GetQueryExecution
             Effect: Allow
             Resource: '*'
           - Action:
-             - s3:GetObject
-             - s3:ListBucket
-             - s3:GetBucketLocation
-             - s3:GetObjectVersion
-             - s3:PutObject
-             - s3:PutObjectAcl
-             - s3:GetLifecycleConfiguration
-             - s3:PutLifecycleConfiguration
-             - s3:DeleteObject
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:DeleteObject
             Effect: Allow
             Resource:
               - Fn::Sub:
-                - arn:${AWS::Partition}:s3:::${bucketName}
-                - bucketName:
-                    Ref: SpillBucket
+                  - arn:${AWS::Partition}:s3:::${bucketName}
+                  - bucketName:
+                      Ref: SpillBucket
               - Fn::Sub:
-                - arn:${AWS::Partition}:s3:::${bucketName}/*
-                - bucketName:
-                    Ref: SpillBucket
+                  - arn:${AWS::Partition}:s3:::${bucketName}/*
+                  - bucketName:
+                      Ref: SpillBucket
       Roles:
         - !Ref FunctionRole
 
@@ -150,12 +150,12 @@ Resources:
         Version: 2012-10-17
         Statement:
           - Action:
-             - kms:GenerateRandom
+              - kms:GenerateRandom
             Effect: Allow
             Resource: '*'
           - Action:
               - kms:GenerateDataKey
             Effect: Allow
-            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
+            Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
       Roles:
         - !Ref FunctionRole

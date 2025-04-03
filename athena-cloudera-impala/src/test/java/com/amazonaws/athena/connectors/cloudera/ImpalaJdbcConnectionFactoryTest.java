@@ -18,6 +18,9 @@ package com.amazonaws.athena.connectors.cloudera;/*-
  * #L%
  */
 
+import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.StaticCredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.*;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
@@ -32,13 +35,13 @@ import java.util.Map;
 public class ImpalaJdbcConnectionFactoryTest {
     @Test(expected = RuntimeException.class)
     public void getConnectionTest() throws ClassNotFoundException, SQLException {
-        JdbcCredential expectedCredential = new JdbcCredential("impala", "impala");
-        JdbcCredentialProvider jdbcCredentialProvider = new StaticJdbcCredentialProvider(expectedCredential);
+        DefaultCredentials expectedCredential = new DefaultCredentials("impala", "impala");
+        CredentialsProvider credentialsProvider = new StaticCredentialsProvider(expectedCredential);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ImpalaConstants.IMPALA_NAME,
                 "impala://jdbc:impala://23.21.178.97:10000/athena;AuthMech=3;UID=hive;PWD=''", "impala");
         Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
         DatabaseConnectionInfo DatabaseConnectionInfo = new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT);
-        Connection connection =  new ImpalaJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,DatabaseConnectionInfo).getConnection(jdbcCredentialProvider);
+        Connection connection =  new ImpalaJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,DatabaseConnectionInfo).getConnection(credentialsProvider);
         String originalURL = connection.getMetaData().getURL();
         Driver drv = DriverManager.getDriver(originalURL);
         String driverClass = drv.getClass().getName();

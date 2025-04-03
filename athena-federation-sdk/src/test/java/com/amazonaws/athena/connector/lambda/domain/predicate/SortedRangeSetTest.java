@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import org.junit.After;
@@ -28,10 +29,12 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.stream.Collectors;
 
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class SortedRangeSetTest
 {
@@ -199,7 +202,7 @@ public class SortedRangeSetTest
             SortedRangeSet.all(allocator, BIGINT.getType()).getSingleValue();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
     }
 
@@ -211,7 +214,7 @@ public class SortedRangeSetTest
             SortedRangeSet.none(BIGINT.getType()).getSpan();
             fail();
         }
-        catch (IllegalStateException e) {
+        catch (AthenaConnectorException e) {
         }
 
         assertEquals(SortedRangeSet.all(allocator, BIGINT.getType()).getSpan(), Range.all(allocator, BIGINT.getType()));

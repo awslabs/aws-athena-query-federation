@@ -23,7 +23,7 @@
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
-            <version>5.15.0</version>
+            <version>5.17.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
         <dependency>
@@ -51,6 +51,22 @@
                     <groupId>com.google.api.grpc</groupId>
                     <artifactId>grpc-google-cloud-bigquerystorage-v1beta2</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-vector</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-format</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-memory-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-memory-netty</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -66,7 +82,7 @@
         <dependency>
             <groupId>nl.jqno.equalsverifier</groupId>
             <artifactId>equalsverifier</artifactId>
-            <version>3.17.1</version>
+            <version>3.19.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>

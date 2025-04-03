@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordRequest;
@@ -46,6 +47,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -115,6 +118,11 @@ public abstract class RecordHandler
         return secretsManager.resolveSecrets(rawString);
     }
 
+    protected String resolveWithDefaultCredentials(String rawString)
+    {
+        return secretsManager.resolveWithDefaultCredentials(rawString);
+    }
+
     protected String getSecret(String secretName)
     {
         return secretsManager.getSecret(secretName);
@@ -135,7 +143,7 @@ public abstract class RecordHandler
                 }
 
                 if (!(rawReq instanceof RecordRequest)) {
-                    throw new RuntimeException("Expected a RecordRequest but found " + rawReq.getClass());
+                    throw new AthenaConnectorException("Expected a RecordRequest but found " + rawReq.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                 }
 
                 doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
@@ -164,7 +172,7 @@ public abstract class RecordHandler
                 }
                 return;
             default:
-                throw new IllegalArgumentException("Unknown request type " + type);
+                throw new AthenaConnectorException("Unknown request type " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -261,7 +269,7 @@ public abstract class RecordHandler
     private void assertNotNull(FederationResponse response)
     {
         if (response == null) {
-            throw new RuntimeException("Response was null");
+            throw new AthenaConnectorException("Response was null", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString()).build());
         }
     }
 }

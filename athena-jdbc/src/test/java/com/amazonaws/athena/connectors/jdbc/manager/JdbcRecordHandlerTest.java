@@ -38,7 +38,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -58,6 +58,7 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -89,11 +90,12 @@ public class JdbcRecordHandlerTest
     {
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.amazonS3 = Mockito.mock(S3Client.class);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
+        Mockito.when(this.queryStatusChecker.isQueryRunning()).thenReturn(true);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement("someSql")).thenReturn(this.preparedStatement);
@@ -138,6 +140,11 @@ public class JdbcRecordHandlerTest
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, columnTypes, values, rowNumber);
         Mockito.when(this.preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        // Mocking database metadata to return a non-ClickHouse database name eg:MySQL
+        DatabaseMetaData metaData = Mockito.mock(DatabaseMetaData.class);
+        Mockito.when(metaData.getDatabaseProductName()).thenReturn("MySQL");
+        Mockito.when(this.connection.getMetaData()).thenReturn(metaData);
 
         SpillConfig spillConfig = Mockito.mock(SpillConfig.class);
         Mockito.when(spillConfig.getSpillLocation()).thenReturn(s3SpillLocation);

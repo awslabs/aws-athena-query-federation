@@ -32,8 +32,17 @@ jobs:
         env:
           AWS_DEFAULT_REGION: us-east-1
           AWS_REGION: us-east-1
-        run: mvn -B clean package -T 1C --file pom.xml -Dmaven.compiler.release=8 -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
+        run: mvn -B clean package -T 1C --file pom.xml -Dmaven.compiler.release=11 -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
       # Identify if any files were modified as a result of running maven build.
       - name: Identify any Maven Build changes
         run: >
           ! (git status | grep "modified: " )
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

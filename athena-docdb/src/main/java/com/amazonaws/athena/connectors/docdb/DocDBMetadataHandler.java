@@ -91,6 +91,8 @@ public class DocDBMetadataHandler
     //The Env variable name used to store the default DocDB connection string if no catalog specific
     //env variable is set.
     private static final String DEFAULT_DOCDB = "default_docdb";
+    //The env secret_name to use if defined
+    private static final String SECRET_NAME = "secret_name";
     //The Glue table property that indicates that a table matching the name of an DocDB table
     //is indeed enabled for use by this connector.
     private static final String DOCDB_METADATA_FLAG = "docdb-metadata-flag";
@@ -130,7 +132,8 @@ public class DocDBMetadataHandler
 
     private MongoClient getOrCreateConn(MetadataRequest request)
     {
-        String endpoint = resolveSecrets(getConnStr(request));
+        String connStr = getConnStr(request);
+        String endpoint = resolveWithDefaultCredentials(connStr);
         return connectionFactory.getOrCreateConn(endpoint);
     }
 

@@ -32,7 +32,9 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connectors.oracle.resolver.OracleJDBCCaseResolver;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -65,7 +67,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 public class OracleMetadataHandlerTest
         extends TestBase
 {
-    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NAME", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("partition_name", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ORACLE_NAME,
             "oracle://jdbc:oracle:thin:username/password@//127.0.0.1:1521/orcl");
     private OracleMetadataHandler oracleMetadataHandler;
@@ -81,11 +83,11 @@ public class OracleMetadataHandlerTest
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
-        this.oracleMetadataHandler = new OracleMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
+        this.oracleMetadataHandler = new OracleMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new OracleJDBCCaseResolver(ORACLE_NAME));
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
 
@@ -103,7 +105,7 @@ public class OracleMetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "TESTTABLE");
+        TableName tableName = new TableName("testSchema", "\'TESTTABLE\'");
         Schema partitionSchema = this.oracleMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
@@ -111,7 +113,7 @@ public class OracleMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {"PARTITION_NAME"};
+        String[] columns = {"PARTITION_NAME".toLowerCase()};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{"p0"}, {"p1"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -127,7 +129,7 @@ public class OracleMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Arrays.asList("[PARTITION_NAME : p0]", "[PARTITION_NAME : p1]"));
+        Assert.assertEquals(expectedValues, Arrays.asList("[partition_name : p0]", "[partition_name : p1]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
@@ -144,7 +146,7 @@ public class OracleMetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "TESTTABLE");
+        TableName tableName = new TableName("testSchema", "\'TESTTABLE\'");
         Schema partitionSchema = this.oracleMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
@@ -152,7 +154,7 @@ public class OracleMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {"PARTITION_NAME"};
+        String[] columns = {"PARTITION_NAME".toLowerCase()};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -168,7 +170,7 @@ public class OracleMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Collections.singletonList("[PARTITION_NAME : 0]"));
+        Assert.assertEquals(expectedValues, Collections.singletonList("[partition_name : 0]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
@@ -191,9 +193,9 @@ public class OracleMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        OracleMetadataHandler oracleMetadataHandler = new OracleMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
+        OracleMetadataHandler oracleMetadataHandler = new OracleMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new OracleJDBCCaseResolver(ORACLE_NAME));
 
         oracleMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
@@ -249,7 +251,7 @@ public class OracleMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(OracleMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {"PARTITION_NAME"};
+        String[] columns = {"PARTITION_NAME".toLowerCase()};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{"p0"}, {"p1"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -265,7 +267,7 @@ public class OracleMetadataHandlerTest
         GetSplitsResponse getSplitsResponse = this.oracleMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap("PARTITION_NAME", "p1"));
+        expectedSplits.add(Collections.singletonMap("PARTITION_NAME".toLowerCase(), "p1"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -312,7 +314,7 @@ public class OracleMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
         Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
-                {Types.TIMESTAMP, 93, "testCol3", 0, 0},  {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0},  {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}, {Types.NUMERIC, 10, "testCol5", 2, 0}};
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
@@ -320,7 +322,9 @@ public class OracleMetadataHandlerTest
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        ArrowType.Decimal testCol5ArrowType = ArrowType.Decimal.createDecimal(10, 2, 128);
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol5", testCol5ArrowType).build());
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 

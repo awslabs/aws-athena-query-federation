@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.mysql;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -133,7 +134,7 @@ public class MySqlFederationExpressionParserTest {
         assertEquals(federationExpressionParser.parseVariableExpression(colThree), COLUMN_QUOTE_CHAR + "colThree" + COLUMN_QUOTE_CHAR);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testCreateSqlForComplexExpressionContent_InvalidUnaryInput()
     {
         FunctionName functionName = StandardFunctions.NEGATE_FUNCTION_NAME.getFunctionName();
@@ -148,7 +149,7 @@ public class MySqlFederationExpressionParserTest {
         assertEquals(negateClause, "(-110)");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void testCreateSqlForComplexExpressionContent_InvalidBinaryInput()
     {
         FunctionName functionName = StandardFunctions.ADD_FUNCTION_NAME.getFunctionName();

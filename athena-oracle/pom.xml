@@ -30,7 +30,7 @@
         <dependency>
             <groupId>com.oracle.database.jdbc</groupId>
             <artifactId>ojdbc8</artifactId>
-            <version>23.5.0.24.07</version>
+            <version>23.7.0.25.01</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/rds -->
         <dependency>
@@ -64,9 +64,6 @@
             <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
-
-        
-
     </dependencies>
     <build>
         <plugins>

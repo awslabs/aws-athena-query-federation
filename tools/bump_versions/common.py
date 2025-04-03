@@ -41,8 +41,7 @@ def update_yaml(yaml_files, new_version):
 
 def update_dockerfile(dockerfiles, new_version):
     for file in dockerfiles:
-        subprocess.run(["sed", "-i", f"s|\(target\/.*-\)[0-9]*\.[0-9]*\.[0-9]*|\\1{new_version}|", file])
-        subprocess.run(["sed", "-i", f"s|\(xf\s*.*-\)[0-9]*\.[0-9]*\.[0-9]*|\\1{new_version}|", file])
+        subprocess.run(["sed", "-i", f"s|\(athena-.*\)-[0-9]*\.[0-9]*\.[0-9]*\.jar|\\1-{new_version}.jar|g", file])
 
 
 def update_project_version(soup, new_version):

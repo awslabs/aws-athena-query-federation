@@ -36,6 +36,7 @@ import software.amazon.awssdk.services.s3.model.GetBucketAclRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketAclResponse;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.Owner;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -88,12 +89,15 @@ public class S3BucketsTableProviderTest
     {
         when(mockS3.listBuckets()).thenAnswer((InvocationOnMock invocation) -> {
             List<Bucket> values = new ArrayList<>();
+            values.add(makeBucket("asdf"));
             values.add(makeBucket(getIdValue()));
             values.add(makeBucket(getIdValue()));
             values.add(makeBucket("fake-id"));
             return ListBucketsResponse.builder().buckets(values).build();
         });
-        when(mockS3.getBucketAcl(any(GetBucketAclRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+        when(mockS3.getBucketAcl(any(GetBucketAclRequest.class)))
+                .thenThrow(S3Exception.builder().message("I am an exception").build())
+                .thenAnswer((InvocationOnMock invocation) -> {
             return GetBucketAclResponse.builder()
                     .owner(Owner.builder()
                             .displayName("owner_name")
