@@ -41,6 +41,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
@@ -52,6 +55,7 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -66,7 +70,13 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -403,6 +413,94 @@ public class UserDefinedFunctionHandlerTest
     }
 
     @Test
+    public void invocationWithDecimalType()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                BigDecimal.class,
+                "test_decimal",
+                true,
+                BigDecimal.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            BigDecimal actual = (BigDecimal) UnitTestBlockUtils.getValue(fieldReader, pos);
+            BigDecimal expected = handler.test_decimal(BigDecimal.valueOf(pos + 1).setScale(3)); // Scale 2 assumed
+            assertEquals(String.valueOf(0), expected, actual);
+        }
+    }
+
+    @Test
+    public void invocationWithDateDayType()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                LocalDate.class,
+                "test_date_day",
+                true,
+                LocalDate.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            LocalDate actual = (LocalDate) UnitTestBlockUtils.getValue(fieldReader, pos);
+            LocalDate expected = handler.test_date_day(LocalDate.of(2019, 12, 31).plusDays(pos + 1));
+            assertEquals(String.valueOf(pos), expected, actual);
+        }
+    }
+
+    @Test
+    public void invocationWithDateMilliType()
+            throws Exception
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                LocalDateTime.class,
+                "test_date_milli",
+                true,
+                LocalDateTime.class
+        );
+
+        UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+        Block responseBlock = udfResponse.getRecords();
+
+        assertEquals(1, responseBlock.getFieldReaders().size());
+        assertEquals(rowCount, responseBlock.getRowCount());
+
+        FieldReader fieldReader = responseBlock.getFieldReaders().get(0);
+
+        for (int pos = 0; pos < rowCount; ++pos) {
+            fieldReader.setPosition(pos);
+            LocalDateTime actual = (LocalDateTime) UnitTestBlockUtils.getValue(fieldReader, pos);
+
+            LocalDateTime expected = handler.test_date_milli(LocalDateTime.parse("2019-12-31T00:00:00").plus(pos + 1, ChronoUnit.DAYS));
+            assertEquals(String.valueOf(pos), expected, actual);
+        }
+    }
+
+    @Test
     public void testInvocationWithNullVAlue()
             throws Exception
     {
@@ -464,6 +562,36 @@ public class UserDefinedFunctionHandlerTest
         handler.handleRequest(pingInputStream, pingTestOutputStream, mock(Context.class));
         FederationResponse response = objectMapper.readValue(pingTestOutputStream.toByteArray(), FederationResponse.class);
         assertNotNull(response);
+    }
+
+    @Test
+    public void udfHandleRequest() throws Exception
+    {
+        int rowCount = 5;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(
+                rowCount,
+                Long.class,
+                "test_big_int",
+                true,
+                Long.class
+        );
+
+        ByteArrayOutputStream requestOutStream = new ByteArrayOutputStream();
+        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
+        objectMapper.writeValue(requestOutStream, udfRequest);
+        ByteArrayInputStream requestInputStream = new ByteArrayInputStream(requestOutStream.toByteArray());
+
+        ByteArrayOutputStream responseOutputStream = new ByteArrayOutputStream();
+
+        handler.handleRequest(requestInputStream, responseOutputStream, mock(Context.class));
+
+        FederationResponse baseResponse = objectMapper.readValue(
+                responseOutputStream.toByteArray(),
+                FederationResponse.class
+        );
+
+        assertNotNull(baseResponse);
+        assertTrue(baseResponse instanceof UserDefinedFunctionResponse);
     }
 
     @Test
@@ -565,6 +693,29 @@ public class UserDefinedFunctionHandlerTest
             return;
         }
 
+        if (fieldVector instanceof DecimalVector) {
+            DecimalVector decimalVector = (DecimalVector) fieldVector;
+            BigDecimal value = BigDecimal.valueOf(idx).add(new BigDecimal("1.000"));
+            decimalVector.setSafe(idx, value);
+            return;
+        }
+
+        if (fieldVector instanceof DateDayVector) {
+            DateDayVector dateDayVector = (DateDayVector) fieldVector;
+            LocalDate localDate = LocalDate.of(2020, 1, 1).plusDays(idx);
+            int daysSinceEpoch = (int) localDate.toEpochDay();
+            dateDayVector.setSafe(idx, daysSinceEpoch);
+            return;
+        }
+
+        if (fieldVector instanceof DateMilliVector) {
+            DateMilliVector dateMilliVector = (DateMilliVector) fieldVector;
+            Instant instant = Instant.parse("2020-01-01T00:00:00Z").plusMillis(idx * 86_400_000L); // 1 day = 86,400,000 ms
+            long millisSinceEpoch = instant.toEpochMilli();
+            dateMilliVector.setSafe(idx, millisSinceEpoch);
+            return;
+        }
+
         if (fieldVector instanceof ListVector) {
             BlockUtils.setComplexValue(fieldVector,
                     idx,
@@ -632,6 +783,20 @@ public class UserDefinedFunctionHandlerTest
 
         if (type == Long.class) {
             return new Field(columnName, FieldType.nullable(new ArrowType.Int(64, true)), null);
+        }
+
+        if (type == BigDecimal.class) {
+            int precision = 38;
+            int scale = 3;
+            return new Field(columnName, FieldType.nullable(new ArrowType.Decimal(precision, scale, 128)), null);
+        }
+
+        if (type == LocalDate.class) {
+            return new Field(columnName, FieldType.nullable(new ArrowType.Date(DateUnit.DAY)), null);
+        }
+
+        if (type == LocalDateTime.class) {
+            return new Field(columnName, FieldType.nullable(new ArrowType.Date(DateUnit.MILLISECOND)), null);
         }
 
         if (type == List.class) {
@@ -739,6 +904,24 @@ public class UserDefinedFunctionHandlerTest
             Double doubleVal = (Double) input.get("doubleVal");
 
             return ImmutableMap.of("intVal", intVal + 1, "doubleVal", doubleVal + 1.0);
+        }
+
+        public BigDecimal test_decimal(BigDecimal input)
+        {
+            if (input == null) {
+                return null;
+            }
+            return input.multiply(BigDecimal.valueOf(2)).setScale(3, RoundingMode.HALF_UP);
+        }
+
+        public LocalDate test_date_day(LocalDate input)
+        {
+            return input;
+        }
+
+        public LocalDateTime test_date_milli(LocalDateTime input)
+        {
+            return input;
         }
     }
 }
