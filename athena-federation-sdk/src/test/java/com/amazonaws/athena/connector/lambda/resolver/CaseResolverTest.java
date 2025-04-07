@@ -1,19 +1,35 @@
+/*-
+ * #%L
+ * Amazon Athena Query Federation SDK
+ * %%
+ * Copyright (C) 2019 - 2025 Amazon Web Services
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
 package com.amazonaws.athena.connector.lambda.resolver;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
+
+import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static junit.framework.TestCase.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
-class CaseResolverTest {
+public class CaseResolverTest {
 
     private CaseResolver caseResolver;
 
@@ -25,21 +41,17 @@ class CaseResolverTest {
         }
     }
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        caseResolver = new TestCaseResolver("TestSource", CaseResolver.FederationSDKCasingMode.LOWER, CaseResolver.FederationSDKCasingMode.UPPER);
-    }
-
     @Test
-    void testGetCasingMode_NoConfigKey_DefaultsToNonGlueBased() {
+    public void testGetCasingMode_NoConfigKey_DefaultsToNonGlueBased() {
+        caseResolver = new TestCaseResolver("TestSource", CaseResolver.FederationSDKCasingMode.LOWER, CaseResolver.FederationSDKCasingMode.UPPER);
         Map<String, String> configOptions = new HashMap<>();
         CaseResolver.FederationSDKCasingMode result = caseResolver.getCasingMode(configOptions);
         assertEquals(CaseResolver.FederationSDKCasingMode.LOWER, result);
     }
 
     @Test
-    void testGetCasingMode_WithGlueConnection_DefaultsToGlueBased() {
+    public void testGetCasingMode_WithGlueConnection_DefaultsToGlueBased() {
+        caseResolver = new TestCaseResolver("TestSource", CaseResolver.FederationSDKCasingMode.LOWER, CaseResolver.FederationSDKCasingMode.UPPER);
         Map<String, String> configOptions = new HashMap<>();
         configOptions.put(DEFAULT_GLUE_CONNECTION, "true");
         CaseResolver.FederationSDKCasingMode result = caseResolver.getCasingMode(configOptions);
@@ -47,7 +59,8 @@ class CaseResolverTest {
     }
 
     @Test
-    void testGetCasingMode_ValidConfig() {
+    public void testGetCasingMode_ValidConfig() {
+        caseResolver = new TestCaseResolver("TestSource", CaseResolver.FederationSDKCasingMode.LOWER, CaseResolver.FederationSDKCasingMode.UPPER);
         Map<String, String> configOptions = new HashMap<>();
         configOptions.put(CaseResolver.CASING_MODE_CONFIGURATION_KEY, "ANNOTATION");
         CaseResolver.FederationSDKCasingMode result = caseResolver.getCasingMode(configOptions);
@@ -55,7 +68,8 @@ class CaseResolverTest {
     }
 
     @Test
-    void testGetCasingMode_InvalidConfig() {
+    public void testGetCasingMode_InvalidConfig() {
+        caseResolver = new TestCaseResolver("TestSource", CaseResolver.FederationSDKCasingMode.LOWER, CaseResolver.FederationSDKCasingMode.UPPER);
         Map<String, String> configOptions = new HashMap<>();
         configOptions.put(CaseResolver.CASING_MODE_CONFIGURATION_KEY, "INVALID_MODE");
 
