@@ -323,6 +323,7 @@
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>
+                                <exclude>META-INF/*.MF</exclude>
                             </excludes>
                         </filter>
                     </filters>
@@ -330,6 +331,7 @@
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
                         <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
                         </transformer>
+                         <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer" />
                     </transformers>
                     <relocations>
                         <relocation>
