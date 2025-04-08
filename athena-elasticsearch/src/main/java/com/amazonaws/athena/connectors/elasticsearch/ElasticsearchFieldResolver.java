@@ -20,10 +20,13 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -76,8 +79,8 @@ public class ElasticsearchFieldResolver
             }
         }
         else {
-            throw new IllegalArgumentException("Invalid argument type. Expecting a Map, but got: " +
-                    originalValue.getClass().getTypeName());
+            throw new AthenaConnectorException("Invalid argument type. Expecting a Map, but got: " +
+                    originalValue.getClass().getTypeName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         switch (fieldType) {
@@ -93,8 +96,8 @@ public class ElasticsearchFieldResolver
                 return coerceField(field, fieldValue);
         }
 
-        throw new RuntimeException("Invalid field value encountered in Document for field: " + field +
-                ",value: " + fieldValue);
+        throw new AthenaConnectorException("Invalid field value encountered in Document for field: " + field +
+                ",value: " + fieldValue, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
     }
 
     // Return the field value of a map key
@@ -151,8 +154,8 @@ public class ElasticsearchFieldResolver
                 break;
         }
 
-        throw new RuntimeException("Invalid field value encountered in Document for field: " + field.toString() +
-                ",value: " + fieldValue.toString());
+        throw new AthenaConnectorException("Invalid field value encountered in Document for field: " + field.toString() +
+                ",value: " + fieldValue.toString(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
     }
 
     /**
