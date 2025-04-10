@@ -62,8 +62,10 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -110,19 +112,29 @@ public class MetadataHandlerTest
             @Override
             public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
             {
-                throw new UnsupportedOperationException();
+                return new ListSchemasResponse("catalog1", Arrays.asList("schema1", "schema2", "schema3"));
             }
 
             @Override
             public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
             {
-                throw new UnsupportedOperationException();
+                String schemaName = request.getSchemaName();
+                List<TableName> tables = Arrays.asList(
+                        new TableName(schemaName, "table1"),
+                        new TableName(schemaName, "table2")
+                );
+                return new ListTablesResponse(request.getCatalogName(), tables, null);
             }
 
             @Override
             public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
             {
-                throw new UnsupportedOperationException();
+                TableName tableName = request.getTableName();
+                Schema schema = SchemaBuilder.newBuilder()
+                        .addStringField("id")
+                        .addIntField("age")
+                        .build();
+                return new GetTableResponse(request.getCatalogName(), tableName, schema);
             }
 
             @Override
@@ -191,6 +203,72 @@ public class MetadataHandlerTest
         assertEquals(1, partitions.getRowCount());
 
         verify(spyAllocator).createBlock(partitionSchema);
+    }
+
+    @Test
+    public void testListSchemasRequest() throws Exception
+    {
+        ListSchemasRequest request = new ListSchemasRequest(identity, QUERY_ID, CATALOG);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(blockAllocator);
+        ByteArrayOutputStream inputBytes = new ByteArrayOutputStream();
+        objectMapper.writeValue(inputBytes, request);
+
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(inputBytes.toByteArray());
+        metadataHandler.handleRequest(inputStream, outputStream, mock(Context.class));
+
+        FederationResponse response = objectMapper.readValue(outputStream.toByteArray(), FederationResponse.class);
+        assertNotNull(response);
+    }
+
+    @Test
+    public void testListTablesRequest() throws Exception
+    {
+        ListTablesRequest request = new ListTablesRequest(identity, QUERY_ID, CATALOG, SCHEMA_NAME, null, 10);
+        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(blockAllocator);
+        ByteArrayOutputStream inputBytes = new ByteArrayOutputStream();
+        objectMapper.writeValue(inputBytes, request);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(inputBytes.toByteArray());
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        metadataHandler.handleRequest(inputStream, outputStream, mock(Context.class));
+
+        FederationResponse response = objectMapper.readValue(outputStream.toByteArray(), FederationResponse.class);
+        assertNotNull(response);
+    }
+
+    @Test
+    public void testGetTableRequest() throws Exception
+    {
+        GetTableRequest request = new GetTableRequest(identity, QUERY_ID, CATALOG, new TableName(SCHEMA_NAME, TABLE_NAME), Map.of());
+        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(blockAllocator);
+        ByteArrayOutputStream inputBytes = new ByteArrayOutputStream();
+        objectMapper.writeValue(inputBytes, request);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(inputBytes.toByteArray());
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        metadataHandler.handleRequest(inputStream, outputStream, mock(Context.class));
+
+        FederationResponse response = objectMapper.readValue(outputStream.toByteArray(), FederationResponse.class);
+        assertNotNull(response);
+    }
+
+    @Test
+    public void testGetCapabilitiesRequest() throws Exception
+    {
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(identity, QUERY_ID, CATALOG);
+        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(blockAllocator);
+        ByteArrayOutputStream inputBytes = new ByteArrayOutputStream();
+        objectMapper.writeValue(inputBytes, request);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(inputBytes.toByteArray());
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        metadataHandler.handleRequest(inputStream, outputStream, mock(Context.class));
+
+        FederationResponse response = objectMapper.readValue(outputStream.toByteArray(), FederationResponse.class);
+        assertNotNull(response);
     }
 
     @Test
