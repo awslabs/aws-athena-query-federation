@@ -19,6 +19,9 @@
  */
 package com.amazonaws.athena.connectors.redshift;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -39,10 +42,11 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
-public class RedshiftMuxJdbcRecordHandlerTest
-{
+public class RedshiftMuxRecordHandlerTest {
+
     private Map<String, JdbcRecordHandler> recordHandlerMap;
     private RedshiftRecordHandler redshiftRecordHandler;
     private JdbcRecordHandler jdbcRecordHandler;
@@ -52,9 +56,13 @@ public class RedshiftMuxJdbcRecordHandlerTest
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
 
+    private RedshiftMuxRecordHandlerFactory factory;
+    private Map<String, String> configOptions;
+    private DatabaseConnectionConfig mockConfig;
+
     @Before
-    public void setup()
-    {
+    public void setUp() {
+
         this.redshiftRecordHandler = Mockito.mock(RedshiftRecordHandler.class);
         this.recordHandlerMap = Collections.singletonMap("redshift", this.redshiftRecordHandler);
         this.amazonS3 = Mockito.mock(S3Client.class);
@@ -65,6 +73,12 @@ public class RedshiftMuxJdbcRecordHandlerTest
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
                 "redshift://jdbc:redshift://hostname/${testSecret}", "testSecret");
         this.jdbcRecordHandler = new RedshiftMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
+
+        this.factory = new RedshiftMuxRecordHandlerFactory();
+        this.configOptions = new HashMap<>();
+        this.mockConfig = new DatabaseConnectionConfig(
+                "testCatalog", RedshiftConstants.REDSHIFT_NAME, "jdbc:redshift://hostname/testdb"
+        );
     }
 
     @Test
@@ -101,5 +115,19 @@ public class RedshiftMuxJdbcRecordHandlerTest
         Split split = Mockito.mock(Split.class);
         this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "redshift", tableName, schema, constraints, split);
         Mockito.verify(this.redshiftRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq("redshift"), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
+    }
+
+    @Test
+    public void testGetEngine() {
+        assertEquals("Engine name should match RedshiftConstants.REDSHIFT_NAME",
+                RedshiftConstants.REDSHIFT_NAME, this.factory.getEngine());
+    }
+
+    @Test
+    public void testCreateJdbcRecordHandler() {
+        JdbcRecordHandler recordHandler = this.factory.createJdbcRecordHandler(this.mockConfig, this.configOptions);
+
+        assertTrue("Record handler should be an instance of RedshiftRecordHandler",
+                recordHandler instanceof RedshiftRecordHandler);
     }
 }

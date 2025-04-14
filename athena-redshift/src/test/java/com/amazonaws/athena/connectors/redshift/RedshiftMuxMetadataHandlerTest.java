@@ -19,6 +19,10 @@
  */
 package com.amazonaws.athena.connectors.redshift;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.nullable;
+
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -32,6 +36,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
+
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -39,27 +46,26 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.nullable;
+public class RedshiftMuxMetadataHandlerTest {
 
-public class RedshiftMuxJdbcMetadataHandlerTest
-{
-    private Map<String, JdbcMetadataHandler> metadataHandlerMap;
-    private RedshiftMetadataHandler redshiftMetadataHandler;
-    private JdbcMetadataHandler jdbcMetadataHandler;
     private BlockAllocator allocator;
+    private RedshiftMetadataHandler redshiftMetadataHandler;
+    private Map<String, JdbcMetadataHandler> metadataHandlerMap;
+    private JdbcMetadataHandler jdbcMetadataHandler;
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
+    private RedshiftMetadataHandlerFactory redshiftMetadataHandlerFactory;
+    private Map<String, String> configOptions;
 
     @Before
-    public void setup()
-    {
-        //this.allocator = Mockito.mock(BlockAllocator.class);
+    public void setup() {
         this.allocator = new BlockAllocatorImpl();
-        //Mockito.when(this.allocator.createBlock(nullable(Schema.class))).thenReturn(Mockito.mock(Block.class));
         this.redshiftMetadataHandler = Mockito.mock(RedshiftMetadataHandler.class);
         this.metadataHandlerMap = Collections.singletonMap("redshift", this.redshiftMetadataHandler);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
@@ -69,12 +75,34 @@ public class RedshiftMuxJdbcMetadataHandlerTest
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
                 "redshift://jdbc:redshift://hostname/${testSecret}", "testSecret");
         this.jdbcMetadataHandler = new RedshiftMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
+
+
+        this.redshiftMetadataHandlerFactory = new RedshiftMetadataHandlerFactory();
+        this.configOptions = new HashMap<>();
     }
 
     @Test
-    public void doListSchemaNames()
-            throws Exception
-    {
+    public void testGetEngine() {
+        assertEquals(RedshiftConstants.REDSHIFT_NAME, this.redshiftMetadataHandlerFactory.getEngine());
+    }
+
+    @Test
+    public void testCreateJdbcMetadataHandler() {
+        String catalogName = "Catalog";
+        DatabaseConnectionConfig config = new DatabaseConnectionConfig(catalogName, "Engine", "mary.somerville@example.org");
+        JdbcMetadataHandler actualCreateJdbcMetadataHandlerResult = this.redshiftMetadataHandlerFactory.createJdbcMetadataHandler(config, this.configOptions);
+
+        assertTrue(actualCreateJdbcMetadataHandlerResult instanceof RedshiftMetadataHandler);
+
+        // Verify partition schema
+        List<Field> fields = actualCreateJdbcMetadataHandlerResult.getPartitionSchema(catalogName).getFields();
+        assertEquals(2, fields.size());
+        FieldType expectedFieldType = fields.get(0).getFieldType();
+        assertEquals(expectedFieldType, fields.get(1).getFieldType());
+    }
+
+    @Test
+    public void doListSchemaNames() throws Exception {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
         Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("redshift");
         this.jdbcMetadataHandler.doListSchemaNames(this.allocator, listSchemasRequest);
