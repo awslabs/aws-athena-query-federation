@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
@@ -191,7 +190,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
      *
-     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param blockAllocator Tool for creating and managing Apache Arrow Blocks.
      * @param request   Provides details on who made the request and which Athena
      *                  catalog, database, and table they are querying.
      * @return A GetTableResponse which primarily contains: 1. An Apache Arrow
@@ -278,12 +277,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         queryPassthrough.verify(qptArguments);
         String schemaName = qptArguments.get(NeptuneQueryPassthrough.DATABASE);
         String tableName = qptArguments.get(NeptuneQueryPassthrough.COLLECTION);
+        String componentTypeValue = qptArguments.get(NeptuneQueryPassthrough.COMPONENT_TYPE);
         TableName tableNameObj = new TableName(schemaName, tableName);
-        request = new GetTableRequest(request.getIdentity(), request.getQueryId(),
-                request.getCatalogName(), tableNameObj, request.getQueryPassthroughArguments());
-
-        GetTableResponse getTableResponse = doGetTable(allocator, request);
-        List<Field> fields = getTableResponse.getSchema().getFields();
         Schema schema;
         Enums.GraphType graphType = Enums.GraphType.PROPERTYGRAPH;
 
@@ -296,7 +291,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 Client client = neptuneConnection.getNeptuneClientConnection();
                 GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
                 String gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
-                gremlinQuery = gremlinQuery.concat(".limit(1)");
+                gremlinQuery = gremlinQuery.concat(".limit(10)");
                 logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with limit: " + gremlinQuery);
                 Object object = new PropertyGraphHandler(neptuneConnection).getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
                 GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
@@ -305,7 +300,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                     if (responseObj instanceof Map && gremlinQuery.contains(Constants.GREMLIN_QUERY_SUPPORT_TYPE)) {
                         logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with valueMap");
                         Map graphTraversalObj = (Map) responseObj;
-                        schema = getSchemaFromResults(getTableResponse, graphTraversalObj, fields);
+                        schema = NeptuneSchemaUtils.getSchemaFromResults(graphTraversalObj, componentTypeValue, tableName);
                         return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                     }
                     else {
@@ -320,15 +315,13 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
 
             case RDF:
                 String sparqlQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
-                sparqlQuery = sparqlQuery.contains("limit") ? sparqlQuery : sparqlQuery.concat("\nlimit 1");
+                sparqlQuery = sparqlQuery.contains("limit") ? sparqlQuery : sparqlQuery.concat("\nlimit 10");
                 logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema sparql query with limit: " + sparqlQuery);
                 NeptuneSparqlConnection neptuneSparqlConnection = (NeptuneSparqlConnection) neptuneConnection;
                 neptuneSparqlConnection.runQuery(sparqlQuery);
-                String strim = getTableResponse.getSchema().getCustomMetadata().get(Constants.SCHEMA_STRIP_URI);
-                boolean trimURI = strim == null ? false : Boolean.parseBoolean(strim);
                 if (neptuneSparqlConnection.hasNext()) {
-                    Map<String, Object> resultsMap = neptuneSparqlConnection.next(trimURI);
-                    schema = getSchemaFromResults(getTableResponse, resultsMap, fields);
+                    Map<String, Object> resultsMap = neptuneSparqlConnection.next();
+                    schema = NeptuneSchemaUtils.getSchemaFromResults(resultsMap, componentTypeValue, tableName);
                     return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                 }
                 else {
@@ -337,38 +330,6 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
 
             default:
                 throw new IllegalArgumentException("Unsupported graphType: " + graphType);
-        }
-    }
-
-    private Schema getSchemaFromResults(GetTableResponse getTableResponse, Map resultsMap, List<Field> fields)
-    {
-        Schema schema;
-        //In case of 'gremlin/sparql query' is fetching all columns then we can use same schema from glue
-        //otherwise we will build schema from gremlin/sparql query result column names.
-        if (resultsMap != null && resultsMap.size() == fields.size()) {
-            schema = getTableResponse.getSchema();
-        }
-        else {
-            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            //Building schema from gremlin/sparql query results and list of fields from glue response.
-            //It's require only when we are selecting limited columns.
-            resultsMap.forEach((columnName, columnValue) -> buildSchema(columnName.toString(), fields, schemaBuilder));
-            Map<String, String> metaData = getTableResponse.getSchema().getCustomMetadata();
-            for (Map.Entry<String, String> map : metaData.entrySet()) {
-                schemaBuilder.addMetadata(map.getKey(), map.getValue());
-            }
-            schema = schemaBuilder.build();
-        }
-        return schema;
-    }
-
-    private void buildSchema(String columnName, List<Field> fields, SchemaBuilder schemaBuilder)
-    {
-        for (Field field : fields) {
-            if (field.getName().equals(columnName)) {
-                schemaBuilder.addField(field);
-                break;
-            }
         }
     }
 }
