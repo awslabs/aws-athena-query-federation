@@ -14,4 +14,4 @@ COPY target/athena-cloudwatch-metrics-2022.47.1.jar ${LAMBDA_TASK_ROOT}
 RUN jar xf athena-cloudwatch-metrics-2022.47.1.jar
 
 # Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
-CMD [ "com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsCompositeHandler" ]
+# No need to specify here (already defined in .yaml file)

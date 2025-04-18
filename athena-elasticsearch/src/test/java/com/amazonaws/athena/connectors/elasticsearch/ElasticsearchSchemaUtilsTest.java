@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -271,7 +272,7 @@ public class ElasticsearchSchemaUtilsTest
         logger.info("parseSchemaWithListOfStruct - exit");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void parseMappingWithInvalidMeta()
             throws JsonProcessingException
     {
