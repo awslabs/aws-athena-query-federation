@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -55,6 +56,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
@@ -389,7 +392,7 @@ public class ElasticsearchMetadataHandler
     {
         logger.debug("doGetQueryPassthroughSchema: enter - " + request);
         if (!request.isQueryPassthrough()) {
-            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+            throw new AthenaConnectorException("No Query passed through [{}]" + request, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         queryPassthrough.verify(request.getQueryPassthroughArguments());
         String index = request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
@@ -413,8 +416,8 @@ public class ElasticsearchMetadataHandler
             schema = ElasticsearchSchemaUtils.parseMapping(mappings);
         }
         catch (IOException error) {
-            throw new RuntimeException("Error retrieving mapping information for index (" +
-                    index + ") ", error);
+            throw new AthenaConnectorException("Error retrieving mapping information for index (" +
+                    index + ") ", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         return schema;
     }
@@ -451,7 +454,7 @@ public class ElasticsearchMetadataHandler
             return client.getShardIds(index, queryTimeout);
         }
         catch (IOException error) {
-            throw new RuntimeException(String.format("Error trying to get shards ids for index: %s, error message: %s", index, error.getMessage()), error);
+            throw new AthenaConnectorException(String.format("Error trying to get shards ids for index: %s, error message: %s", index, error.getMessage()), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -475,7 +478,7 @@ public class ElasticsearchMetadataHandler
         }
 
         if (endpoint == null) {
-            throw new RuntimeException("Unable to find domain: " + domain);
+            throw new AthenaConnectorException("Unable to find domain: " + domain, ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
         }
 
         return endpoint;
