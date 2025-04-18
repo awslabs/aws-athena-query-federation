@@ -321,7 +321,7 @@ public class CompositeHandlerTest
         String exceptionMessage = exception.getCause() != null ? exception.getCause().getMessage() : exception.getMessage();
         assertNotNull(exceptionMessage);
 
-        assertTrue(exceptionMessage.contains("Unexpected field[invalid]"));
+        assertTrue(exceptionMessage.contains("Could not resolve subtype of"));
     }
 
     @Test
