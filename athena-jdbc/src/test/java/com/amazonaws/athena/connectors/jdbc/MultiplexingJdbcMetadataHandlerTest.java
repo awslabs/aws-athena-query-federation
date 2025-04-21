@@ -24,6 +24,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -39,8 +41,11 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class MultiplexingJdbcMetadataHandlerTest
@@ -53,6 +58,7 @@ public class MultiplexingJdbcMetadataHandlerTest
     private AthenaClient athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
+    private DatabaseConnectionConfig databaseConnectionConfig;
 
     @Before
     public void setup()
@@ -66,7 +72,7 @@ public class MultiplexingJdbcMetadataHandlerTest
         this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
+        databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
         this.jdbcMetadataHandler = new MultiplexingJdbcMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
@@ -143,5 +149,45 @@ public class MultiplexingJdbcMetadataHandlerTest
         Mockito.when(getSplitsRequest.getCatalogName()).thenReturn("fakedatabase");
         this.jdbcMetadataHandler.doGetSplits(this.allocator, getSplitsRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetSplits(Mockito.eq(this.allocator), Mockito.eq(getSplitsRequest));
+    }
+
+    @Test
+    public void testConstructor_withTooManyHandlers_shouldThrowException() {
+        metadataHandlerMap = new HashMap<>();
+        for (int i = 0; i < 101; i++) {
+            metadataHandlerMap.put("catalog" + i, fakeDatabaseHandler);
+        }
+
+        AthenaConnectorException exception = assertThrows(AthenaConnectorException.class, () ->
+                new MultiplexingJdbcMetadataHandler(
+                        secretsManager,
+                        athena,
+                        jdbcConnectionFactory,
+                        metadataHandlerMap,
+                        databaseConnectionConfig,
+                        com.google.common.collect.ImmutableMap.of()
+                )
+        );
+        assertTrue(exception.getMessage().contains("Max 100 catalogs supported in multiplexer"));
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema()
+            throws Exception
+    {
+        GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
+        Mockito.when(getTableRequest.getCatalogName()).thenReturn("fakedatabase");
+        this.jdbcMetadataHandler.doGetQueryPassthroughSchema(this.allocator, getTableRequest);
+        Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetQueryPassthroughSchema(Mockito.eq(this.allocator), Mockito.eq(getTableRequest));
+    }
+
+    @Test
+    public void doGetDataSourceCapabilities()
+            throws Exception
+    {
+        GetDataSourceCapabilitiesRequest getDataSourceCapabilitiesRequest = Mockito.mock(GetDataSourceCapabilitiesRequest.class);
+        Mockito.when(getDataSourceCapabilitiesRequest.getCatalogName()).thenReturn("fakedatabase");
+        this.jdbcMetadataHandler.doGetDataSourceCapabilities(this.allocator, getDataSourceCapabilitiesRequest);
+        Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetDataSourceCapabilities(Mockito.eq(this.allocator), Mockito.eq(getDataSourceCapabilitiesRequest));
     }
 }
