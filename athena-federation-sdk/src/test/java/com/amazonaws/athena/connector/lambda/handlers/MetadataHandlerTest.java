@@ -93,6 +93,7 @@ public class MetadataHandlerTest
     @Before
     public void setUp()
     {
+        System.setProperty("aws.region", "us-east-1");
         Map<String, String> configOptions = new HashMap<>();
         String bucket = "bucket";
         configOptions.put("spill_bucket", bucket);
