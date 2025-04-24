@@ -414,12 +414,13 @@ public abstract class JdbcMetadataHandler
             }
 
             if (!found) {
-                throw new AthenaConnectorException(String.format("Could not find table %s in %s", tableName.getTableName(), tableName.getSchemaName()),
-                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
+                // log a warning if table columns are not found
+                LOGGER.warn("getSchema: Could not find table " + tableName.getTableName() + " in " + tableName.getSchemaName());
             }
-
-            // add partition columns
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
+            else {
+                // add partition columns
+                partitionSchema.getFields().forEach(schemaBuilder::addField);
+            }
 
             return schemaBuilder.build();
         }
