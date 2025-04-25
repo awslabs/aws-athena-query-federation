@@ -415,7 +415,7 @@ public abstract class JdbcMetadataHandler
 
             if (!found) {
                 // log a warning if table columns are not found
-                LOGGER.warn("getSchema: Could not find table " + tableName.getTableName() + " in " + tableName.getSchemaName());
+                LOGGER.warn("getSchema: Could not find table {} in {}", tableName.getTableName(), tableName.getSchemaName());
             }
             else {
                 // add partition columns
