@@ -280,13 +280,17 @@ public class JdbcMetadataHandlerTest
         Assert.assertEquals("testTable", getTableResponse.getTableName().getTableName());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void doGetTableNoColumns()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
 
-        this.jdbcMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        Assert.assertEquals("testTable", getTableResponse.getTableName().getTableName());
+        Assert.assertTrue(getTableResponse.getSchema().getFields().isEmpty());
     }
 
     @Test(expected = SQLException.class)
