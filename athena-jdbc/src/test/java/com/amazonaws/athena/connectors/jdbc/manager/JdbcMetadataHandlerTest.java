@@ -290,6 +290,7 @@ public class JdbcMetadataHandlerTest
                 new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
 
         Assert.assertEquals("testTable", getTableResponse.getTableName().getTableName());
+        Assert.assertTrue(getTableResponse.getSchema().getFields().isEmpty());
     }
 
     @Test(expected = SQLException.class)
