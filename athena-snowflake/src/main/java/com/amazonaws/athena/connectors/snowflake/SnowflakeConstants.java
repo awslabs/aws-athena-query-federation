@@ -35,6 +35,17 @@ public final class SnowflakeConstants
      */
     public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
     public static final String SNOWFLAKE_QUOTE_CHARACTER = "\"";
+    
+    /**
+     * Authentication type configuration key
+     */
+    public static final String AUTH_TYPE = "auth_type";
+    
+    /**
+     * Authentication type values
+     */
+    public static final String AUTH_TYPE_PASSWORD = "password";
+    public static final String AUTH_TYPE_PRIVATE_KEY = "private_key";
 
     private SnowflakeConstants() {}
 }
