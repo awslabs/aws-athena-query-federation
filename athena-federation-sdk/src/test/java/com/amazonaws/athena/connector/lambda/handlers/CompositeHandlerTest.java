@@ -154,13 +154,6 @@ public class CompositeHandlerTest
     }
 
     @Test
-    public void constructorWithMetadataRecordAndUdfHandler()
-    {
-        CompositeHandler compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler, mockUserDefinedFunctionHandler);
-        assertNotNull(compositeHandler);
-    }
-
-    @Test
     public void doReadRecords()
             throws Exception
     {
@@ -325,7 +318,7 @@ public class CompositeHandlerTest
     }
 
     @Test
-    public void unknownFederationRequest()
+    public void handleRequest_withUnknownRequest_throwsInvalidInputException()
     {
         FederationRequest unknownRequest = new FederationRequest() {
             @Override
@@ -335,15 +328,15 @@ public class CompositeHandlerTest
             }
         };
 
-        OutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         AthenaConnectorException exception = assertThrows(AthenaConnectorException.class, () ->
                 compositeHandler.handleRequest(allocator, unknownRequest, outputStream, objectMapper)
         );
-
         assertTrue(exception.getMessage().contains("Unknown request class"));
         assertEquals(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString(),
                 exception.getErrorDetails().errorCode());
+        assertEquals(0, outputStream.size());
     }
 
     @Test
