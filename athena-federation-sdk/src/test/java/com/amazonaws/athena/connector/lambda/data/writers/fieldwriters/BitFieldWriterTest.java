@@ -29,128 +29,153 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
+import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterTestUtil.configureBitExtractor;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertTrue;
 
-public class BitFieldWriterTest {
-
+public class BitFieldWriterTest
+{
     private String vectorName = "testVector";
     private int trueBit = 1;
     private int falseBit = 0;
 
     private BitExtractor mockExtractor;
     private ConstraintProjector mockConstraintProjector;
-
     private BufferAllocator allocator;
     private BitVector vector;
     private BitFieldWriter bitFieldWriter;
 
     @Before
-    public void setUp() {
-        // Initialize mocks
+    public void setUp()
+    {
         mockExtractor = mock(BitExtractor.class);
         mockConstraintProjector = mock(ConstraintProjector.class);
 
-        // Set up Apache Arrow BufferAllocator and BitVector
         allocator = new RootAllocator(Long.MAX_VALUE);
         vector = new BitVector(vectorName, allocator);
         vector.allocateNew();
 
-        // Initialize BitFieldWriter with real BitVector
         bitFieldWriter = new BitFieldWriter(mockExtractor, vector, mockConstraintProjector);
     }
 
     @After
-    public void tearDown() {
-        // Release resources
+    public void tearDown()
+    {
         vector.close();
         allocator.close();
     }
 
-    private void verifyAssertions(boolean expectedResult, int expectedValue, boolean actualResult, int index) {
-        assertTrue(expectedResult == actualResult);
-        assertTrue(vector.get(index) == expectedValue);
+    private void verifyAssertions(boolean expectedResult, int expectedValue, boolean actualResult)
+    {
+        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedValue, vector.get(0));
     }
 
     @Test
-    public void testWriteValidValue() throws Exception {
-        // Arrange
-        NullableBitHolder holder = new NullableBitHolder();
-        holder.isSet = 1;
-        holder.value = trueBit;
+    public void write_withValidTrueBitValue_shouldWriteSuccessfully() throws Exception
+    {
+        when(mockConstraintProjector.apply(true)).thenReturn(true);
+        configureBitExtractor(mockExtractor, trueBit, 1);
+
+        boolean result = bitFieldWriter.write(new Object(), 0);
+
+        verifyAssertions(true, trueBit, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(true);
+    }
+
+    @Test
+    public void write_withValidFalseBitValue_shouldWriteSuccessfully() throws Exception
+    {
+        when(mockConstraintProjector.apply(false)).thenReturn(true);
+        configureBitExtractor(mockExtractor, falseBit, 1);
+
+        boolean result = bitFieldWriter.write(new Object(), 0);
+
+        verifyAssertions(true, falseBit, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(false);
+    }
+
+    @Test
+    public void write_withConstraintFailure_shouldReturnFalse() throws Exception
+    {
+        when(mockConstraintProjector.apply(true)).thenReturn(false);
+        configureBitExtractor(mockExtractor, trueBit, 1);
+
+        boolean result = bitFieldWriter.write(new Object(), 0);
+
+        verifyAssertions(false, trueBit, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(true);
+    }
+
+    @Test
+    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception
+    {
+        bitFieldWriter = new BitFieldWriter(mockExtractor, vector, null);
+        configureBitExtractor(mockExtractor, falseBit, 1);
+
+        boolean result = bitFieldWriter.write(new Object(), 0);
+
+        verifyAssertions(true, falseBit, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+    }
+
+    @Test
+    public void write_withNullBitValue_shouldMarkVectorAsNull() throws Exception
+    {
+        configureBitExtractor(mockExtractor, 0, 0);
+
+        boolean result = bitFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+    }
+
+    @Test
+    public void write_withNonZeroValueMarkedNull_shouldMarkVectorAsNull() throws Exception
+    {
+        configureBitExtractor(mockExtractor, trueBit, 0);
+
+        boolean result = bitFieldWriter.write(new Object(), 0);
+
+        assertFalse("Expected to treat value as null due to isSet=0", result);
+        assertTrue("Vector should mark index 0 as null", vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+    }
+
+    @Test
+    public void write_withUnexpectedBitValue_shouldWriteAsTrue() throws Exception
+    {
+        int unexpectedBit = 5;
+        configureBitExtractor(mockExtractor, unexpectedBit, 1);
 
         when(mockConstraintProjector.apply(true)).thenReturn(true);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableBitHolder valueHolder = (NullableBitHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = trueBit;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
 
-        // Act
         boolean result = bitFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, trueBit, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        verifyAssertions(true, 1, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
         verify(mockConstraintProjector, times(1)).apply(true);
     }
 
     @Test
-    public void testWriteValueFailsConstraints() throws Exception {
-        // Arrange
-        NullableBitHolder holder = new NullableBitHolder();
-        holder.isSet = 1;
-        holder.value = trueBit;
+    public void write_withNonZeroBitMarkedAsNull_shouldMarkVectorAsNull() throws Exception
+    {
+        configureBitExtractor(mockExtractor, trueBit, 0);
 
-        when(mockConstraintProjector.apply(true)).thenReturn(false);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableBitHolder valueHolder = (NullableBitHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = trueBit;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = bitFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(false, trueBit, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(true);
-    }
-
-    @Test
-    public void testWriteNoConstraints() throws Exception {
-        // Initialize BitFieldWriter with null ConstraintProjector
-        bitFieldWriter = new BitFieldWriter(mockExtractor, vector, null);
-
-        // Arrange
-        NullableBitHolder holder = new NullableBitHolder();
-        holder.isSet = 1;
-        holder.value = falseBit;
-
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableBitHolder valueHolder = (NullableBitHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = falseBit;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
-        boolean result = bitFieldWriter.write(new Object(), 0);
-
-        // Assert
-        verifyAssertions(true, falseBit, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        assertFalse("Should be treated as null because isSet=0", result);
+        assertTrue("Vector should recognize as null", vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
     }
 }
-

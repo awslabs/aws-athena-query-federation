@@ -33,138 +33,119 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
+import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterTestUtil.configureDateMilliExtractor;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertTrue;
 
 public class DateMilliFieldWriterTest {
 
-    private String vectorName = "testVector"; // Name of the vector
-    private long validEpochMilliseconds = 1672531200000L; // Epoch time in milliseconds
+    private String vectorName = "testVector";
+    private long actualEpochMilliseconds = 1672531200000L;
     private LocalDateTime expectedDate = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(validEpochMilliseconds), ZoneOffset.UTC); // Converted to LocalDateTime
+            Instant.ofEpochMilli(actualEpochMilliseconds), ZoneOffset.UTC);
 
     private BufferAllocator allocator;
     private DateMilliVector vector;
     private DateMilliExtractor mockExtractor;
     private ConstraintProjector mockConstraintProjector;
-
     private DateMilliFieldWriter dateMilliFieldWriter;
 
     @Before
     public void setUp() {
-        // Initialize Apache Arrow components
         allocator = new RootAllocator(Long.MAX_VALUE);
         vector = new DateMilliVector(vectorName, allocator);
         vector.allocateNew();
 
-        // Mock dependencies
         mockExtractor = mock(DateMilliExtractor.class);
         mockConstraintProjector = mock(ConstraintProjector.class);
 
-        // Initialize the DateMilliFieldWriter with mocked components
         dateMilliFieldWriter = new DateMilliFieldWriter(mockExtractor, vector, mockConstraintProjector);
     }
 
     @After
     public void tearDown() {
-        // Release resources
         vector.close();
         allocator.close();
     }
 
-    /**
-     * Utility method for verifying assertions on test results.
-     *
-     * @param expectedResult The expected result of the write operation.
-     * @param expectedValue The expected value written to the vector.
-     * @param actualResult The actual result of the write operation.
-     * @param index The index in the vector to validate.
-     */
-    private void verifyAssertions(boolean expectedResult, long expectedValue, boolean actualResult, int index) {
-        assertTrue(expectedResult == actualResult);
-        assertTrue(vector.get(index) == expectedValue);
+    private void verifyAssertions(boolean expectedResult, boolean actualResult) {
+        assertEquals(expectedResult, actualResult);
+        assertEquals(actualEpochMilliseconds, vector.get(0));
     }
 
     @Test
-    public void testWriteValidValue() throws Exception {
-        // Arrange
-        NullableDateMilliHolder holder = new NullableDateMilliHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validEpochMilliseconds;
-
+    public void write_withValidDateMilliValue_shouldWriteSuccessfully() throws Exception {
         when(mockConstraintProjector.apply(expectedDate)).thenReturn(true);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableDateMilliHolder valueHolder = (NullableDateMilliHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validEpochMilliseconds;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
+        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 1);
 
-        // Act
         boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, validEpochMilliseconds, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        verifyAssertions(true, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
         verify(mockConstraintProjector, times(1)).apply(expectedDate);
     }
 
     @Test
-    public void testWriteValueFailsConstraints() throws Exception {
-        // Arrange
-        NullableDateMilliHolder holder = new NullableDateMilliHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validEpochMilliseconds;
-
+    public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
         when(mockConstraintProjector.apply(expectedDate)).thenReturn(false);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableDateMilliHolder valueHolder = (NullableDateMilliHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validEpochMilliseconds;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
+        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 1);
 
-        // Act
         boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(false, validEpochMilliseconds, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        verifyAssertions(false, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
         verify(mockConstraintProjector, times(1)).apply(expectedDate);
     }
 
     @Test
-    public void testWriteNoConstraints() throws Exception {
-        // Initialize DateMilliFieldWriter with null ConstraintProjector
+    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         dateMilliFieldWriter = new DateMilliFieldWriter(mockExtractor, vector, null);
+        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 1);
 
-        // Arrange
-        NullableDateMilliHolder holder = new NullableDateMilliHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validEpochMilliseconds;
-
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableDateMilliHolder valueHolder = (NullableDateMilliHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validEpochMilliseconds;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, validEpochMilliseconds, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        verifyAssertions(true, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
+    }
+
+    @Test
+    public void write_withNullDateMilliValue_shouldMarkVectorAsNull() throws Exception {
+        configureDateMilliExtractor(mockExtractor, 0, 0);
+
+        boolean result = dateMilliFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
+    }
+
+    @Test
+    public void write_withNonZeroValueMarkedNull_shouldMarkAsNull() throws Exception {
+        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 0);
+
+        boolean result = dateMilliFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
+    }
+
+    @Test
+    public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(expectedDate)).thenReturn(false);
+        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 1);
+
+        boolean result = dateMilliFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertFalse(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(expectedDate);
     }
 }
-
-

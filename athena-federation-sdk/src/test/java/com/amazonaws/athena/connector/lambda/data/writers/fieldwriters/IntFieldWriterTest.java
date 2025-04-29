@@ -29,136 +29,117 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
+import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterTestUtil.configureIntExtractor;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertTrue;
 
 public class IntFieldWriterTest {
 
-    // Global variables
-    private String vectorName = "testVector"; // Name of the vector
-    private int validIntValue = 123; // Valid integer value for tests
+    private String vectorName = "testVector";
+    private int actualIntValue = 123;
 
     private BufferAllocator allocator;
     private IntVector vector;
     private IntExtractor mockExtractor;
     private ConstraintProjector mockConstraintProjector;
-
     private IntFieldWriter intFieldWriter;
 
     @Before
     public void setUp() {
-        // Initialize Apache Arrow components
         allocator = new RootAllocator(Long.MAX_VALUE);
         vector = new IntVector(vectorName, allocator);
         vector.allocateNew();
 
-        // Mock dependencies
         mockExtractor = mock(IntExtractor.class);
         mockConstraintProjector = mock(ConstraintProjector.class);
 
-        // Initialize the IntFieldWriter with mocked components
         intFieldWriter = new IntFieldWriter(mockExtractor, vector, mockConstraintProjector);
     }
 
     @After
     public void tearDown() {
-        // Release resources
         vector.close();
         allocator.close();
     }
 
-    /**
-     * Utility method for verifying assertions on test results.
-     *
-     * @param expectedResult The expected result of the write operation.
-     * @param expectedValue The expected value written to the vector.
-     * @param actualResult The actual result of the write operation.
-     * @param index The index in the vector to validate.
-     */
-    private void verifyAssertions(boolean expectedResult, int expectedValue, boolean actualResult, int index) {
-        assertTrue(expectedResult == actualResult);
-        assertTrue(vector.get(index) == expectedValue);
+    private void verifyAssertions(boolean expectedResult, boolean actualResult) {
+        assertEquals(expectedResult, actualResult);
+        assertEquals(actualIntValue, vector.get(0));
     }
 
     @Test
-    public void testWriteValidValue() throws Exception {
-        // Arrange
-        NullableIntHolder holder = new NullableIntHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validIntValue;
+    public void write_withValidIntValue_shouldWriteSuccessfully() throws Exception {
+        when(mockConstraintProjector.apply(actualIntValue)).thenReturn(true);
+        configureIntExtractor(mockExtractor, actualIntValue, 1);
 
-        when(mockConstraintProjector.apply(holder.value)).thenReturn(true);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableIntHolder valueHolder = (NullableIntHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validIntValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = intFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, validIntValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(holder.value);
+        verifyAssertions(true, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableIntHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualIntValue);
     }
 
     @Test
-    public void testWriteValueFailsConstraints() throws Exception {
-        // Arrange
-        NullableIntHolder holder = new NullableIntHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validIntValue;
+    public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(actualIntValue)).thenReturn(false);
+        configureIntExtractor(mockExtractor, actualIntValue, 1);
 
-        when(mockConstraintProjector.apply(holder.value)).thenReturn(false);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableIntHolder valueHolder = (NullableIntHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validIntValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = intFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(false, validIntValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(holder.value);
+        verifyAssertions(false, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableIntHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualIntValue);
     }
 
     @Test
-    public void testWriteNoConstraints() throws Exception {
-        // Initialize IntFieldWriter with null ConstraintProjector
+    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         intFieldWriter = new IntFieldWriter(mockExtractor, vector, null);
+        configureIntExtractor(mockExtractor, actualIntValue, 1);
 
-        // Arrange
-        NullableIntHolder holder = new NullableIntHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validIntValue;
-
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableIntHolder valueHolder = (NullableIntHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validIntValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = intFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, validIntValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        verifyAssertions(true, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableIntHolder.class));
+    }
+
+    @Test
+    public void write_withNullIntValue_shouldMarkVectorAsNull() throws Exception {
+        configureIntExtractor(mockExtractor, 0, 0);
+
+        boolean result = intFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableIntHolder.class));
+    }
+
+    @Test
+    public void write_withNonZeroValueMarkedNull_shouldMarkVectorAsNull() throws Exception {
+        configureIntExtractor(mockExtractor, actualIntValue, 0);
+
+        boolean result = intFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableIntHolder.class));
+    }
+
+    @Test
+    public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(actualIntValue)).thenReturn(false);
+        configureIntExtractor(mockExtractor, actualIntValue, 1);
+
+        boolean result = intFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertFalse(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableIntHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualIntValue);
     }
 }
-

@@ -31,137 +31,134 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
+import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterTestUtil.configureDecimalExtractor;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertTrue;
 
 public class DecimalFieldWriterTest {
 
-    // Global variables
-    private String vectorName = "testVector"; // Name of the vector
-    private BigDecimal validValue = new BigDecimal("123.456"); // Valid decimal value for tests
-    private BigDecimal expectedRoundedValue = new BigDecimal("123.46"); // Rounded decimal value
+    private String vectorName = "testVector";
+    private BigDecimal actualValue = new BigDecimal("123.456");
+    private BigDecimal expectedRoundedValue = new BigDecimal("123.46");
 
     private BufferAllocator allocator;
     private DecimalVector vector;
     private DecimalExtractor mockExtractor;
     private ConstraintProjector mockConstraintProjector;
-
     private DecimalFieldWriter decimalFieldWriter;
 
     @Before
     public void setUp() {
-        // Initialize Apache Arrow components
         allocator = new RootAllocator(Long.MAX_VALUE);
-        vector = new DecimalVector(vectorName, allocator, 10, 2); // Precision: 10, Scale: 2
+        vector = new DecimalVector(vectorName, allocator, 10, 2);
         vector.allocateNew();
 
-        // Mock dependencies
         mockExtractor = mock(DecimalExtractor.class);
         mockConstraintProjector = mock(ConstraintProjector.class);
 
-        // Initialize the DecimalFieldWriter with mocked components
         decimalFieldWriter = new DecimalFieldWriter(mockExtractor, vector, mockConstraintProjector);
     }
 
     @After
     public void tearDown() {
-        // Release resources
         vector.close();
         allocator.close();
     }
 
-    /**
-     * Utility method for verifying assertions on test results.
-     *
-     * @param expectedResult The expected result of the write operation.
-     * @param expectedValue The expected value written to the vector.
-     * @param actualResult The actual result of the write operation.
-     * @param index The index in the vector to validate.
-     */
-    private void verifyAssertions(boolean expectedResult, BigDecimal expectedValue, boolean actualResult, int index) {
-        assertTrue(expectedResult == actualResult);
-        assertTrue(vector.getObject(index).compareTo(expectedValue) == 0);
+    private void verifyAssertions(boolean expectedResult, boolean actualResult) {
+        assertEquals(expectedResult, actualResult);
+        assertEquals(0, vector.getObject(0).compareTo(expectedRoundedValue));
     }
 
     @Test
-    public void testWriteValidValue() throws Exception {
-        // Arrange
-        NullableDecimalHolder holder = new NullableDecimalHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validValue;
+    public void write_withValidDecimalValue_shouldWriteSuccessfully() throws Exception {
+        when(mockConstraintProjector.apply(actualValue)).thenReturn(true);
+        configureDecimalExtractor(mockExtractor, actualValue, 1);
 
-        when(mockConstraintProjector.apply(validValue)).thenReturn(true);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableDecimalHolder valueHolder = (NullableDecimalHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = decimalFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, expectedRoundedValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(validValue);
+        verifyAssertions(true, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualValue);
     }
 
     @Test
-    public void testWriteValueFailsConstraints() throws Exception {
-        // Arrange
-        NullableDecimalHolder holder = new NullableDecimalHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validValue;
+    public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(actualValue)).thenReturn(false);
+        configureDecimalExtractor(mockExtractor, actualValue, 1);
 
-        when(mockConstraintProjector.apply(validValue)).thenReturn(false);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableDecimalHolder valueHolder = (NullableDecimalHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = decimalFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(false, expectedRoundedValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(validValue);
+        verifyAssertions(false, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualValue);
     }
 
     @Test
-    public void testWriteNoConstraints() throws Exception {
-        // Initialize DecimalFieldWriter with null ConstraintProjector
+    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         decimalFieldWriter = new DecimalFieldWriter(mockExtractor, vector, null);
+        configureDecimalExtractor(mockExtractor, actualValue, 1);
 
-        // Arrange
-        NullableDecimalHolder holder = new NullableDecimalHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validValue;
-
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableDecimalHolder valueHolder = (NullableDecimalHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = decimalFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, expectedRoundedValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        verifyAssertions(true, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+    }
+
+    @Test
+    public void write_withNullDecimalValue_shouldMarkVectorAsNull() throws Exception {
+        configureDecimalExtractor(mockExtractor, BigDecimal.ZERO, 0);
+
+        boolean result = decimalFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+    }
+
+    @Test
+    public void write_withNonZeroValueMarkedNull_shouldMarkAsNull() throws Exception {
+        configureDecimalExtractor(mockExtractor, actualValue, 0);
+
+        boolean result = decimalFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+    }
+
+    @Test
+    public void write_withInvalidDecimalValue_shouldThrowException() throws Exception {
+        BigDecimal invalidValue = new BigDecimal("1234567890.1234567890");
+        when(mockConstraintProjector.apply(invalidValue)).thenReturn(true);
+        configureDecimalExtractor(mockExtractor, invalidValue, 1);
+
+        try {
+            decimalFieldWriter.write(new Object(), 0);
+            fail("Expected UnsupportedOperationException but none thrown");
+        } catch (UnsupportedOperationException e) {
+            assertTrue(e.getMessage().contains("BigDecimal precision cannot be greater than"));
+        }
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+    }
+
+    @Test
+    public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(actualValue)).thenReturn(false);
+        configureDecimalExtractor(mockExtractor, actualValue, 1);
+
+        boolean result = decimalFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertFalse(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualValue);
     }
 }
-

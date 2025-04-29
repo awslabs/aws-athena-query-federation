@@ -29,137 +29,116 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterTestUtil.configureTinyIntExtractor;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 public class TinyIntFieldWriterTest {
 
-    // Global variables
-    private String vectorName = "testVector"; // Name of the vector
-    private byte maxTinyIntValue = 127; // Maximum value for TinyInt
-    private byte validTinyIntValue = 42; // Arbitrary tiny integer value for no constraints test
+    private String vectorName = "testVector";
+    private byte actualTinyIntValue = 42;
 
     private BufferAllocator allocator;
     private TinyIntVector vector;
     private TinyIntExtractor mockExtractor;
     private ConstraintProjector mockConstraintProjector;
-
     private TinyIntFieldWriter tinyIntFieldWriter;
 
     @Before
     public void setUp() {
-        // Initialize Apache Arrow components
         allocator = new RootAllocator(Long.MAX_VALUE);
         vector = new TinyIntVector(vectorName, allocator);
         vector.allocateNew();
 
-        // Mock dependencies
         mockExtractor = mock(TinyIntExtractor.class);
         mockConstraintProjector = mock(ConstraintProjector.class);
 
-        // Initialize TinyIntFieldWriter with mocked components
         tinyIntFieldWriter = new TinyIntFieldWriter(mockExtractor, vector, mockConstraintProjector);
     }
 
     @After
     public void tearDown() {
-        // Release resources
         vector.close();
         allocator.close();
     }
 
-    /**
-     * Utility method for verifying assertions on test results.
-     *
-     * @param expectedResult The expected result of the write operation.
-     * @param expectedValue The expected value written to the vector.
-     * @param actualResult The actual result of the write operation.
-     * @param index The index in the vector to validate.
-     */
-    private void verifyAssertions(boolean expectedResult, int expectedValue, boolean actualResult, int index) {
-        assertTrue(expectedResult == actualResult);
-        assertTrue(vector.get(index) == expectedValue);
+    private void verifyAssertions(boolean expectedResult, boolean actualResult) {
+        assertEquals(expectedResult, actualResult);
+        assertEquals(actualTinyIntValue, vector.get(0));
     }
 
     @Test
-    public void testWriteValidValue() throws Exception {
-        // Arrange
-        NullableTinyIntHolder holder = new NullableTinyIntHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = maxTinyIntValue;
+    public void write_withValidTinyIntValue_shouldWriteSuccessfully() throws Exception {
+        when(mockConstraintProjector.apply(actualTinyIntValue)).thenReturn(true);
+        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 1);
 
-        when(mockConstraintProjector.apply(holder.value)).thenReturn(true);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableTinyIntHolder valueHolder = (NullableTinyIntHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = maxTinyIntValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = tinyIntFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, maxTinyIntValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(holder.value);
+        verifyAssertions(true, result);
+        verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
+        verify(mockConstraintProjector).apply(actualTinyIntValue);
     }
 
     @Test
-    public void testWriteValueFailsConstraints() throws Exception {
-        // Arrange
-        NullableTinyIntHolder holder = new NullableTinyIntHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = maxTinyIntValue;
+    public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(actualTinyIntValue)).thenReturn(false);
+        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 1);
 
-        when(mockConstraintProjector.apply(holder.value)).thenReturn(false);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableTinyIntHolder valueHolder = (NullableTinyIntHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = maxTinyIntValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = tinyIntFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(false, maxTinyIntValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(holder.value);
+        verifyAssertions(false, result);
+        verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
+        verify(mockConstraintProjector).apply(actualTinyIntValue);
     }
 
     @Test
-    public void testWriteNoConstraints() throws Exception {
-        // Initialize TinyIntFieldWriter with null ConstraintProjector
+    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         tinyIntFieldWriter = new TinyIntFieldWriter(mockExtractor, vector, null);
+        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 1);
 
-        // Arrange
-        NullableTinyIntHolder holder = new NullableTinyIntHolder();
-        holder.isSet = 1; // Value is set
-        holder.value = validTinyIntValue;
-
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableTinyIntHolder valueHolder = (NullableTinyIntHolder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validTinyIntValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = tinyIntFieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, validTinyIntValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        verifyAssertions(true, result);
+        verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
+    }
+
+    @Test
+    public void write_withNullTinyIntValue_shouldMarkVectorAsNull() throws Exception {
+        configureTinyIntExtractor(mockExtractor, (byte) 0, 0);
+
+        boolean result = tinyIntFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
+    }
+
+    @Test
+    public void write_withNonZeroValueMarkedNull_shouldMarkVectorAsNull() throws Exception {
+        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 0);
+
+        boolean result = tinyIntFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
+    }
+
+    @Test
+    public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(actualTinyIntValue)).thenReturn(false);
+        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 1);
+
+        boolean result = tinyIntFieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertFalse(vector.isNull(0));
+        verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
+        verify(mockConstraintProjector).apply(actualTinyIntValue);
     }
 }
-

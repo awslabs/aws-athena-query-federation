@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.lambda.data;
 
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.BlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
@@ -35,13 +36,14 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.any;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -104,18 +106,10 @@ public class S3BlockSpillReaderTest
     }
 
     @Test
-    public void testReadEncryptedBlock()
-            throws Exception
+    public void read_EncryptedBlock_Succeeds() throws Exception
     {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        BlockCrypto blockCrypto = (encryptionKey != null)
-                ? new AesGcmBlockCrypto(allocator)
-                : new NoOpBlockCrypto(allocator);
-
-        byte[] serialized = blockCrypto.encrypt(encryptionKey, expected);
-        out.write(serialized);
-
-        byte[] spilledBytes = out.toByteArray();
+        BlockCrypto blockCrypto = new AesGcmBlockCrypto(allocator);
+        byte[] spilledBytes = blockCrypto.encrypt(encryptionKey, expected);
 
         when(mockS3.getObject(any(GetObjectRequest.class)))
                 .thenReturn(new ResponseInputStream<>(
@@ -130,7 +124,7 @@ public class S3BlockSpillReaderTest
     }
 
     @Test
-    public void testReadEncryptedBytes()
+    public void readBytes_EncryptedBytes_Succeeds()
     {
         BlockCrypto blockCrypto = new AesGcmBlockCrypto(allocator);
         byte[] encryptedBytes = blockCrypto.encrypt(encryptionKey, expected);
@@ -145,5 +139,103 @@ public class S3BlockSpillReaderTest
         assertNotNull(bytes);
         verify(mockS3, times(1)).getObject(any(GetObjectRequest.class));
         verifyNoMoreInteractions(mockS3);
+    }
+
+    @Test
+    public void read_NullSpillLocation_ThrowsNullPointerException()
+    {
+        assertThrows(NullPointerException.class, () -> {
+            blockReader.read(null, encryptionKey, schema);
+        });
+    }
+
+    @Test
+    public void read_S3Failure_ThrowsS3Exception()
+    {
+        when(mockS3.getObject(any(GetObjectRequest.class)))
+                .thenThrow(S3Exception.builder()
+                        .message("Failed to read from S3")
+                        .build());
+
+        S3Exception exception = assertThrows(S3Exception.class, () -> {
+            blockReader.read(spillLocation, encryptionKey, schema);
+        });
+
+        assertEquals("Failed to read from S3", exception.getMessage());
+        verify(mockS3, times(1)).getObject(any(GetObjectRequest.class));
+    }
+
+    @Test
+    public void read_CorruptedEncryptedData_ThrowsAthenaConnectorException()
+    {
+        // Provide corrupted data (e.g., random bytes)
+        byte[] corruptedBytes = new byte[]{1, 2, 3, 4, 5};
+
+        when(mockS3.getObject(any(GetObjectRequest.class)))
+                .thenReturn(new ResponseInputStream<>(
+                        GetObjectResponse.builder().build(),
+                        new ByteArrayInputStream(corruptedBytes)));
+
+        assertThrows(AthenaConnectorException.class, () -> {
+            blockReader.read(spillLocation, encryptionKey, schema);
+        });
+
+        verify(mockS3, times(1)).getObject(any(GetObjectRequest.class));
+    }
+
+    @Test
+    public void read_MismatchedEncryptionKey_ThrowsAthenaConnectorException()
+    {
+        BlockCrypto blockCrypto = new AesGcmBlockCrypto(allocator);
+        byte[] spilledBytes = blockCrypto.encrypt(encryptionKey, expected);
+
+        // Create a different encryption key
+        EncryptionKeyFactory keyFactory = new LocalKeyFactory();
+        EncryptionKey wrongKey = keyFactory.create();
+
+        when(mockS3.getObject(any(GetObjectRequest.class)))
+                .thenReturn(new ResponseInputStream<>(
+                        GetObjectResponse.builder().build(),
+                        new ByteArrayInputStream(spilledBytes)));
+
+        assertThrows(AthenaConnectorException.class, () -> {
+            blockReader.read(spillLocation, wrongKey, schema);
+        });
+
+        verify(mockS3, times(1)).getObject(any(GetObjectRequest.class));
+    }
+
+    @Test
+    public void read_NullSchema_ThrowsNullPointerException()
+    {
+        BlockCrypto blockCrypto = new AesGcmBlockCrypto(allocator);
+        byte[] spilledBytes = blockCrypto.encrypt(encryptionKey, expected);
+
+        when(mockS3.getObject(any(GetObjectRequest.class)))
+                .thenReturn(new ResponseInputStream<>(
+                        GetObjectResponse.builder().build(),
+                        new ByteArrayInputStream(spilledBytes)));
+
+        assertThrows(NullPointerException.class, () -> {
+            blockReader.read(spillLocation, encryptionKey, null);
+        });
+    }
+
+    @Test
+    public void read_UnencryptedBlockWithNullEncryptionKey_Succeeds() throws Exception
+    {
+        encryptionKey = null;
+        BlockCrypto blockCrypto = new NoOpBlockCrypto(allocator);
+        byte[] spilledBytes = blockCrypto.encrypt(null, expected);
+
+        when(mockS3.getObject(any(GetObjectRequest.class)))
+                .thenReturn(new ResponseInputStream<>(
+                        GetObjectResponse.builder().build(),
+                        new ByteArrayInputStream(spilledBytes)));
+
+        Block actual = blockReader.read(spillLocation, null, schema);
+
+        assertEquals(expected, actual);
+        verify(mockS3, times(1)).getObject(any(GetObjectRequest.class));
     }
 }

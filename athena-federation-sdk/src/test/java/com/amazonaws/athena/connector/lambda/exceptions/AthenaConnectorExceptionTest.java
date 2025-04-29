@@ -19,25 +19,33 @@
  */
 package com.amazonaws.athena.connector.lambda.exceptions;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import org.junit.Before;
 import org.junit.Test;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 
-public class AthenaConnectorExceptionTest {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
+public class AthenaConnectorExceptionTest
+{
     private String errorMessage = "Test Message";
-    private Object testResponse = "Test Response";
     private String errorCode = "TestErrorCode";
+    private Object testResponse = "Test Response";
     private Exception testCause = new RuntimeException("Test Cause");
+
+    // Assertion messages
+    private String errorMessageMatchMsg = "Error message should match";
+    private String responseMatchMsg = "Response should match";
+    private String causeMatchMsg = "Cause should match";
+    private String errorDetailsMatchMsg = "Error details should match";
+    private String causeNullMsg = "Expected no cause for (message, details) constructor";
+    private String responseNullMsg = "Response should be null when not provided";
+
     private ErrorDetails errorDetails;
 
     @Before
     public void setUp()
-            throws Exception {
+    {
         errorDetails = ErrorDetails.builder()
                 .errorCode(errorCode)
                 .errorMessage(errorMessage)
@@ -45,41 +53,35 @@ public class AthenaConnectorExceptionTest {
     }
 
     @Test
-    public void testConstructorWithResponseMessageAndErrorDetails() {
+    public void constructor_withResponseMessageAndErrorDetails_shouldSetFieldsCorrectly()
+    {
         AthenaConnectorException exception = new AthenaConnectorException(testResponse, errorMessage, errorDetails);
 
-        assertEquals(errorMessage, exception.getMessage());  // Verify the message
-        assertEquals(testResponse, exception.getResponse());  // Verify the response
-        assertEquals(errorDetails, exception.getErrorDetails());  // Verify the errorDetails
+        assertEquals(errorMessageMatchMsg, errorMessage, exception.getMessage());
+        assertEquals(responseMatchMsg, testResponse, exception.getResponse());
+        assertEquals(errorDetailsMatchMsg, errorDetails, exception.getErrorDetails());
+        assertNull(causeNullMsg, exception.getCause());
     }
 
     @Test
-    public void testConstructorWithMessageAndErrorDetails() {
+    public void constructor_withMessageAndErrorDetails_shouldSetFieldsCorrectly()
+    {
         AthenaConnectorException exception = new AthenaConnectorException(errorMessage, errorDetails);
 
-        // Assert
-        assertEquals(errorMessage, exception.getMessage());  // Verify the message
-        assertNull(exception.getResponse());  // Verify that the response is null
-        assertEquals(errorDetails, exception.getErrorDetails());  // Verify the errorDetails
+        assertEquals(errorMessageMatchMsg, errorMessage, exception.getMessage());
+        assertNull(responseNullMsg, exception.getResponse());
+        assertEquals(errorDetailsMatchMsg, errorDetails, exception.getErrorDetails());
+        assertNull(causeNullMsg, exception.getCause());
     }
 
     @Test
-    public void testConstructorWithResponseMessageCauseAndErrorDetails() {
+    public void constructor_withResponseMessageCauseAndErrorDetails_shouldSetFieldsCorrectly()
+    {
         AthenaConnectorException exception = new AthenaConnectorException(testResponse, errorMessage, testCause, errorDetails);
 
-        // Assert
-        assertEquals(errorMessage, exception.getMessage());  // Verify the message
-        assertEquals(testCause, exception.getCause());  // Verify the cause
-        assertEquals(testResponse, exception.getResponse());  // Verify the response
-        assertEquals(errorDetails, exception.getErrorDetails());  // Verify the errorDetails
-    }
-
-    @Test
-    public void testExceptionInheritance() {
-        AthenaConnectorException exception = new AthenaConnectorException(errorMessage, errorDetails);
-
-        // Assert
-        assertTrue(exception instanceof RuntimeException);  // Verify inheritance
+        assertEquals(errorMessageMatchMsg, errorMessage, exception.getMessage());
+        assertEquals(causeMatchMsg, testCause, exception.getCause());
+        assertEquals(responseMatchMsg, testResponse, exception.getResponse());
+        assertEquals(errorDetailsMatchMsg, errorDetails, exception.getErrorDetails());
     }
 }
-

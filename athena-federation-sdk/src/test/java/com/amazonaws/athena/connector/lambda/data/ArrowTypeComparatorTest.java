@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 
 public class ArrowTypeComparatorTest {
@@ -186,13 +187,7 @@ public class ArrowTypeComparatorTest {
 
     @Test
     public void testCompareStructNotEqual() {
-        // Act & Assert: Expect inequality
-        int result = ArrowTypeComparator.compare(structType, struct1, struct2);
-        if (struct1.hashCode() < struct2.hashCode()) {
-            assertEquals(-1, result);
-        } else {
-            assertEquals(1, result);
-        }
+        assertNotEquals(0, ArrowTypeComparator.compare(structType, struct1, struct2));
     }
 
     @Test

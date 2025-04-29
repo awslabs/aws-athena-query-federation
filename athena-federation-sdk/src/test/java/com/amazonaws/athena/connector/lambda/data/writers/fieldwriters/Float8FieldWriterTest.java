@@ -29,137 +29,118 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
+import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterTestUtil.configureFloat8Extractor;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
 
 public class Float8FieldWriterTest {
 
-    // Global variables
-    private String vectorName = "testVector"; // Name of the vector
-    private double validDoubleValue = 123.456; // Valid double value for tests
-    private double delta = 0.001; // Precision delta for double comparisons
+    private String vectorName = "testVector";
+    private double actualDoubleValue = 123.456;
+    private double delta = 0.001;
 
     private BufferAllocator allocator;
     private Float8Vector vector;
     private Float8Extractor mockExtractor;
     private ConstraintProjector mockConstraintProjector;
-
     private Float8FieldWriter float8FieldWriter;
 
     @Before
     public void setUp() {
-        // Initialize Apache Arrow components
         allocator = new RootAllocator(Long.MAX_VALUE);
         vector = new Float8Vector(vectorName, allocator);
         vector.allocateNew();
 
-        // Mock dependencies
         mockExtractor = mock(Float8Extractor.class);
         mockConstraintProjector = mock(ConstraintProjector.class);
 
-        // Initialize the Float8FieldWriter with mocked components
         float8FieldWriter = new Float8FieldWriter(mockExtractor, vector, mockConstraintProjector);
     }
 
     @After
     public void tearDown() {
-        // Release resources
         vector.close();
         allocator.close();
     }
 
-    /**
-     * Utility method for verifying assertions on test results.
-     *
-     * @param expectedResult The expected result of the write operation.
-     * @param expectedValue The expected value written to the vector.
-     * @param actualResult The actual result of the write operation.
-     * @param index The index in the vector to validate.
-     */
-    private void verifyAssertions(boolean expectedResult, double expectedValue, boolean actualResult, int index) {
-        assertTrue(expectedResult == actualResult);
-        assertEquals(expectedValue, vector.get(index), delta);
+    private void verifyAssertions(boolean expectedResult, boolean actualResult) {
+        assertEquals(expectedResult, actualResult);
+        assertEquals(actualDoubleValue, vector.get(0), delta);
     }
 
     @Test
-    public void testWriteValidValue() throws Exception {
-        // Arrange
-        NullableFloat8Holder holder = new NullableFloat8Holder();
-        holder.isSet = 1; // Value is set
-        holder.value = validDoubleValue;
+    public void write_withValidFloat8Value_shouldWriteSuccessfully() throws Exception {
+        when(mockConstraintProjector.apply(actualDoubleValue)).thenReturn(true);
+        configureFloat8Extractor(mockExtractor, actualDoubleValue, 1);
 
-        when(mockConstraintProjector.apply(holder.value)).thenReturn(true);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableFloat8Holder valueHolder = (NullableFloat8Holder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validDoubleValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = float8FieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, validDoubleValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(holder.value);
+        verifyAssertions(true, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualDoubleValue);
     }
 
     @Test
-    public void testWriteValueFailsConstraints() throws Exception {
-        // Arrange
-        NullableFloat8Holder holder = new NullableFloat8Holder();
-        holder.isSet = 1; // Value is set
-        holder.value = validDoubleValue;
+    public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(actualDoubleValue)).thenReturn(false);
+        configureFloat8Extractor(mockExtractor, actualDoubleValue, 1);
 
-        when(mockConstraintProjector.apply(holder.value)).thenReturn(false);
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableFloat8Holder valueHolder = (NullableFloat8Holder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validDoubleValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = float8FieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(false, validDoubleValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
-        verify(mockConstraintProjector, times(1)).apply(holder.value);
+        verifyAssertions(false, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualDoubleValue);
     }
 
     @Test
-    public void testWriteNoConstraints() throws Exception {
-        // Initialize Float8FieldWriter with null ConstraintProjector
+    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         float8FieldWriter = new Float8FieldWriter(mockExtractor, vector, null);
+        configureFloat8Extractor(mockExtractor, actualDoubleValue, 1);
 
-        // Arrange
-        NullableFloat8Holder holder = new NullableFloat8Holder();
-        holder.isSet = 1; // Value is set
-        holder.value = validDoubleValue;
-
-        doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            NullableFloat8Holder valueHolder = (NullableFloat8Holder) args[1];
-            valueHolder.isSet = 1;
-            valueHolder.value = validDoubleValue;
-            return null;
-        }).when(mockExtractor).extract(any(), any());
-
-        // Act
         boolean result = float8FieldWriter.write(new Object(), 0);
 
-        // Assert
-        verifyAssertions(true, validDoubleValue, result, 0);
-        verify(mockExtractor, times(1)).extract(any(), any());
+        verifyAssertions(true, result);
+        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+    }
+
+    @Test
+    public void write_withNullFloat8Value_shouldMarkVectorAsNull() throws Exception {
+        configureFloat8Extractor(mockExtractor, 0.0, 0);
+
+        boolean result = float8FieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+    }
+
+    @Test
+    public void write_withNonZeroValueMarkedNull_shouldMarkVectorAsNull() throws Exception {
+        configureFloat8Extractor(mockExtractor, actualDoubleValue, 0);
+
+        boolean result = float8FieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertTrue(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+    }
+
+    @Test
+    public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
+        when(mockConstraintProjector.apply(actualDoubleValue)).thenReturn(false);
+        configureFloat8Extractor(mockExtractor, actualDoubleValue, 1);
+
+        boolean result = float8FieldWriter.write(new Object(), 0);
+
+        assertFalse(result);
+        assertFalse(vector.isNull(0));
+        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+        verify(mockConstraintProjector, times(1)).apply(actualDoubleValue);
     }
 }
