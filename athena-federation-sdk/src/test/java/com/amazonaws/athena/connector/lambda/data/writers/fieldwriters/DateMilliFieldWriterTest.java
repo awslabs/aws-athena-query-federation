@@ -46,9 +46,9 @@ import static org.mockito.Mockito.when;
 public class DateMilliFieldWriterTest {
 
     private String vectorName = "testVector";
-    private long actualEpochMilliseconds = 1672531200000L;
+    private long expectedEpochMilliseconds = 1672531200000L;
     private LocalDateTime expectedDate = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(actualEpochMilliseconds), ZoneOffset.UTC);
+            Instant.ofEpochMilli(expectedEpochMilliseconds), ZoneOffset.UTC);
 
     private BufferAllocator allocator;
     private DateMilliVector vector;
@@ -76,13 +76,13 @@ public class DateMilliFieldWriterTest {
 
     private void verifyAssertions(boolean expectedResult, boolean actualResult) {
         assertEquals(expectedResult, actualResult);
-        assertEquals(actualEpochMilliseconds, vector.get(0));
+        assertEquals(expectedEpochMilliseconds, vector.get(0));
     }
 
     @Test
     public void write_withValidDateMilliValue_shouldWriteSuccessfully() throws Exception {
         when(mockConstraintProjector.apply(expectedDate)).thenReturn(true);
-        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 1);
+        configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 1);
 
         boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
@@ -94,7 +94,7 @@ public class DateMilliFieldWriterTest {
     @Test
     public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
         when(mockConstraintProjector.apply(expectedDate)).thenReturn(false);
-        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 1);
+        configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 1);
 
         boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
@@ -106,7 +106,7 @@ public class DateMilliFieldWriterTest {
     @Test
     public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         dateMilliFieldWriter = new DateMilliFieldWriter(mockExtractor, vector, null);
-        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 1);
+        configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 1);
 
         boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
@@ -127,7 +127,7 @@ public class DateMilliFieldWriterTest {
 
     @Test
     public void write_withNonZeroValueMarkedNull_shouldMarkAsNull() throws Exception {
-        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 0);
+        configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 0);
 
         boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
@@ -139,7 +139,7 @@ public class DateMilliFieldWriterTest {
     @Test
     public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
         when(mockConstraintProjector.apply(expectedDate)).thenReturn(false);
-        configureDateMilliExtractor(mockExtractor, actualEpochMilliseconds, 1);
+        configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 1);
 
         boolean result = dateMilliFieldWriter.write(new Object(), 0);
 

@@ -46,7 +46,7 @@ public class DecimalFieldWriterTest {
 
     private String vectorName = "testVector";
     private BigDecimal actualValue = new BigDecimal("123.456");
-    private BigDecimal expectedRoundedValue = new BigDecimal("123.46");
+    private BigDecimal RoundedValue = new BigDecimal("123.46");
 
     private BufferAllocator allocator;
     private DecimalVector vector;
@@ -74,7 +74,7 @@ public class DecimalFieldWriterTest {
 
     private void verifyAssertions(boolean expectedResult, boolean actualResult) {
         assertEquals(expectedResult, actualResult);
-        assertEquals(0, vector.getObject(0).compareTo(expectedRoundedValue));
+        assertEquals(0, vector.getObject(0).compareTo(RoundedValue));
     }
 
     @Test

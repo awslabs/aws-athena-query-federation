@@ -41,7 +41,7 @@ import static org.mockito.Mockito.verify;
 public class VarCharFieldWriterTest {
 
     private String vectorName = "testVarCharVector";
-    private String actualVarCharValue = "Hello, Athena!";
+    private String expectedVarCharValue = "Hello, Athena!";
 
     private BufferAllocator allocator;
     private VarCharVector vector;
@@ -69,37 +69,37 @@ public class VarCharFieldWriterTest {
 
     private void verifyAssertions(boolean expectedResult, boolean actualResult) {
         assertEquals(expectedResult, actualResult);
-        assertEquals(actualVarCharValue, new String(vector.get(0)));
+        assertEquals(expectedVarCharValue, new String(vector.get(0)));
     }
 
     @Test
     public void write_withValidVarCharValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(actualVarCharValue)).thenReturn(true);
-        configureVarCharExtractor(mockExtractor, actualVarCharValue, 1);
+        when(mockConstraintProjector.apply(expectedVarCharValue)).thenReturn(true);
+        configureVarCharExtractor(mockExtractor, expectedVarCharValue, 1);
 
         boolean result = varCharFieldWriter.write(new Object(), 0);
 
         verifyAssertions(true, result);
         verify(mockExtractor).extract(any(), any(NullableVarCharHolder.class));
-        verify(mockConstraintProjector).apply(actualVarCharValue);
+        verify(mockConstraintProjector).apply(expectedVarCharValue);
     }
 
     @Test
     public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualVarCharValue)).thenReturn(false);
-        configureVarCharExtractor(mockExtractor, actualVarCharValue, 1);
+        when(mockConstraintProjector.apply(expectedVarCharValue)).thenReturn(false);
+        configureVarCharExtractor(mockExtractor, expectedVarCharValue, 1);
 
         boolean result = varCharFieldWriter.write(new Object(), 0);
 
         verifyAssertions(false, result);
         verify(mockExtractor).extract(any(), any(NullableVarCharHolder.class));
-        verify(mockConstraintProjector).apply(actualVarCharValue);
+        verify(mockConstraintProjector).apply(expectedVarCharValue);
     }
 
     @Test
     public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         varCharFieldWriter = new VarCharFieldWriter(mockExtractor, vector, null);
-        configureVarCharExtractor(mockExtractor, actualVarCharValue, 1);
+        configureVarCharExtractor(mockExtractor, expectedVarCharValue, 1);
 
         boolean result = varCharFieldWriter.write(new Object(), 0);
 
@@ -109,7 +109,7 @@ public class VarCharFieldWriterTest {
 
     @Test
     public void write_withNonNullValueMarkedNull_shouldMarkVectorAsNull() throws Exception {
-        configureVarCharExtractor(mockExtractor, actualVarCharValue, 0);
+        configureVarCharExtractor(mockExtractor, expectedVarCharValue, 0);
 
         boolean result = varCharFieldWriter.write(new Object(), 0);
 
@@ -120,14 +120,14 @@ public class VarCharFieldWriterTest {
 
     @Test
     public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualVarCharValue)).thenReturn(false);
-        configureVarCharExtractor(mockExtractor, actualVarCharValue, 1);
+        when(mockConstraintProjector.apply(expectedVarCharValue)).thenReturn(false);
+        configureVarCharExtractor(mockExtractor, expectedVarCharValue, 1);
 
         boolean result = varCharFieldWriter.write(new Object(), 0);
 
         assertFalse(result);
         assertFalse(vector.isNull(0));
         verify(mockExtractor).extract(any(), any(NullableVarCharHolder.class));
-        verify(mockConstraintProjector).apply(actualVarCharValue);
+        verify(mockConstraintProjector).apply(expectedVarCharValue);
     }
 }

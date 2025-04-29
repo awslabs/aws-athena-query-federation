@@ -42,7 +42,7 @@ import static org.mockito.Mockito.verify;
 public class VarBinaryFieldWriterTest {
 
     private String vectorName = "testVector";
-    private byte[] actualBinaryValue = new byte[]{0x01, 0x02, 0x03};
+    private byte[] expectedBinaryValue = new byte[]{0x01, 0x02, 0x03};
 
     private BufferAllocator allocator;
     private VarBinaryVector vector;
@@ -70,37 +70,37 @@ public class VarBinaryFieldWriterTest {
 
     private void verifyAssertions(boolean expectedResult, boolean actualResult) {
         assertEquals(expectedResult, actualResult);
-        assertArrayEquals(actualBinaryValue, vector.get(0));
+        assertArrayEquals(expectedBinaryValue, vector.get(0));
     }
 
     @Test
     public void write_withValidVarBinaryValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(actualBinaryValue)).thenReturn(true);
-        configureVarBinaryExtractor(mockExtractor, actualBinaryValue, 1);
+        when(mockConstraintProjector.apply(expectedBinaryValue)).thenReturn(true);
+        configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 1);
 
         boolean result = varBinaryFieldWriter.write(new Object(), 0);
 
         verifyAssertions(true, result);
         verify(mockExtractor).extract(any(), any(NullableVarBinaryHolder.class));
-        verify(mockConstraintProjector).apply(actualBinaryValue);
+        verify(mockConstraintProjector).apply(expectedBinaryValue);
     }
 
     @Test
     public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualBinaryValue)).thenReturn(false);
-        configureVarBinaryExtractor(mockExtractor, actualBinaryValue, 1);
+        when(mockConstraintProjector.apply(expectedBinaryValue)).thenReturn(false);
+        configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 1);
 
         boolean result = varBinaryFieldWriter.write(new Object(), 0);
 
         verifyAssertions(false, result);
         verify(mockExtractor).extract(any(), any(NullableVarBinaryHolder.class));
-        verify(mockConstraintProjector).apply(actualBinaryValue);
+        verify(mockConstraintProjector).apply(expectedBinaryValue);
     }
 
     @Test
     public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         varBinaryFieldWriter = new VarBinaryFieldWriter(mockExtractor, vector, null);
-        configureVarBinaryExtractor(mockExtractor, actualBinaryValue, 1);
+        configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 1);
 
         boolean result = varBinaryFieldWriter.write(new Object(), 0);
 
@@ -121,7 +121,7 @@ public class VarBinaryFieldWriterTest {
 
     @Test
     public void write_withNonNullValueMarkedNull_shouldMarkVectorAsNull() throws Exception {
-        configureVarBinaryExtractor(mockExtractor, actualBinaryValue, 0);
+        configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 0);
 
         boolean result = varBinaryFieldWriter.write(new Object(), 0);
 
@@ -132,14 +132,14 @@ public class VarBinaryFieldWriterTest {
 
     @Test
     public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualBinaryValue)).thenReturn(false);
-        configureVarBinaryExtractor(mockExtractor, actualBinaryValue, 1);
+        when(mockConstraintProjector.apply(expectedBinaryValue)).thenReturn(false);
+        configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 1);
 
         boolean result = varBinaryFieldWriter.write(new Object(), 0);
 
         assertFalse(result);
         assertFalse(vector.isNull(0));
         verify(mockExtractor).extract(any(), any(NullableVarBinaryHolder.class));
-        verify(mockConstraintProjector).apply(actualBinaryValue);
+        verify(mockConstraintProjector).apply(expectedBinaryValue);
     }
 }

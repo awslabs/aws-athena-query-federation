@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
 public class DateDayFieldWriterTest
 {
     private String vectorName = "testVector";
-    private int actualEpochDays = 18765;
+    private int expectedEpochDays = 18765;
 
     private BufferAllocator allocator;
     private DateDayVector vector;
@@ -73,33 +73,33 @@ public class DateDayFieldWriterTest
     private void verifyAssertions(boolean expectedResult, boolean actualResult)
     {
         assertEquals(expectedResult, actualResult);
-        assertEquals(actualEpochDays, vector.get(0));
+        assertEquals(expectedEpochDays, vector.get(0));
     }
 
     @Test
     public void write_withValidDateDayValue_shouldWriteSuccessfully() throws Exception
     {
-        configureDateDayExtractor(mockExtractor, actualEpochDays, 1);
-        when(mockConstraintProjector.apply(actualEpochDays)).thenReturn(true);
+        configureDateDayExtractor(mockExtractor, expectedEpochDays, 1);
+        when(mockConstraintProjector.apply(expectedEpochDays)).thenReturn(true);
 
         boolean result = dateDayFieldWriter.write(new Object(), 0);
 
         verifyAssertions(true, result);
         verify(mockExtractor, times(1)).extract(any(), any(NullableDateDayHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualEpochDays);
+        verify(mockConstraintProjector, times(1)).apply(expectedEpochDays);
     }
 
     @Test
     public void write_withConstraintFailure_shouldReturnFalse() throws Exception
     {
-        configureDateDayExtractor(mockExtractor, actualEpochDays, 1);
-        when(mockConstraintProjector.apply(actualEpochDays)).thenReturn(false);
+        configureDateDayExtractor(mockExtractor, expectedEpochDays, 1);
+        when(mockConstraintProjector.apply(expectedEpochDays)).thenReturn(false);
 
         boolean result = dateDayFieldWriter.write(new Object(), 0);
 
         verifyAssertions(false, result);
         verify(mockExtractor, times(1)).extract(any(), any(NullableDateDayHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualEpochDays);
+        verify(mockConstraintProjector, times(1)).apply(expectedEpochDays);
     }
 
     @Test
@@ -107,7 +107,7 @@ public class DateDayFieldWriterTest
     {
         dateDayFieldWriter = new DateDayFieldWriter(mockExtractor, vector, null);
 
-        configureDateDayExtractor(mockExtractor, actualEpochDays, 1);
+        configureDateDayExtractor(mockExtractor, expectedEpochDays, 1);
 
         boolean result = dateDayFieldWriter.write(new Object(), 0);
 
@@ -118,7 +118,7 @@ public class DateDayFieldWriterTest
     @Test
     public void write_withNullDateDayValue_shouldMarkVectorAsNull() throws Exception
     {
-        configureDateDayExtractor(mockExtractor, actualEpochDays, 0);
+        configureDateDayExtractor(mockExtractor, expectedEpochDays, 0);
 
         boolean result = dateDayFieldWriter.write(new Object(), 0);
 
@@ -130,7 +130,7 @@ public class DateDayFieldWriterTest
     @Test
     public void write_withNonZeroValueMarkedNull_shouldMarkAsNull() throws Exception
     {
-        configureDateDayExtractor(mockExtractor, actualEpochDays, 0);
+        configureDateDayExtractor(mockExtractor, expectedEpochDays, 0);
 
         boolean result = dateDayFieldWriter.write(new Object(), 0);
 
@@ -142,14 +142,14 @@ public class DateDayFieldWriterTest
     @Test
     public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception
     {
-        configureDateDayExtractor(mockExtractor, actualEpochDays, 1);
-        when(mockConstraintProjector.apply(actualEpochDays)).thenReturn(false);
+        configureDateDayExtractor(mockExtractor, expectedEpochDays, 1);
+        when(mockConstraintProjector.apply(expectedEpochDays)).thenReturn(false);
 
         boolean result = dateDayFieldWriter.write(new Object(), 0);
 
         assertFalse(result);
         assertFalse(vector.isNull(0));
         verify(mockExtractor, times(1)).extract(any(), any(NullableDateDayHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualEpochDays);
+        verify(mockConstraintProjector, times(1)).apply(expectedEpochDays);
     }
 }

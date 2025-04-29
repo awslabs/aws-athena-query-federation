@@ -41,7 +41,7 @@ import static org.mockito.Mockito.verify;
 public class TinyIntFieldWriterTest {
 
     private String vectorName = "testVector";
-    private byte actualTinyIntValue = 42;
+    private byte expectedTinyIntValue = 42;
 
     private BufferAllocator allocator;
     private TinyIntVector vector;
@@ -69,37 +69,37 @@ public class TinyIntFieldWriterTest {
 
     private void verifyAssertions(boolean expectedResult, boolean actualResult) {
         assertEquals(expectedResult, actualResult);
-        assertEquals(actualTinyIntValue, vector.get(0));
+        assertEquals(expectedTinyIntValue, vector.get(0));
     }
 
     @Test
     public void write_withValidTinyIntValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(actualTinyIntValue)).thenReturn(true);
-        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 1);
+        when(mockConstraintProjector.apply(expectedTinyIntValue)).thenReturn(true);
+        configureTinyIntExtractor(mockExtractor, expectedTinyIntValue, 1);
 
         boolean result = tinyIntFieldWriter.write(new Object(), 0);
 
         verifyAssertions(true, result);
         verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
-        verify(mockConstraintProjector).apply(actualTinyIntValue);
+        verify(mockConstraintProjector).apply(expectedTinyIntValue);
     }
 
     @Test
     public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualTinyIntValue)).thenReturn(false);
-        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 1);
+        when(mockConstraintProjector.apply(expectedTinyIntValue)).thenReturn(false);
+        configureTinyIntExtractor(mockExtractor, expectedTinyIntValue, 1);
 
         boolean result = tinyIntFieldWriter.write(new Object(), 0);
 
         verifyAssertions(false, result);
         verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
-        verify(mockConstraintProjector).apply(actualTinyIntValue);
+        verify(mockConstraintProjector).apply(expectedTinyIntValue);
     }
 
     @Test
     public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         tinyIntFieldWriter = new TinyIntFieldWriter(mockExtractor, vector, null);
-        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 1);
+        configureTinyIntExtractor(mockExtractor, expectedTinyIntValue, 1);
 
         boolean result = tinyIntFieldWriter.write(new Object(), 0);
 
@@ -120,7 +120,7 @@ public class TinyIntFieldWriterTest {
 
     @Test
     public void write_withNonZeroValueMarkedNull_shouldMarkVectorAsNull() throws Exception {
-        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 0);
+        configureTinyIntExtractor(mockExtractor, expectedTinyIntValue, 0);
 
         boolean result = tinyIntFieldWriter.write(new Object(), 0);
 
@@ -131,14 +131,14 @@ public class TinyIntFieldWriterTest {
 
     @Test
     public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualTinyIntValue)).thenReturn(false);
-        configureTinyIntExtractor(mockExtractor, actualTinyIntValue, 1);
+        when(mockConstraintProjector.apply(expectedTinyIntValue)).thenReturn(false);
+        configureTinyIntExtractor(mockExtractor, expectedTinyIntValue, 1);
 
         boolean result = tinyIntFieldWriter.write(new Object(), 0);
 
         assertFalse(result);
         assertFalse(vector.isNull(0));
         verify(mockExtractor).extract(any(), any(NullableTinyIntHolder.class));
-        verify(mockConstraintProjector).apply(actualTinyIntValue);
+        verify(mockConstraintProjector).apply(expectedTinyIntValue);
     }
 }

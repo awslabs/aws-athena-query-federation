@@ -40,7 +40,7 @@ import static org.mockito.Mockito.when;
 
 public class BigIntFieldWriterTest {
 
-    private long actualValue = 12345L;
+    private long expectedValue = 12345L;
     private String vectorName = "testVector";
 
     private BigIntExtractor mockExtractor;
@@ -69,37 +69,37 @@ public class BigIntFieldWriterTest {
 
     private void verifyAssertions(boolean expectedResult, boolean actualResult) {
         assertEquals(expectedResult, actualResult);
-        assertEquals(actualValue, vector.get(0));
+        assertEquals(expectedValue, vector.get(0));
     }
 
     @Test
     public void write_withValidBigIntValue_shouldWriteSuccessfully() throws Exception {
         when(mockConstraintProjector.apply(12345L)).thenReturn(true);
-        configureBigIntExtractor(mockExtractor, actualValue, 1);
+        configureBigIntExtractor(mockExtractor, expectedValue, 1);
 
         boolean result = bigIntFieldWriter.write(new Object(), 0);
 
         verifyAssertions(true, result);
         verify(mockExtractor).extract(any(), any(NullableBigIntHolder.class));
-        verify(mockConstraintProjector).apply(actualValue);
+        verify(mockConstraintProjector).apply(expectedValue);
     }
 
     @Test
     public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualValue)).thenReturn(false);
-        configureBigIntExtractor(mockExtractor, actualValue, 1);
+        when(mockConstraintProjector.apply(expectedValue)).thenReturn(false);
+        configureBigIntExtractor(mockExtractor, expectedValue, 1);
 
         boolean result = bigIntFieldWriter.write(new Object(), 0);
 
         verifyAssertions(false, result);
         verify(mockExtractor).extract(any(), any(NullableBigIntHolder.class));
-        verify(mockConstraintProjector).apply(actualValue);
+        verify(mockConstraintProjector).apply(expectedValue);
     }
 
     @Test
     public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         bigIntFieldWriter = new BigIntFieldWriter(mockExtractor, vector, null);
-        configureBigIntExtractor(mockExtractor, actualValue, 1);
+        configureBigIntExtractor(mockExtractor, expectedValue, 1);
 
         boolean result = bigIntFieldWriter.write(new Object(), 0);
 
@@ -119,7 +119,7 @@ public class BigIntFieldWriterTest {
 
     @Test
     public void write_withIsSetZero_shouldMarkVectorAsNull() throws Exception {
-        configureBigIntExtractor(mockExtractor, actualValue, 0);
+        configureBigIntExtractor(mockExtractor, expectedValue, 0);
 
         boolean result = bigIntFieldWriter.write(new Object(), 0);
 
@@ -130,8 +130,8 @@ public class BigIntFieldWriterTest {
 
     @Test
     public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
-        configureBigIntExtractor(mockExtractor, actualValue, 1);
-        when(mockConstraintProjector.apply(actualValue)).thenReturn(false);
+        configureBigIntExtractor(mockExtractor, expectedValue, 1);
+        when(mockConstraintProjector.apply(expectedValue)).thenReturn(false);
 
         boolean result = bigIntFieldWriter.write(new Object(), 0);
 
@@ -141,7 +141,7 @@ public class BigIntFieldWriterTest {
 
     @Test
     public void write_withNonZeroValueMarkedNull_shouldMarkAsNull() throws Exception {
-        configureBigIntExtractor(mockExtractor, actualValue, 0);
+        configureBigIntExtractor(mockExtractor, expectedValue, 0);
 
         boolean result = bigIntFieldWriter.write(new Object(), 0);
 

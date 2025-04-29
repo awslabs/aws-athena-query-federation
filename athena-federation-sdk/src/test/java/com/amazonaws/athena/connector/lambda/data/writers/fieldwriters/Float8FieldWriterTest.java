@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
 public class Float8FieldWriterTest {
 
     private String vectorName = "testVector";
-    private double actualDoubleValue = 123.456;
+    private double expectedDoubleValue = 123.456;
     private double delta = 0.001;
 
     private BufferAllocator allocator;
@@ -71,37 +71,37 @@ public class Float8FieldWriterTest {
 
     private void verifyAssertions(boolean expectedResult, boolean actualResult) {
         assertEquals(expectedResult, actualResult);
-        assertEquals(actualDoubleValue, vector.get(0), delta);
+        assertEquals(expectedDoubleValue, vector.get(0), delta);
     }
 
     @Test
     public void write_withValidFloat8Value_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(actualDoubleValue)).thenReturn(true);
-        configureFloat8Extractor(mockExtractor, actualDoubleValue, 1);
+        when(mockConstraintProjector.apply(expectedDoubleValue)).thenReturn(true);
+        configureFloat8Extractor(mockExtractor, expectedDoubleValue, 1);
 
         boolean result = float8FieldWriter.write(new Object(), 0);
 
         verifyAssertions(true, result);
         verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualDoubleValue);
+        verify(mockConstraintProjector, times(1)).apply(expectedDoubleValue);
     }
 
     @Test
     public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualDoubleValue)).thenReturn(false);
-        configureFloat8Extractor(mockExtractor, actualDoubleValue, 1);
+        when(mockConstraintProjector.apply(expectedDoubleValue)).thenReturn(false);
+        configureFloat8Extractor(mockExtractor, expectedDoubleValue, 1);
 
         boolean result = float8FieldWriter.write(new Object(), 0);
 
         verifyAssertions(false, result);
         verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualDoubleValue);
+        verify(mockConstraintProjector, times(1)).apply(expectedDoubleValue);
     }
 
     @Test
     public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         float8FieldWriter = new Float8FieldWriter(mockExtractor, vector, null);
-        configureFloat8Extractor(mockExtractor, actualDoubleValue, 1);
+        configureFloat8Extractor(mockExtractor, expectedDoubleValue, 1);
 
         boolean result = float8FieldWriter.write(new Object(), 0);
 
@@ -122,7 +122,7 @@ public class Float8FieldWriterTest {
 
     @Test
     public void write_withNonZeroValueMarkedNull_shouldMarkVectorAsNull() throws Exception {
-        configureFloat8Extractor(mockExtractor, actualDoubleValue, 0);
+        configureFloat8Extractor(mockExtractor, expectedDoubleValue, 0);
 
         boolean result = float8FieldWriter.write(new Object(), 0);
 
@@ -133,14 +133,14 @@ public class Float8FieldWriterTest {
 
     @Test
     public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualDoubleValue)).thenReturn(false);
-        configureFloat8Extractor(mockExtractor, actualDoubleValue, 1);
+        when(mockConstraintProjector.apply(expectedDoubleValue)).thenReturn(false);
+        configureFloat8Extractor(mockExtractor, expectedDoubleValue, 1);
 
         boolean result = float8FieldWriter.write(new Object(), 0);
 
         assertFalse(result);
         assertFalse(vector.isNull(0));
         verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualDoubleValue);
+        verify(mockConstraintProjector, times(1)).apply(expectedDoubleValue);
     }
 }

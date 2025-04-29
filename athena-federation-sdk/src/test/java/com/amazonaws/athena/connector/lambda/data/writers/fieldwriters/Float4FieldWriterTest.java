@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
 public class Float4FieldWriterTest {
 
     private String vectorName = "testVector";
-    private float actualFloatValue = 123.45f;
+    private float expectedFloatValue = 123.45f;
     private float delta = 0.001f;
 
     private BufferAllocator allocator;
@@ -71,37 +71,37 @@ public class Float4FieldWriterTest {
 
     private void verifyAssertions(boolean expectedResult, boolean actualResult) {
         assertEquals(expectedResult, actualResult);
-        assertEquals(actualFloatValue, vector.get(0), delta);
+        assertEquals(expectedFloatValue, vector.get(0), delta);
     }
 
     @Test
     public void write_withValidFloat4Value_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(actualFloatValue)).thenReturn(true);
-        configureFloat4Extractor(mockExtractor, actualFloatValue, 1);
+        when(mockConstraintProjector.apply(expectedFloatValue)).thenReturn(true);
+        configureFloat4Extractor(mockExtractor, expectedFloatValue, 1);
 
         boolean result = float4FieldWriter.write(new Object(), 0);
 
         verifyAssertions(true, result);
         verify(mockExtractor, times(1)).extract(any(), any(NullableFloat4Holder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualFloatValue);
+        verify(mockConstraintProjector, times(1)).apply(expectedFloatValue);
     }
 
     @Test
     public void write_withConstraintFailure_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualFloatValue)).thenReturn(false);
-        configureFloat4Extractor(mockExtractor, actualFloatValue, 1);
+        when(mockConstraintProjector.apply(expectedFloatValue)).thenReturn(false);
+        configureFloat4Extractor(mockExtractor, expectedFloatValue, 1);
 
         boolean result = float4FieldWriter.write(new Object(), 0);
 
         verifyAssertions(false, result);
         verify(mockExtractor, times(1)).extract(any(), any(NullableFloat4Holder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualFloatValue);
+        verify(mockConstraintProjector, times(1)).apply(expectedFloatValue);
     }
 
     @Test
     public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
         float4FieldWriter = new Float4FieldWriter(mockExtractor, vector, null);
-        configureFloat4Extractor(mockExtractor, actualFloatValue, 1);
+        configureFloat4Extractor(mockExtractor, expectedFloatValue, 1);
 
         boolean result = float4FieldWriter.write(new Object(), 0);
 
@@ -122,7 +122,7 @@ public class Float4FieldWriterTest {
 
     @Test
     public void write_withNonZeroValueMarkedNull_shouldMarkVectorAsNull() throws Exception {
-        configureFloat4Extractor(mockExtractor, actualFloatValue, 0);
+        configureFloat4Extractor(mockExtractor, expectedFloatValue, 0);
 
         boolean result = float4FieldWriter.write(new Object(), 0);
 
@@ -133,14 +133,14 @@ public class Float4FieldWriterTest {
 
     @Test
     public void write_withConstraintFailureDespiteIsSet_shouldReturnFalse() throws Exception {
-        when(mockConstraintProjector.apply(actualFloatValue)).thenReturn(false);
-        configureFloat4Extractor(mockExtractor, actualFloatValue, 1);
+        when(mockConstraintProjector.apply(expectedFloatValue)).thenReturn(false);
+        configureFloat4Extractor(mockExtractor, expectedFloatValue, 1);
 
         boolean result = float4FieldWriter.write(new Object(), 0);
 
         assertFalse(result);
         assertFalse(vector.isNull(0));
         verify(mockExtractor, times(1)).extract(any(), any(NullableFloat4Holder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualFloatValue);
+        verify(mockConstraintProjector, times(1)).apply(expectedFloatValue);
     }
 }
