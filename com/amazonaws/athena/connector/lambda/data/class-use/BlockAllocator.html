@@ -287,6 +287,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.tpcds.mock.pagination">com.amazonaws.athena.connectors.tpcds.mock.pagination</a></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -2674,6 +2678,48 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tr class="rowColor">
 <td class="colFirst"><code><a href="../../metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">TPCDSMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/tpcds/TPCDSMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables</a></span>&#8203;(<a href="../BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+            <a href="../../metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;request)</code></th>
+<td class="colLast">
+<div class="block">Used to get the list of static tables from TerraData's TPCDS generator.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+</li>
+<li class="blockList">
+<section><a id="com.amazonaws.athena.connectors.tpcds.mock.pagination">
+<!--   -->
+</a>
+<h3>Uses of <a href="../BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a> in <a href="../../../../connectors/tpcds/mock/pagination/package-summary.html">com.amazonaws.athena.connectors.tpcds.mock.pagination</a></h3>
+<table class="useSummary">
+<caption><span>Methods in <a href="../../../../connectors/tpcds/mock/pagination/package-summary.html">com.amazonaws.athena.connectors.tpcds.mock.pagination</a> with parameters of type <a href="../BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Method</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">TPCDSMockMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/tpcds/mock/pagination/TPCDSMockMetadataHandler.html#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable</a></span>&#8203;(<a href="../BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+          <a href="../../metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code></th>
+<td class="colLast">
+<div class="block">Used to get definition (field names, types, descriptions, etc...) of a Table using the static
+ metadata provided by TerraData's TPCDS generator.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">TPCDSMockMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/tpcds/mock/pagination/TPCDSMockMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames</a></span>&#8203;(<a href="../BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                 <a href="../../metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)</code></th>
+<td class="colLast">
+<div class="block">Returns our static list of schemas which correspond to the scale factor of the dataset we will generate.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">TPCDSMockMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/tpcds/mock/pagination/TPCDSMockMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables</a></span>&#8203;(<a href="../BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
             <a href="../../metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;request)</code></th>
 <td class="colLast">
 <div class="block">Used to get the list of static tables from TerraData's TPCDS generator.</div>
