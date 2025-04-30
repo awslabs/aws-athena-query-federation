@@ -165,10 +165,10 @@ public class TPCDSMockMetadataHandler extends TPCDSMetadataHandler
 
     private List<TableName> getPaginatedList(List<TableName> inputList, int startToken, int pageSize)
     {
-        if (startToken >= 125) {
+        if (startToken > inputList.size()) {
             return List.of();
         }
-        int endToken = Math.min(startToken + pageSize, 125);
+        int endToken = Math.min(startToken + pageSize, inputList.size());
 
         return inputList.subList(startToken, endToken);
     }

@@ -128,7 +128,7 @@ public class TPCDSMockMetadataHandlerTest
     public void doListTablesWithPagination()
     {
         logger.info("doListTables - enter");
-        // iteration 2, [0,10)
+        // iteration 1, [0,10)
         ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default",
                 "tpcds1", null, 10);
         ListTablesResponse res = handler.doListTables(allocator, req);
@@ -153,7 +153,7 @@ public class TPCDSMockMetadataHandlerTest
         assertTrue(res.getNextToken() != null);
         assertEquals(Integer.toString(120), res.getNextToken());
 
-        // iteration 3 [30, 120)
+        // iteration 4 [120, ... infinity)
         req = new ListTablesRequest(identity, "queryId", "default",
                 "tpcds1", Integer.toString(120), 10);
         res = handler.doListTables(allocator, req);
