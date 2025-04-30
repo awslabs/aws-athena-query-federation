@@ -319,7 +319,6 @@ public class SnowflakeMetadataHandlerTest
         expected = new TableName[]{new TableName("testSchema", "testTable2")};
         resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
-
         listTablesResponse = this.snowflakeMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "1", 1));
