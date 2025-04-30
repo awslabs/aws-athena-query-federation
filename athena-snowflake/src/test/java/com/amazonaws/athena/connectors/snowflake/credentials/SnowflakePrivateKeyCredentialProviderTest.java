@@ -52,7 +52,7 @@ public class SnowflakePrivateKeyCredentialProviderTest
     private static final String SECRET_NAME = "test-secret";
     private static final String USERNAME = "test-user";
     private static final String PRIVATE_KEY = "\\nTEST_KEY_CONTENT";
-    private static final String SECRET_JSON = "{\"username\":\"" + USERNAME + "\",\"private_key\":\"" + PRIVATE_KEY + "\"}";
+    private static final String SECRET_JSON = "{\"username\":\"" + USERNAME + "\",\"privateKey\":\"" + PRIVATE_KEY + "\"}";
 
     @Before
     public void setup()

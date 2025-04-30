@@ -2,7 +2,7 @@
  * #%L
  * athena-snowflake
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 - 2025 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,13 +58,14 @@ public class SnowflakePrivateKeyCredentialProvider implements CredentialsProvide
         LOGGER.debug("SnowflakePrivateKeyCredentialProvider is called");
         try {
             String secretString = SnowflakeAuthUtils.getSecret(secretsManager, secretName);
-            Map<String, String> secretMap = OBJECT_MAPPER.readValue(secretString, Map.class);
+            Map<String, String> secretMap = OBJECT_MAPPER.readValue(secretString,
+                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
 
             String username = secretMap.get("username");
-            String privateKey = secretMap.get("private_key");
+            String privateKey = secretMap.get("privateKey");
 
             if (username == null || privateKey == null) {
-                throw new RuntimeException("Secret must contain 'username' and 'private_key' fields");
+                throw new RuntimeException("Secret must contain 'username' and 'privateKey' fields");
             }
 
             this.credentials = new DefaultCredentials(username, privateKey);
@@ -96,7 +97,7 @@ public class SnowflakePrivateKeyCredentialProvider implements CredentialsProvide
             
             // Replace literal \n with actual newlines in the string
             if (!privateKeyPEM.contains("\r\n") && !privateKeyPEM.contains("\n")) {
-                LOGGER.info("Replacing literal \\n with actual newlines in private key");
+                LOGGER.debug("Replacing literal \\n with actual newlines in private key");
                 privateKeyPEM = privateKeyPEM.replace("\\n", "\n");
             }
 

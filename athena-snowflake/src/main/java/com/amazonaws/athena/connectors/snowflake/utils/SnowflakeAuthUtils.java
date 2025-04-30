@@ -2,7 +2,7 @@
  * #%L
  * athena-snowflake
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 - 2025 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +33,6 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.AUTH_TYPE;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.AUTH_TYPE_PASSWORD;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.AUTH_TYPE_PRIVATE_KEY;
-
 /**
  * Utility class for Snowflake authentication.
  */
@@ -63,31 +59,6 @@ public final class SnowflakeAuthUtils
     }
 
     /**
-     * Gets the appropriate credential provider based on the authentication type.
-     *
-     * @param secretsManager SecretsManager client
-     * @param secretName Secret name
-     * @param configOptions Configuration options
-     * @return CredentialsProvider
-     */
-    public static CredentialsProvider getCredentialProvider(
-            SecretsManagerClient secretsManager,
-            String secretName,
-            Map<String, String> configOptions)
-    {
-        String authType = configOptions.getOrDefault(AUTH_TYPE, AUTH_TYPE_PASSWORD);
-
-        if (AUTH_TYPE_PRIVATE_KEY.equals(authType)) {
-            LOGGER.debug("Using private key authentication for Snowflake");
-            return new SnowflakePrivateKeyCredentialProvider(secretsManager, secretName);
-        }
-
-        // Default to the standard username/password credential provider
-        LOGGER.debug("Using password authentication for Snowflake");
-        return new DefaultCredentialsProvider(getSecret(secretsManager, secretName));
-    }
-
-    /**
      * Gets the secret value from SecretsManager.
      *
      * @param secretsManager SecretsManager client
@@ -101,34 +72,6 @@ public final class SnowflakeAuthUtils
                 .build();
         GetSecretValueResponse getSecretValueResponse = secretsManager.getSecretValue(getSecretValueRequest);
         return getSecretValueResponse.secretString();
-    }
-
-    /**
-     * Extracts the secret name from a connection string.
-     *
-     * @param connectionString Connection string
-     * @return Secret name, or null if not found
-     */
-    public static String extractSecretNameFromConnectionString(String connectionString)
-    {
-        if (connectionString == null) {
-            return null;
-        }
-
-        // Look for ${secretName} format secret reference
-        if (connectionString.contains("${") && connectionString.contains("}")) {
-            return connectionString.replaceAll(".*\\$\\{([^}]*)\\}.*", "$1");
-        }
-        // Look for secret_name=secretName format
-        else if (connectionString.contains("secret_name=")) {
-            return extractParameterFromConnectionString(connectionString, "secret_name");
-        }
-        // Look for secret=secretName format (for backward compatibility)
-        else if (connectionString.contains("secret=")) {
-            return connectionString.replaceAll(".*secret=([^&;]*).*", "$1");
-        }
-
-        return null;
     }
     
     /**
@@ -171,13 +114,12 @@ public final class SnowflakeAuthUtils
         LOGGER.debug("Extracting parameters from connection string");
         
         // Extract common parameters
-        String[] possibleParams = {"secret_name", "auth_type", "role", "warehouse", "schema"};
+        String[] possibleParams = {"secret", "role", "warehouse", "schema"};
         for (String param : possibleParams) {
             String value = extractParameterFromConnectionString(connectionString, param);
             if (value != null) {
                 extractedParams.put(param, value);
-                LOGGER.debug("Extracted {} = {} from connection string", param,
-                    param.toLowerCase().contains("secret") ? "****" : value);
+                LOGGER.debug("Extracted {} = {} from connection string", param, value);
             }
         }
         
@@ -185,8 +127,8 @@ public final class SnowflakeAuthUtils
         if (connectionString.contains("${") && connectionString.contains("}")) {
             String placeholder = connectionString.replaceAll(".*\\$\\{([^}]*)\\}.*", "$1");
             if (placeholder != null && !placeholder.isEmpty()) {
-                extractedParams.put("secret_name", placeholder);
-                LOGGER.debug("Extracted secret_name = {} from placeholder ${{{}}}", placeholder, placeholder);
+                extractedParams.put("secret", placeholder);
+                LOGGER.debug("Extracted secret = {} from placeholder ${{{}}}", placeholder, placeholder);
             }
         }
         
@@ -194,94 +136,113 @@ public final class SnowflakeAuthUtils
     }
 
     /**
-     * Updates configuration options from a connection string.
-     * Does nothing if the map is unmodifiable.
+     * Gets the secret name from various sources in order of priority:
+     * 1. Connection string (secret parameter)
+     * 2. Connection string (${secretName} format)
+     * 3. Environment variable (secret)
      *
-     * @param connectionString Connection string
-     * @param configOptions Configuration options
-     * @return Whether the update was successful
-     */
-    public static boolean updateConfigOptionsFromConnectionString(String connectionString, Map<String, String> configOptions)
-    {
-        if (connectionString == null || configOptions == null) {
-            return false;
-        }
-        
-        // Check if the map is modifiable
-        boolean isModifiable = true;
-        try {
-            // Try to set a temporary value to test
-            String testKey = "__test_key__";
-            configOptions.put(testKey, "test");
-            configOptions.remove(testKey);
-        }
-        catch (UnsupportedOperationException e) {
-            // Map is unmodifiable
-            isModifiable = false;
-            LOGGER.warn("Config options map is unmodifiable, parameters from connection string will not be added");
-            return false;
-        }
-        
-        // If modifiable, extract parameters and add them
-        Map<String, String> extractedParams = extractParametersFromConnectionString(connectionString);
-        configOptions.putAll(extractedParams);
-        return true;
-    }
-
-    /**
-     * Gets the secret name from environment variables, configuration options, or parent class.
-     *
-     * @param configOptions Configuration options
-     * @param parentCredentialProvider Parent credential provider (optional)
+     * @param connectionString JDBC connection string
      * @return Secret name, or null if not found
      */
-    public static String getSecretNameFromSources(Map<String, String> configOptions, CredentialsProvider parentCredentialProvider)
+    public static String getSecretName(String connectionString)
     {
-        // 1. Get connection string from environment variable and extract secret name
+        Logger logger = LoggerFactory.getLogger(SnowflakeAuthUtils.class);
         String secretName = null;
-        if (System.getenv("JDBC_CONNECTION_STRING") != null) {
-            secretName = extractSecretNameFromConnectionString(System.getenv("JDBC_CONNECTION_STRING"));
+
+        // Extract secret name from connection string
+        if (connectionString != null) {
+            // Extract secret parameter
+            secretName = extractParameterFromConnectionString(connectionString, "secret");
+
+            // Extract ${secretName} format (if secret parameter doesn't exist)
+            if (secretName == null && connectionString.contains("${") && connectionString.contains("}")) {
+                secretName = connectionString.replaceAll(".*\\$\\{([^}]*)\\}.*", "$1");
+                logger.debug("Extracted secret from placeholder: {}", secretName);
+            }
         }
 
-        // 2. Get from configOptions
-        if ((secretName == null || secretName.isEmpty()) && configOptions.containsKey("secret_name")) {
-            secretName = configOptions.get("secret_name");
-        }
-
-        // 3. Get from parent credential provider
-        if ((secretName == null || secretName.isEmpty()) && parentCredentialProvider != null) {
-            // If available from parent class, use the parent credential provider directly
-            return null;
+        // Get secret name from environment variable
+        if (secretName == null) {
+            secretName = System.getenv("secret");
+            if (secretName != null) {
+                logger.debug("Using secret from environment variable: {}", secretName);
+            }
         }
 
         return secretName;
     }
 
     /**
-     * Updates configuration options from the secret.
+     * Gets a credential provider using the default connection string.
+     * This method encapsulates the entire credential provider creation process:
+     * 1. Gets the connection string from the "default" environment variable
+     * 2. Extracts the secret name from the connection string
+     * 3. Creates and returns the appropriate credential provider based on the secret content
      *
-     * @param secretsManager SecretsManager client
-     * @param secretName Secret name
-     * @param configOptions Configuration options
+     * @return CredentialsProvider based on the connection string and secret content
      */
-    public static void updateConfigOptionsFromSecret(
-            SecretsManagerClient secretsManager,
-            String secretName,
-            Map<String, String> configOptions)
+    public static CredentialsProvider getCredentialProviderWithDefault()
     {
-        try {
-            String secretString = getSecret(secretsManager, secretName);
-            Map<String, String> secretMap = new ObjectMapper().readValue(secretString, Map.class);
+        Logger logger = LoggerFactory.getLogger(SnowflakeAuthUtils.class);
+        logger.debug("getCredentialProviderWithDefault called");
 
-            // Get auth_type from secret and add to configuration options
-            String authType = secretMap.get("auth_type");
-            if (authType != null) {
-                LOGGER.debug("Setting auth_type from secret: {}", authType);
-                configOptions.put(AUTH_TYPE, authType);
+        // Get connection string from default environment variable
+        String connectionString = System.getenv("default");
+
+        // Get secret name
+        String secretName = getSecretName(connectionString);
+
+        // Create and return credential provider based on secret content
+        return createCredentialProvider(secretName);
+    }
+
+    /**
+     * Creates a credential provider based on the secret content.
+     * If the secret contains a privateKey, uses private key authentication.
+     * If the secret contains a password, uses password authentication.
+     *
+     * @param secretName Secret name
+     * @return CredentialsProvider
+     */
+    public static CredentialsProvider createCredentialProvider(String secretName)
+    {
+        Logger logger = LoggerFactory.getLogger(SnowflakeAuthUtils.class);
+
+        if (secretName == null || secretName.isEmpty()) {
+            logger.error("No secret name found for authentication");
+            throw new RuntimeException("No secret name found for authentication");
+        }
+
+        // Create SecretsManager client
+        SecretsManagerClient secretsManager = getSecretsManager();
+
+        try {
+            // Get secret content
+            String secretString = getSecret(secretsManager, secretName);
+
+            // Use TypeReference to provide proper generic type information
+            Map<String, String> secretMap = new ObjectMapper().readValue(secretString,
+                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+
+            // Check if secret contains privateKey
+            if (secretMap.containsKey("privateKey") && secretMap.get("privateKey") != null) {
+                logger.debug("Secret contains privateKey, using private key authentication");
+                return new SnowflakePrivateKeyCredentialProvider(secretsManager, secretName);
+            }
+            // Check if secret contains password
+            else if (secretMap.containsKey("password") && secretMap.get("password") != null) {
+                logger.debug("Secret contains password, using password authentication");
+                return new DefaultCredentialsProvider(secretString);
+            }
+            // If neither privateKey nor password is found, throw an exception
+            else {
+                logger.error("Secret does not contain privateKey or password");
+                throw new RuntimeException("Secret must contain either privateKey or password");
             }
         }
         catch (Exception e) {
-            LOGGER.error("Error updating config options from secret", e);
+            logger.error("Error creating credential provider", e);
+            throw new RuntimeException("Failed to create credential provider: " + e.getMessage(), e);
         }
     }
 }

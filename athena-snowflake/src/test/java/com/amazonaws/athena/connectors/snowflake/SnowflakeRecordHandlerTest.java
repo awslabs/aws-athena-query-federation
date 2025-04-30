@@ -83,7 +83,7 @@ public class SnowflakeRecordHandlerTest
                 this.athena,
                 this.jdbcConnectionFactory,
                 jdbcSplitQueryBuilder,
-                com.google.common.collect.ImmutableMap.of("secret_name", "testSecret")
+                com.google.common.collect.ImmutableMap.of("secret", "testSecret")
         );
     }
 

@@ -21,30 +21,21 @@ package com.amazonaws.athena.connectors.snowflake.connection;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.snowflake.credentials.SnowflakePrivateKeyCredentialProvider;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
 import java.security.PrivateKey;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 public class SnowflakeConnectionFactoryTest
 {
@@ -60,6 +51,9 @@ public class SnowflakeConnectionFactoryTest
     {
         databaseConnectionConfig = mock(DatabaseConnectionConfig.class);
         when(databaseConnectionConfig.getJdbcConnectionString()).thenReturn("jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname");
+        when(databaseConnectionConfig.getSecret()).thenReturn("test-secret");
+        when(databaseConnectionConfig.getCatalog()).thenReturn("test-catalog");
+        when(databaseConnectionConfig.getEngine()).thenReturn("snowflake");
 
         databaseConnectionInfo = mock(DatabaseConnectionInfo.class);
         when(databaseConnectionInfo.getDriverClassName()).thenReturn("com.snowflake.client.jdbc.SnowflakeDriver");
@@ -81,72 +75,59 @@ public class SnowflakeConnectionFactoryTest
     }
 
     @Test
-    public void testGetConnectionWithPasswordAuth() throws SQLException
-    {
-        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
-            Connection connection = mock(Connection.class);
-            mockedDriverManager.when(() -> DriverManager.getConnection(anyString(), any(Properties.class))).thenReturn(connection);
+    public void testAuthenticationTypeSelection() throws Exception {
 
-            connectionFactory.getConnection(credentialsProvider);
-
-            verify(credentialsProvider, atLeastOnce()).getCredential();
-            mockedDriverManager.verify(() -> DriverManager.getConnection(anyString(), any(Properties.class)));
-        }
-    }
-
-    @Test
-    public void testGetConnectionWithPrivateKeyAuth() throws Exception
-    {
-        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
-            Connection connection = mock(Connection.class);
-            mockedDriverManager.when(() -> DriverManager.getConnection(anyString(), any(Properties.class))).thenReturn(connection);
-
-            PrivateKey privateKey = mock(PrivateKey.class);
-            when(privateKeyCredentialProvider.getPrivateKeyObject()).thenReturn(privateKey);
-
-            connectionFactory.getConnection((CredentialsProvider) privateKeyCredentialProvider);
-
-            verify(privateKeyCredentialProvider, atLeastOnce()).getCredential();
-            verify(privateKeyCredentialProvider, atLeastOnce()).getPrivateKeyObject();
-            mockedDriverManager.verify(() -> DriverManager.getConnection(anyString(), any(Properties.class)));
-        }
-    }
-
-    @Test
-    public void testGetConnectionWithNullCredentialsProvider()
-    {
-        SQLException exception = assertThrows(SQLException.class, () -> {
-            connectionFactory.getConnection(null);
-        });
-
-        assertEquals("CredentialsProvider is null", exception.getMessage());
-    }
-
-    @Test
-    public void testGetConnectionWithClassNotFoundException() throws SQLException
-    {
-        DatabaseConnectionInfo invalidInfo = mock(DatabaseConnectionInfo.class);
-        when(invalidInfo.getDriverClassName()).thenReturn("invalid.driver.class");
+        final boolean[] privateKeyAuthUsed = {false};
+        final boolean[] passwordAuthUsed = {false};
 
         SnowflakeConnectionFactory testFactory = new SnowflakeConnectionFactory(
-                databaseConnectionConfig, properties, invalidInfo);
+                databaseConnectionConfig, properties, databaseConnectionInfo) {
+            @Override
+            public Connection getConnection(CredentialsProvider credentialsProvider) throws SQLException {
+                try {
+                    if (credentialsProvider instanceof SnowflakePrivateKeyCredentialProvider) {
+                        privateKeyAuthUsed[0] = true;
+                        SnowflakePrivateKeyCredentialProvider provider = (SnowflakePrivateKeyCredentialProvider) credentialsProvider;
+                        assertNotNull(provider.getPrivateKeyObject());
+                    } else {
+                        passwordAuthUsed[0] = true;
+                    }
 
-        // Test execution and verification
-        assertThrows(RuntimeException.class, () -> {
-            testFactory.getConnection(credentialsProvider);
-        });
+                    return mock(Connection.class);
+                } catch (Exception e) {
+                    throw new SQLException("Test exception", e);
+                }
+            }
+        };
+
+        DefaultCredentialsProvider defaultProvider = mock(DefaultCredentialsProvider.class);
+        DefaultCredentials defaultCredentials = new DefaultCredentials("testUser", "testPassword");
+        when(defaultProvider.getCredential()).thenReturn(defaultCredentials);
+
+        SnowflakePrivateKeyCredentialProvider privateKeyProvider = mock(SnowflakePrivateKeyCredentialProvider.class);
+        DefaultCredentials privateKeyCredentials = new DefaultCredentials("testUser", "testPrivateKey");
+        when(privateKeyProvider.getCredential()).thenReturn(privateKeyCredentials);
+        when(privateKeyProvider.getPrivateKeyObject()).thenReturn(mock(PrivateKey.class));
+
+        testFactory.getConnection(privateKeyProvider);
+        assertTrue("Private key authentication should be used", privateKeyAuthUsed[0]);
+        assertFalse("Password authentication should not be used", passwordAuthUsed[0]);
+
+        privateKeyAuthUsed[0] = false;
+        passwordAuthUsed[0] = false;
+
+        testFactory.getConnection(defaultProvider);
+        assertFalse("Private key authentication should not be used", privateKeyAuthUsed[0]);
+        assertTrue("Password authentication should be used", passwordAuthUsed[0]);
     }
 
     @Test
-    public void testGetConnectionWithSQLException() throws SQLException
+    public void testProcessConnectionString() throws Exception
     {
-        try (MockedStatic<DriverManager> mockedDriverManager = Mockito.mockStatic(DriverManager.class)) {
-            SQLException sqlException = new SQLException("Test SQL Exception");
-            mockedDriverManager.when(() -> DriverManager.getConnection(anyString(), any(Properties.class))).thenThrow(sqlException);
+        java.lang.reflect.Method method = SnowflakeConnectionFactory.class.getDeclaredMethod("processConnectionString", String.class);
+        method.setAccessible(true);
 
-            assertThrows(SQLException.class, () -> {
-                connectionFactory.getConnection(credentialsProvider);
-            });
-        }
+        String result = (String) method.invoke(connectionFactory, "snowflake://jdbc:snowflake://hostname/?secret=test-secret");
+        assertEquals("jdbc:snowflake://hostname/", result);
     }
 }

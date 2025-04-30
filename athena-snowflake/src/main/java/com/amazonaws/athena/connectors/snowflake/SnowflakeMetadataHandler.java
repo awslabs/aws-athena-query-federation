@@ -21,7 +21,6 @@
 package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -54,7 +53,6 @@ import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
 import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
-import com.amazonaws.athena.connectors.snowflake.credentials.SnowflakePrivateKeyCredentialProvider;
 import com.amazonaws.athena.connectors.snowflake.resolver.SnowflakeJDBCCaseResolver;
 import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils;
 import com.google.common.annotations.VisibleForTesting;
@@ -133,7 +131,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
     /**
      * Instantiates handler to be used by Lambda function directly.
-     * <p>
+     *
      * Recommend using {@link SnowflakeMuxCompositeHandler} instead.
      */
     public SnowflakeMetadataHandler(java.util.Map<String, String> configOptions)
@@ -157,13 +155,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new SnowflakeJDBCCaseResolver(SNOWFLAKE_NAME));
-        
-        // Extract parameters from connection string (for logging only)
-        String connectionString = System.getenv("JDBC_CONNECTION_STRING");
-        if (connectionString == null) {
-            connectionString = System.getenv("default");
-        }
-        
+        String connectionString = System.getenv("default");
+
         if (connectionString != null) {
             LOGGER.info("Processing connection string for parameters");
             // Only extract parameters, without updating configOptions
@@ -507,89 +500,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     protected CredentialsProvider getCredentialProvider()
     {
-        LOGGER.debug("getCredentialProvider called");
-
-        // Get connection string
-        String connectionString = System.getenv("JDBC_CONNECTION_STRING");
-        if (connectionString == null) {
-            connectionString = System.getenv("default");
-        }
-
-        // Get authentication type (from configOptions or connection string)
-        String authType = configOptions.getOrDefault(SnowflakeConstants.AUTH_TYPE,
-                SnowflakeConstants.AUTH_TYPE_PASSWORD);
-
-        // Extract authentication type from connection string (if exists)
-        if (connectionString != null) {
-            String extractedAuthType = SnowflakeAuthUtils.extractParameterFromConnectionString(connectionString, "auth_type");
-            if (extractedAuthType != null) {
-                authType = extractedAuthType;
-                LOGGER.debug("Using auth_type from connection string: {}", authType);
-            }
-        }
-
-        // Get secret name (from connection string or environment variables)
-        String secretName = null;
-
-        // 1. Extract secret name from connection string
-        if (connectionString != null) {
-            // Extract secret_name parameter
-            secretName = SnowflakeAuthUtils.extractParameterFromConnectionString(connectionString, "secret_name");
-
-            // Extract ${secretName} format (if secret_name parameter doesn't exist)
-            if (secretName == null && connectionString.contains("${") && connectionString.contains("}")) {
-                secretName = connectionString.replaceAll(".*\\$\\{([^}]*)\\}.*", "$1");
-                LOGGER.debug("Extracted secret_name from placeholder: {}", secretName);
-            }
-        }
-
-        // 2. Get secret name from environment variable
-        if (secretName == null) {
-            secretName = System.getenv("secret_name");
-            if (secretName != null) {
-                LOGGER.debug("Using secret_name from environment variable: {}", secretName);
-            }
-        }
-
-        // 3. Get secret name from configOptions
-        if (secretName == null) {
-            secretName = configOptions.get("secret_name");
-            if (secretName != null) {
-                LOGGER.debug("Using secret_name from configOptions: {}", secretName);
-            }
-        }
-
-        // Error if no secret name is found
-        if (secretName == null || secretName.isEmpty()) {
-            LOGGER.error("No secret name found for authentication");
-            throw new RuntimeException("No secret name found for authentication");
-        }
-
-        // Create SecretsManager client
-        SecretsManagerClient secretsManager = SnowflakeAuthUtils.getSecretsManager();
-
-        // Create credentials provider based on authentication type
-        if (SnowflakeConstants.AUTH_TYPE_PRIVATE_KEY.equals(authType)) {
-            LOGGER.debug("Creating SnowflakePrivateKeyCredentialProvider with secret: {}", secretName);
-            try {
-                return new SnowflakePrivateKeyCredentialProvider(secretsManager, secretName);
-            }
-            catch (Exception e) {
-                LOGGER.error("Failed to create SnowflakePrivateKeyCredentialProvider", e);
-                throw new RuntimeException("Failed to create private key credentials provider: " + e.getMessage(), e);
-            }
-        }
-        else {
-            // For password authentication
-            LOGGER.debug("Creating DefaultCredentialsProvider with secret: {}", secretName);
-            try {
-                String secretValue = SnowflakeAuthUtils.getSecret(secretsManager, secretName);
-                return new DefaultCredentialsProvider(secretValue);
-            }
-            catch (Exception e) {
-                LOGGER.error("Failed to create DefaultCredentialsProvider", e);
-                throw new RuntimeException("Failed to create password credentials provider: " + e.getMessage(), e);
-            }
-        }
+        LOGGER.info("getCredentialProvider called in SnowflakeMetadataHandler");
+        return SnowflakeAuthUtils.getCredentialProviderWithDefault();
     }
 }

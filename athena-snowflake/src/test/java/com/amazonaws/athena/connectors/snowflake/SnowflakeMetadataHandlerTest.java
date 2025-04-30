@@ -75,7 +75,7 @@ public class SnowflakeMetadataHandlerTest
                 this.secretsManager,
                 this.athena,
                 this.jdbcConnectionFactory,
-                com.google.common.collect.ImmutableMap.of("secret_name", "testSecret"),
+                com.google.common.collect.ImmutableMap.of("secret", "testSecret"),
                 new SnowflakeJDBCCaseResolver(SNOWFLAKE_NAME)
         );
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);

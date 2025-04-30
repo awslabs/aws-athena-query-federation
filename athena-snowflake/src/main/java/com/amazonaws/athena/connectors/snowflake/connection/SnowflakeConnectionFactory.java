@@ -2,7 +2,7 @@
  * #%L
  * athena-snowflake
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 - 2025 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 
+import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils.getSecretName;
+
 /**
  * Extends the GenericJdbcConnectionFactory to support private key authentication for Snowflake.
  */
@@ -65,7 +67,7 @@ public class SnowflakeConnectionFactory extends GenericJdbcConnectionFactory
 
     @Override
     public Connection getConnection(CredentialsProvider credentialsProvider)
-            throws SQLException
+        throws SQLException
     {
         try {
             LOGGER.debug("getConnection called with credentialsProvider: {}",
@@ -79,96 +81,100 @@ public class SnowflakeConnectionFactory extends GenericJdbcConnectionFactory
             // Check if credentialsProvider is SnowflakePrivateKeyCredentialProvider
             boolean isPrivateKeyAuth = credentialsProvider instanceof SnowflakePrivateKeyCredentialProvider;
 
-            Class.forName(databaseConnectionInfo.getDriverClassName());
-            Properties connectionProps = new Properties();
-
-            // Add all properties
-            if (properties != null) {
-                connectionProps.putAll(properties);
-            }
-
-            connectionProps.put("user", credentialsProvider.getCredential().getUser());
-
+            // For private key authentication, we need to use our own implementation
             if (isPrivateKeyAuth) {
                 LOGGER.info("Using private key authentication");
                 SnowflakePrivateKeyCredentialProvider privateKeyProvider =
                         (SnowflakePrivateKeyCredentialProvider) credentialsProvider;
+
+                // Process the connection string
+                String processedConnectionString = processConnectionString(databaseConnectionConfig.getJdbcConnectionString());
+
+                // Create connection properties
+                Properties connectionProps = new Properties();
+                if (properties != null) {
+                    connectionProps.putAll(properties);
+                }
+                connectionProps.put("user", privateKeyProvider.getCredential().getUser());
+
                 try {
                     // Set PrivateKey object instead of string
                     PrivateKey privateKeyObj = privateKeyProvider.getPrivateKeyObject();
                     connectionProps.put("privateKey", privateKeyObj);
                     LOGGER.debug("Private key object created successfully");
-
-                    // Remove password property (to avoid confusion)
-                    connectionProps.remove("password");
                 }
                 catch (Exception e) {
                     LOGGER.error("Failed to create PrivateKey object", e);
                     throw new SQLException("Failed to create PrivateKey object: " + e.getMessage(), e);
                 }
+
+                // Use DriverManager directly for private key authentication
+                return DriverManager.getConnection(processedConnectionString, connectionProps);
             }
+            // For password authentication, we can use the parent class
             else {
-                // Normal authentication
-                connectionProps.put("password", credentialsProvider.getCredential().getPassword());
+                LOGGER.info("Using password authentication");
+
+                String connectionString = System.getenv("default");
+                String secretName = getSecretName(connectionString);
+
+                DatabaseConnectionConfig tempConfig = new DatabaseConnectionConfig(
+                        databaseConnectionConfig.getCatalog(),
+                        databaseConnectionConfig.getEngine(),
+                        databaseConnectionConfig.getJdbcConnectionString(),
+                        secretName);
+
+                GenericJdbcConnectionFactory tempFactory = new GenericJdbcConnectionFactory(
+                        tempConfig, properties, databaseConnectionInfo);
+
+                // Use the parent class's getConnection method for password authentication
+                return tempFactory.getConnection(credentialsProvider);
             }
-
-            // Get original connection string
-            String originalConnectionString = databaseConnectionConfig.getJdbcConnectionString();
-            LOGGER.debug("Original connection string: {}", originalConnectionString);
-
-            // Modify connection string
-            String connectionString = originalConnectionString;
-
-            // Remove ${...} or ${{...}} placeholders
-            if (connectionString.contains("${")) {
-                // Use safe regex replacement
-                connectionString = connectionString.replaceAll("\\$\\{[^}]*\\}", "");
-                connectionString = connectionString.replaceAll("\\$\\{\\{[^}]*\\}\\}", "");
-                LOGGER.debug("Removed placeholders from connection string");
-            }
-
-            // Remove authentication related parameters
-            connectionString = connectionString.replaceAll("&?secret_name=[^&]*", "");
-            connectionString = connectionString.replaceAll("&?auth_type=[^&]*", "");
-
-            // Fix consecutive &
-            connectionString = connectionString.replaceAll("&&", "&");
-            // Remove trailing ? or &
-            connectionString = connectionString.replaceAll("[?&]$", "");
-            // If there's no ? but there are parameters starting with &, convert first & to ?
-            if (!connectionString.contains("?") && connectionString.contains("&")) {
-                connectionString = connectionString.replaceFirst("&", "?");
-            }
-
-            // Handle snowflake://jdbc:snowflake:// format
-            if (connectionString.startsWith("snowflake://jdbc:snowflake://")) {
-                // Remove snowflake:// prefix to keep only jdbc:snowflake://
-                connectionString = connectionString.substring("snowflake://".length());
-                LOGGER.debug("Removed 'snowflake://' prefix from connection string");
-            }
-            // Handle snowflake:// format
-            else if (connectionString.startsWith("snowflake://")) {
-                // Replace snowflake:// with jdbc:snowflake://
-                connectionString = "jdbc:snowflake://" + connectionString.substring("snowflake://".length());
-                LOGGER.debug("Replaced 'snowflake://' with 'jdbc:snowflake://' in connection string");
-            }
-            // If not starting with jdbc:
-            else if (!connectionString.startsWith("jdbc:")) {
-                // Add jdbc:snowflake:// prefix
-                connectionString = "jdbc:snowflake://" + connectionString;
-                LOGGER.debug("Added 'jdbc:snowflake://' prefix to connection string");
-            }
-
-            return DriverManager.getConnection(connectionString, connectionProps);
         }
-        catch (ClassNotFoundException e) {
-            LOGGER.error("Driver class not found", e);
-            throw new RuntimeException(e);
+        catch (Exception e) {
+            if (e instanceof SQLException) {
+                LOGGER.error("SQL Exception during connection: {}", e.getMessage(), e);
+                LOGGER.error("SQL State: {}, Error Code: {}", ((SQLException) e).getSQLState(), ((SQLException) e).getErrorCode());
+                throw (SQLException) e;
+            }
+            LOGGER.error("Exception during connection: {}", e.getMessage(), e);
+            throw new SQLException("Failed to establish connection: " + e.getMessage(), e);
         }
-        catch (SQLException e) {
-            LOGGER.error("SQL Exception during connection: {}", e.getMessage(), e);
-            LOGGER.error("SQL State: {}, Error Code: {}", e.getSQLState(), e.getErrorCode());
-            throw e;
+    }
+
+    /**
+     * Processes the connection string to handle Snowflake-specific formats and remove placeholders.
+     *
+     * @param connectionString Original connection string
+     * @return Processed connection string
+     */
+    private String processConnectionString(String connectionString)
+    {
+        // Remove ${...} or ${{...}} placeholders
+        if (connectionString.contains("${")) {
+            connectionString = connectionString.replaceAll("\\$\\{[^}]*\\}", "");
+            LOGGER.debug("Removed placeholders from connection string");
         }
+
+        // Remove authentication related parameters
+        connectionString = connectionString.replaceAll("&?secret=[^&]*", "");
+
+        // Fix consecutive &
+        connectionString = connectionString.replaceAll("&&", "&");
+        // Remove trailing ? or &
+        connectionString = connectionString.replaceAll("[?&]$", "");
+        // If there's no ? but there are parameters starting with &, convert first & to ?
+        if (!connectionString.contains("?") && connectionString.contains("&")) {
+            connectionString = connectionString.replaceFirst("&", "?");
+        }
+
+        // Handle snowflake://jdbc:snowflake:// format
+        if (connectionString.startsWith("snowflake://jdbc:snowflake://")) {
+            // Remove snowflake:// prefix to keep only jdbc:snowflake://
+            connectionString = connectionString.substring("snowflake://".length());
+            LOGGER.debug("Removed 'snowflake://' prefix from connection string");
+        }
+
+        return connectionString;
     }
 }
