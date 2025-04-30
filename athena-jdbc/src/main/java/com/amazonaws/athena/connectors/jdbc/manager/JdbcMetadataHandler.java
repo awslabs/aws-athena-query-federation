@@ -217,9 +217,9 @@ public abstract class JdbcMetadataHandler
 
             String token = listTablesRequest.getNextToken();
             int pageSize = listTablesRequest.getPageSize();
-            String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
 
             if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) { // perform no pagination
+                String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
                 LOGGER.info("doListTables - NO pagination");
                 return new ListTablesResponse(listTablesRequest.getCatalogName(), listTables(connection, adjustedSchemaName), null);
             }
