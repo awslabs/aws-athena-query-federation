@@ -1,4 +1,3 @@
-
 /*-
  * #%L
  * athena-snowflake
@@ -21,6 +20,7 @@
 
 package com.amazonaws.athena.connectors.snowflake;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -46,14 +46,15 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Lim
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
-import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
 import com.amazonaws.athena.connectors.snowflake.resolver.SnowflakeJDBCCaseResolver;
+import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -127,6 +128,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             "TIMESTAMPNTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
             "TIMESTAMPTZ", (ArrowType) Types.MinorType.DATEMILLI.getType()
     );
+
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
@@ -143,24 +145,34 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig,
-                new GenericJdbcConnectionFactory(databaseConnectionConfig, SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
-                new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS, SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)),
+                new SnowflakeConnectionFactory(databaseConnectionConfig,
+                        SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
+                        new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS,
+                                SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)),
                 configOptions);
     }
 
     public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new SnowflakeJDBCCaseResolver(SNOWFLAKE_NAME));
+        String connectionString = System.getenv("default");
+
+        if (connectionString != null) {
+            LOGGER.info("Processing connection string for parameters");
+            // Only extract parameters, without updating configOptions
+            Map<String, String> extractedParams = SnowflakeAuthUtils.extractParametersFromConnectionString(connectionString);
+            LOGGER.info("Extracted {} parameters from connection string", extractedParams.size());
+        }
     }
 
     @VisibleForTesting
     protected SnowflakeMetadataHandler(
-        DatabaseConnectionConfig databaseConnectionConfig,
-        SecretsManagerClient secretsManager,
-        AthenaClient athena,
-        JdbcConnectionFactory jdbcConnectionFactory,
-        java.util.Map<String, String> configOptions,
-        JDBCCaseResolver caseResolver)
+            DatabaseConnectionConfig databaseConnectionConfig,
+            SecretsManagerClient secretsManager,
+            AthenaClient athena,
+            JdbcConnectionFactory jdbcConnectionFactory,
+            java.util.Map<String, String> configOptions,
+            JDBCCaseResolver caseResolver)
     {
         super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, caseResolver);
     }
@@ -205,7 +217,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         List<String> primaryKeys = new ArrayList<String>();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
-                ResultSet rs = preparedStatement.executeQuery()) {
+                 ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
                     // Concatenate multiple primary keys if they exist
                     primaryKeys.add(rs.getString(PRIMARY_KEY_COLUMN_NAME));
@@ -217,24 +229,24 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 return Optional.of(primaryKeyString);
             }
         }
-        return Optional.empty(); 
+        return Optional.empty();
     }
 
     /**
-    * Snowflake does not enforce primary key constraints, so we double-check user has unique primary key
-    * before partitioning.
-    */
-    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception 
+     * Snowflake does not enforce primary key constraints, so we double-check user has unique primary key
+     * before partitioning.
+     */
+    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
+            try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey + ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
                     if (rs.getInt(COUNTS_COLUMN_NAME) == 1) {
                         // Since it is in descending order and 1 is this first count seen, 
                         // this table has a unique primary key 
                         return true;
-                    }   
+                    }
                 }
             }
         }
@@ -244,6 +256,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
     /**
      * Snowflake manual partition logic based upon number of records
+     *
      * @param blockWriter
      * @param getTableLayoutRequest
      * @param queryStatusChecker
@@ -280,7 +293,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     .withConnection(connection)
                     .withQuery(COUNT_RECORDS_QUERY)
                     .withParameters(Arrays.asList(tableName.getSchemaName(), tableName.getTableName())).build();
-                    ResultSet rs = preparedStatement.executeQuery()) {
+                 ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
                     totalRecordCount = rs.getLong(1);
                 }
@@ -376,7 +389,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
 
     /**
-     *
      * @param jdbcConnection
      * @param tableName
      * @param partitionSchema
@@ -483,5 +495,12 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
             return schemaNames.build();
         }
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        LOGGER.info("getCredentialProvider called in SnowflakeMetadataHandler");
+        return SnowflakeAuthUtils.getCredentialProviderWithDefault();
     }
 }

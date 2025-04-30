@@ -1,4 +1,3 @@
-
 /*-
  * #%L
  * athena-snowflake
@@ -20,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.snowflake;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -31,9 +31,13 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
+import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -43,6 +47,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Map;
 
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.JDBC_PROPERTIES;
@@ -51,6 +56,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
 {
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeRecordHandler.class);
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
@@ -62,16 +68,26 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     }
     public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig,
+        this(databaseConnectionConfig, new SnowflakeConnectionFactory(databaseConnectionConfig,
                 SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
                 new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS,
                         SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)), configOptions);
     }
+
     public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(),
                 jdbcConnectionFactory, new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER)), configOptions);
+        String connectionString = System.getenv("default");
+        
+        if (connectionString != null) {
+            LOGGER.info("Processing connection string for parameters in RecordHandler");
+            // Only extract parameters, without updating configOptions
+            Map<String, String> extractedParams = SnowflakeAuthUtils.extractParametersFromConnectionString(connectionString);
+            LOGGER.info("Extracted {} parameters from connection string", extractedParams.size());
+        }
     }
+
     @VisibleForTesting
     SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, final S3Client amazonS3, final SecretsManagerClient secretsManager,
                            final AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
@@ -86,18 +102,25 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         PreparedStatement preparedStatement;
         try {
             if (constraints.isQueryPassThrough()) {
-            preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
-        }
-        else {
-            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableNameInput.getSchemaName(), tableNameInput.getTableName(), schema, constraints, split);
-        }
+                preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+            }
+            else {
+                preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableNameInput.getSchemaName(), tableNameInput.getTableName(), schema, constraints, split);
+            }
 
-        // Disable fetching all rows.
-        preparedStatement.setFetchSize(FETCH_SIZE);
+            // Disable fetching all rows.
+            preparedStatement.setFetchSize(FETCH_SIZE);
         }
         catch (SQLException e) {
             throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         return preparedStatement;
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        LOGGER.debug("getCredentialProvider called in SnowflakeRecordHandler");
+        return SnowflakeAuthUtils.getCredentialProviderWithDefault();
     }
 }
