@@ -121,7 +121,7 @@ export class RedshiftStack extends cdk.Stack {
 
     const glueJob = new glue.Job(this, 'redshift_glue_job_create_case_insensitive_data', {
       executable: glue.JobExecutable.pythonShell({
-        glueVersion: glue.GlueVersion.V1_0,
+        glueVersion: glue.GlueVersion.V4_0,
         pythonVersion: glue.PythonVersion.THREE_NINE,
         script: glue.Code.fromAsset(path.join(__dirname, `../../../glue_scripts/redshift_create_case_insensitive_data.py`))
       }),
