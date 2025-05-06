@@ -34,6 +34,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWrit
 import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterFactory;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -47,6 +48,8 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -525,7 +528,7 @@ class ElasticsearchTypeUtils
                             return true;
                         };
             default:
-                throw new RuntimeException(fieldType + " is not supported");
+                throw new AthenaConnectorException(fieldType + " is not supported", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 }

@@ -65,8 +65,7 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                 if (databaseConnectionConfig.getJdbcConnectionString().toLowerCase().contains("@tcps://")) {
                     LOGGER.info("Establishing connection over SSL..");
                     properties.put("javax.net.ssl.trustStoreType", "JKS");
-                    properties.put("javax.net.ssl.trustStore", "rds-truststore.jks");
-                    properties.put("javax.net.ssl.trustStorePassword", "federationStorePass");
+                    properties.put("javax.net.ssl.trustStorePassword", "changeit");
                     properties.put("oracle.net.ssl_server_dn_match", "true");
                     // By default; Oracle RDS uses SSL_RSA_WITH_AES_256_CBC_SHA
                     // Adding the following cipher suits to support others listed in Doc
@@ -86,6 +85,8 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                 final String secretReplacement = String.format("%s/%s", credentialsProvider.getCredential().getUser(),
                         password);
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
+                // register driver
+                Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
                 return DriverManager.getConnection(derivedJdbcString, properties);
             }
             else {
@@ -94,6 +95,9 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
+        }
+        catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
+            throw new RuntimeException(ex);
         }
     }
 }

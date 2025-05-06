@@ -14,11 +14,11 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.31.6</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.31.35</aws-sdk-v2.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.110.0</jsii.version>
+        <jsii.version>1.111.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.17</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
@@ -27,8 +27,8 @@
         <assertj.version>3.27.3</assertj.version>
         <testng.version>7.11.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.18.3</fasterxml.jackson.version>
-        <surefire.failsafe.version>3.5.2</surefire.failsafe.version>
+        <fasterxml.jackson.version>2.19.0</fasterxml.jackson.version>
+        <surefire.failsafe.version>3.5.3</surefire.failsafe.version>
         <log4j2Version>2.24.2</log4j2Version>
         <apache.arrow.version>18.1.0</apache.arrow.version>
         <guava.version>33.4.0-jre</guava.version>
@@ -53,7 +53,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.12.1</version>
+                <version>5.12.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -284,7 +284,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.13</version>
                 <executions>
                     <execution>
                         <goals>

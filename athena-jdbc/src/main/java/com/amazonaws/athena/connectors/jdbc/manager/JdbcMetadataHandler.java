@@ -44,6 +44,8 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
+import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.splits.Splitter;
 import com.amazonaws.athena.connectors.jdbc.splits.SplitterFactory;
 import com.google.common.annotations.VisibleForTesting;
@@ -92,6 +94,7 @@ public abstract class JdbcMetadataHandler
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final SplitterFactory splitterFactory = new SplitterFactory();
+    protected final JDBCCaseResolver caseResolver;
     protected JdbcQueryPassthrough jdbcQueryPassthrough = new JdbcQueryPassthrough();
 
     /**
@@ -99,9 +102,18 @@ public abstract class JdbcMetadataHandler
      */
     protected JdbcMetadataHandler(String sourceType, java.util.Map<String, String> configOptions)
     {
+        this(sourceType, configOptions, new DefaultJDBCCaseResolver(sourceType));
+    }
+
+    /**
+     * Used only by Multiplexing handler. All calls will be delegated to respective database handler.
+     */
+    protected JdbcMetadataHandler(String sourceType, java.util.Map<String, String> configOptions, JDBCCaseResolver caseResolver)
+    {
         super(sourceType, configOptions);
         this.jdbcConnectionFactory = null;
         this.databaseConnectionConfig = null;
+        this.caseResolver = Validate.notNull(caseResolver, "caseResolver must not be null");
     }
 
     protected JdbcMetadataHandler(
@@ -109,10 +121,19 @@ public abstract class JdbcMetadataHandler
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
+        this(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new DefaultJDBCCaseResolver(databaseConnectionConfig.getEngine()));
+    }
+
+    protected JdbcMetadataHandler(
+            DatabaseConnectionConfig databaseConnectionConfig,
+            JdbcConnectionFactory jdbcConnectionFactory,
+            java.util.Map<String, String> configOptions,
+            JDBCCaseResolver caseResolver)
+    {
         super(databaseConnectionConfig.getEngine(), configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
-
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
+        this.caseResolver = Validate.notNull(caseResolver, "caseResolver must not be null");
     }
 
     @VisibleForTesting
@@ -123,9 +144,22 @@ public abstract class JdbcMetadataHandler
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
+        this(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, new DefaultJDBCCaseResolver(databaseConnectionConfig.getEngine()));
+    }
+
+    @VisibleForTesting
+    protected JdbcMetadataHandler(
+            DatabaseConnectionConfig databaseConnectionConfig,
+            SecretsManagerClient secretsManager,
+            AthenaClient athena,
+            JdbcConnectionFactory jdbcConnectionFactory,
+            java.util.Map<String, String> configOptions,
+            JDBCCaseResolver caseResolver)
+    {
         super(null, secretsManager, athena, databaseConnectionConfig.getEngine(), null, null, configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
+        this.caseResolver = Validate.notNull(caseResolver, "caseResolver must not be null");
     }
 
     protected JdbcConnectionFactory getJdbcConnectionFactory()
@@ -154,7 +188,7 @@ public abstract class JdbcMetadataHandler
         }
     }
 
-    private Set<String> listDatabaseNames(final Connection jdbcConnection)
+    protected Set<String> listDatabaseNames(final Connection jdbcConnection)
             throws SQLException
     {
         try (ResultSet resultSet = jdbcConnection.getMetaData().getSchemas()) {
@@ -185,8 +219,9 @@ public abstract class JdbcMetadataHandler
             int pageSize = listTablesRequest.getPageSize();
 
             if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) { // perform no pagination
+                String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
                 LOGGER.info("doListTables - NO pagination");
-                return new ListTablesResponse(listTablesRequest.getCatalogName(), listTables(connection, listTablesRequest.getSchemaName()), null);
+                return new ListTablesResponse(listTablesRequest.getCatalogName(), listTables(connection, adjustedSchemaName), null);
             }
 
             LOGGER.info("doListTables - pagination");
@@ -194,13 +229,22 @@ public abstract class JdbcMetadataHandler
         }
     }
 
+    /**
+     * This is default getAllTables no pagination.
+     * Override this if you want to support the behavior.
+     * @param connection
+     * @param listTablesRequest
+     * @return
+     * @throws SQLException
+     */
     protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
     {
         // no-op is call listTables
         // override this function to implement pagination
+        String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
         LOGGER.debug("Request is asking for pagination, but pagination has not been implemented");
         return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                listTables(connection, listTablesRequest.getSchemaName()), null);
+                listTables(connection, adjustedSchemaName), null);
     }
 
     protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
@@ -218,6 +262,7 @@ public abstract class JdbcMetadataHandler
     private ResultSet getTables(final Connection connection, final String schemaName)
             throws SQLException
     {
+        LOGGER.debug("listTables, schemaName:" + schemaName);
         DatabaseMetaData metadata = connection.getMetaData();
         String escape = metadata.getSearchStringEscape();
         return metadata.getTables(
@@ -244,14 +289,17 @@ public abstract class JdbcMetadataHandler
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
             throws Exception
     {
+        LOGGER.debug("doGetTable getTableName:{}", getTableRequest.getTableName());
         try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName caseInsensitiveTableMatch = caseInsensitiveTableSearch(connection, getTableRequest.getTableName().getSchemaName(),
-                    getTableRequest.getTableName().getTableName());
-            Schema caseInsensitiveSchemaMatch = getSchema(connection, caseInsensitiveTableMatch, partitionSchema);
+            TableName adjustedTableNameObject = caseResolver.getAdjustedTableNameObject(connection,
+                    new TableName(getTableRequest.getTableName().getSchemaName(), getTableRequest.getTableName().getTableName()),
+                    configOptions);
 
-            return new GetTableResponse(getTableRequest.getCatalogName(), caseInsensitiveTableMatch, caseInsensitiveSchemaMatch,
-                        partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            return new GetTableResponse(getTableRequest.getCatalogName(),
+                    adjustedTableNameObject,
+                    getSchema(connection, adjustedTableNameObject, partitionSchema),
+                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
 
@@ -331,21 +379,7 @@ public abstract class JdbcMetadataHandler
                 configOptions);
     }
 
-    /**
-     * While being a no-op by default, this function will be overriden by subclasses that support this search.
-     *
-     * @param connection
-     * @param databaseName
-     * @param tableName
-     * @return TableName containing the resolved case sensitive table name.
-     */
-    protected TableName caseInsensitiveTableSearch(Connection connection, final String databaseName,
-                                                     final String tableName) throws Exception
-    {
-        return new TableName(databaseName, tableName);
-    }
-
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -380,20 +414,22 @@ public abstract class JdbcMetadataHandler
             }
 
             if (!found) {
-                throw new AthenaConnectorException(String.format("Could not find table %s in %s", tableName.getTableName(), tableName.getSchemaName()),
-                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
+                // log a warning if table columns are not found
+                LOGGER.warn("getSchema: Could not find table {} in {}", tableName.getTableName(), tableName.getSchemaName());
             }
-
-            // add partition columns
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
+            else {
+                // add partition columns
+                partitionSchema.getFields().forEach(schemaBuilder::addField);
+            }
 
             return schemaBuilder.build();
         }
     }
 
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
+    protected ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
             throws SQLException
     {
+        LOGGER.debug("getColumns, catalogName:" + catalogName + ", tableHandle: " + tableHandle);
         String escape = metadata.getSearchStringEscape();
         return metadata.getColumns(
                 catalogName,
@@ -431,7 +467,7 @@ public abstract class JdbcMetadataHandler
             if (!primaryKeyColumns.isEmpty()) {
                 try (Statement statement = jdbcConnection.createStatement();
                         ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
-                                tableName.getSchemaName(), tableName.getTableName()))) {
+                                wrapNameWithEscapedCharacter(tableName.getSchemaName()), wrapNameWithEscapedCharacter(tableName.getTableName())))) {
                     minMaxResultSet.next(); // expecting one result row
                     Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
 
@@ -481,5 +517,10 @@ public abstract class JdbcMetadataHandler
                 Split.newBuilder(spillLocation, makeEncryptionKey())
                         .applyProperties(qptArguments)
                         .build());
+    }
+
+    protected String wrapNameWithEscapedCharacter(String input)
+    {
+        return input;
     }
 }

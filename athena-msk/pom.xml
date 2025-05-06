@@ -195,7 +195,7 @@
         <dependency>
             <groupId>org.junit.support</groupId>
             <artifactId>testng-engine</artifactId>
-            <version>1.0.5</version>
+            <version>1.0.6</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -250,7 +250,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.13</version>
                 <configuration>
                     <excludes>
                         <exclude>com/athena/connectors/msk/dto/*.*</exclude>
