@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.redshift;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -127,7 +127,8 @@ public class RedshiftMuxRecordHandlerTest {
     public void testCreateJdbcRecordHandler() {
         JdbcRecordHandler recordHandler = this.factory.createJdbcRecordHandler(this.mockConfig, this.configOptions);
 
-        assertTrue("Record handler should be an instance of RedshiftRecordHandler",
-                recordHandler instanceof RedshiftRecordHandler);
+        assertThat(recordHandler)
+                .isInstanceOf(RedshiftRecordHandler.class)
+                .as("Record handler should be an instance of RedshiftRecordHandler");
     }
 }
