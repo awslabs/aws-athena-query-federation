@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.redshift;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -92,7 +93,9 @@ public class RedshiftMuxMetadataHandlerTest {
         DatabaseConnectionConfig config = new DatabaseConnectionConfig(catalogName, "Engine", "redshift://jdbc:redshift://hostname/${testSecret}");
         JdbcMetadataHandler actualCreateJdbcMetadataHandlerResult = this.redshiftMetadataHandlerFactory.createJdbcMetadataHandler(config, this.configOptions);
 
-        assertTrue(actualCreateJdbcMetadataHandlerResult instanceof RedshiftMetadataHandler);
+        assertThat(actualCreateJdbcMetadataHandlerResult)
+                .isInstanceOf(RedshiftMetadataHandler.class)
+                .as("Handler should be an instance of RedshiftMetadataHandler");
 
         List<Field> fields = actualCreateJdbcMetadataHandlerResult.getPartitionSchema(catalogName).getFields();
         assertEquals(2, fields.size());
