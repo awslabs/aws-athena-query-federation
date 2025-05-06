@@ -122,9 +122,9 @@ export class RdsGenericStack extends cdk.Stack {
     }
 
     const glueJob = new glue.Job(this, `${db_type}_glue_job_create_case_insensitive_data`, {
-      executable: glue.JobExecutable.pythonShell({
+      executable: glue.JobExecutable.pythonEtl({
         glueVersion: glue.GlueVersion.V4_0,
-        pythonVersion: (db_type == 'mysql') ? glue.PythonVersion.THREE_NINE : glue.PythonVersion.THREE,
+        pythonVersion: glue.PythonVersion.THREE,
         script: glue.Code.fromAsset(path.join(__dirname, `../../../glue_scripts/${db_type}_create_case_insensitive_data.py`))
       }),
       role: glue_role,
