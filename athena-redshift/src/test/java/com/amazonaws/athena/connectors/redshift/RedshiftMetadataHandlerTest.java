@@ -501,29 +501,20 @@ public class RedshiftMetadataHandlerTest
 
         // Verify filter pushdown capabilities
         List<OptimizationSubType> filterPushdown = capabilities.get(FILTER_PUSHDOWN);
-        if (filterPushdown == null) {
-            logger.error("Filter pushdown capability is missing");
-            Assert.fail("Expected " + FILTER_PUSHDOWN + " capability to be present");
-        }
+        Assert.assertNotNull("Expected " + FILTER_PUSHDOWN + " capability to be present", filterPushdown);
         Assert.assertEquals(FILTER_PUSHDOWN_SIZE, filterPushdown.size());
         Assert.assertTrue(filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals(SORTED_RANGE_SET)));
         Assert.assertTrue(filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals(NULLABLE_COMPARISON)));
 
         // Verify limit pushdown capabilities
         List<OptimizationSubType> limitPushdown = capabilities.get(LIMIT_PUSHDOWN);
-        if (limitPushdown == null) {
-            logger.error("Limit pushdown capability is missing");
-            Assert.fail("Expected " + LIMIT_PUSHDOWN + " capability to be present");
-        }
+        Assert.assertNotNull("Expected " + LIMIT_PUSHDOWN + " capability to be present", limitPushdown);
         Assert.assertEquals(LIMIT_PUSHDOWN_SIZE, limitPushdown.size());
         Assert.assertTrue(limitPushdown.stream().anyMatch(subType -> subType.getSubType().equals(INTEGER_CONSTANT)));
 
         // Verify complex expression pushdown capabilities
         List<OptimizationSubType> complexExpressionPushdown = capabilities.get(COMPLEX_EXPRESSION_PUSHDOWN);
-        if (complexExpressionPushdown == null) {
-            logger.error("Complex expression pushdown capability is missing");
-            Assert.fail("Expected " + COMPLEX_EXPRESSION_PUSHDOWN + " capability to be present");
-        }
+        Assert.assertNotNull("Expected " + COMPLEX_EXPRESSION_PUSHDOWN + " capability to be present", complexExpressionPushdown);
         Assert.assertEquals(COMPLEX_EXPRESSION_SIZE, complexExpressionPushdown.size());
         Assert.assertTrue(complexExpressionPushdown.stream().anyMatch(subType ->
                 subType.getSubType().equals(SUPPORTED_FUNCTIONS) &&
@@ -531,10 +522,7 @@ public class RedshiftMetadataHandlerTest
 
         // Verify top N pushdown capabilities
         List<OptimizationSubType> topNPushdown = capabilities.get(TOP_N_PUSHDOWN);
-        if (topNPushdown == null) {
-            logger.error("Top N pushdown capability is missing");
-            Assert.fail("Expected " + TOP_N_PUSHDOWN + " capability to be present");
-        }
+        Assert.assertNotNull("Expected " + TOP_N_PUSHDOWN + " capability to be present", topNPushdown);
         Assert.assertEquals(TOP_N_PUSHDOWN_SIZE, topNPushdown.size());
         Assert.assertTrue(topNPushdown.stream().anyMatch(subType -> subType.getSubType().equals(SUPPORTS_ORDER_BY)));
     }
