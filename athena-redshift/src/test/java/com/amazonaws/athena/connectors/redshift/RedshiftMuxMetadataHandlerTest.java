@@ -89,12 +89,11 @@ public class RedshiftMuxMetadataHandlerTest {
     @Test
     public void testCreateJdbcMetadataHandler() {
         String catalogName = "Catalog";
-        DatabaseConnectionConfig config = new DatabaseConnectionConfig(catalogName, "Engine", "mary.somerville@example.org");
+        DatabaseConnectionConfig config = new DatabaseConnectionConfig(catalogName, "Engine", "redshift://jdbc:redshift://hostname/${testSecret}");
         JdbcMetadataHandler actualCreateJdbcMetadataHandlerResult = this.redshiftMetadataHandlerFactory.createJdbcMetadataHandler(config, this.configOptions);
 
         assertTrue(actualCreateJdbcMetadataHandlerResult instanceof RedshiftMetadataHandler);
 
-        // Verify partition schema
         List<Field> fields = actualCreateJdbcMetadataHandlerResult.getPartitionSchema(catalogName).getFields();
         assertEquals(2, fields.size());
         FieldType expectedFieldType = fields.get(0).getFieldType();

@@ -47,8 +47,6 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
-import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.google.common.collect.ImmutableMap;
@@ -83,9 +81,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 public class RedshiftMetadataHandlerTest
@@ -110,7 +108,6 @@ public class RedshiftMetadataHandlerTest
     private int LIMIT_PUSHDOWN_SIZE = 1;
     private int COMPLEX_EXPRESSION_SIZE = 1;
     private int TOP_N_PUSHDOWN_SIZE = 1;
-    private int QUERY_PASSTHROUGH_SIZE = 1;
 
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
             "redshift://jdbc:redshift://hostname/user=A&password=B");
@@ -454,21 +451,20 @@ public class RedshiftMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
 
-        JdbcQueryPassthrough mockQueryPassthrough = Mockito.mock(JdbcQueryPassthrough.class);
-        Mockito.doNothing().when(mockQueryPassthrough).addQueryPassthroughCapabilityIfEnabled(any(), eq(ImmutableMap.of()));
-
-        RedshiftMetadataHandler handler = new RedshiftMetadataHandler(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, ImmutableMap.of());
-
-        java.lang.reflect.Field field = JdbcMetadataHandler.class.getDeclaredField("jdbcQueryPassthrough");
-        field.setAccessible(true);
-        field.set(handler, mockQueryPassthrough);
+        RedshiftMetadataHandler handler = new RedshiftMetadataHandler(
+                databaseConnectionConfig,
+                secretsManager,
+                athena,
+                jdbcConnectionFactory,
+                ImmutableMap.of() // no passthrough config
+        );
 
         GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
 
         verifyCommonCapabilities(response, true);
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
-        // Verify no query passthrough capability
-        Assert.assertNull(capabilities.get(QUERY_PASSTHROUGH));
+
+        Assert.assertNull("Query passthrough should not be present when disabled.", capabilities.get(QUERY_PASSTHROUGH));
     }
 
     @Test
@@ -478,27 +474,22 @@ public class RedshiftMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
 
-        JdbcQueryPassthrough mockQueryPassthrough = Mockito.mock(JdbcQueryPassthrough.class);
-        Mockito.doAnswer(invocation -> {
-            ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = invocation.getArgument(0);
-            capabilities.put(QUERY_PASSTHROUGH, Collections.singletonList(new OptimizationSubType(QUERY_PASSTHROUGH, Collections.emptyList())));
-            return null;
-        }).when(mockQueryPassthrough).addQueryPassthroughCapabilityIfEnabled(any(), eq(ImmutableMap.of("query_passthrough", "true")));
-
-        RedshiftMetadataHandler handler = new RedshiftMetadataHandler(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, ImmutableMap.of("query_passthrough", "true"));
-        java.lang.reflect.Field field = JdbcMetadataHandler.class.getDeclaredField("jdbcQueryPassthrough");
-        field.setAccessible(true);
-        field.set(handler, mockQueryPassthrough);
+        RedshiftMetadataHandler handler = new RedshiftMetadataHandler(
+                databaseConnectionConfig,
+                secretsManager,
+                athena,
+                jdbcConnectionFactory,
+                ImmutableMap.of("enable_query_passthrough", "true")
+        );
 
         GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
-
         verifyCommonCapabilities(response, true);
+
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
-        // Verify query passthrough capability
-        List<OptimizationSubType> passthrough = capabilities.get(QUERY_PASSTHROUGH);
-        Assert.assertNotNull(passthrough);
-        Assert.assertEquals(QUERY_PASSTHROUGH_SIZE, passthrough.size());
-        Assert.assertEquals(QUERY_PASSTHROUGH, passthrough.get(0).getSubType());
+
+        List<OptimizationSubType> passthrough = capabilities.get("SYSTEM.QUERY");
+        Assert.assertNotNull("Query passthrough should be present when enabled.", passthrough);
+        Assert.assertFalse("Query passthrough list should not be empty.", passthrough.isEmpty());
     }
 
     private void verifyCommonCapabilities(GetDataSourceCapabilitiesResponse response, boolean expectNonEmptyComplexProperties)
