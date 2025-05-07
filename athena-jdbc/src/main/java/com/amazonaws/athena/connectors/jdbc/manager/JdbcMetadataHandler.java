@@ -241,7 +241,7 @@ public abstract class JdbcMetadataHandler
     protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
     {
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
-        LOGGER.info("Request is asking for pagination, but true pagination has not been implemented.");
+        LOGGER.debug("Request is asking for pagination, but true pagination has not been implemented.");
 
         int startToken;
         try {
