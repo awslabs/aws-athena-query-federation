@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connector.lambda.connection;
 
-import org.junit.Before;
 import org.junit.Test;
 import software.amazon.awssdk.services.glue.model.AuthenticationConfiguration;
 import software.amazon.awssdk.services.glue.model.Connection;
@@ -33,13 +32,15 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.KMS_KEY_ID;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SPILL_KMS_KEY_ID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
+
 
 public class EnvironmentPropertiesTest {
 
-    // Given
     private String glueConnName = "my-glue-conn";
     private String secretArn = "arn:aws:secretsmanager:us-east-1:1234567890:secret:my-secret-abc123";
     private String expectedSecretName = "my-secret";
@@ -47,64 +48,39 @@ public class EnvironmentPropertiesTest {
     private String kmsKeyId = "kms-123";
     private String lambdaValue = "lambda-value";
 
-    @Before
-    public void setUp()
-            throws Exception {
-        // Mock env
-        Map<String, String> environmentVariables = new HashMap<>();
-        environmentVariables.put(DEFAULT_GLUE_CONNECTION, glueConnName);
-        environmentVariables.put("OVERRIDE_VAR", lambdaValue); // Simulate Lambda-provided env var
-
-        setEnvironmentVariables(environmentVariables);
-    }
-
     @Test
-    public void testCreateEnvironment() {
+    public void testCreateEnvironmentWithSystemLambda() throws Exception {
+        withEnvironmentVariable(DEFAULT_GLUE_CONNECTION, glueConnName)
+                .and("OVERRIDE_VAR", lambdaValue)
+                .execute(() -> {
+                    EnvironmentProperties spyProps = spy(new EnvironmentProperties());
 
-        // Create a partial mock so we can stub getGlueConnection
-        EnvironmentProperties spyProps = spy(new EnvironmentProperties());
+                    AuthenticationConfiguration authConfig = AuthenticationConfiguration.builder()
+                            .secretArn(secretArn)
+                            .build();
 
-        // Mock Glue connection
-        AuthenticationConfiguration authConfig = AuthenticationConfiguration.builder()
-                .secretArn(secretArn)
-                .build();
+                    Map<ConnectionPropertyKey, String> connectionProps = new HashMap<>();
+                    connectionProps.put(ConnectionPropertyKey.DATABASE, testValue);
 
-        Map<ConnectionPropertyKey, String> connectionProps = new HashMap<>();
-        connectionProps.put(ConnectionPropertyKey.DATABASE, testValue);
+                    Map<String, String> athenaProps = new HashMap<>();
+                    athenaProps.put(SPILL_KMS_KEY_ID, kmsKeyId);
 
-        Map<String, String> athenaProps = new HashMap<>();
-        athenaProps.put(SPILL_KMS_KEY_ID, kmsKeyId);
+                    Connection glueConnection = Connection.builder()
+                            .name(glueConnName)
+                            .connectionProperties(connectionProps)
+                            .authenticationConfiguration(authConfig)
+                            .athenaProperties(athenaProps)
+                            .build();
 
-        Connection glueConnection = Connection.builder()
-                .name(glueConnName)
-                .connectionProperties(connectionProps)
-                .authenticationConfiguration(authConfig)
-                .athenaProperties(athenaProps)
-                .build();
+                    doReturn(glueConnection).when(spyProps).getGlueConnection(glueConnName);
 
-        doReturn(glueConnection).when(spyProps).getGlueConnection(glueConnName);
+                    Map<String, String> result = spyProps.createEnvironment();
 
-        Map<String, String> result = spyProps.createEnvironment();
-
-        assertEquals(glueConnName, result.get(DEFAULT_GLUE_CONNECTION));
-        assertEquals(testValue, result.get(DATABASE));
-        assertEquals(expectedSecretName, result.get(SECRET_NAME));
-        assertEquals(kmsKeyId, result.get(KMS_KEY_ID));
-        assertEquals(lambdaValue, result.get("OVERRIDE_VAR"));
-    }
-
-    // Utility to override environment variables in tests
-    private static void setEnvironmentVariables(Map<String, String> newEnvironmentVariables) {
-        try {
-            Map<String, String> env = System.getenv();
-            Class<?> cl = env.getClass();
-            java.lang.reflect.Field field = cl.getDeclaredField("m");
-            field.setAccessible(true);
-            Map<String, String> writableEnv = (Map<String, String>) field.get(env);
-            writableEnv.clear();
-            writableEnv.putAll(newEnvironmentVariables);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set environment variables", e);
-        }
+                    assertEquals(glueConnName, result.get(DEFAULT_GLUE_CONNECTION));
+                    assertEquals(testValue, result.get(DATABASE));
+                    assertEquals(expectedSecretName, result.get(SECRET_NAME));
+                    assertEquals(kmsKeyId, result.get(KMS_KEY_ID));
+                    assertEquals(lambdaValue, result.get("OVERRIDE_VAR"));
+                });
     }
 }
