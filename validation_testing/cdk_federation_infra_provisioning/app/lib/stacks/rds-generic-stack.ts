@@ -121,7 +121,9 @@ export class RdsGenericStack extends cdk.Stack {
           '--db_url': connectionString,
           '--username': "athena",
           '--password': password,
-          '--tpcds_table': tpcds_table
+          '--tpcds_table': tpcds_table,
+          '--db_arn': cluster.clusterArn,
+          '--secret_arn': secret.secretArn,
         }
       });
     }
