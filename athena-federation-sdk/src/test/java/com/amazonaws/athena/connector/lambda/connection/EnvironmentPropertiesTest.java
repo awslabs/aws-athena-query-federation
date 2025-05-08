@@ -33,10 +33,12 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SPILL_KMS_KEY_ID;
 
+import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
 
 public class EnvironmentPropertiesTest {
@@ -81,6 +83,22 @@ public class EnvironmentPropertiesTest {
                     assertEquals(expectedSecretName, result.get(SECRET_NAME));
                     assertEquals(kmsKeyId, result.get(KMS_KEY_ID));
                     assertEquals(lambdaValue, result.get("OVERRIDE_VAR"));
+                });
+    }
+
+    @Test
+    public void testCreateEnvironmentWithSystemLambda_GlueConnectionFails_ThrowsRuntimeException() throws Exception
+    {
+        withEnvironmentVariable(DEFAULT_GLUE_CONNECTION, glueConnName)
+                .execute(() -> {
+                    EnvironmentProperties spyProps = spy(new EnvironmentProperties());
+
+                    doThrow(new RuntimeException("Simulated failure"))
+                            .when(spyProps).getGlueConnection(glueConnName);
+
+                    RuntimeException thrown = assertThrows(RuntimeException.class, spyProps::createEnvironment);
+
+                    assertEquals("Simulated failure", thrown.getMessage());
                 });
     }
 }
