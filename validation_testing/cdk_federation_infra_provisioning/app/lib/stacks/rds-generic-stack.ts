@@ -8,6 +8,7 @@ import { CfnInclude } from 'aws-cdk-lib/cloudformation-include';
 import { Construct } from 'constructs';
 const path = require('path')
 import { FederationStackProps } from './stack-props'
+import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 
 export interface RdsGenericStackProps extends FederationStackProps {
   readonly db_port: number;
@@ -56,15 +57,18 @@ export class RdsGenericStack extends cdk.Stack {
     // allow comms from the same SG (this lets us write from Glue)
     securityGroup.addIngressRule(securityGroup, ec2.Port.allTcp())
 
+    const secret = new Secret(this, `${db_type}db_cluster_secret`, {
+      secretName: `${db_type}db_cluster_secret`,
+      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
+        username: 'athena',
+        password: cdk.SecretValue.unsafePlainText(password)
+      }))
+    });
     const cluster = new rds.DatabaseCluster(this, `${db_type}db_cluster`, {
       engine: this.getEngineVersion(db_type),
       port: db_port,
       defaultDatabaseName: "test",
-      credentials: {
-        username: 'athena',
-        password: cdk.SecretValue.unsafePlainText(password),
-        secretName: `${db_type}db_cluster_secret`,
-      },
+      credentials: rds.Credentials.fromSecret(secret),
       instances: 2,
       instanceProps: {
         publiclyAccessible: false,
