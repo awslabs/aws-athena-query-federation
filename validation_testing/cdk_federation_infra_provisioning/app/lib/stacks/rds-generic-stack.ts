@@ -134,7 +134,8 @@ export class RdsGenericStack extends cdk.Stack {
       defaultArguments: {
         '--db_url': cluster.clusterEndpoint.hostname,
         '--username': 'athena',
-        '--password': password
+        '--password': password,
+        '--additional-python-modules': 'pg',
       }
     });
 
