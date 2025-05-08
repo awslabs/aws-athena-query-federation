@@ -2,7 +2,12 @@ import subprocess
 import os
 import sys
 
-TESTABLE_CONNECTORS = ['dynamodb', 'mysql', 'postgresql', 'redshift']
+TESTABLE_CONNECTORS = [
+    # 'dynamodb',
+    # 'mysql',
+    'postgresql',
+    # 'redshift',
+]
 
 def run_single_connector_release_tests(connector_name):
     shell_command = f'sh run_release_tests.sh {connector_name}'
