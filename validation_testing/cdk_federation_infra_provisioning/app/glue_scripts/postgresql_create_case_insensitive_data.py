@@ -1,24 +1,29 @@
 import sys
 from awsglue.utils import getResolvedOptions
-import pg
+import psycopg2
 
 args = getResolvedOptions(sys.argv,
                           ['db_url',
                            'username',
                            'password'])
 
-connection = pg.DB( host=args['db_url'], user=args['username'], passwd=args['password'], dbname='test')
+connection = psycopg2.connect(host=args['db_url'], user=args['username'], password=args['password'], dbname='test')
+cursor = connection.cursor()
 
-connection.query('CREATE SCHEMA "camelCaseTest"')
-connection.query('CREATE TABLE "camelCaseTest"."camelCase" (ID int)')
-connection.query('INSERT INTO "camelCaseTest"."camelCase" VALUES (5)')
-connection.query('CREATE TABLE "camelCaseTest"."UPPERCASE" (ID int)')
-connection.query('INSERT INTO "camelCaseTest"."UPPERCASE" VALUES (7)')
+cursor.execute('CREATE SCHEMA "camelCaseTest"')
+cursor.execute('CREATE TABLE "camelCaseTest"."camelCase" (ID int)')
+cursor.execute('INSERT INTO "camelCaseTest"."camelCase" VALUES (5)')
+cursor.execute('CREATE TABLE "camelCaseTest"."UPPERCASE" (ID int)')
+cursor.execute('INSERT INTO "camelCaseTest"."UPPERCASE" VALUES (7)')
 
-connection.query('CREATE SCHEMA "UPPERCASETEST"')
-connection.query('CREATE TABLE "UPPERCASETEST"."camelCase" (ID int)')
-connection.query('INSERT INTO "UPPERCASETEST"."camelCase" VALUES (4)')
-connection.query('CREATE TABLE "UPPERCASETEST"."UPPERCASE" (ID int)')
-connection.query('INSERT INTO "UPPERCASETEST"."UPPERCASE" VALUES (6)')
+cursor.execute('CREATE SCHEMA "UPPERCASETEST"')
+cursor.execute('CREATE TABLE "UPPERCASETEST"."camelCase" (ID int)')
+cursor.execute('INSERT INTO "UPPERCASETEST"."camelCase" VALUES (4)')
+cursor.execute('CREATE TABLE "UPPERCASETEST"."UPPERCASE" (ID int)')
+cursor.execute('INSERT INTO "UPPERCASETEST"."UPPERCASE" VALUES (6)')
 
-connection.query('CREATE MATERIALIZED VIEW "UPPERCASETEST"."camelCaseView" AS SELECT * FROM "camelCaseTest"."camelCase"')
+cursor.execute('CREATE MATERIALIZED VIEW "UPPERCASETEST"."camelCaseView" AS SELECT * FROM "camelCaseTest"."camelCase"')
+
+connection.commit()
+cursor.close()
+connection.close()
