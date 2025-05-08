@@ -61,7 +61,7 @@ export class RdsGenericStack extends cdk.Stack {
       secretName: `${db_type}db_cluster_secret`,
       secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
         username: 'athena',
-        password: cdk.SecretValue.unsafePlainText(password)
+        password: password
       }))
     });
     const cluster = new rds.DatabaseCluster(this, `${db_type}db_cluster`, {
