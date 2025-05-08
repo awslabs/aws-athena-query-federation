@@ -21,7 +21,10 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.*;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -33,8 +36,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class FederationExpressionParserTest {
 
@@ -102,7 +108,7 @@ public class FederationExpressionParserTest {
     }
 
     @Test(expected = AthenaConnectorException.class)
-    public void testUnknownExpressionThrows() {
+    public void parseFunctionCallExpression_withUnknownArgument_throwsAthenaConnectorException() {
         FederationExpression unknown = mock(FederationExpression.class);
         FunctionCallExpression functionCall = new FunctionCallExpression(
                 new ArrowType.Bool(),
@@ -114,7 +120,7 @@ public class FederationExpressionParserTest {
     }
 
     @Test
-    public void testParseComplexExpressionsNullOrEmpty() {
+    public void parseComplexExpressions_withNullOrEmptyConstraints_shouldReturnEmptyList() {
         Constraints mockConstraints = mock(Constraints.class);
         when(mockConstraints.getExpression()).thenReturn(null);
         List<String> result = parser.parseComplexExpressions(List.of(), mockConstraints, new ArrayList<>());
