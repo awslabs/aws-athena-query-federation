@@ -310,7 +310,7 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
                    <a href="../../connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;listTablesRequest)</code></th>
 <td class="colLast">
-<div class="block">This is default getAllTables no pagination.</div>
+<div class="block">This is default getAllTables without true pagination.</div>
 </td>
 </tr>
 </table>
@@ -452,8 +452,9 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
                                                  <a href="../../connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;listTablesRequest)
                                           throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></pre>
 <div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../jdbc/manager/JdbcMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">JdbcMetadataHandler</a></code></span></div>
-<div class="block">This is default getAllTables no pagination.
- Override this if you want to support the behavior.</div>
+<div class="block">This is default getAllTables without true pagination.
+ Paginated list of tables will be returned by retrieving all tables first, then returning subset based off request.
+ Override this if you want to support true pagination behavior.</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
 <dd><code><a href="../jdbc/manager/JdbcMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></code></dd>
