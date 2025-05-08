@@ -62,7 +62,8 @@ export class RdsGenericStack extends cdk.Stack {
       defaultDatabaseName: "test",
       credentials: {
         username: 'athena',
-        password: cdk.SecretValue.unsafePlainText(password)
+        password: cdk.SecretValue.unsafePlainText(password),
+        secretName: `${db_type}db_cluster_secret`,
       },
       instances: 2,
       instanceProps: {
