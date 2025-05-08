@@ -27,7 +27,19 @@ import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.TinyIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.SmallIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtractor;
+
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -35,21 +47,15 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.NullableDateDayHolder;
-import org.apache.arrow.vector.holders.NullableDateMilliHolder;
-import org.apache.arrow.vector.holders.NullableFloat4Holder;
-import org.apache.arrow.vector.holders.NullableFloat8Holder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.holders.NullableSmallIntHolder;
-import org.apache.arrow.vector.holders.NullableTinyIntHolder;
+import org.apache.arrow.vector.holders.*;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
@@ -58,6 +64,7 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -224,10 +231,8 @@ public class JdbcRecordHandlerTest
     }
 
     @Test
-    public void testMakeExtractor()
-            throws Exception
-    {
-        Map<String,String> partitionMap = Collections.singletonMap("testPartitionCol","testPartitionValue");
+    public void testMakeExtractorWithoutNullValues() throws Exception {
+        Map<String, String> partitionMap = Collections.singletonMap("testPartitionCol", "testPartitionValue");
         byte[] bytes = "test".getBytes();
         Date date = Date.valueOf(LocalDate.of(2025, 4, 22));
         Timestamp time = Timestamp.valueOf(LocalDateTime.of(2025, 4, 22, 5, 30));
@@ -245,55 +250,173 @@ public class JdbcRecordHandlerTest
         when(resultSet.getDate("testCol11")).thenReturn(date);
         when(resultSet.getTimestamp("testCol12")).thenReturn(time);
 
-        Extractor actualInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build(),resultSet,partitionMap);
-        Extractor actualVarchar = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),resultSet,partitionMap);
-        Extractor actualBit = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.BIT.getType()).build(),resultSet,partitionMap);
-        Extractor actualTinyInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType()).build(),resultSet,partitionMap);
-        Extractor actualSmallInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol5", org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType()).build(),resultSet,partitionMap);
-        Extractor actualVarbinary = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol6", org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType()).build(),resultSet,partitionMap);
-        Extractor actualBigInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol8", org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType()).build(),resultSet,partitionMap);
-        Extractor actualFloat4 = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol9", org.apache.arrow.vector.types.Types.MinorType.FLOAT4.getType()).build(),resultSet,partitionMap);
-        Extractor actualDateDay = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol11", org.apache.arrow.vector.types.Types.MinorType.DATEDAY.getType()).build(),resultSet,partitionMap);
-        Extractor actualDateMilli = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol12", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build(),resultSet,partitionMap);
+        when(resultSet.wasNull()).thenReturn(false);
 
+        Extractor actualInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build(), resultSet, partitionMap);
+        Extractor actualVarchar = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(), resultSet, partitionMap);
+        Extractor actualBit = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.BIT.getType()).build(), resultSet, partitionMap);
+        Extractor actualTinyInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType()).build(), resultSet, partitionMap);
+        Extractor actualSmallInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol5", org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType()).build(), resultSet, partitionMap);
+        Extractor actualVarbinary = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol6", org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType()).build(), resultSet, partitionMap);
+        Extractor actualBigInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol8", org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType()).build(), resultSet, partitionMap);
+        Extractor actualFloat4 = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol9", org.apache.arrow.vector.types.Types.MinorType.FLOAT4.getType()).build(), resultSet, partitionMap);
+        Extractor actualDateDay = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol11", org.apache.arrow.vector.types.Types.MinorType.DATEDAY.getType()).build(), resultSet, partitionMap);
+        Extractor actualDateMilli = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol12", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build(), resultSet, partitionMap);
+
+        // Test non-NULL values
         NullableIntHolder intHolder = new NullableIntHolder();
         ((IntExtractor) actualInt).extract(null, intHolder);
         Assert.assertEquals(10, intHolder.value);
+        Assert.assertEquals(1, intHolder.isSet);
 
         NullableVarCharHolder varHolder = new NullableVarCharHolder();
         ((VarCharExtractor) actualVarchar).extract(null, varHolder);
         Assert.assertEquals("test", varHolder.value);
+        Assert.assertEquals(1, varHolder.isSet);
 
         NullableBitHolder bitHolder = new NullableBitHolder();
         ((BitExtractor) actualBit).extract(null, bitHolder);
         Assert.assertEquals(1, bitHolder.value);
+        Assert.assertEquals(1, bitHolder.isSet);
 
         NullableTinyIntHolder tinyIntHolder = new NullableTinyIntHolder();
         ((TinyIntExtractor) actualTinyInt).extract(null, tinyIntHolder);
         Assert.assertEquals(100, tinyIntHolder.value);
+        Assert.assertEquals(1, tinyIntHolder.isSet);
 
         NullableSmallIntHolder smallIntHolder = new NullableSmallIntHolder();
         ((SmallIntExtractor) actualSmallInt).extract(null, smallIntHolder);
         Assert.assertEquals(1234, smallIntHolder.value);
+        Assert.assertEquals(1, smallIntHolder.isSet);
 
         NullableVarBinaryHolder varBinaryHolder = new NullableVarBinaryHolder();
         ((VarBinaryExtractor) actualVarbinary).extract(null, varBinaryHolder);
         Assert.assertEquals(bytes, varBinaryHolder.value);
+        Assert.assertEquals(1, varBinaryHolder.isSet);
 
         NullableBigIntHolder bigIntHolder = new NullableBigIntHolder();
         ((BigIntExtractor) actualBigInt).extract(null, bigIntHolder);
         Assert.assertEquals(10000L, bigIntHolder.value);
+        Assert.assertEquals(1, bigIntHolder.isSet);
 
         NullableFloat4Holder float4Holder = new NullableFloat4Holder();
         ((Float4Extractor) actualFloat4).extract(null, float4Holder);
         Assert.assertEquals(123f, float4Holder.value, 0.0);
+        Assert.assertEquals(1, float4Holder.isSet);
 
         NullableDateDayHolder dateDayHolder = new NullableDateDayHolder();
         ((DateDayExtractor) actualDateDay).extract(null, dateDayHolder);
         verify(resultSet, Mockito.times(2)).getDate(anyString());
+        Assert.assertEquals(1, dateDayHolder.isSet);
 
         NullableDateMilliHolder dateMilliHolder = new NullableDateMilliHolder();
         ((DateMilliExtractor) actualDateMilli).extract(null, dateMilliHolder);
         verify(resultSet, Mockito.times(2)).getTimestamp(anyString());
+        Assert.assertEquals(1, dateMilliHolder.isSet);
+    }
+
+    @Test
+    public void testMakeExtractorWithNullValues() throws Exception {
+
+        Map<String, String> partitionMap = Collections.singletonMap("testPartitionCol", "testPartitionValue");
+        ResultSet resultSet = Mockito.mock(ResultSet.class, Mockito.RETURNS_DEEP_STUBS);
+
+        when(resultSet.getInt("testCol1")).thenReturn(0); // Default value for NULL
+        when(resultSet.getString("testCol2")).thenReturn(null);
+        when(resultSet.getBoolean("testCol3")).thenReturn(false); // Default value for NULL
+        when(resultSet.getByte("testCol4")).thenReturn((byte) 0); // Default value for NULL
+        when(resultSet.getShort("testCol5")).thenReturn((short) 0); // Default value for NULL
+        when(resultSet.getBytes("testCol6")).thenReturn(null);
+        when(resultSet.getLong("testCol8")).thenReturn(0L); // Default value for NULL
+        when(resultSet.getFloat("testCol9")).thenReturn(0f); // Default value for NULL
+        when(resultSet.getDouble("testCol10")).thenReturn(0.0); // Default value for NULL
+        when(resultSet.getDate("testCol11")).thenReturn(null);
+        when(resultSet.getTimestamp("testCol12")).thenReturn(null);
+
+        when(resultSet.wasNull()).thenReturn(true);
+
+        Extractor actualInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build(), resultSet, partitionMap);
+        Extractor actualVarchar = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(), resultSet, partitionMap);
+        Extractor actualBit = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.BIT.getType()).build(), resultSet, partitionMap);
+        Extractor actualTinyInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType()).build(), resultSet, partitionMap);
+        Extractor actualSmallInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol5", org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType()).build(), resultSet, partitionMap);
+        Extractor actualVarbinary = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol6", org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType()).build(), resultSet, partitionMap);
+        Extractor actualBigInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol8", org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType()).build(), resultSet, partitionMap);
+        Extractor actualFloat4 = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol9", org.apache.arrow.vector.types.Types.MinorType.FLOAT4.getType()).build(), resultSet, partitionMap);
+        Extractor actualFloat8 = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol10", org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType()).build(), resultSet, partitionMap);
+        Extractor actualDateDay = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol11", org.apache.arrow.vector.types.Types.MinorType.DATEDAY.getType()).build(), resultSet, partitionMap);
+        Extractor actualDateMilli = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol12", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build(), resultSet, partitionMap);
+
+        NullableIntHolder intHolder = new NullableIntHolder();
+        ((IntExtractor) actualInt).extract(null, intHolder);
+        Assert.assertEquals(0, intHolder.isSet);
+        Assert.assertEquals(0, intHolder.value); // Default value for NULL
+
+        NullableVarCharHolder varHolder = new NullableVarCharHolder();
+        ((VarCharExtractor) actualVarchar).extract(null, varHolder);
+        Assert.assertEquals(0, varHolder.isSet);
+        Assert.assertNull(varHolder.value);
+
+        NullableBitHolder bitHolder = new NullableBitHolder();
+        ((BitExtractor) actualBit).extract(null, bitHolder);
+        Assert.assertEquals(0, bitHolder.isSet);
+        Assert.assertEquals(0, bitHolder.value); // Default value for NULL
+
+        NullableTinyIntHolder tinyIntHolder = new NullableTinyIntHolder();
+        ((TinyIntExtractor) actualTinyInt).extract(null, tinyIntHolder);
+        Assert.assertEquals(0, tinyIntHolder.isSet);
+        Assert.assertEquals(0, tinyIntHolder.value); // Default value for NULL
+
+        NullableSmallIntHolder smallIntHolder = new NullableSmallIntHolder();
+        ((SmallIntExtractor) actualSmallInt).extract(null, smallIntHolder);
+        Assert.assertEquals(0, smallIntHolder.isSet);
+        Assert.assertEquals(0, smallIntHolder.value); // Default value for NULL
+
+        NullableVarBinaryHolder varBinaryHolder = new NullableVarBinaryHolder();
+        ((VarBinaryExtractor) actualVarbinary).extract(null, varBinaryHolder);
+        Assert.assertEquals(0, varBinaryHolder.isSet);
+        Assert.assertNull(varBinaryHolder.value);
+
+        NullableBigIntHolder bigIntHolder = new NullableBigIntHolder();
+        ((BigIntExtractor) actualBigInt).extract(null, bigIntHolder);
+        Assert.assertEquals(0, bigIntHolder.isSet);
+        Assert.assertEquals(0L, bigIntHolder.value); // Default value for NULL
+
+        NullableFloat4Holder float4Holder = new NullableFloat4Holder();
+        ((Float4Extractor) actualFloat4).extract(null, float4Holder);
+        Assert.assertEquals(0, float4Holder.isSet);
+        Assert.assertEquals(0f, float4Holder.value, 0.0); // Default value for NULL
+
+        NullableFloat8Holder float8Holder = new NullableFloat8Holder();
+        ((Float8Extractor) actualFloat8).extract(null, float8Holder);
+        Assert.assertEquals(0, float8Holder.isSet);
+        Assert.assertEquals(0.0, float8Holder.value, 0.0); // Default value for NULL
+
+        NullableDateDayHolder dateDayHolder = new NullableDateDayHolder();
+        ((DateDayExtractor) actualDateDay).extract(null, dateDayHolder);
+        Assert.assertEquals(0, dateDayHolder.isSet);
+        Assert.assertEquals(0, dateDayHolder.value); // Default value for NULL
+
+        NullableDateMilliHolder dateMilliHolder = new NullableDateMilliHolder();
+        ((DateMilliExtractor) actualDateMilli).extract(null, dateMilliHolder);
+        Assert.assertEquals(0, dateMilliHolder.isSet);
+        Assert.assertEquals(0L, dateMilliHolder.value); // Default value for NULL
+    }
+
+    @Test
+    public void testMakeExtractorWithUnsupportedType()  {
+        Map<String, String> partitionMap = Collections.singletonMap("testPartitionCol", "testPartitionValue");
+        ResultSet resultSet = Mockito.mock(ResultSet.class, Mockito.RETURNS_DEEP_STUBS);
+
+        Field unsupportedField = FieldBuilder.newBuilder("testColUnsupported", org.apache.arrow.vector.types.Types.MinorType.LIST.getType()).build();
+
+        try {
+            this.jdbcRecordHandler.makeExtractor(unsupportedField, resultSet, partitionMap);
+            Assert.fail("Expected AthenaConnectorException for unsupported type LIST");
+        } catch (AthenaConnectorException e) {
+            Assert.assertEquals("Unhandled type LIST", e.getMessage());
+            Assert.assertEquals(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString(), e.getErrorDetails().errorCode());
+        }
     }
 }
+

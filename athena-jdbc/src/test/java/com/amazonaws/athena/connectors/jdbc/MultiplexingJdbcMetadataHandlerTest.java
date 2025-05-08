@@ -172,7 +172,7 @@ public class MultiplexingJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doGetQueryPassthroughSchema()
+    public void testDoGetQueryPassthroughSchema()
             throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
@@ -182,8 +182,7 @@ public class MultiplexingJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doGetDataSourceCapabilities()
-            throws Exception
+    public void testDoGetDataSourceCapabilities()
     {
         GetDataSourceCapabilitiesRequest getDataSourceCapabilitiesRequest = Mockito.mock(GetDataSourceCapabilitiesRequest.class);
         Mockito.when(getDataSourceCapabilitiesRequest.getCatalogName()).thenReturn("fakedatabase");

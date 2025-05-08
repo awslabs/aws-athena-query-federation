@@ -32,6 +32,7 @@ import static org.junit.Assert.assertThrows;
 
 public class JdbcFederationExpressionParserTest
 {
+    private static final Class<AthenaConnectorException> ATHENA_EXCEPTION = AthenaConnectorException.class;
 
     private static class TestJdbcFederationExpressionParser extends JdbcFederationExpressionParser
     {
@@ -48,6 +49,15 @@ public class JdbcFederationExpressionParserTest
     }
 
     private final JdbcFederationExpressionParser parser = new TestJdbcFederationExpressionParser("\"");
+
+    private void assertAthenaConnectorException(String functionName, List<String> arguments, String expectedMessage)
+    {
+        AthenaConnectorException ex = assertThrows(
+                ATHENA_EXCEPTION,
+                () -> parser.mapFunctionToDataSourceSyntax(new FunctionName(functionName), null, arguments)
+        );
+        assertEquals(expectedMessage, ex.getMessage());
+    }
 
     @Test
     public void testParseVariableExpression()
@@ -116,31 +126,19 @@ public class JdbcFederationExpressionParserTest
     @Test
     public void testEmptyArgumentsThrowsException()
     {
-        AthenaConnectorException ex = assertThrows(
-                AthenaConnectorException.class,
-                () -> parser.mapFunctionToDataSourceSyntax(new FunctionName("$add"), null, List.of())
-        );
-        assertEquals("Arguments cannot be null or empty.", ex.getMessage());
+        assertAthenaConnectorException("$add", List.of(), "Arguments cannot be null or empty.");
     }
 
     @Test
     public void testUnaryFunctionInvalidArgCount()
     {
-        AthenaConnectorException ex = assertThrows(
-                AthenaConnectorException.class,
-                () -> parser.mapFunctionToDataSourceSyntax(new FunctionName("$is_null"), null, List.of("a", "b"))
-        );
-        assertEquals("Unary function type $is_null was provided with 2 arguments.", ex.getMessage());
+        assertAthenaConnectorException("$is_null", List.of("a", "b"), "Unary function type $is_null was provided with 2 arguments.");
     }
 
     @Test
     public void testBinaryFunctionInvalidArgCount()
     {
-        AthenaConnectorException ex = assertThrows(
-                AthenaConnectorException.class,
-                () -> parser.mapFunctionToDataSourceSyntax(new FunctionName("$add"), null, List.of("a"))
-        );
-        assertEquals("Binary function type $add was provided with 1 arguments.", ex.getMessage());
+        assertAthenaConnectorException("$add", List.of("a"), "Binary function type $add was provided with 1 arguments.");
     }
 
     @Test
