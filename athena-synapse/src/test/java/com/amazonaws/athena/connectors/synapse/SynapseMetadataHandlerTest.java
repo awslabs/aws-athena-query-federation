@@ -424,7 +424,7 @@ public class SynapseMetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         String schemaName = "TESTSCHEMA";
-        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 0);
+        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 3);
 
         DatabaseMetaData mockDatabaseMetaData = mock(DatabaseMetaData.class);
         ResultSet mockResultSet = mock(ResultSet.class);
