@@ -321,7 +321,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     @Override
     public ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
     {
-        LOGGER.debug("Starting listPaginatedTables for Snowflake.");
+        LOGGER.debug("Starting listPaginatedTables for Synapse.");
         String token = listTablesRequest.getNextToken();
         int pageSize = listTablesRequest.getPageSize();
 
