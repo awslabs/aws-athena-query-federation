@@ -230,8 +230,9 @@ public abstract class JdbcMetadataHandler
     }
 
     /**
-     * This is default getAllTables no pagination.
-     * Override this if you want to support the behavior.
+     * This is default getAllTables without true pagination.
+     * Paginated list of tables will be returned by retrieving all tables first, then returning subset based off request.
+     * Override this if you want to support true pagination behavior.
      * @param connection
      * @param listTablesRequest
      * @return
@@ -239,12 +240,43 @@ public abstract class JdbcMetadataHandler
      */
     protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
     {
-        // no-op is call listTables
-        // override this function to implement pagination
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
-        LOGGER.debug("Request is asking for pagination, but pagination has not been implemented");
+        LOGGER.debug("Request is asking for pagination, but true pagination has not been implemented.");
+
+        int startToken;
+        try {
+            startToken = listTablesRequest.getNextToken() == null ? 0 : Integer.parseInt(listTablesRequest.getNextToken());
+        }
+        catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid next token: " + listTablesRequest.getNextToken(), e);
+        }
+
+        // Retrieve all tables
+        List<TableName> allTables = listTables(connection, adjustedSchemaName);
+
+        int pageSize = listTablesRequest.getPageSize();
+
+        // If startToken is at or past the end of tables list, return empty list
+        if (startToken >= allTables.size()) {
+            return new ListTablesResponse(listTablesRequest.getCatalogName(), List.of(), null);
+        }
+
+        int endToken = Math.min(startToken + pageSize, allTables.size());
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            endToken = allTables.size();
+        }
+
+        String nextToken;
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE || endToken == allTables.size()) {
+            nextToken = null;
+        }
+        else {
+            // Use long to avoid potential integer overflow
+            nextToken = Long.toString((long) startToken + pageSize);
+        }
+
         return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                listTables(connection, adjustedSchemaName), null);
+                allTables.subList(startToken, endToken), nextToken);
     }
 
     protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
