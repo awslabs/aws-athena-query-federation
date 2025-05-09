@@ -35,6 +35,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -89,6 +91,12 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     static final String PARTITION_BOUNDARY_FROM = "PARTITION_BOUNDARY_FROM";
     static final String PARTITION_BOUNDARY_TO = "PARTITION_BOUNDARY_TO";
     static final String PARTITION_COLUMN = "PARTITION_COLUMN";
+    static final String LIST_PAGINATED_TABLES_QUERY = "WITH TableList AS (SELECT s.name AS \"TABLE_SCHEM\", o.name AS \"TABLE_NAME\", " +
+            "ROW_NUMBER() OVER (ORDER BY o.name) AS row_num FROM sys.objects o " +
+            "INNER JOIN sys.schemas s ON o.schema_id = s.schema_id " +
+            "WHERE o.type IN ('U', 'V') and s.name = ?) " +
+            "SELECT TABLE_SCHEM, TABLE_NAME " +
+            "FROM TableList WHERE row_num BETWEEN ? AND ? ORDER BY TABLE_NAME";
 
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
@@ -308,6 +316,41 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     private String encodeContinuationToken(int partition)
     {
         return String.valueOf(partition);
+    }
+
+    @Override
+    public ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    {
+        LOGGER.debug("Starting listPaginatedTables for Snowflake.");
+        String token = listTablesRequest.getNextToken();
+        int pageSize = listTablesRequest.getPageSize();
+
+        int t = token != null ? Integer.parseInt(token) : 0;
+
+        String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
+
+        LOGGER.info("Starting pagination at {} with page size {}", t, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, t, pageSize);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
+
+        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize);
+        // return next token is null when reaching end of files
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
+    }
+
+    @VisibleForTesting
+    protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int offset, int limit) throws SQLException
+    {
+        //To implement pagination in Synapse, the ROW_NUMBER() function will be used to retrieve tables based on
+        // startRow and endRow parameters.
+        PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
+        int startRow = offset + 1;
+        int endRow = offset + limit;
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setInt(2, startRow);
+        preparedStatement.setInt(3, endRow);
+
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
 
     @Override

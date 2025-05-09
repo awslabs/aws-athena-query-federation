@@ -35,17 +35,19 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.resolver.CaseResolver;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.synapse.resolver.SynapseJDBCCaseResolver;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -54,7 +56,6 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -75,12 +76,10 @@ import static com.amazonaws.athena.connectors.synapse.SynapseMetadataHandler.PAR
 import static com.amazonaws.athena.connectors.synapse.SynapseMetadataHandler.PARTITION_COLUMN;
 import static com.amazonaws.athena.connectors.synapse.SynapseMetadataHandler.PARTITION_NUMBER;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 public class SynapseMetadataHandlerTest
@@ -108,7 +107,7 @@ public class SynapseMetadataHandlerTest
         this.secretsManager = mock(SecretsManagerClient.class);
         this.athena = mock(AthenaClient.class);
         when(this.secretsManager.getSecretValue(eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}").build());
-        this.synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SynapseJDBCCaseResolver(SynapseConstants.NAME));
+        this.synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SynapseJDBCCaseResolver(SynapseConstants.NAME, CaseResolver.FederationSDKCasingMode.NONE));
         this.federatedIdentity = mock(FederatedIdentity.class);
     }
 
@@ -343,6 +342,58 @@ public class SynapseMetadataHandlerTest
     }
 
     @Test
+    public void doListPaginatedTables()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+
+        //Test 1: Testing Single table returned in request of page size 1 and nextToken null
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(synapseMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}};
+        TableName[] expected = {new TableName("testSchema", "testTable")};
+        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        ListTablesResponse listTablesResponse = this.synapseMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", null, 1));
+
+        Assert.assertEquals("1", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        // Test 2: Testing next table returned of page size 1 and nextToken 1
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(synapseMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable2"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable2")};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        listTablesResponse = this.synapseMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "1", 1));
+        Assert.assertEquals("2", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+
+        // Test 3: Testing single table returned when requesting pageSize 2 signifying end of pagination where nextToken is null.
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(synapseMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable2"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable2")};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        listTablesResponse = this.synapseMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "2", 2));
+        Assert.assertNull(null, listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+    }
+
+
+    @Test
     public void doGetTable()
             throws Exception
     {
@@ -417,40 +468,5 @@ public class SynapseMetadataHandlerTest
                 blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
         assertEquals(inputTableName, getTableResponse.getTableName());
         assertEquals("testCatalog", getTableResponse.getCatalogName());
-    }
-
-    @Test
-    public void doListTables() throws Exception
-    {
-        BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        String schemaName = "TESTSCHEMA";
-        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 0);
-
-        DatabaseMetaData mockDatabaseMetaData = mock(DatabaseMetaData.class);
-        ResultSet mockResultSet = mock(ResultSet.class);
-
-        when(connection.getMetaData()).thenReturn(mockDatabaseMetaData);
-        when(mockDatabaseMetaData.getTables(any(), any(), any(), any())).thenReturn(mockResultSet);
-
-        when(mockResultSet.next()).thenReturn(true).thenReturn(true).thenReturn(true).thenReturn(false);
-        when(mockResultSet.getString(3)).thenReturn("TESTTABLE").thenReturn("testtable").thenReturn("testTABLE");
-        when(mockResultSet.getString(2)).thenReturn(schemaName);
-
-        mockStatic(JDBCUtil.class);
-        when(JDBCUtil.getSchemaTableName(mockResultSet)).thenReturn(new TableName("TESTSCHEMA", "TESTTABLE"))
-                .thenReturn(new TableName("TESTSCHEMA", "testtable"))
-                .thenReturn(new TableName("TESTSCHEMA", "testTABLE"));
-
-        when(this.jdbcConnectionFactory.getConnection(any())).thenReturn(connection);
-
-        ListTablesResponse listTablesResponse = this.synapseMetadataHandler.doListTables(blockAllocator, listTablesRequest);
-
-        TableName[] expectedTables = {
-                new TableName("TESTSCHEMA", "TESTTABLE"),
-                new TableName("TESTSCHEMA", "testtable"),
-                new TableName("TESTSCHEMA", "testTABLE")
-        };
-
-        assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTables().toString());
     }
 }
