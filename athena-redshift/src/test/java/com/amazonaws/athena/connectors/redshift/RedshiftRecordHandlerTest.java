@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.redshift;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -31,7 +32,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlQueryStringBuilder;
@@ -55,13 +56,18 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
-import java.sql.Date;
-import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.SQLException;
+import java.sql.PreparedStatement;
+import java.sql.Date;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_NAME;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -70,6 +76,10 @@ public class RedshiftRecordHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedshiftRecordHandlerTest.class);
+    private MockedStatic<JDBCUtil> mockedJDBCUtil;
+
+    private String enable_case_sensitive = "SET enable_case_sensitive_identifier to TRUE;";
+    private String disable_case_sensitive = "SET enable_case_sensitive_identifier to FALSE;";
 
     private RedshiftRecordHandler redshiftRecordHandler;
     private Connection connection;
@@ -79,6 +89,7 @@ public class RedshiftRecordHandlerTest
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
     private MockedStatic<PostGreSqlMetadataHandler> mockedPostGreSqlMetadataHandler;
+    private Statement mockStatement;
 
     @Before
     public void setup()
@@ -97,11 +108,32 @@ public class RedshiftRecordHandlerTest
         this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
         mockedPostGreSqlMetadataHandler = Mockito.mockStatic(PostGreSqlMetadataHandler.class);
         mockedPostGreSqlMetadataHandler.when(() -> PostGreSqlMetadataHandler.getCharColumns(any(), anyString(), anyString())).thenReturn(Collections.singletonList("testCol10"));
+        mockStatement = Mockito.mock(Statement.class);
+        Mockito.when(connection.createStatement()).thenReturn(mockStatement);
     }
 
     @After
     public void close(){
         mockedPostGreSqlMetadataHandler.close();
+        if (mockedJDBCUtil != null) {
+            mockedJDBCUtil.close();
+        }
+    }
+
+    @Test
+    public void testConstructorWithConfigOptions() {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("redshift_connection_string", "redshift://jdbc:redshift://hostname/user=A&password=B");
+        DatabaseConnectionConfig expectedConfig = new DatabaseConnectionConfig("testCatalog", REDSHIFT_NAME,
+                "redshift://jdbc:redshift://hostname/user=A&password=B");
+        mockedJDBCUtil = Mockito.mockStatic(JDBCUtil.class);
+        mockedJDBCUtil.when(() -> JDBCUtil.getSingleDatabaseConfigFromEnv(REDSHIFT_NAME, configOptions))
+                .thenReturn(expectedConfig);
+
+        RedshiftRecordHandler handler = new RedshiftRecordHandler(configOptions);
+
+        Assert.assertNotNull(handler);
+        mockedJDBCUtil.verify(() -> JDBCUtil.getSingleDatabaseConfigFromEnv(REDSHIFT_NAME, configOptions), Mockito.times(1));
     }
 
     @Test
@@ -246,5 +278,41 @@ public class RedshiftRecordHandlerTest
         ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
+    }
+
+    @Test
+    public void testEnableCaseSensitivelyLookUpSessionSuccess() throws SQLException {
+        Mockito.when(mockStatement.execute(enable_case_sensitive)).thenReturn(true);
+        boolean result = redshiftRecordHandler.enableCaseSensitivelyLookUpSession(connection);
+
+        assertTrue(result);
+        Mockito.verify(mockStatement, Mockito.times(1)).execute(enable_case_sensitive);
+    }
+
+    @Test
+    public void testEnableCaseSensitivelyLookUpSessionFailure() throws SQLException {
+        Mockito.when(mockStatement.execute(enable_case_sensitive)).thenThrow(new SQLException("Simulated failure"));
+        boolean result = redshiftRecordHandler.enableCaseSensitivelyLookUpSession(connection);
+
+        assertFalse(result);
+        Mockito.verify(mockStatement, Mockito.times(1)).execute(enable_case_sensitive);
+    }
+
+    @Test
+    public void testDisableCaseSensitivelyLookUpSessionSuccess() throws SQLException {
+        Mockito.when(mockStatement.execute(disable_case_sensitive)).thenReturn(true);
+        boolean result = redshiftRecordHandler.disableCaseSensitivelyLookUpSession(connection);
+
+        assertTrue(result);
+        Mockito.verify(mockStatement, Mockito.times(1)).execute(disable_case_sensitive);
+    }
+
+    @Test
+    public void testDisableCaseSensitivelyLookUpSessionFailure() throws SQLException {
+        Mockito.when(mockStatement.execute(disable_case_sensitive)).thenThrow(new SQLException("Simulated failure"));
+        boolean result = redshiftRecordHandler.disableCaseSensitivelyLookUpSession(connection);
+
+        assertFalse(result);
+        Mockito.verify(mockStatement, Mockito.times(1)).execute(disable_case_sensitive);
     }
 }
