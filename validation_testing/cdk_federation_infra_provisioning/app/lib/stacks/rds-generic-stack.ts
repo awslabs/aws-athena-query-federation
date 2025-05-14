@@ -88,7 +88,7 @@ export class RdsGenericStack extends cdk.Stack {
         securityGroups: [securityGroup],
         instanceType: InstanceType.of(InstanceClass.R5, InstanceSize.LARGE)
       },
-      enableDataApi: true,
+      enableDataApi: db_type == 'postgresql',
       removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     const connectionString = `jdbc:${db_type}://${cluster.clusterEndpoint.socketAddress}/test?user=athena&password=${password}`;
