@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.saphana.resolver;
 
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,12 +32,19 @@ public class SaphanaJDBCCaseResolver
     private static final Logger LOGGER = LoggerFactory.getLogger(SaphanaJDBCCaseResolver.class);
     private static final String SCHEMA_NAME_QUERY_TEMPLATE = "select * from SYS.SCHEMAS where lower(SCHEMA_NAME) = ?";
     private static final String TABLE_NAME_QUERY_TEMPLATE = "select * from SYS.TABLES where SCHEMA_NAME = ? and lower(TABLE_NAME) = ?";
+    private static final String TABLE_NAME_QUERY_VIEW =  "SELECT VIEW_NAME AS \"TABLE_NAME\" FROM SYS.VIEWS WHERE SCHEMA_NAME = ? AND lower(VIEW_NAME) = ?";
     private static final String SCHEMA_NAME_COLUMN_KEY = "SCHEMA_NAME";
     private static final String TABLE_NAME_COLUMN_KEY = "TABLE_NAME";
 
     public SaphanaJDBCCaseResolver(String sourceType)
     {
         super(sourceType, FederationSDKCasingMode.ANNOTATION, FederationSDKCasingMode.NONE);
+    }
+
+    @VisibleForTesting
+    public SaphanaJDBCCaseResolver(String sourceType, FederationSDKCasingMode casingMode)
+    {
+        super(sourceType, casingMode, casingMode);
     }
 
     @Override
@@ -54,7 +62,7 @@ public class SaphanaJDBCCaseResolver
     @Override
     protected List<String> getCaseInsensitivelyTableNameQueryTemplate()
     {
-        return List.of(TABLE_NAME_QUERY_TEMPLATE);
+        return List.of(TABLE_NAME_QUERY_TEMPLATE, TABLE_NAME_QUERY_VIEW);
     }
 
     @Override
