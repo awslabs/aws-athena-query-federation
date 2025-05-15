@@ -8,6 +8,8 @@ import { CfnInclude } from 'aws-cdk-lib/cloudformation-include';
 import { Construct } from 'constructs';
 const path = require('path')
 import { FederationStackProps } from './stack-props'
+import { InstanceClass, InstanceSize, InstanceType } from "aws-cdk-lib/aws-ec2";
+import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 
 export interface RdsGenericStackProps extends FederationStackProps {
   readonly db_port: number;
@@ -50,20 +52,32 @@ export class RdsGenericStack extends cdk.Stack {
         vpc: vpc
     });
 
+    vpc.addInterfaceEndpoint('RDSDataEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.RDS_DATA,
+      subnets: {
+        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
+      },
+      securityGroups: [securityGroup]
+    });
+
     // open db port
     securityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(db_port));
 
     // allow comms from the same SG (this lets us write from Glue)
     securityGroup.addIngressRule(securityGroup, ec2.Port.allTcp())
 
+    const secret = new Secret(this, `${db_type}db_cluster_secret`, {
+      secretName: `${db_type}db_cluster_secret`,
+      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
+        username: 'athena',
+        password: password
+      }))
+    });
     const cluster = new rds.DatabaseCluster(this, `${db_type}db_cluster`, {
       engine: this.getEngineVersion(db_type),
       port: db_port,
       defaultDatabaseName: "test",
-      credentials: {
-        username: 'athena',
-        password: cdk.SecretValue.unsafePlainText(password)
-      },
+      credentials: rds.Credentials.fromSecret(secret),
       instances: 2,
       instanceProps: {
         publiclyAccessible: false,
@@ -71,8 +85,10 @@ export class RdsGenericStack extends cdk.Stack {
         vpcSubnets: {
           subnetType: ec2.SubnetType.PRIVATE_ISOLATED
         },
-        securityGroups: [securityGroup]
+        securityGroups: [securityGroup],
+        instanceType: InstanceType.of(InstanceClass.R5, InstanceSize.LARGE)
       },
+      enableDataApi: db_type == 'postgresql',
       removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     const connectionString = `jdbc:${db_type}://${cluster.clusterEndpoint.socketAddress}/test?user=athena&password=${password}`;
@@ -116,15 +132,17 @@ export class RdsGenericStack extends cdk.Stack {
           '--db_url': connectionString,
           '--username': "athena",
           '--password': password,
-          '--tpcds_table': tpcds_table
+          '--tpcds_table': tpcds_table,
+          '--db_arn': cluster.clusterArn,
+          '--secret_arn': secret.secretArn,
         }
       });
     }
 
     const glueJob = new glue.Job(this, `${db_type}_glue_job_create_case_insensitive_data`, {
-      executable: glue.JobExecutable.pythonShell({
-        glueVersion: glue.GlueVersion.V1_0,
-        pythonVersion: (db_type == 'mysql') ? glue.PythonVersion.THREE_NINE : glue.PythonVersion.THREE,
+      executable: glue.JobExecutable.pythonEtl({
+        glueVersion: glue.GlueVersion.V4_0,
+        pythonVersion: glue.PythonVersion.THREE,
         script: glue.Code.fromAsset(path.join(__dirname, `../../../glue_scripts/${db_type}_create_case_insensitive_data.py`))
       }),
       role: glue_role,
@@ -134,7 +152,9 @@ export class RdsGenericStack extends cdk.Stack {
       defaultArguments: {
         '--db_url': cluster.clusterEndpoint.hostname,
         '--username': 'athena',
-        '--password': password
+        '--password': password,
+        '--db_arn': cluster.clusterArn,
+        '--secret_arn': secret.secretArn,
       }
     });
 
