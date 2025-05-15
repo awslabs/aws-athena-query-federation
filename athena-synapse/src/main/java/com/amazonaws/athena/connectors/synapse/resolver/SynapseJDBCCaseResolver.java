@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.synapse.resolver;
 
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
+import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +39,12 @@ public class SynapseJDBCCaseResolver
     public SynapseJDBCCaseResolver(String sourceType)
     {
         super(sourceType, FederationSDKCasingMode.NONE, FederationSDKCasingMode.LOWER);
+    }
+
+    @VisibleForTesting
+    public SynapseJDBCCaseResolver(String sourceType, FederationSDKCasingMode casingMode)
+    {
+        super(sourceType, casingMode, casingMode);
     }
 
     @Override
