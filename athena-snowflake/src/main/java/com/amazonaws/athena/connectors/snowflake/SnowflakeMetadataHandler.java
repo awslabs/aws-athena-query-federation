@@ -121,7 +121,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeMetadataHandler.class);
     private static final String COLUMN_NAME = "COLUMN_NAME";
     private static final String EMPTY_STRING = StringUtils.EMPTY;
-    public static final String SNOWFLAKE_EXPORT_PREFIX = "snowflake_data";
     public static final String SEPARATOR = "/";
     private S3Client amazonS3;
     SnowflakeQueryStringBuilder snowflakeQueryStringBuilder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
@@ -262,7 +261,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         //Appending a random int to the query id to support multiple federated queries within a single query
 
         String randomStr = UUID.randomUUID().toString();
-        String queryID = request.getQueryId().replace("-", "").concat(randomStr);
+        String queryID = request.getQueryId();
         String catalog = request.getCatalogName();
         String integrationName = catalog.concat(s3ExportBucket).concat("_integration").replaceAll("-", "_").replaceAll(":", "");
         LOGGER.debug("Integration Name {}", integrationName);
@@ -277,10 +276,14 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     "STORAGE_PROVIDER = 'S3' " +
                     "ENABLED = TRUE " +
                     "STORAGE_AWS_ROLE_ARN = '" + getRoleArn(request.getContext())  + "' " +
-                    "STORAGE_ALLOWED_LOCATIONS = ('s3://" + s3ExportBucket + SEPARATOR + SNOWFLAKE_EXPORT_PREFIX + "/');";
+                    "STORAGE_ALLOWED_LOCATIONS = ('s3://" + s3ExportBucket + "/');";
             try (Statement stmt = connection.createStatement()) {
                 LOGGER.debug("Create Integration {}", createIntegrationQuery);
                 stmt.execute(createIntegrationQuery);
+            }
+            catch (SQLException e) {
+                LOGGER.error("Failed to execute integration creation query: {}", createIntegrationQuery, e);
+                throw new RuntimeException("Error creating integration: " + e.getMessage(), e);
             }
         }
 
@@ -291,14 +294,13 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         else {
             generatedSql = snowflakeQueryStringBuilder.buildSqlString(connection, catalog, tableName.getSchemaName(), tableName.getTableName(), schemaName, constraints, null);
         }
-        String snowflakeExportQuery = "COPY INTO 's3://" + s3ExportBucket + SEPARATOR + SNOWFLAKE_EXPORT_PREFIX + SEPARATOR + queryID + "/' " +
+        String snowflakeExportQuery = "COPY INTO 's3://" + s3ExportBucket + SEPARATOR + queryID + SEPARATOR + randomStr + "/' " +
                 "FROM (" + generatedSql + ") " +
                 "STORAGE_INTEGRATION = " + integrationName + " " +
                 "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') " +
                 "MAX_FILE_SIZE = 16777216";
 
-        LOGGER.info("Snowflake Copy Statement: {}", snowflakeExportQuery);
-        LOGGER.info("queryID: {}", queryID);
+        LOGGER.info("Snowflake Copy Statement: {} for queryId: {}", snowflakeExportQuery, queryID);
 
         // write the prepared SQL statement to the partition column created in enhancePartitionSchema
         blockWriter.writeRows((Block block, int rowNum) -> {
@@ -339,7 +341,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         Set<Split> splits = new HashSet<>();
         String exportBucket = getS3ExportBucket();
-        String queryId = request.getQueryId().replace("-", "");
+        String queryId = request.getQueryId();
         String catalogName = request.getCatalogName();
 
         // Get the SQL statement which was created in getPartitions
@@ -359,15 +361,15 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             /*
              * For each generated S3 object, create a split and add data to the split.
              */
-            String prefix = SNOWFLAKE_EXPORT_PREFIX + SEPARATOR + queryId;
+            String prefix =  queryId + SEPARATOR;
             List<S3Object> s3ObjectSummaries = getlistExportedObjects(exportBucket, prefix);
-            LOGGER.debug("s3ObjectSummaries {}", (long) s3ObjectSummaries.size());
+            LOGGER.debug("{} s3ObjectSummaries returned for queryId {}", (long) s3ObjectSummaries.size(), queryId);
             if (s3ObjectSummaries.isEmpty()) {
                 // Execute queries on snowflake if S3 export bucket does not contain objects for given queryId
                 preparedStatement.execute();
                 // Retrieve the S3 objects list for given queryId
                 s3ObjectSummaries = getlistExportedObjects(exportBucket, prefix);
-                LOGGER.debug("s3ObjectSummaries2 {}", (long) s3ObjectSummaries.size());
+                LOGGER.debug("{} s3ObjectSummaries returned after executing on SnowFlake for queryId {}", (long) s3ObjectSummaries.size(), queryId);
             }
 
             if (!s3ObjectSummaries.isEmpty()) {
