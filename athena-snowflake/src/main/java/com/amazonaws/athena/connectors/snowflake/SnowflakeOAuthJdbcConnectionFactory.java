@@ -24,6 +24,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,7 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 import software.amazon.awssdk.utils.Validate;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -62,7 +64,7 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final Properties jdbcProperties;
     private final String oauthSecretName;
-    private final S3Client s3Client;
+    private S3Client s3Client;
     private static final String TOKEN_OBJECT_KEY = "snowflake/oauth_token.json";
     private final Map<String, String> configOptions;
 
@@ -79,6 +81,24 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
             this.jdbcProperties.putAll(properties);
         }
         this.s3Client = S3Client.create();
+        this.oauthSecretName = Validate.notNull(databaseConnectionConfig.getSecret(), "Missing required property: secret name");
+    }
+
+    @VisibleForTesting
+    public SnowflakeOAuthJdbcConnectionFactory(DatabaseConnectionConfig databaseConnectionConfig,
+                                               Map<String, String> properties,
+                                               DatabaseConnectionInfo databaseConnectionInfo, Map<String, String> configOptions,
+                                               S3Client s3Client)
+    {
+        super(databaseConnectionConfig, properties, databaseConnectionInfo);
+        this.databaseConnectionInfo = Validate.notNull(databaseConnectionInfo, "databaseConnectionInfo must not be null");
+        this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
+        this.configOptions = configOptions;
+        this.jdbcProperties = new Properties();
+        if (properties != null) {
+            this.jdbcProperties.putAll(properties);
+        }
+        this.s3Client = s3Client;
         this.oauthSecretName = Validate.notNull(databaseConnectionConfig.getSecret(), "Missing required property: secret name");
     }
 
@@ -198,7 +218,7 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
         }
     }
 
-    private static JSONObject getTokenFromAuthCode(String authCode, String redirectUri, String tokenEndpoint, String clientId, String clientSecret) throws Exception
+    private JSONObject getTokenFromAuthCode(String authCode, String redirectUri, String tokenEndpoint, String clientId, String clientSecret) throws Exception
     {
         String body = "grant_type=authorization_code"
                 + "&code=" + authCode
@@ -207,7 +227,7 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
         return requestToken(body, tokenEndpoint, clientId, clientSecret);
     }
 
-    private static JSONObject refreshAccessToken(String refreshToken, String tokenEndpoint, String clientId, String clientSecret) throws Exception
+    private JSONObject refreshAccessToken(String refreshToken, String tokenEndpoint, String clientId, String clientSecret) throws Exception
     {
         String body = "grant_type=refresh_token"
                 + "&refresh_token=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8);
@@ -215,18 +235,9 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
        return requestToken(body, tokenEndpoint, clientId, clientSecret);
     }
 
-    private static JSONObject requestToken(String requestBody, String tokenEndpoint, String clientId, String clientSecret) throws Exception
+    private JSONObject requestToken(String requestBody, String tokenEndpoint, String clientId, String clientSecret) throws Exception
     {
-        URL url = new URL(tokenEndpoint);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
-        String authHeader = Base64.getEncoder()
-                .encodeToString((clientId + ":" + clientSecret).getBytes(StandardCharsets.UTF_8));
-
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Authorization", "Basic " + authHeader);
-        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-        conn.setDoOutput(true);
+        HttpURLConnection conn = getHttpURLConnection(tokenEndpoint, clientId, clientSecret);
 
         try (OutputStream os = conn.getOutputStream()) {
             os.write(requestBody.getBytes(StandardCharsets.UTF_8));
@@ -247,6 +258,21 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
         JSONObject tokenJson = new JSONObject(response);
         tokenJson.put("fetched_at", System.currentTimeMillis() / 1000);
         return tokenJson;
+    }
+
+    static HttpURLConnection getHttpURLConnection(String tokenEndpoint, String clientId, String clientSecret) throws IOException
+    {
+        URL url = new URL(tokenEndpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        String authHeader = Base64.getEncoder()
+                .encodeToString((clientId + ":" + clientSecret).getBytes(StandardCharsets.UTF_8));
+
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Authorization", "Basic " + authHeader);
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setDoOutput(true);
+        return conn;
     }
 
     public String getS3ExportBucket()
