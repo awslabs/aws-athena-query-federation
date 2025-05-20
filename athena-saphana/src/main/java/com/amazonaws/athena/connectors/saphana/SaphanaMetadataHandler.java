@@ -250,11 +250,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
         int pageSize = listTablesRequest.getPageSize();
         String token = listTablesRequest.getNextToken();
-        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) {
-            LOGGER.info("doListTables - NO pagination requested (pageSize = UNLIMITED)");
-
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), listTables(connection, adjustedSchemaName), null);
-        }
 
         if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
             LOGGER.debug("listPaginatedTables - pagination with UNLIMITED_PAGE_SIZE_VALUE");
