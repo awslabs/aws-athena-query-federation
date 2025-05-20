@@ -89,12 +89,16 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SaphanaMetadataHandler.class);
 
-    static final String LIST_PAGINATED_TABLES_QUERY =
+    public static final String LIST_PAGINATED_TABLES_QUERY =
             "SELECT OBJECT_NAME AS \"TABLE_NAME\", SCHEMA_NAME AS \"TABLE_SCHEM\" " +
                     "FROM SYS.OBJECTS " +
                     "WHERE SCHEMA_NAME = ? AND OBJECT_TYPE IN ('TABLE', 'VIEW') " +
                     "ORDER BY OBJECT_NAME " +
                     "LIMIT ? OFFSET ?";
+    public static final String ALL_TABLES_COUNT_QUERY = "SELECT COUNT(*) AS \"ALL_TABLES_COUNT\" " +
+            "FROM SYS.OBJECTS " +
+            "WHERE SCHEMA_NAME = ? " +
+            "AND OBJECT_TYPE IN ('TABLE', 'VIEW')";
 
     public SaphanaMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -245,25 +249,45 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         LOGGER.debug("Starting listPaginatedTables for Saphana.");
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
         int pageSize = listTablesRequest.getPageSize();
-
-        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+        String token = listTablesRequest.getNextToken();
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) {
             LOGGER.info("doListTables - NO pagination requested (pageSize = UNLIMITED)");
 
             return new ListTablesResponse(listTablesRequest.getCatalogName(), listTables(connection, adjustedSchemaName), null);
         }
-        else {
-            // User requested a specific page size, apply pagination logic
-            LOGGER.info("doListTables - pagination requested with pageSize {}", pageSize);
-            String token = listTablesRequest.getNextToken();
-            int offset = token != null ? Integer.parseInt(token) : 0;
-            LOGGER.info("Starting pagination at offset {} with page size {}", offset, pageSize);
 
-            List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, offset, pageSize);
-
-            LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), offset + pageSize);
-            String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(offset + pageSize);
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            LOGGER.debug("listPaginatedTables - pagination with UNLIMITED_PAGE_SIZE_VALUE");
+            pageSize = getAllTablesCount(connection, listTablesRequest.getSchemaName());
         }
+
+        // User requested a specific page size, apply pagination logic
+        LOGGER.info("doListTables - pagination requested with pageSize {}", pageSize);
+
+        int offset = token != null ? Integer.parseInt(token) : 0;
+        LOGGER.info("Starting pagination at offset {} with page size {}", offset, pageSize);
+
+        List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, offset, pageSize);
+
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), offset + pageSize);
+        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize || listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE ? null : Integer.toString(offset + pageSize);
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
+        }
+
+    private int getAllTablesCount(Connection connection, String schemaName) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(ALL_TABLES_COUNT_QUERY);
+        preparedStatement.setString(1, schemaName);
+        int allTablesCount = 0;
+        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            while (resultSet.next()) {
+                allTablesCount = resultSet.getInt(1);
+            }
+        }
+        catch (SQLException sqlException) {
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
+        }
+        return allTablesCount;
     }
 
     @VisibleForTesting

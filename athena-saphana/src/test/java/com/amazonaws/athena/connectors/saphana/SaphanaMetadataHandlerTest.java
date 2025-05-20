@@ -283,32 +283,27 @@ public class SaphanaMetadataHandlerTest
         Assert.assertEquals(null, listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
-        // Test 4: Testing all remaining tables returned with pageSize UNLIMITED_PAGE_SIZE_VALUE and non-null startToken
-        SaphanaMetadataHandler handlerWithOverride = new SaphanaMetadataHandler(
-                databaseConnectionConfig,
-                this.secretsManager,
-                this.athena,
-                this.jdbcConnectionFactory,
-                Collections.emptyMap(),
-                new SaphanaJDBCCaseResolver(SAPHANA_NAME, CaseResolver.FederationSDKCasingMode.NONE))
-        {
-            @Override
-            protected List<TableName> listTables(Connection connection, String schemaPattern)
-            {
-                return Arrays.asList(
-                        new TableName("testSchema", "testTable3")
-                );
-            }
-        };
+        // Test 4: Testing when requesting pageSize UNLIMITED_PAGE_SIZE_VALUE(-1) and nextToken is 2.
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(saphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable2"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable2")};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
-        expected = new TableName[]{new TableName("testSchema", "testTable3")};
+        PreparedStatement preparedStatement1 = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(SaphanaMetadataHandler.ALL_TABLES_COUNT_QUERY)).thenReturn(preparedStatement1);
+        schema = new String[]{"ALL_TABLES_COUNT"};
+        values = new Object[][] {{5}};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(1));
+        Mockito.when(preparedStatement1.executeQuery()).thenReturn(resultSet);
+        Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
+        Mockito.when(resultSet.getInt(1)).thenReturn(5);
 
-        listTablesResponse = handlerWithOverride.doListTables(
-                blockAllocator,
-                new ListTablesRequest(this.federatedIdentity, "testQueryId",
+        listTablesResponse = metadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "2", ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
-
-        Assert.assertNull(listTablesResponse.getNextToken());
+        Assert.assertEquals(null,listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
     }
 
