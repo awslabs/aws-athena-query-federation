@@ -167,7 +167,8 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
 
             int pageSize = listTablesRequest.getPageSize();
-            if (pageSize == UNLIMITED_PAGE_SIZE_VALUE || pageSize == 0) {
+            String token = listTablesRequest.getNextToken();
+            if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) {
                 LOGGER.info("doListTables - NO pagination");
                 List<String> tableNames = getTableList(connection, Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
                 List<TableName> tables = tableNames.stream().map(tableName -> new TableName(listTablesRequest.getSchemaName(), tableName)).collect(Collectors.toList());
@@ -186,15 +187,36 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
         String token = listTablesRequest.getNextToken();
         int pageSize = listTablesRequest.getPageSize();
 
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            LOGGER.debug("listPaginatedTables - pagination with UNLIMITED_PAGE_SIZE_VALUE");
+            pageSize = getAllTablesCount(connection, listTablesRequest.getSchemaName());
+        }
+
         int t = token != null ? Integer.parseInt(token) : 0;
 
         LOGGER.info("Starting pagination at {} with page size {}", t, pageSize);
         List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
 
-        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize);
+        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize || listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE ? null : Integer.toString(t + pageSize);
         // return next token is null when reaching end of files
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
+    }
+
+    private int getAllTablesCount(Connection connection, String schemaName) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(Db2Constants.ALL_TABLES_COUNT_QUERY);
+        preparedStatement.setString(1, schemaName);
+        int allTablesCount = 0;
+        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            while (resultSet.next()) {
+                allTablesCount = resultSet.getInt(1);
+            }
+        }
+        catch (SQLException sqlException) {
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
+        }
+        return allTablesCount;
     }
 
     @VisibleForTesting
