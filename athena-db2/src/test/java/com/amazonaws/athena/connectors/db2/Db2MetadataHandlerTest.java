@@ -337,7 +337,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     @Test
     public void doListTables() throws Exception {
         String schemaName = "TESTSCHEMA";
-        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 0);
+        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE);
 
         PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS)).thenReturn(stmt);
@@ -398,7 +398,30 @@ public class Db2MetadataHandlerTest extends TestBase {
         listTablesResponse = this.db2MetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "2", 2));
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        Assert.assertNull(listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        // Test 4: Testing when requesting pageSize UNLIMITED_PAGE_SIZE_VALUE(-1) and nextToken is 2.
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable2"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable2")};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        PreparedStatement preparedStatement1 = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.ALL_TABLES_COUNT_QUERY)).thenReturn(preparedStatement1);
+        schema = new String[]{"ALL_TABLES_COUNT"};
+        values = new Object[][] {{5}};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(1));
+        Mockito.when(preparedStatement1.executeQuery()).thenReturn(resultSet);
+        Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
+        Mockito.when(resultSet.getInt(1)).thenReturn(5);
+
+        listTablesResponse = this.db2MetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "2", ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
+        Assert.assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
     }
 }
