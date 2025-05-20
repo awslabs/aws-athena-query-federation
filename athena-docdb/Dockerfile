@@ -13,13 +13,13 @@ RUN yum update -y
 RUN yum install -y curl perl openssl11
 
 # Copy function code and runtime dependencies from Maven layout
-COPY target/athena-docdb-2025.21.1-test.jar ${LAMBDA_TASK_ROOT}
+COPY target/athena-docdb-2022.47.1.jar ${LAMBDA_TASK_ROOT}
 
 # Unpack the jar
-RUN jar xf athena-docdb-2025.21.1-test.jar
+RUN jar xf athena-docdb-2022.47.1.jar
 
 # Clean up JAR
-RUN rm ${LAMBDA_TASK_ROOT}/athena-docdb-2025.21.1-test.jar
+RUN rm ${LAMBDA_TASK_ROOT}/athena-docdb-2022.47.1.jar
 
 # Set up environment variables
 ENV truststore=/var/lang/lib/security/cacerts

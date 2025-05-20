@@ -36,7 +36,7 @@ in most **pom.xml** files (e.g.
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>Current version of the SDK (e.g. 2025.21.1-test)</version>
+            <version>Current version of the SDK (e.g. 2022.47.1)</version>
             <scope>test</scope>
         </dependency>
 ```
