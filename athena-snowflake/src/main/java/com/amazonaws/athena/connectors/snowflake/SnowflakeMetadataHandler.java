@@ -46,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.util.PaginationValidator;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -327,20 +328,18 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
     {
         LOGGER.debug("Starting listPaginatedTables for Snowflake.");
-        String token = listTablesRequest.getNextToken();
         int pageSize = listTablesRequest.getPageSize();
+        int token = PaginationValidator.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
 
         if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
             pageSize = Integer.MAX_VALUE;
         }
 
-        int t = token != null ? Integer.parseInt(token) : 0;
-
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
 
-        LOGGER.info("Starting pagination at {} with page size {}", t, pageSize);
-        List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, t, pageSize);
-        String nextToken = (pageSize == Integer.MAX_VALUE || paginatedTables.isEmpty() || paginatedTables.size() < pageSize) ? null : Integer.toString(t + pageSize);
+        LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, token, pageSize);
+        String nextToken = (pageSize == Integer.MAX_VALUE || paginatedTables.isEmpty() || paginatedTables.size() < pageSize) ? null : Integer.toString(token + pageSize);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), nextToken);
 
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);

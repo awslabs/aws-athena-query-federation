@@ -236,6 +236,36 @@ public class JdbcMetadataHandlerTest
                 "testCatalog", "testSchema", "not_a_valid_number", UNLIMITED_PAGE_SIZE_VALUE));
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void doListTablesInvalidArgumentExceptionNegativeToken()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: startToken is not a valid number with pageSize unlimited (all items)
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "-1", UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void doListTablesInvalidArgumentExceptionNegativePageSize()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: startToken is not a valid number with pageSize unlimited (all items)
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "0", -3));
+    }
+
     @Test
     public void doListTablesEscaped()
             throws Exception
