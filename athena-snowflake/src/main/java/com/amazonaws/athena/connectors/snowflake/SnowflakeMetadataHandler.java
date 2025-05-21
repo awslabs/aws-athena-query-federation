@@ -331,7 +331,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         int pageSize = listTablesRequest.getPageSize();
 
         if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
-            System.out.println("integer max is now page size.");
             pageSize = Integer.MAX_VALUE;
         }
 
