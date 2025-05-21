@@ -25,6 +25,14 @@ public class PaginationValidator
 {
     private PaginationValidator() {}
 
+    /**
+     * Validates that nextToken and pageSize are valid non-negative integers, with the exception of
+     * pageSize allowed to be -1 signifying unlimited pages.
+     * 
+     * @param nextToken
+     * @param pageSize
+     * @return int nextToken
+     */
     public static int validateAndParsePaginationArguments(String nextToken, int pageSize)
     {
         int startToken;
