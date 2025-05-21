@@ -341,7 +341,6 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
         // Test 4:
-        System.out.println("TESTING TEST 4");
         preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(snowflakeMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
         values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
