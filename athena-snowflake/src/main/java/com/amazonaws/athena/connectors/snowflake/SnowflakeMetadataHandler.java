@@ -86,6 +86,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_NAME;
@@ -329,16 +330,20 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         String token = listTablesRequest.getNextToken();
         int pageSize = listTablesRequest.getPageSize();
 
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            System.out.println("integer max is now page size.");
+            pageSize = Integer.MAX_VALUE;
+        }
+
         int t = token != null ? Integer.parseInt(token) : 0;
 
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
 
         LOGGER.info("Starting pagination at {} with page size {}", t, pageSize);
         List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, t, pageSize);
-        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
+        String nextToken = (pageSize == Integer.MAX_VALUE || paginatedTables.isEmpty() || paginatedTables.size() < pageSize) ? null : Integer.toString(t + pageSize);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), nextToken);
 
-        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize);
-        // return next token is null when reaching end of files
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
     }
 
