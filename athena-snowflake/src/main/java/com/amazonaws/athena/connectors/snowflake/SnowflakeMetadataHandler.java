@@ -46,7 +46,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
-import com.amazonaws.athena.connector.util.PaginationValidator;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -329,7 +329,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.debug("Starting listPaginatedTables for Snowflake.");
         int pageSize = listTablesRequest.getPageSize();
-        int token = PaginationValidator.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
+        int token = PaginationHelper.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
 
         if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
             pageSize = Integer.MAX_VALUE;
