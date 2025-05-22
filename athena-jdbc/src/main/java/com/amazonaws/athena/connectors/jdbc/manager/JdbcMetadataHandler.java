@@ -41,7 +41,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.util.PaginationValidator;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
@@ -244,34 +244,14 @@ public abstract class JdbcMetadataHandler
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
         LOGGER.debug("Request is asking for pagination, but true pagination has not been implemented.");
 
-        // Validate nextToken and PageSize to catch
-        int startToken = PaginationValidator.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), listTablesRequest.getPageSize());
+        // Validate nextToken and pageSize
+        int pageSize = listTablesRequest.getPageSize();
+        int startToken = PaginationHelper.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
 
         // Retrieve all tables
         List<TableName> allTables = listTables(connection, adjustedSchemaName);
-        int pageSize = listTablesRequest.getPageSize();
 
-        // If startToken is at or past the end of tables list, return empty list
-        if (startToken >= allTables.size()) {
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), List.of(), null);
-        }
-
-        int endToken = Math.min(startToken + pageSize, allTables.size());
-        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
-            endToken = allTables.size();
-        }
-
-        String nextToken;
-        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE || endToken == allTables.size()) {
-            nextToken = null;
-        }
-        else {
-            // Use long to avoid potential integer overflow
-            nextToken = Long.toString((long) startToken + pageSize);
-        }
-
-        return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                allTables.subList(startToken, endToken), nextToken);
+        return PaginationHelper.manualPagination(allTables, startToken, pageSize, listTablesRequest.getCatalogName());
     }
 
     protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)

@@ -19,11 +19,16 @@
  */
 package com.amazonaws.athena.connector.util;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+
+import java.util.List;
+
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
-public class PaginationValidator
+public class PaginationHelper
 {
-    private PaginationValidator() {}
+    private PaginationHelper() {}
 
     /**
      * Validates that nextToken and pageSize are valid non-negative integers, with the exception of
@@ -49,5 +54,38 @@ public class PaginationValidator
             throw new IllegalArgumentException("Page size must be either -1 for unlimited or a positive integer, received: " + pageSize);
         }
         return startToken;
+    }
+
+    /**
+     * Performs a manual or "fake" pagination. Takes a list of allTables retrieved and returns a subset of tables based off
+     * of startToken and pageSize.
+     *
+     * @param startToken the start position in the subset
+     * @param pageSize the number of tables to retrieve
+     * @param catalogName required to return in ListTableResponse
+     * @return ListTableResponse with subset of tables.
+     */
+    public static ListTablesResponse manualPagination(List<TableName> allTables, int startToken, int pageSize, String catalogName)
+    {
+        // If startToken is at or past the end of tables list, return empty list
+        if (startToken >= allTables.size()) {
+            return new ListTablesResponse(catalogName, List.of(), null);
+        }
+
+        int endToken = Math.min(startToken + pageSize, allTables.size());
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            endToken = allTables.size();
+        }
+
+        String nextToken;
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE || endToken == allTables.size()) {
+            nextToken = null;
+        }
+        else {
+            // Use long to avoid potential integer overflow
+            nextToken = Long.toString((long) startToken + pageSize);
+        }
+
+        return new ListTablesResponse(catalogName, allTables.subList(startToken, endToken), nextToken);
     }
 }
