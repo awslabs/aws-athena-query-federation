@@ -998,6 +998,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/CacheableAwsRestHighLevelClient.html#%3Cinit%3E()">CacheableAwsRestHighLevelClient()</a></span> - Constructor for class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.athena.connectors.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/util/PaginationHelper.html#calculateNextToken(int,int,java.util.List)">calculateNextToken(int, int, List&lt;TableName&gt;)</a></span> - Static method in class com.amazonaws.athena.connector.util.<a href="com/amazonaws/athena/connector/util/PaginationHelper.html" title="class in com.amazonaws.athena.connector.util">PaginationHelper</a></dt>
+<dd>
+<div class="block">Calculates the nextToken or index to begin next pagination based on number of tables returns and pageSize.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html#calculateThroughput(java.lang.String,java.lang.String,java.lang.String)">calculateThroughput(String, String, String)</a></span> - Method in class com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integ">IntegrationTestBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html#callService(java.lang.String,com.amazonaws.athena.connector.lambda.security.FederatedIdentity,java.lang.String,com.amazonaws.athena.connector.lambda.request.FederationRequest)">callService(String, FederatedIdentity, String, FederationRequest)</a></span> - Static method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html" title="class in com.amazonaws.athena.connector.validation">FederationServiceProvider</a></dt>
@@ -8085,6 +8089,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Used to make a spill location for a split.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/util/PaginationHelper.html#manualPagination(java.util.List,java.lang.String,int,java.lang.String)">manualPagination(List&lt;TableName&gt;, String, int, String)</a></span> - Static method in class com.amazonaws.athena.connector.util.<a href="com/amazonaws/athena/connector/util/PaginationHelper.html" title="class in com.amazonaws.athena.connector.util">PaginationHelper</a></dt>
+<dd>
+<div class="block">Performs a manual or "fake" pagination.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SupportedTypes.html#MAP">MAP</a></span> - com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SupportedTypes.html" title="enum in com.amazonaws.athena.connector.lambda.data">SupportedTypes</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueFieldLexer.html#MAP_DISABLED">MAP_DISABLED</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueFieldLexer.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueFieldLexer</a></dt>
@@ -8830,6 +8838,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="com/amazonaws/athena/connector/util/PaginatedRequestIterator.html" title="class in com.amazonaws.athena.connector.util"><span class="typeNameLink">PaginatedRequestIterator</span></a>&lt;<a href="com/amazonaws/athena/connector/util/PaginatedRequestIterator.html" title="type parameter in PaginatedRequestIterator">T</a>&gt; - Class in <a href="com/amazonaws/athena/connector/util/package-summary.html">com.amazonaws.athena.connector.util</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/util/PaginatedRequestIterator.html#%3Cinit%3E(java.util.function.Function,java.util.function.Function)">PaginatedRequestIterator(Function&lt;String, T&gt;, Function&lt;T, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.util.<a href="com/amazonaws/athena/connector/util/PaginatedRequestIterator.html" title="class in com.amazonaws.athena.connector.util">PaginatedRequestIterator</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/util/PaginationHelper.html" title="class in com.amazonaws.athena.connector.util"><span class="typeNameLink">PaginationHelper</span></a> - Class in <a href="com/amazonaws/athena/connector/util/package-summary.html">com.amazonaws.athena.connector.util</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryFederationExpressionParser.html#parseComplexExpressions(java.util.List,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">parseComplexExpressions(List&lt;Field&gt;, Constraints)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryFederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryFederationExpressionParser</a></dt>
 <dd>&nbsp;</dd>
@@ -11457,6 +11467,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </a>
 <h2 class="title">V</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/util/PaginationHelper.html#validateAndParsePaginationArguments(java.lang.String,int)">validateAndParsePaginationArguments(String, int)</a></span> - Static method in class com.amazonaws.athena.connector.util.<a href="com/amazonaws/athena/connector/util/PaginationHelper.html" title="class in com.amazonaws.athena.connector.util">PaginationHelper</a></dt>
+<dd>
+<div class="block">Validates that nextToken and pageSize are valid non-negative integers, with the exception of
+ pageSize allowed to be -1 signifying unlimited pages.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateArrayStart(com.fasterxml.jackson.core.JsonParser)">validateArrayStart(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
 <dd>
 <div class="block">Helper used to validate that an array is starting (open bracket) at the next token.</div>
