@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.util;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -42,16 +43,16 @@ class PaginationHelperTest
     @Test
     void testValidateAndParsePaginationArguments_InvalidNextToken()
     {
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(AthenaConnectorException.class, () ->
                 PaginationHelper.validateAndParsePaginationArguments("invalid", 10));
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(AthenaConnectorException.class, () ->
                 PaginationHelper.validateAndParsePaginationArguments("-1", 10));
     }
 
     @Test
     void testValidateAndParsePaginationArguments_InvalidPageSize()
     {
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(AthenaConnectorException.class, () ->
                 PaginationHelper.validateAndParsePaginationArguments("0", -2));
     }
 
@@ -66,7 +67,7 @@ class PaginationHelperTest
                 new TableName("schema3", "table5")
         );
 
-        ListTablesResponse response = PaginationHelper.manualPagination(allTables, 1, 2, "testCatalog");
+        ListTablesResponse response = PaginationHelper.manualPagination(allTables, "1", 2, "testCatalog");
         List<TableName> resultTables = new ArrayList<>(response.getTables());
 
         assertEquals("testCatalog", response.getCatalogName());
@@ -85,7 +86,7 @@ class PaginationHelperTest
                 new TableName("schema2", "table3")
         );
 
-        ListTablesResponse response = PaginationHelper.manualPagination(allTables, 0, -1, "testCatalog");
+        ListTablesResponse response = PaginationHelper.manualPagination(allTables, "0", -1, "testCatalog");
 
         assertEquals("testCatalog", response.getCatalogName());
         assertEquals(3, response.getTables().size());
@@ -100,7 +101,7 @@ class PaginationHelperTest
                 new TableName("schema1", "table2")
         );
 
-        ListTablesResponse response = PaginationHelper.manualPagination(allTables, 3, 1, "testCatalog");
+        ListTablesResponse response = PaginationHelper.manualPagination(allTables, "3", 1, "testCatalog");
 
         assertEquals("testCatalog", response.getCatalogName());
         assertTrue(response.getTables().isEmpty());
@@ -116,12 +117,51 @@ class PaginationHelperTest
                 new TableName("schema2", "table3")
         );
 
-        ListTablesResponse response = PaginationHelper.manualPagination(allTables, 2, 2, "testCatalog");
+        ListTablesResponse response = PaginationHelper.manualPagination(allTables, "2", 2, "testCatalog");
         List<TableName> resultTables = new ArrayList<>(response.getTables());
 
         assertEquals("testCatalog", response.getCatalogName());
         assertEquals(1, response.getTables().size());
         assertEquals("table3", resultTables.get(0).getTableName());
         assertNull(response.getNextToken());
+    }
+
+    @Test
+    void testManualPagination_SortedResults()
+    {
+        // Create a list of tables in unsorted order
+        List<TableName> allTables = Arrays.asList(
+                new TableName("schema2", "tableC"),
+                new TableName("schema1", "tableA"),
+                new TableName("schema3", "tableB"),
+                new TableName("schema1", "tableD"),
+                new TableName("schema2", "tableE")
+        );
+
+        // Get first page with 3 items
+        ListTablesResponse response = PaginationHelper.manualPagination(allTables, "0", 3, "testCatalog");
+
+        // Verify response
+        assertEquals("testCatalog", response.getCatalogName());
+        assertEquals(3, response.getTables().size());
+        assertEquals("3", response.getNextToken());
+
+        // Convert to ArrayList to access elements
+        List<TableName> resultTables = new ArrayList<>(response.getTables());
+
+        // Verify sorting (should be alphabetical by table name regardless of schema)
+        assertEquals("tableA", resultTables.get(0).getTableName());
+        assertEquals("tableB", resultTables.get(1).getTableName());
+        assertEquals("tableC", resultTables.get(2).getTableName());
+
+        // Get second page
+        response = PaginationHelper.manualPagination(allTables, "3", 3, "testCatalog");
+        resultTables = new ArrayList<>(response.getTables());
+
+        // Verify remaining sorted items
+        assertEquals(2, resultTables.size());
+        assertEquals("tableD", resultTables.get(0).getTableName());
+        assertEquals("tableE", resultTables.get(1).getTableName());
+        assertNull(response.getNextToken()); // Should be null as we've reached the end
     }
 }

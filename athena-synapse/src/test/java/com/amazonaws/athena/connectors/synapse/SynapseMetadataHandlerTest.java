@@ -447,8 +447,8 @@ public class SynapseMetadataHandlerTest
 
         TableName[] expectedTables = {
                 new TableName("TESTSCHEMA", "TESTTABLE"),
-                new TableName("TESTSCHEMA", "testtable"),
-                new TableName("TESTSCHEMA", "testTABLE")
+                new TableName("TESTSCHEMA", "testTABLE"),
+                new TableName("TESTSCHEMA", "testtable")
         };
 
         assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTables().toString());

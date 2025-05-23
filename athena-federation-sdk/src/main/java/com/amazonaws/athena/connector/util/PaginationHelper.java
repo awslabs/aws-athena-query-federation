@@ -20,8 +20,13 @@
 package com.amazonaws.athena.connector.util;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -45,13 +50,13 @@ public class PaginationHelper
             startToken = nextToken == null ? 0 : Integer.parseInt(nextToken);
         }
         catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid next token: " + nextToken, e);
+            throw new AthenaConnectorException("Invalid next token: " + nextToken, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         if (startToken < 0) {
-            throw new IllegalArgumentException("Invalid next token format. Token must be a valid integer, received: " + startToken);
+            throw new AthenaConnectorException("Invalid next token format. Token must be a valid integer, received: " + startToken, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         if (pageSize < UNLIMITED_PAGE_SIZE_VALUE) {
-            throw new IllegalArgumentException("Page size must be either -1 for unlimited or a positive integer, received: " + pageSize);
+            throw new AthenaConnectorException("Page size must be either -1 for unlimited or a positive integer, received: " + pageSize, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         return startToken;
     }
@@ -60,21 +65,27 @@ public class PaginationHelper
      * Performs a manual or "fake" pagination. Takes a list of allTables retrieved and returns a subset of tables based off
      * of startToken and pageSize.
      *
-     * @param startToken the start position in the subset
+     * @param token the start position in the subset
      * @param pageSize the number of tables to retrieve
      * @param catalogName required to return in ListTableResponse
      * @return ListTableResponse with subset of tables.
      */
-    public static ListTablesResponse manualPagination(List<TableName> allTables, int startToken, int pageSize, String catalogName)
+    public static ListTablesResponse manualPagination(List<TableName> allTables, String token, int pageSize, String catalogName)
     {
+        int startToken = validateAndParsePaginationArguments(token, pageSize);
+
+        // Convert ImmutableList to ArrayList first
+        List<TableName> sortedTables = new ArrayList<>(allTables);
+        sortedTables.sort(Comparator.comparing(TableName::getTableName));
+
         // If startToken is at or past the end of tables list, return empty list
         if (startToken >= allTables.size()) {
             return new ListTablesResponse(catalogName, List.of(), null);
         }
 
-        int endToken = Math.min(startToken + pageSize, allTables.size());
+        int endToken = Math.min(startToken + pageSize, sortedTables.size());
         if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
-            endToken = allTables.size();
+            endToken = sortedTables.size();
         }
 
         String nextToken;
@@ -86,6 +97,6 @@ public class PaginationHelper
             nextToken = Long.toString((long) startToken + pageSize);
         }
 
-        return new ListTablesResponse(catalogName, allTables.subList(startToken, endToken), nextToken);
+        return new ListTablesResponse(catalogName, sortedTables.subList(startToken, endToken), nextToken);
     }
 }

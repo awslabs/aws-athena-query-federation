@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.*;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.resolver.CaseResolver;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
@@ -340,7 +341,7 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(null, listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
-        // Test 4:
+        // Test 4: nextToken is 2 and pageSize is UNLIMITED. Return all tables starting from index 2.
         preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(snowflakeMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
         values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
@@ -354,7 +355,7 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(null, listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
-        // Test 5: Illegal Argument Exception with negative nextToken value
+        // Test 5: AthenaConnectorException with negative nextToken value
         preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(snowflakeMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
         values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
@@ -362,13 +363,13 @@ public class SnowflakeMetadataHandlerTest
         resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
-        Assert.assertThrows(IllegalArgumentException.class, () -> this.snowflakeMetadataHandler.doListTables(
+        Assert.assertThrows(AthenaConnectorException.class, () -> this.snowflakeMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "-1", 3)));
         Assert.assertEquals(null, listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
-        // Test 6: Illegal Argument Exception with negative pageSize value
+        // Test 6: AthenaConnectorException with negative pageSize value
         preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(snowflakeMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
         values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
@@ -376,7 +377,7 @@ public class SnowflakeMetadataHandlerTest
         resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
-        Assert.assertThrows(IllegalArgumentException.class, () -> this.snowflakeMetadataHandler.doListTables(
+        Assert.assertThrows(AthenaConnectorException.class, () -> this.snowflakeMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "0", -3)));
         Assert.assertEquals(null, listTablesResponse.getNextToken());

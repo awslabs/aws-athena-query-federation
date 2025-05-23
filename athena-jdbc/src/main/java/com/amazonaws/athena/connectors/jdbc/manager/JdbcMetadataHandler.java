@@ -246,7 +246,7 @@ public abstract class JdbcMetadataHandler
 
         // Validate nextToken and pageSize
         int pageSize = listTablesRequest.getPageSize();
-        int startToken = PaginationHelper.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
+        String startToken = listTablesRequest.getNextToken();
 
         // Retrieve all tables
         List<TableName> allTables = listTables(connection, adjustedSchemaName);
