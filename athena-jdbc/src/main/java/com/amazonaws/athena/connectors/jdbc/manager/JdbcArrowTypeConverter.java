@@ -23,16 +23,19 @@ import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
 import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Types;
+import java.util.Optional;
 
 /**
  * Utility abstracts Jdbc to Arrow type conversions.
  */
 public final class JdbcArrowTypeConverter
 {
-    private static final int DEFAULT_PRECISION = 38;
-    private static final int DEFAULT_SCALE = Integer.parseInt(System.getenv().getOrDefault("default_scale", "0"));
+    public static final int DEFAULT_PRECISION = 38;
+    private static final Logger LOGGER = LoggerFactory.getLogger(JdbcArrowTypeConverter.class);
 
     private JdbcArrowTypeConverter() {}
 
@@ -44,30 +47,47 @@ public final class JdbcArrowTypeConverter
      * @param scale Decimal scale.
      * @return Arrow type. See {@link ArrowType}.
      */
-    public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
+    public static Optional<ArrowType> toArrowType(final int jdbcType, final int precision, final int scale, java.util.Map<String, String> configOptions)
     {
+        int defaultScale = Integer.parseInt(configOptions.getOrDefault("default_scale", "0"));
         int resolvedPrecision = precision;
         int resolvedScale = scale;
-        boolean needsResolving = jdbcType == Types.NUMERIC && (precision == 0 && scale == 0);
+        boolean needsResolving = jdbcType == Types.NUMERIC && (precision == 0 && scale <= 0);
+        boolean decimalExceedingPrecision = jdbcType == Types.DECIMAL && precision > DEFAULT_PRECISION;
         // Resolve Precision and Scale if they're not available
         if (needsResolving) {
             resolvedPrecision = DEFAULT_PRECISION;
-            resolvedScale = DEFAULT_SCALE;
+            resolvedScale = defaultScale;
+        }
+        else if (decimalExceedingPrecision) {
+            resolvedPrecision = DEFAULT_PRECISION;
         }
 
-        ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
-                new JdbcFieldInfo(jdbcType, resolvedPrecision, resolvedScale),
-                null);
+        Optional<ArrowType> arrowTypeOptional = Optional.empty();
 
-        if (arrowType instanceof ArrowType.Date) {
+        try {
+            arrowTypeOptional = Optional.of(JdbcToArrowUtils.getArrowTypeFromJdbcType(
+                    new JdbcFieldInfo(jdbcType, resolvedPrecision, resolvedScale), null));
+        }
+        catch (UnsupportedOperationException e) {
+            LOGGER.warn("Error converting JDBC Type [{}] to arrow: {}", jdbcType, e.getMessage());
+            if (jdbcType == Types.TIMESTAMP_WITH_TIMEZONE) {
+                // Convert from TIMESTAMP_WITH_TIMEZONE to DateMilli
+                LOGGER.debug("Converting JDBC Type [{}] to arrow: {}", jdbcType, e.getMessage());
+                return Optional.of(new ArrowType.Date(DateUnit.MILLISECOND));
+            }
+            return arrowTypeOptional;
+        }
+
+        if (arrowTypeOptional.isPresent() && arrowTypeOptional.get() instanceof ArrowType.Date) {
             // Convert from DateMilli to DateDay
-            return new ArrowType.Date(DateUnit.DAY);
+            return Optional.of(new ArrowType.Date(DateUnit.DAY));
         }
-        else if (arrowType instanceof ArrowType.Timestamp) {
+        else if (arrowTypeOptional.isPresent() && arrowTypeOptional.get() instanceof ArrowType.Timestamp) {
             // Convert from Timestamp to DateMilli
-            return new ArrowType.Date(DateUnit.MILLISECOND);
+            return Optional.of(new ArrowType.Date(DateUnit.MILLISECOND));
         }
 
-        return arrowType;
+        return arrowTypeOptional;
     }
 }

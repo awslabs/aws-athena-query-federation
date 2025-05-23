@@ -20,6 +20,7 @@
  */
 
 package com.amazonaws.athena.connectors.teradata;
+
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -33,6 +34,6 @@ public class TeradataCompositeHandler
 {
     public TeradataCompositeHandler()
     {
-        super(new TeradataMetadataHandler(), new TeradataRecordHandler());
+        super(new TeradataMetadataHandler(new TeradataEnvironmentProperties().createEnvironment()), new TeradataRecordHandler(new TeradataEnvironmentProperties().createEnvironment()));
     }
 }

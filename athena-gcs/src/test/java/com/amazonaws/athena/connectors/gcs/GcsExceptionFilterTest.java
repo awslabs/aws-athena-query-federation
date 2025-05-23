@@ -19,33 +19,27 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.services.athena.model.AmazonAthenaException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.athena.model.AthenaException;
 
 import static com.amazonaws.athena.connectors.gcs.GcsThrottlingExceptionFilter.EXCEPTION_FILTER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
-})
-@PrepareForTest({GcsTestUtils.class})
+@RunWith(MockitoJUnitRunner.class)
 public class GcsExceptionFilterTest
 {
     @Test
     public void testIsMatch()
     {
-        boolean match = EXCEPTION_FILTER.isMatch(new AmazonAthenaException("Rate exceeded"));
+        boolean match = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("Rate exceeded").build());
         assertTrue(match);
-        boolean match1 = EXCEPTION_FILTER.isMatch(new AmazonAthenaException("Too Many Requests"));
+        boolean match1 = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("Too Many Requests").build());
         assertTrue(match1);
-        boolean match3 = EXCEPTION_FILTER.isMatch(new AmazonAthenaException("other"));
+        boolean match3 = EXCEPTION_FILTER.isMatch(AthenaException.builder().message("other").build());
         assertFalse(match3);
     }
 }

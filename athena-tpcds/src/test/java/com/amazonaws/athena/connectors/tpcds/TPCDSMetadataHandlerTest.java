@@ -42,8 +42,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -54,11 +52,14 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_NUMBER_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
@@ -75,16 +76,16 @@ public class TPCDSMetadataHandlerTest
     private BlockAllocator allocator;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
             throws Exception
     {
-        handler = new TPCDSMetadataHandler(new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix");
+        handler = new TPCDSMetadataHandler(new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
     }
 
@@ -134,7 +135,7 @@ public class TPCDSMetadataHandlerTest
         GetTableRequest req = new GetTableRequest(identity,
                 "queryId",
                 "default",
-                new TableName(expectedSchema, "customer"));
+                new TableName(expectedSchema, "customer"), Collections.emptyMap());
 
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {} {}", res.getTableName(), res.getSchema());
@@ -159,7 +160,7 @@ public class TPCDSMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName("tpcds1", "customer"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 schema,
                 Collections.EMPTY_SET);
 
@@ -191,7 +192,7 @@ public class TPCDSMetadataHandlerTest
                 new TableName("tpcds1", "customer"),
                 partitions,
                 Collections.EMPTY_LIST,
-                new Constraints(new HashMap<>()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 continuationToken);
 
         int numContinuations = 0;

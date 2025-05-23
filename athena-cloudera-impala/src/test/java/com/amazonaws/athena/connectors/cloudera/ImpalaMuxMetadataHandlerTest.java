@@ -43,8 +43,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -54,8 +54,8 @@ public class ImpalaMuxMetadataHandlerTest
     private ImpalaMetadataHandler impalaMetadataHandler;
     private JdbcMetadataHandler jdbcMetadataHandler;
     private BlockAllocator allocator;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
     @BeforeClass
@@ -68,13 +68,13 @@ public class ImpalaMuxMetadataHandlerTest
         this.allocator = new BlockAllocatorImpl();
         this.impalaMetadataHandler = Mockito.mock(ImpalaMetadataHandler.class);
         this.metadataHandlerMap = Collections.singletonMap("metaImpala", this.impalaMetadataHandler);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ImpalaConstants.IMPALA_NAME,
                 "impala://jdbc:impala://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new ImpalaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig);
+        this.jdbcMetadataHandler = new ImpalaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
@@ -117,7 +117,7 @@ public class ImpalaMuxMetadataHandlerTest
                 "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
         try {
             new ImpalaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory,
-                    metadataHandlersMap, databaseConnectionConfig);
+                    metadataHandlersMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
         } catch (Exception e) {
             e.getMessage();
             Assert.assertTrue(e.getMessage().contains("Max 100 catalogs supported in multiplexer."));

@@ -21,12 +21,16 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  */
 
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -48,11 +52,11 @@ public class GlueFieldLexer
 
     private static final String MAP = "map";
 
-    private static final Set<String> LIST_EQUIVALENTS = Set.of("array", "set");
+    private static final Set<String> LIST_EQUIVALENTS = ImmutableSet.of("array", "set");
 
     private static final BaseTypeMapper DEFAULT_TYPE_MAPPER = (String type) -> DefaultGlueType.toArrowType(type);
 
-    public static final boolean MAP_DISABLED = true;
+    public static final boolean MAP_DISABLED = false;
 
     private GlueFieldLexer() {}
 
@@ -143,7 +147,7 @@ public class GlueFieldLexer
     private static Field parseMap(String name, GlueTypeParser.Token typeToken, GlueTypeParser parser, BaseTypeMapper mapper)
     {
         if (MAP_DISABLED) {
-            throw new RuntimeException("Map type is currently unsupported");
+            throw new AthenaConnectorException("Map type is currently unsupported", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
 
         expectTokenMarkerIsFieldStart(typeToken);
@@ -159,17 +163,17 @@ public class GlueFieldLexer
 
         FieldType keyFieldTypeNotNullable = new FieldType(false, keyType.getType(), keyType.getDictionary(), keyType.getMetadata());
         Field keyFieldNotNullable = new Field(keyType.getName(), keyFieldTypeNotNullable, keyType.getChildren());
-
+      
         return FieldBuilder.newBuilder(name, new ArrowType.Map(false))
-             .addField("ENTRIES", Types.MinorType.STRUCT.getType(), false,
-                  Arrays.asList(keyFieldNotNullable, valueType))
-             .build();
+            .addField("entries", Types.MinorType.STRUCT.getType(), false,
+                Arrays.asList(keyFieldNotNullable, valueType))
+            .build();
     }
 
     private static void expectTokenMarkerIsFieldStart(GlueTypeParser.Token token)
     {
         if (token.getMarker() != GlueTypeParser.FIELD_START) {
-            throw new RuntimeException("Expected field start: but found " + token.toString());
+            throw new AthenaConnectorException("Expected field start: but found " + token.toString(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -179,7 +183,7 @@ public class GlueFieldLexer
               token.getMarker().equals(GlueTypeParser.FIELD_SEP) ||
               token.getMarker().equals(GlueTypeParser.FIELD_END));
         if (!isFieldEnd) {
-            throw new RuntimeException("Expected field ending but found: " + token.toString());
+            throw new AthenaConnectorException("Expected field ending but found: " + token.toString(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 }

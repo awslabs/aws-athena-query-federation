@@ -1,0 +1,100 @@
+{
+  "tables": [
+    {
+      "name": "store_sales",
+      "primary_key": [ "ss_item_sk","ss_ticket_number" ]
+    },
+    {
+      "name": "store_returns",
+      "primary_key": [ "sr_item_sk", "sr_ticket_number" ]
+    },
+    {
+      "name": "catalog_sales",
+      "primary_key": [ "cs_item_sk", "cs_order_number" ]
+    },
+    {
+      "name": "catalog_returns",
+      "primary_key": [ "cr_item_sk", "cr_order_number" ]
+    },
+    {
+      "name": "web_sales",
+      "primary_key": [ "ws_item_sk", "ws_order_number" ]
+    },
+    {
+      "name": "web_returns",
+      "primary_key": [ "wr_order_number", "wr_item_sk" ]
+    },
+    {
+      "name": "inventory",
+      "primary_key": [ "inv_item_sk", "inv_warehouse_sk" ]
+    },
+    {
+      "name": "store",
+      "primary_key": [ "s_store_sk" ]
+    },
+    {
+      "name": "call_center",
+      "primary_key": [ "cc_call_center_sk" ]
+    },
+    {
+      "name": "catalog_page",
+      "primary_key": [ "cp_catalog_page_sk" ]
+    },
+    {
+      "name": "web_site",
+      "primary_key": [ "web_site_sk" ]
+    },
+    {
+      "name": "web_page",
+      "primary_key": [ "wp_web_page_sk" ]
+    },
+    {
+      "name": "warehouse",
+      "primary_key": [ "w_warehouse_sk" ]
+    },
+    {
+      "name": "customer",
+      "primary_key": [ "c_customer_sk" ]
+    },
+    {
+      "name": "customer_address",
+      "primary_key": [ "ca_address_sk" ]
+    },
+    {
+      "name": "customer_demographics",
+      "primary_key": [ "cd_demo_sk" ]
+    },
+    {
+      "name": "date_dim",
+      "primary_key": [ "d_date_sk" ]
+    },
+    {
+      "name": "household_demographics",
+      "primary_key": [ "hd_demo_sk" ]
+    },
+    {
+      "name": "item",
+      "primary_key": [ "i_item_sk" ]
+    },
+    {
+      "name": "income_band",
+      "primary_key": [ "ib_income_band_sk" ]
+    },
+    {
+      "name": "promotion",
+      "primary_key": [ "p_promo_sk" ]
+    },
+    {
+      "name": "reason",
+      "primary_key": [ "r_reason_sk" ]
+    },
+    {
+      "name": "ship_mode",
+      "primary_key": [ "sm_ship_mode_sk" ]
+    },
+    {
+      "name": "time_dim",
+      "primary_key": [ "t_time_sk" ]
+    }
+  ]
+}

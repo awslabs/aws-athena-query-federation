@@ -85,6 +85,12 @@ public class GcsConstants
     public static final String GCS_LOCATION_PREFIX = "gs://";
 
     /**
+     * GCS file format
+     * For example, PARQUET, CSV, etc.
+     */
+    public static final String FILE_FORMAT = "gcs_file_format";
+
+    /**
      * default private constructor to prevent code-coverage util to consider a constructor for covering
      */
     private GcsConstants()

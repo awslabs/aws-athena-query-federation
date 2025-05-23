@@ -1,4 +1,3 @@
-
 /*-
  * #%L
  * athena-google-bigquery
@@ -20,15 +19,16 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -43,16 +43,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Utilities that help with Sql operations.
  */
 public class BigQuerySqlUtils
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BigQuerySqlUtils.class);
 
     private static final String BIGQUERY_QUOTE_CHAR = "`";
 
@@ -67,15 +67,14 @@ public class BigQuerySqlUtils
      * @param tableName The table name of the table we are querying.
      * @param schema The schema of the table that we are querying.
      * @param constraints The constraints that we want to apply to the query.
-     * @param split The split information to add as a constraint.
      * @param parameterValues Query parameter values for parameterized query.
      * @return SQL Statement that represents the table, columns, split, and constraints.
      */
-    public static String buildSqlFromSplit(TableName tableName, Schema schema, Constraints constraints, Split split, List<QueryParameterValue> parameterValues)
+    public static String buildSql(TableName tableName, Schema schema, Constraints constraints, List<QueryParameterValue> parameterValues)
     {
-        LOGGER.info("Inside buildSqlFromSplit(): ");
+        LOGGER.info("Inside buildSql(): ");
         StringBuilder sqlBuilder = new StringBuilder("SELECT ");
-        Map<String, String> limitAndOffsets = split.getProperties();
+
         StringJoiner sj = new StringJoiner(",");
         if (schema.getFields().isEmpty()) {
             sj.add("null");
@@ -86,27 +85,29 @@ public class BigQuerySqlUtils
             }
         }
         sqlBuilder.append(sj.toString())
-            .append(" from ")
-            .append(quote(tableName.getSchemaName()))
-            .append(".")
-            .append(quote(tableName.getTableName()));
+                .append(" from ")
+                .append(quote(tableName.getSchemaName()))
+                .append(".")
+                .append(quote(tableName.getTableName()));
 
         LOGGER.info("constraints: " + constraints);
-        List<String> clauses = toConjuncts(schema.getFields(), constraints, split.getProperties(), parameterValues);
+        List<String> clauses = toConjuncts(schema.getFields(), constraints, parameterValues);
 
         if (!clauses.isEmpty()) {
             sqlBuilder.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
         }
 
-        if (limitAndOffsets.size() > 0) {
-            for (Map.Entry<String, String> entry : limitAndOffsets.entrySet()) {
-                LOGGER.info("entry.getValue())" + entry.getValue());
-                LOGGER.info("entry.getKey()" + entry.getKey());
-                sqlBuilder.append(" limit " + entry.getKey() + " offset " + entry.getValue());
-            }
+        String orderByClause = extractOrderByClause(constraints);
+        if (!Strings.isNullOrEmpty(orderByClause)) {
+            sqlBuilder.append(" ").append(orderByClause);
         }
 
+        if (constraints.getLimit() > 0) {
+            sqlBuilder.append(" limit " + constraints.getLimit());
+        }
+
+        LOGGER.info("Generated SQL : {}", sqlBuilder.toString());
         return sqlBuilder.toString();
     }
 
@@ -115,14 +116,11 @@ public class BigQuerySqlUtils
         return BIGQUERY_QUOTE_CHAR + identifier + BIGQUERY_QUOTE_CHAR;
     }
 
-    private static List<String> toConjuncts(List<Field> columns, Constraints constraints, Map<String, String> partitionSplit, List<QueryParameterValue> parameterValues)
+    private static List<String> toConjuncts(List<Field> columns, Constraints constraints, List<QueryParameterValue> parameterValues)
     {
-        LOGGER.info("Inside toConjuncts(): ");
+        LOGGER.debug("Inside toConjuncts(): ");
         ImmutableList.Builder<String> builder = ImmutableList.builder();
         for (Field column : columns) {
-            if (partitionSplit.containsKey(column.getName())) {
-                continue; // Ignore constraints on partition name as RDBMS does not contain these as columns. Presto will filter these values.
-            }
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
@@ -132,6 +130,7 @@ public class BigQuerySqlUtils
                 }
             }
         }
+        builder.addAll(new BigQueryFederationExpressionParser().parseComplexExpressions(columns, constraints));
         return builder.build();
     }
 
@@ -211,7 +210,7 @@ public class BigQuerySqlUtils
     }
 
     private static String toPredicate(String columnName, String operator, Object value, ArrowType type,
-            List<QueryParameterValue> parameterValues)
+                                      List<QueryParameterValue> parameterValues)
     {
         parameterValues.add(getValueForWhereClause(columnName, value, type));
         return quote(columnName) + " " + operator + " ?";
@@ -270,7 +269,27 @@ public class BigQuerySqlUtils
                 throw new UnsupportedOperationException("The Arrow type: " + arrowType.getTypeID().name() + " is currently not supported");
             default:
                 throw new IllegalArgumentException("Unknown type has been encountered during range processing: " + columnName +
-                    " Field Type: " + arrowType.getTypeID().name());
+                        " Field Type: " + arrowType.getTypeID().name());
         }
+    }
+
+    /**
+     * Based on com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder.extractOrderByClause() method
+     * @param constraints
+     * @return a string representing ORDER BY clause or an empty string if there is no ORDER BY clause
+     */
+    private static String extractOrderByClause(Constraints constraints)
+    {
+        List<OrderByField> orderByClause = constraints.getOrderByClause();
+        if (orderByClause == null || orderByClause.size() == 0) {
+            return "";
+        }
+        return "ORDER BY " + orderByClause.stream()
+                .map(orderByField -> {
+                    String ordering = orderByField.getDirection().isAscending() ? "ASC" : "DESC";
+                    String nullsHandling = orderByField.getDirection().isNullsFirst() ? "NULLS FIRST" : "NULLS LAST";
+                    return quote(orderByField.getColumnName()) + " " + ordering + " " + nullsHandling;
+                })
+                .collect(Collectors.joining(", "));
     }
 }

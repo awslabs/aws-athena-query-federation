@@ -29,6 +29,8 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -39,15 +41,13 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
 import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.redis.qpt.RedisQueryPassthrough;
+import com.google.common.collect.ImmutableMap;
 import io.lettuce.core.KeyScanCursor;
 import io.lettuce.core.Range;
 import io.lettuce.core.ScanArgs;
@@ -59,13 +59,20 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static io.lettuce.core.ScanCursor.INITIAL;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Handles metadata requests for the Athena Redis Connector using Glue for schema.
@@ -92,6 +99,14 @@ public class RedisMetadataHandler
     protected static final String SPLIT_START_INDEX = "start-index";
     protected static final String SPLIT_END_INDEX = "end-index";
 
+    //The name of the column added for Query Passthrough requests
+    protected static final String QPT_COLUMN_NAME = "_value_";
+    //The names of the lambda environment variables used for QPT connections
+    protected static final String QPT_ENDPOINT_ENV_VAR = "qpt_endpoint";
+    protected static final String QPT_SSL_ENV_VAR = "qpt_ssl";
+    protected static final String QPT_CLUSTER_ENV_VAR = "qpt_cluster";
+    protected static final String QPT_DB_NUMBER_ENV_VAR = "qpt_db_number";
+
     //Defines the table property name used to set the Redis Key Type for the table. (e.g. prefix, zset)
     protected static final String KEY_TYPE = "redis-key-type";
     //Defines the table property name used to set the Redis value type for the table. (e.g. liternal, zset, hash)
@@ -117,32 +132,46 @@ public class RedisMetadataHandler
     public static final String DEFAULT_REDIS_DB_NUMBER = "0";
 
     //Used to filter out Glue tables which lack a redis endpoint.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(REDIS_ENDPOINT_PROP);
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.parameters().containsKey(REDIS_ENDPOINT_PROP);
     //Used to filter out Glue databases which lack the REDIS_DB_FLAG in the URI.
-    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(REDIS_DB_FLAG));
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.locationUri() != null && database.locationUri().contains(REDIS_DB_FLAG));
 
-    private final AWSGlue awsGlue;
+    private final GlueClient awsGlue;
     private final RedisConnectionFactory redisConnectionFactory;
 
-    public RedisMetadataHandler()
+    private final RedisQueryPassthrough queryPassthrough = new RedisQueryPassthrough();
+
+    public RedisMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(false, SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
+        requireNonNull(this.awsGlue);
         this.redisConnectionFactory = new RedisConnectionFactory();
     }
 
     @VisibleForTesting
-    protected RedisMetadataHandler(AWSGlue awsGlue,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            RedisConnectionFactory redisConnectionFactory,
-            String spillBucket,
-            String spillPrefix)
+    protected RedisMetadataHandler(
+        GlueClient awsGlue,
+        EncryptionKeyFactory keyFactory,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
+        RedisConnectionFactory redisConnectionFactory,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
         this.redisConnectionFactory = redisConnectionFactory;
+    }
+    
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     /**
@@ -202,6 +231,27 @@ public class RedisMetadataHandler
         schemaBuilder.addField(KEY_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
 
         return new GetTableResponse(response.getCatalogName(), response.getTableName(), schemaBuilder.build());
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+        }
+        Map<String, String> queryPassthroughArgs = request.getQueryPassthroughArguments();
+        queryPassthrough.verify(queryPassthroughArgs);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(QPT_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
+        schemaBuilder.addMetadata(VALUE_TYPE_TABLE_PROP, "literal");
+        schemaBuilder.addMetadata(KEY_PREFIX_TABLE_PROP, "*");
+        schemaBuilder.addMetadata(REDIS_SSL_FLAG, configOptions.get(QPT_SSL_ENV_VAR));
+        schemaBuilder.addMetadata(REDIS_ENDPOINT_PROP, configOptions.get(QPT_ENDPOINT_ENV_VAR));
+        schemaBuilder.addMetadata(REDIS_CLUSTER_FLAG, configOptions.get(QPT_CLUSTER_ENV_VAR));
+        schemaBuilder.addMetadata(REDIS_DB_NUMBER, configOptions.get(QPT_DB_NUMBER_ENV_VAR));
+
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schemaBuilder.build());
     }
 
     @Override

@@ -34,18 +34,18 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -77,17 +77,17 @@ public class ExampleRecordHandler
      */
     private static final String SOURCE_TYPE = "example";
 
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
 
-    public ExampleRecordHandler()
+    public ExampleRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient());
+        this(S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(), configOptions);
     }
 
     @VisibleForTesting
-    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    protected ExampleRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient amazonAthena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
     }
 
@@ -131,7 +131,7 @@ public class ExampleRecordHandler
         /**
          * TODO: Get the data bucket from the env variable set by athena-example.yaml
          *
-         dataBucket = System.getenv("data_bucket");
+         dataBucket = configOptions.get("data_bucket");
          *
          */
 
@@ -146,8 +146,16 @@ public class ExampleRecordHandler
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
 
         /**
+         * Pushing down constraints is going to be very specific to your connector's means of communicating with
+         * your underlying data source. For example, you can see how JDBC source types handle this in the class
+         * JdbcSplitQueryBuilder in method buildSql.
+         * 
+         * In this example, we do not ask you to implement any pushdowns as it is going to be very connector specific.
+         */
+
+        /**
          * TODO: Add extractors for each field to our RowWRiterBuilder, the RowWriterBuilder will then 'generate'
-         * optomized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
+         * optimized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
          * branches, etc... Later in the code when we call RowWriter for each line in our S3 file
          *
          builder.withExtractor("year", (IntExtractor) (Object context, NullableIntHolder value) -> {
@@ -222,10 +230,13 @@ public class ExampleRecordHandler
     private BufferedReader openS3File(String bucket, String key)
     {
         logger.info("openS3File: opening file " + bucket + ":" + key);
-        if (amazonS3.doesObjectExist(bucket, key)) {
-            S3Object obj = amazonS3.getObject(bucket, key);
+        try {
+            ResponseInputStream<GetObjectResponse> responseStream = amazonS3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build());
             logger.info("openS3File: opened file " + bucket + ":" + key);
-            return new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+            return new BufferedReader(new InputStreamReader(responseStream));
+        }
+        catch (NoSuchKeyException e) {
+            logger.error("openS3File: failed to open file " + bucket + ":" + key, e);
         }
         return null;
     }

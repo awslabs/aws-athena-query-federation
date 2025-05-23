@@ -24,6 +24,8 @@ public final class SynapseConstants
     public static final String NAME = "synapse";
     public static final String DRIVER_CLASS = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     public static final int DEFAULT_PORT = 1433;
+    public static final String QUOTE_CHARACTER = "\"";
+    public static final String SQL_POOL = "azureServerless";
 
     private SynapseConstants() {}
 }

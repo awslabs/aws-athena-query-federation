@@ -26,8 +26,11 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -37,142 +40,183 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableResult;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.translateToArrowType;
+import static com.google.cloud.bigquery.JobStatistics.QueryStatistics.StatementType.SELECT;
 
 public class BigQueryMetadataHandler
     extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
+    private final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID) != null ?
+            configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase() : null;
 
-    BigQueryMetadataHandler()
+    private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
+
+    BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(BigQueryConstants.SOURCE_TYPE);
+        super(BigQueryConstants.SOURCE_TYPE, configOptions);
     }
 
     @Override
-    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
-        try {
-            logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+                FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
+                TopNPushdownSubType.SUPPORTS_ORDER_BY
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+                LimitPushdownSubType.INTEGER_CONSTANT
+        ));
 
-            final List<String> schemas = new ArrayList<>();
-            final String projectName = BigQueryUtils.getProjectName(listSchemasRequest);
-            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(projectName);
-            Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
-            if (response == null) {
-                logger.info("Dataset does not contain any models: {}");
-            }
-            else {
-                do {
-                    for (Dataset dataset : response.iterateAll()) {
-                        if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
-                            throw new BigQueryExceptions.TooManyTablesException();
-                        }
-                        schemas.add(dataset.getDatasetId().getDataset().toLowerCase());
-                        logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
-                    }
-                } while (response.hasNextPage());
-            }
-
-            logger.info("Found {} schemas!", schemas.size());
-
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
-        }
-        catch
-        (Exception e) {
-            logger.error("Error: ", e);
-        }
-        return null;
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     @Override
-    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest) throws IOException
     {
-        try {
-            logger.info("doListTables called with request {}:{}", listTablesRequest.getCatalogName(),
-                    listTablesRequest.getSchemaName());
-            //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
-            String nextToken = null;
-            final String projectName = BigQueryUtils.getProjectName(listTablesRequest);
-            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(projectName);
-            final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
-            final DatasetId datasetId = DatasetId.of(projectName, datasetName);
-            List<TableName> tables = new ArrayList<>();
-            if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
-                Page<Table> response = bigQuery.listTables(datasetId);
-                for (Table table : response.iterateAll()) {
-                    if (tables.size() > BigQueryConstants.MAX_RESULTS) {
+        logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
+
+        final List<String> schemas = new ArrayList<>();
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
+        if (response == null) {
+            logger.info("Dataset does not contain any models");
+        }
+        else {
+            do {
+                for (Dataset dataset : response.iterateAll()) {
+                    if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
                         throw new BigQueryExceptions.TooManyTablesException();
                     }
-                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
+                    schemas.add(dataset.getDatasetId().getDataset().toLowerCase());
+                    logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
                 }
-            }
-            else {
-                Page<Table> response = bigQuery.listTables(datasetId,
-                        BigQuery.TableListOption.pageToken(listTablesRequest.getNextToken()), BigQuery.TableListOption.pageSize(listTablesRequest.getPageSize()));
-                for (Table table : response.getValues()) {
-                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
+            } while (response.hasNextPage());
+        }
+
+        logger.info("Found {} schemas!", schemas.size());
+
+        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
+    }
+
+    @Override
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest) throws IOException
+    {
+        logger.info("doListTables called with request {}:{}", listTablesRequest.getCatalogName(),
+                listTablesRequest.getSchemaName());
+        //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
+        String nextToken = null;
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
+        final DatasetId datasetId = DatasetId.of(projectName, datasetName);
+        List<TableName> tables = new ArrayList<>();
+        if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
+            Page<Table> response = bigQuery.listTables(datasetId);
+            for (Table table : response.iterateAll()) {
+                if (tables.size() > BigQueryConstants.MAX_RESULTS) {
+                    throw new BigQueryExceptions.TooManyTablesException();
                 }
-                nextToken = response.getNextPageToken();
+                tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
             }
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
         }
-        catch
-        (Exception e) {
-            logger.error("Error:", e);
+        else {
+            Page<Table> response = bigQuery.listTables(datasetId,
+                    BigQuery.TableListOption.pageToken(listTablesRequest.getNextToken()), BigQuery.TableListOption.pageSize(listTablesRequest.getPageSize()));
+            for (Table table : response.getValues()) {
+                tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
+            }
+            nextToken = response.getNextPageToken();
         }
-        return null;
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
     }
 
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest) throws java.io.IOException
     {
-        logger.info("doGetTable called with request {}:{}", BigQueryUtils.getProjectName(getTableRequest),
-                getTableRequest.getTableName());
-
-        final Schema tableSchema = getSchema(BigQueryUtils.getProjectName(getTableRequest), getTableRequest.getTableName().getSchemaName(),
+        logger.info("doGetTable called with request {}. Resolved projectName: {}", getTableRequest.getCatalogName(), projectName);
+        final Schema tableSchema = getSchema(getTableRequest.getTableName().getSchemaName(),
                 getTableRequest.getTableName().getTableName());
-        return new GetTableResponse(BigQueryUtils.getProjectName(getTableRequest).toLowerCase(),
-                getTableRequest.getTableName(), tableSchema);
+        return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), tableSchema);
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        if (!request.isQueryPassthrough()) {
+            throw new IllegalArgumentException("No Query passed through [{}]" + request);
+        }
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String query = request.getQueryPassthroughArguments().get(BigQueryQueryPassthrough.QUERY);
+        BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+        QueryJobConfiguration queryConfig =
+                QueryJobConfiguration.newBuilder(query).setDryRun(true).setUseQueryCache(false).build();
+
+        Job job = bigquery.create(JobInfo.of(queryConfig));
+        JobStatistics.QueryStatistics statistics = job.getStatistics();
+        if (!statistics.getStatementType().equals(SELECT)) {
+            throw new IllegalArgumentException("Unsupported statement type: " + statistics.getStatementType());
+        }
+        com.google.cloud.bigquery.Schema bigQuerySchema = statistics.getSchema();
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        List<String> timeStampColsList = new ArrayList<>();
+
+        convertBigQuerySchema(bigQuerySchema, timeStampColsList, schemaBuilder);
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schemaBuilder.build());
     }
 
     /**
-     *
      * Currently not supporting Partitions since Bigquery having quota limits with triggering concurrent queries and having bit complexity to extract and use the partitions
      * in the query instead we are using limit and offset for non constraints query with basic concurrency limit
      */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
-            throws Exception
     {
         //NoOp since we don't support partitioning at this time.
     }
@@ -180,88 +224,73 @@ public class BigQueryMetadataHandler
     /**
      * Making minimum(10) splits based on constraints. Since without constraints query may give lambda timeout if table has large data,
      * concurrencyLimit is configurable and it can be changed based on Google BigQuery Quota Limits.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request Provides details of the catalog, database, table, and partition(s) being queried as well as
-     * any filter predicate.
-     * @return
-     * @throws IOException
-     * @throws InterruptedException
+     * @param request   Provides details of the catalog, database, table, and partition(s) being queried as well as
+     *                  any filter predicate.
+     * @return GetSplitsResponse
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException, InterruptedException
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
-        int constraintsSize = request.getConstraints().getSummary().size();
-        if (constraintsSize > 0) {
-            //Every split must have a unique location if we wish to spill to avoid failures
-            SpillLocation spillLocation = makeSpillLocation(request);
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
 
-            return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
-                    makeEncryptionKey()).build());
-        }
-        else {
-            String projectName = BigQueryUtils.getProjectName(request);
-            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(projectName);
-            String dataSetName = fixCaseForDatasetName(projectName, request.getTableName().getSchemaName(), bigQuery);
-            String tableName = fixCaseForTableName(projectName, dataSetName, request.getTableName().getTableName(), bigQuery);
-            QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder("SELECT count(*) FROM `" + projectName + "." + dataSetName + "." + tableName + "` ").setUseLegacySql(false).build();
-            // Create a job ID so that we can safely retry.
-            JobId jobId = JobId.of(UUID.randomUUID().toString());
-            Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build()).waitFor();
-            TableResult result = queryJob.getQueryResults();
-
-            double numberOfRows = result.iterateAll().iterator().next().get(0).getLongValue();
-            logger.debug("numberOfRows: " + numberOfRows);
-            int concurrencyLimit = Integer.parseInt(BigQueryUtils.getEnvVar("concurrencyLimit"));
-            logger.debug("concurrencyLimit: " + numberOfRows);
-            long pageCount = (long) numberOfRows / concurrencyLimit;
-            long totalPageCountLimit = (pageCount == 0) ? (long) numberOfRows : pageCount;
-            double limit = (int) Math.ceil(numberOfRows / totalPageCountLimit);
-            Set<Split> splits = new HashSet<>();
-            long offSet = 0;
-
-            for (int i = 1; i <= limit; i++) {
-                if (i > 1) {
-                    offSet = offSet + totalPageCountLimit;
-                }
-                // Every split must have a unique location if we wish to spill to avoid failures
-                SpillLocation spillLocation = makeSpillLocation(request);
-                // Create a new split (added to the splits set) that includes the domain and endpoint, and
-                // shard information (to be used later by the Record Handler).
-                Map<String, String> map = new HashMap<>();
-                map.put(Long.toString(totalPageCountLimit), Long.toString(offSet));
-                splits.add(new Split(spillLocation, makeEncryptionKey(), map));
-            }
-            return new GetSplitsResponse(request.getCatalogName(), splits);
-        }
+        return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
+                makeEncryptionKey()).build());
     }
 
     /**
      * Getting Bigquery table schema details
-     * @param projectName
+     *
      * @param datasetName
      * @param tableName
-     * @return
+     * @return Schema
      */
-    private Schema getSchema(String projectName, String datasetName, String tableName) throws java.io.IOException
+    private Schema getSchema(String datasetName, String tableName) throws java.io.IOException
     {
-        Schema schema = null;
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(projectName);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
         datasetName = fixCaseForDatasetName(projectName, datasetName, bigQuery);
         tableName = fixCaseForTableName(projectName, datasetName, tableName, bigQuery);
+
         TableId tableId = TableId.of(projectName, datasetName, tableName);
         Table response = bigQuery.getTable(tableId);
         TableDefinition tableDefinition = response.getDefinition();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         List<String> timeStampColsList = new ArrayList<>();
 
-        for (Field field : tableDefinition.getSchema().getFields()) {
-            if (field.getType().getStandardType().toString().equals("TIMESTAMP")) {
-                timeStampColsList.add(field.getName());
-            }
-            schemaBuilder.addField(field.getName(), translateToArrowType(field.getType()));
-        }
+        convertBigQuerySchema(tableDefinition.getSchema(), timeStampColsList, schemaBuilder);
         schemaBuilder.addMetadata("timeStampCols", timeStampColsList.toString());
         logger.debug("BigQuery table schema {}", schemaBuilder.toString());
         return schemaBuilder.build();
+    }
+
+    /**
+     * Responsible for converting BigQuery Schema to schema builder
+     * @param bigQuerySchema
+     * @param timeStampColsList
+     * @param schemaBuilder
+     */
+    private void convertBigQuerySchema(com.google.cloud.bigquery.Schema bigQuerySchema, List<String> timeStampColsList, SchemaBuilder schemaBuilder)
+    {
+        for (Field field : bigQuerySchema.getFields()) {
+            if (field.getType().getStandardType().toString().equals("TIMESTAMP")) {
+                timeStampColsList.add(field.getName());
+            }
+            if (null != field.getMode() && field.getMode().name().equals("REPEATED")) {
+                if (field.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
+                    schemaBuilder.addField(field.getName(), Types.MinorType.LIST.getType(), ImmutableList.of(new org.apache.arrow.vector.types.pojo.Field(field.getName(), FieldType.nullable(Types.MinorType.STRUCT.getType()), BigQueryUtils.getChildFieldList(field))));
+                }
+                else {
+                    schemaBuilder.addField(field.getName(), Types.MinorType.LIST.getType(), BigQueryUtils.getChildFieldList(field));
+                }
+            }
+            else if (field.getType().getStandardType().name().equalsIgnoreCase("Struct")) {
+                schemaBuilder.addField(field.getName(), Types.MinorType.STRUCT.getType(), BigQueryUtils.getChildFieldList(field));
+            }
+            else {
+                schemaBuilder.addField(field.getName(), translateToArrowType(field.getType()));
+            }
+        }
     }
 }

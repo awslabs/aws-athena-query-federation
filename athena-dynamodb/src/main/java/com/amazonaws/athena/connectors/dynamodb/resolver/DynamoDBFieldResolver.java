@@ -20,12 +20,15 @@
 package com.amazonaws.athena.connectors.dynamodb.resolver;
 
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Map;
 
@@ -86,8 +89,8 @@ public class DynamoDBFieldResolver
                 return DDBTypeUtils.coerceValueToExpectedType(fieldValue, field, fieldType, metadata);
         }
 
-        throw new RuntimeException("Invalid field value encountered in DB record for field: " + field +
-                ",value: " + fieldValue);
+        throw new AthenaConnectorException("Invalid field value encountered in DB record for field: " + field +
+                ",value: " + fieldValue, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
     }
 
     // Return the field value of a map key

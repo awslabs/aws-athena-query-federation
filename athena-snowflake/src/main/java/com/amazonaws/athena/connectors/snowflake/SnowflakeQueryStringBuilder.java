@@ -21,6 +21,7 @@
 package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
@@ -37,9 +38,9 @@ public class SnowflakeQueryStringBuilder
 {
     private static final String EMPTY_STRING = "";
 
-    public SnowflakeQueryStringBuilder(final String quoteCharacters)
+    public SnowflakeQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, federationExpressionParser);
     }
 
     @Override
@@ -71,17 +72,24 @@ public class SnowflakeQueryStringBuilder
     @Override
     protected String appendLimitOffset(Split split)
     {
+        String primaryKey = "";
         String xLimit = "";
         String xOffset = "";
-        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next()); //p-limit-3000-offset-0
+        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next()); //p-primary-<PRIMARYKEY>-limit-3000-offset-0
         if (!partitionVal.contains("-")) {
             return EMPTY_STRING;
         }
         else {
             String[] arr = partitionVal.split("-");
-            xLimit = arr[2];
-            xOffset = arr[4];
+            primaryKey = arr[2];
+            xLimit = arr[4];
+            xOffset = arr[6];
         }
-        return " limit " + xLimit + " offset " + xOffset;
+
+        // if no primary key, single split only
+        if (primaryKey.equals("")) {
+            return "";
+        }
+        return "ORDER BY " + primaryKey + " limit " + xLimit + " offset " + xOffset;
     }
 }

@@ -35,6 +35,6 @@ public class SnowflakeCompositeHandler
 {
     public SnowflakeCompositeHandler()
     {
-        super(new SnowflakeMetadataHandler(), new SnowflakeRecordHandler());
+        super(new SnowflakeMetadataHandler(new SnowflakeEnvironmentProperties().createEnvironment()), new SnowflakeRecordHandler(new SnowflakeEnvironmentProperties().createEnvironment()));
     }
 }

@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -31,6 +32,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +54,7 @@ public class BlockAllocatorImpl
     private final String id;
     //The Apache Arrow Buffer Allocator that we are wrapping with reference counting and clean up.
     private final BufferAllocator rootAllocator;
+    private final boolean ownRootAllocator;
     //The Blocks that have been allocated via this BlockAllocator
     private final List<Block> blocks = new ArrayList<>();
     //The record batches that have been allocated via this BlockAllocator
@@ -69,6 +73,14 @@ public class BlockAllocatorImpl
     }
 
     /**
+     * Default constructor that takes in a shared RootAllocator
+     */
+    public BlockAllocatorImpl(RootAllocator rootAllocator)
+    {
+        this(UUID.randomUUID().toString(), rootAllocator);
+    }
+
+    /**
      * Constructs a BlockAllocatorImpl with the given id.
      *
      * @param id The id used to identify this BlockAllocatorImpl
@@ -76,6 +88,19 @@ public class BlockAllocatorImpl
     public BlockAllocatorImpl(String id)
     {
         this(id, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Constructs a BlockAllocatorImpl with the given id and a shared RootAllocator
+     *
+     * @param id The id used to identify this BlockAllocatorImpl
+     * @param rootAllocator the shared RootAllocator
+     */
+    public BlockAllocatorImpl(String id, RootAllocator rootAllocator)
+    {
+        this.rootAllocator = rootAllocator;
+        this.ownRootAllocator = false;
+        this.id = id;
     }
 
     /**
@@ -87,6 +112,7 @@ public class BlockAllocatorImpl
     public BlockAllocatorImpl(String id, long memoryLimit)
     {
         this.rootAllocator = new RootAllocator(memoryLimit);
+        this.ownRootAllocator = true;
         this.id = id;
     }
 
@@ -174,7 +200,7 @@ public class BlockAllocatorImpl
             throw ex;
         }
         catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -270,7 +296,10 @@ public class BlockAllocatorImpl
             closeBatches();
             closeBlocks();
             closeBuffers();
-            rootAllocator.close();
+            // Do not close rootAllocators that we do not own
+            if (ownRootAllocator) {
+                rootAllocator.close();
+            }
         }
     }
 

@@ -19,61 +19,34 @@
  */
 package com.amazonaws.athena.connectors.gcs.filter;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.gcs.GcsTestUtils;
-import com.amazonaws.services.glue.model.Column;
-import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.glue.model.Column;
 
-import java.util.List;
+import java.util.Collections;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.anyString;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
-})
-@PrepareForTest({GcsTestUtils.class})
+@RunWith(MockitoJUnitRunner.class)
 public class FilterExpressionBuilderTest
 {
     @Test
     public void testGetExpressions()
     {
         Map<String, java.util.Optional<java.util.Set<String>>> result = FilterExpressionBuilder.getConstraintsForPartitionedColumns(
-            List.of(new Column().withName("year")),
-            new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), "1")));
+            com.google.common.collect.ImmutableList.of(Column.builder().name("year").build()),
+                new Constraints(GcsTestUtils.createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), "1"),
+                        Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()));
         assertEquals(result.size(), 1);
-        assertEquals(result.get("year").get(), java.util.Set.of("1"));
-        assertEquals(result.get("yeAr").get(), java.util.Set.of("1"));
+        assertEquals(result.get("year").get(), com.google.common.collect.ImmutableSet.of("1"));
+        assertEquals(result.get("yeAr").get(), com.google.common.collect.ImmutableSet.of("1"));
     }
 
-    public static Map<String, ValueSet> createSummaryWithLValueRangeEqual(String fieldName, ArrowType fieldType, Object fieldValue)
-    {
-        Block block = Mockito.mock(Block.class);
-        FieldReader fieldReader = Mockito.mock(FieldReader.class);
-        Mockito.when(fieldReader.getField()).thenReturn(Field.nullable(fieldName, fieldType));
 
-        Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-        Marker low = Marker.exactly(new BlockAllocatorImpl(), new ArrowType.Utf8(), fieldValue);
-        return Map.of(
-                fieldName, SortedRangeSet.of(false, new Range(low, low))
-        );
-    }
 }

@@ -25,13 +25,14 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.saphana.resolver.SaphanaJDBCCaseResolver;
 import org.apache.arrow.util.VisibleForTesting;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 
-class SnowflakeMetadataHandlerFactory
+class SaphanaMetadataHandlerFactory
         implements JdbcMetadataHandlerFactory
 {
     @Override
@@ -41,24 +42,24 @@ class SnowflakeMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new SaphanaMetadataHandler(config);
+        return new SaphanaMetadataHandler(config, configOptions);
     }
 }
 
 public class SaphanaMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public SaphanaMuxMetadataHandler()
+    public SaphanaMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new SnowflakeMetadataHandlerFactory());
+        super(new SaphanaMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected SaphanaMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                        final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected SaphanaMuxMetadataHandler(SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                      Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions, new SaphanaJDBCCaseResolver(SaphanaConstants.SAPHANA_NAME));
     }
 }

@@ -25,6 +25,7 @@ public final class TeradataConstants
     public static final String TERADATA_NAME = "teradata";
     public static final String TERADATA_DRIVER_CLASS = "com.teradata.jdbc.TeraDriver";
     public static final int TERADATA_DEFAULT_PORT = 1025;
+    public static final String TERADATA_QUOTE_CHARACTER = "\"";
 
     private TeradataConstants() {}
 }

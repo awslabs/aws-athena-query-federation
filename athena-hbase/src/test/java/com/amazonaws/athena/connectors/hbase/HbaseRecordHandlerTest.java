@@ -43,17 +43,6 @@ import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.connection.ResultProcessor;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
@@ -74,6 +63,15 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -90,6 +88,7 @@ import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.HBASE_C
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.REGION_ID_FIELD;
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.REGION_NAME_FIELD;
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.START_KEY_FIELD;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -105,7 +104,7 @@ public class HbaseRecordHandlerTest
     private HbaseRecordHandler handler;
     private BlockAllocator allocator;
     private List<ByteHolder> mockS3Storage = new ArrayList<>();
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
     private S3BlockSpillReader spillReader;
     private Schema schemaForRead;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
@@ -123,10 +122,10 @@ public class HbaseRecordHandlerTest
     private HbaseConnectionFactory mockConnFactory;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
@@ -138,38 +137,34 @@ public class HbaseRecordHandlerTest
 
         allocator = new BlockAllocatorImpl();
 
-        amazonS3 = mock(AmazonS3.class);
+        amazonS3 = mock(S3Client.class);
 
-        when(amazonS3.putObject(any()))
+        when(amazonS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
+                    InputStream inputStream = ((RequestBody) invocationOnMock.getArguments()[1]).contentStreamProvider().newStream();
                     ByteHolder byteHolder = new ByteHolder();
                     byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                     synchronized (mockS3Storage) {
                         mockS3Storage.add(byteHolder);
                         logger.info("puObject: total size " + mockS3Storage.size());
                     }
-                    return mock(PutObjectResult.class);
+                    return PutObjectResponse.builder().build();
                 });
 
-        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
+        when(amazonS3.getObject(any(GetObjectRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
                     synchronized (mockS3Storage) {
                         byteHolder = mockS3Storage.get(0);
                         mockS3Storage.remove(0);
                         logger.info("getObject: total size " + mockS3Storage.size());
                     }
-                    when(mockObject.getObjectContent()).thenReturn(
-                            new S3ObjectInputStream(
-                                    new ByteArrayInputStream(byteHolder.getBytes()), null));
-                    return mockObject;
+                    return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
                 });
 
         schemaForRead = TestUtils.makeSchema().addStringField(HbaseSchemaUtils.ROW_COLUMN_NAME).build();
 
-        handler = new HbaseRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockConnFactory);
+        handler = new HbaseRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockConnFactory, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
     }
 
@@ -217,7 +212,7 @@ public class HbaseRecordHandlerTest
                 new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForRead,
                 splitBuilder.build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -270,7 +265,7 @@ public class HbaseRecordHandlerTest
                 new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForRead,
                 splitBuilder.build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 1_500_000L, //~1.5MB so we should see some spill
                 0L
         );

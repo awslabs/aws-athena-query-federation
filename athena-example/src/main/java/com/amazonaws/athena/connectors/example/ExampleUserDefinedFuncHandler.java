@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.example;
 
 import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,11 +28,15 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Map;
+import java.util.Base64;
 
 public class ExampleUserDefinedFuncHandler
         extends UserDefinedFunctionHandler
@@ -41,6 +44,8 @@ public class ExampleUserDefinedFuncHandler
     private static final Logger logger = LoggerFactory.getLogger(ExampleUserDefinedFuncHandler.class);
 
     private static final String SOURCE_TYPE = "custom";
+    public static final int GCM_IV_LENGTH = 12;
+    public static final int GCM_TAG_LENGTH = 16;
 
     public ExampleUserDefinedFuncHandler()
     {
@@ -114,31 +119,61 @@ public class ExampleUserDefinedFuncHandler
     }
 
     /**
-     * This is an extremely POOR usage of AES-GCM and is only mean to illustrate how one could
+     * This usage of AES-GCM and is only meant to illustrate how one could
      * use a UDF for masking a field using encryption. In production scenarios we would recommend
      * using AWS KMS for Key Management and a strong cipher like AES-GCM.
      *
-     * @param text The text to decrypt.
+     * @param ciphertext The text to decrypt.
      * @param secretKey The password/key to use to decrypt the text.
      * @return The decrypted text.
      */
     @VisibleForTesting
-    protected String symmetricDecrypt(String text, String secretKey)
-            throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException,
-            IllegalBlockSizeException
+    public String symmetricDecrypt(String ciphertext, String secretKey)
     {
-        Cipher cipher;
-        String encryptedString;
-        byte[] encryptText;
-        byte[] raw;
-        SecretKeySpec skeySpec;
-        raw = Base64.decodeBase64(secretKey);
-        skeySpec = new SecretKeySpec(raw, "AES");
-        encryptText = Base64.decodeBase64(text);
-        cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.DECRYPT_MODE, skeySpec);
-        encryptedString = new String(cipher.doFinal(encryptText));
-        return encryptedString;
+        if (ciphertext == null) {
+            return null;
+        }
+        byte[] plaintextKey = Base64.getDecoder().decode(secretKey);
+
+        try {
+            byte[] encryptedContent = Base64.getDecoder().decode(ciphertext.getBytes());
+            // extract IV from first GCM_IV_LENGTH bytes of ciphertext
+            Cipher cipher = getCipher(Cipher.DECRYPT_MODE, plaintextKey, getGCMSpecDecryption(encryptedContent));
+            byte[] plainTextBytes = cipher.doFinal(encryptedContent, GCM_IV_LENGTH, encryptedContent.length - GCM_IV_LENGTH);
+            return new String(plainTextBytes);
+        }
+        catch (IllegalBlockSizeException | BadPaddingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static GCMParameterSpec getGCMSpecDecryption(byte[] encryptedText)
+    {
+        return new GCMParameterSpec(GCM_TAG_LENGTH * Byte.SIZE, encryptedText, 0, GCM_IV_LENGTH);
+    }
+
+    static GCMParameterSpec getGCMSpecEncryption()
+    {
+        byte[] iv = new byte[GCM_IV_LENGTH];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(iv);
+
+        return new GCMParameterSpec(GCM_TAG_LENGTH * Byte.SIZE, iv);
+    }
+
+    static Cipher getCipher(int cipherMode, byte[] plainTextDataKey, GCMParameterSpec gcmParameterSpec)
+    {
+        try {
+            Cipher cipher = Cipher.getInstance("AES_256/GCM/NoPadding");
+            SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKey, "AES");
+
+            cipher.init(cipherMode, skeySpec, gcmParameterSpec);
+            return cipher;
+        }
+        catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException |
+               InvalidAlgorithmParameterException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -151,7 +186,8 @@ public class ExampleUserDefinedFuncHandler
     @VisibleForTesting
     protected String getEncryptionKey()
     {
-        //must be exactly 24 chars or the KeySpec will fail. In general this is a poor, but simple, way to store the key.
-        return "AMzDLG4D039Km2IxIzQwfg==";
+        // The algorithm used requires 32 Byte Key! 
+        // Can be generated for testing using `openssl rand -base64 32`
+        return "i5YnyBO4gJKWuIQ+gjuJjcJ/5kUph9pmYFUbW7zf3PE=";
     }
 }

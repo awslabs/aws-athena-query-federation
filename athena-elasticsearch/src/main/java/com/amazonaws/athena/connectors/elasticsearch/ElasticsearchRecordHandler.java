@@ -24,31 +24,35 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -84,41 +88,35 @@ public class ElasticsearchRecordHandler
 
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
+    private final ElasticsearchQueryPassthrough queryPassthrough = new ElasticsearchQueryPassthrough();
 
-    public ElasticsearchRecordHandler()
+    public ElasticsearchRecordHandler(Map<String, String> configOptions)
     {
-        super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE);
+        super(S3Client.create(), SecretsManagerClient.create(),
+                AthenaClient.create(), SOURCE_TYPE, configOptions);
 
         this.typeUtils = new ElasticsearchTypeUtils();
-        this.clientFactory = new AwsRestHighLevelClientFactory(getEnv(AUTO_DISCOVER_ENDPOINT)
-                .equalsIgnoreCase("true"));
-        this.queryTimeout = Long.parseLong(getEnv(QUERY_TIMEOUT_SEARCH));
-        this.scrollTimeout = Strings.isNullOrEmpty(getEnv(SCROLL_TIMEOUT)) ? 60L : Long.parseLong(getEnv(SCROLL_TIMEOUT));
+        this.clientFactory = new AwsRestHighLevelClientFactory(configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true"));
+        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_SEARCH, "720"));
+        this.scrollTimeout = Long.parseLong(configOptions.getOrDefault(SCROLL_TIMEOUT, "60"));
     }
 
     @VisibleForTesting
-    protected ElasticsearchRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena,
-                                         AwsRestHighLevelClientFactory clientFactory, long queryTimeout, long scrollTimeout)
+    protected ElasticsearchRecordHandler(
+        S3Client amazonS3,
+        SecretsManagerClient secretsManager,
+        AthenaClient amazonAthena,
+        AwsRestHighLevelClientFactory clientFactory,
+        long queryTimeout,
+        long scrollTimeout,
+        Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = clientFactory;
         this.queryTimeout = queryTimeout;
         this.scrollTimeout = scrollTimeout;
-    }
-
-    /**
-     * Get an environment variable using System.getenv().
-     * @param var is the environment variable.
-     * @return the contents of the environment variable or an empty String if it's not defined.
-     */
-    protected final String getEnv(String var)
-    {
-        String result = System.getenv(var);
-
-        return result == null ? "" : result;
     }
 
     /**
@@ -141,18 +139,34 @@ public class ElasticsearchRecordHandler
                                       QueryStatusChecker queryStatusChecker)
             throws RuntimeException
     {
-        logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}",
-                recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
-                recordsRequest.getSchema());
+        String domain;
+        QueryBuilder query;
+        String index;
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            Map<String, String> qptArgs = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            queryPassthrough.verify(qptArgs);
+            domain = qptArgs.get(ElasticsearchQueryPassthrough.SCHEMA);
+            index = qptArgs.get(ElasticsearchQueryPassthrough.INDEX);
+            query = QueryBuilders.wrapperQuery(qptArgs.get(ElasticsearchQueryPassthrough.QUERY));
+        }
+        else {
+            domain = recordsRequest.getTableName().getSchemaName();
+            index = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.INDEX_KEY);
+            query = ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints());
+        }
 
-        String domain = recordsRequest.getTableName().getSchemaName();
         String endpoint = recordsRequest.getSplit().getProperty(domain);
-        String index = recordsRequest.getTableName().getTableName();
         String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
+        String username = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_USERNAME);
+        String password = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SECRET_PASSWORD);
+        boolean useSecret = StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
+        logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}, Query: {}",
+                domain, index,
+                recordsRequest.getSchema(), query);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
-            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
+            AwsRestHighLevelClient client = useSecret ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
             try {
                 // Create field extractors for all data types in the schema.
                 GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);
@@ -162,7 +176,7 @@ public class ElasticsearchRecordHandler
                         .size(QUERY_BATCH_SIZE)
                         .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
-                        .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
+                        .query(query);
 
                 //init scroll
                 Scroll scroll = new Scroll(TimeValue.timeValueSeconds(this.scrollTimeout));
@@ -190,7 +204,7 @@ public class ElasticsearchRecordHandler
                     SearchScrollRequest scrollRequest = new SearchScrollRequest(searchResponse.getScrollId()).scroll(scroll);
                     searchResponse = client.scroll(scrollRequest, RequestOptions.DEFAULT);
                     if (searchResponse.isTimedOut()) {
-                        throw new RuntimeException("Request for index (" + index + ") " + shard + " timed out.");
+                        throw new AthenaConnectorException("Request for index (" + index + ") " + shard + " timed out.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString()).build());
                     }
                 }
 
@@ -199,7 +213,7 @@ public class ElasticsearchRecordHandler
                 client.clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
             }
             catch (IOException error) {
-                throw new RuntimeException("Error sending search query: " + error.getMessage(), error);
+                throw new AthenaConnectorException("Error sending search query: " + error.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(error.getMessage()).build());
             }
         }
 

@@ -24,7 +24,10 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -36,13 +39,12 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -52,6 +54,10 @@ import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -95,37 +101,46 @@ public class HbaseMetadataHandler
     //is indeed enabled for use by this connector.
     private static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
     //Used to filter out Glue tables which lack HBase metadata flag.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
-    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
-    //metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV = "disable_glue";
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.parameters().containsKey(HBASE_METADATA_FLAG);
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
     //The number of rows to scan when attempting to infer schema from an HBase table.
     private static final int NUM_ROWS_TO_SCAN = 10;
-    private final AWSGlue awsGlue;
+    private final GlueClient awsGlue;
     private final HbaseConnectionFactory connectionFactory;
 
-    public HbaseMetadataHandler()
+    private final HbaseQueryPassthrough queryPassthrough = new HbaseQueryPassthrough();
+
+    public HbaseMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        //Disable Glue if the env var is present and not explicitly set to "false"
-        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
         this.connectionFactory = new HbaseConnectionFactory();
     }
 
     @VisibleForTesting
-    protected HbaseMetadataHandler(AWSGlue awsGlue,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            HbaseConnectionFactory connectionFactory,
-            String spillBucket,
-            String spillPrefix)
+    protected HbaseMetadataHandler(
+        GlueClient awsGlue,
+        EncryptionKeyFactory keyFactory,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
+        HbaseConnectionFactory connectionFactory,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
         this.connectionFactory = connectionFactory;
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     private HBaseConnection getOrCreateConn(MetadataRequest request)
@@ -140,11 +155,11 @@ public class HbaseMetadataHandler
      */
     private String getConnStr(MetadataRequest request)
     {
-        String conStr = System.getenv(request.getCatalogName());
+        String conStr = configOptions.get(request.getCatalogName());
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
                     request.getCatalogName(), DEFAULT_HBASE);
-            conStr = System.getenv(DEFAULT_HBASE);
+            conStr = configOptions.get(DEFAULT_HBASE);
         }
         return conStr;
     }
@@ -212,9 +227,20 @@ public class HbaseMetadataHandler
                     request.getTableName().getTableName(),
                     ex);
         }
+        String schemaName = request.getTableName().getSchemaName();
+        String tableName = request.getTableName().getTableName();
+        com.amazonaws.athena.connector.lambda.domain.TableName tableNameObj = new com.amazonaws.athena.connector.lambda.domain.TableName(schemaName, tableName);
 
+        return getTableResponse(request, origSchema, tableNameObj);
+    }
+
+    private GetTableResponse getTableResponse(GetTableRequest request, Schema origSchema,
+                                              com.amazonaws.athena.connector.lambda.domain.TableName tableName)
+            throws IOException
+    {
+        TableName hbaseName = HbaseTableNameUtils.getHbaseTableName(configOptions, getOrCreateConn(request), tableName);
         if (origSchema == null) {
-            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), request.getTableName(), NUM_ROWS_TO_SCAN);
+            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), hbaseName, NUM_ROWS_TO_SCAN);
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -229,7 +255,10 @@ public class HbaseMetadataHandler
 
         Schema schema = schemaBuilder.build();
         logger.info("doGetTable: return {}", schema);
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+        return new GetTableResponse(
+                request.getCatalogName(),
+                new com.amazonaws.athena.connector.lambda.domain.TableName(hbaseName.getNamespaceAsString(), hbaseName.getNameAsString()),
+                schema);
     }
 
     /**
@@ -255,10 +284,15 @@ public class HbaseMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
             throws IOException
     {
+        if (request.getConstraints().isQueryPassThrough()) {
+            logger.info("doGetSplits: QPT enabled");
+            return setupQueryPassthroughSplit(request);
+        }
+
         Set<Split> splits = new HashSet<>();
 
         //We can read each region in parallel
-        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseSchemaUtils.getQualifiedTable(request.getTableName()))) {
+        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseTableNameUtils.getQualifiedTable(request.getTableName()))) {
             Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
                     .add(HBASE_CONN_STR, getConnStr(request))
                     .add(START_KEY_FIELD, new String(info.getStartKey()))
@@ -279,5 +313,35 @@ public class HbaseMetadataHandler
     protected Field convertField(String name, String glueType)
     {
         return GlueFieldLexer.lex(name, glueType);
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String schemaName = request.getQueryPassthroughArguments().get(HbaseQueryPassthrough.DATABASE);
+        String tableName = request.getQueryPassthroughArguments().get(HbaseQueryPassthrough.COLLECTION);
+
+        com.amazonaws.athena.connector.lambda.domain.TableName tableNameObj = new com.amazonaws.athena.connector.lambda.domain.TableName(schemaName, tableName);
+
+        return getTableResponse(request, null, tableNameObj);
+    }
+
+    /**
+     * Helper function that provides a single partition for Query Pass-Through
+     *
+     */
+    protected GetSplitsResponse setupQueryPassthroughSplit(GetSplitsRequest request)
+    {
+        //Every split must have a unique location if we wish to spill to avoid failures
+        SpillLocation spillLocation = makeSpillLocation(request);
+
+        //Since this is QPT query we return a fixed split.
+        Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+        return new GetSplitsResponse(request.getCatalogName(),
+                Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .add(HBASE_CONN_STR, getConnStr(request))
+                        .applyProperties(qptArguments)
+                        .build());
     }
 }

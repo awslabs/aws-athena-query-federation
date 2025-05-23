@@ -19,15 +19,36 @@
  */
 package com.amazonaws.athena.connectors.redshift;
 
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.redshift.resolver.RedshiftJDBCCaseResolver;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.List;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DEFAULT_PORT;
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_DRIVER_CLASS;
@@ -40,24 +61,67 @@ import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIF
 public class RedshiftMetadataHandler
         extends PostGreSqlMetadataHandler
 {
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT a.\"TABLE_NAME\", a.\"TABLE_SCHEM\" FROM (( SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?) UNION (SELECT tablename as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" FROM svv_external_tables where schemaname = ?)) AS a ORDER BY a.\"TABLE_NAME\" LIMIT ? OFFSET ?";
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedshiftMetadataHandler.class);
+
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
      * Recommend using {@link RedshiftMuxCompositeHandler} instead.
      */
-    public RedshiftMetadataHandler()
+    public RedshiftMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(REDSHIFT_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(REDSHIFT_NAME, configOptions), configOptions);
     }
 
-    public RedshiftMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public RedshiftMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT)));
+        super(databaseConnectionConfig,
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT)),
+                configOptions,
+                new RedshiftJDBCCaseResolver(REDSHIFT_NAME));
     }
 
     @VisibleForTesting
-    RedshiftMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory)
+    RedshiftMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, new RedshiftJDBCCaseResolver(REDSHIFT_NAME));
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+            FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+            LimitPushdownSubType.INTEGER_CONSTANT
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+            ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+            .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                    .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                    .toArray(String[]::new))
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
+            TopNPushdownSubType.SUPPORTS_ORDER_BY
+        ));
+
+        jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
+    @Override
+    protected List<TableName> getPaginatedResults(Connection connection, String databaseName, int token, int limit) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setString(2, databaseName);
+        preparedStatement.setInt(3, limit);
+        preparedStatement.setInt(4, token);
+        LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
 }

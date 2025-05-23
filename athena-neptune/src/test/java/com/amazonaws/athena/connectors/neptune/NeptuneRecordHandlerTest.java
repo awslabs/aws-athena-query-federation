@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,17 +46,12 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.driver.Client;
+import org.apache.tinkerpop.gremlin.driver.Result;
+import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -74,14 +70,25 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @RunWith(MockitoJUnitRunner.class)
 public class NeptuneRecordHandlerTest extends TestBase {
@@ -91,12 +98,14 @@ public class NeptuneRecordHandlerTest extends TestBase {
         private BlockAllocatorImpl allocator;
         private Schema schemaPGVertexForRead;
         private Schema schemaPGEdgeForRead;
-        private AmazonS3 amazonS3;
-        private AWSSecretsManager awsSecretsManager;
-        private AmazonAthena athena;
+        private Schema schemaPGQueryForRead;
+        private S3Client amazonS3;
+        private SecretsManagerClient awsSecretsManager;
+        private AthenaClient athena;
         private S3BlockSpillReader spillReader;
         private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
         private List<ByteHolder> mockS3Storage = new ArrayList<>();
+        public CompletableFuture<List<Result>> results;
 
         @Mock
         private NeptuneConnection neptuneConnection;
@@ -142,38 +151,49 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 .addFloat4Field("property6")
                                 .addDateMilliField("property7")
                                 .build();
+                
+                schemaPGQueryForRead = SchemaBuilder
+                                .newBuilder()
+                                .addMetadata("componenttype", "query")
+                                .addMetadata("query", "g.V().hasLabel('default').valueMap()")
+                                .addIntField("property1")
+                                .addStringField("property2")
+                                .addFloat8Field("property3")
+                                .addBitField("property4")
+                                .addBigIntField("property5")
+                                .addFloat4Field("property6")
+                                .addDateMilliField("property7")
+                                .build();
 
                 allocator = new BlockAllocatorImpl();
-                amazonS3 = mock(AmazonS3.class);
-                awsSecretsManager = mock(AWSSecretsManager.class);
-                athena = mock(AmazonAthena.class);
+                amazonS3 = mock(S3Client.class);
+                awsSecretsManager = mock(SecretsManagerClient.class);
+                athena = mock(AthenaClient.class);
 
-                when(amazonS3.putObject(any()))
+                when(amazonS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                                        InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
+                                        InputStream inputStream = ((RequestBody) invocationOnMock.getArguments()[1]).contentStreamProvider().newStream();
                                         ByteHolder byteHolder = new ByteHolder();
                                         byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                                         synchronized (mockS3Storage) {
                                                 mockS3Storage.add(byteHolder);
                                                 logger.info("puObject: total size " + mockS3Storage.size());
                                         }
-                                        return mock(PutObjectResult.class);
+                                        return PutObjectResponse.builder().build();
                                 });
 
-                when(amazonS3.getObject(nullable(String.class), nullable(String.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
-                        S3Object mockObject = mock(S3Object.class);
-                        ByteHolder byteHolder;
-                        synchronized (mockS3Storage) {
-                                byteHolder = mockS3Storage.get(0);
-                                mockS3Storage.remove(0);
-                                logger.info("getObject: total size " + mockS3Storage.size());
-                        }
-                        when(mockObject.getObjectContent()).thenReturn(
-                                        new S3ObjectInputStream(new ByteArrayInputStream(byteHolder.getBytes()), null));
-                        return mockObject;
-                });
+                when(amazonS3.getObject(any(GetObjectRequest.class)))
+                                .thenAnswer((InvocationOnMock invocationOnMock) -> {
+                                        ByteHolder byteHolder;
+                                        synchronized (mockS3Storage) {
+                                                byteHolder = mockS3Storage.get(0);
+                                                mockS3Storage.remove(0);
+                                                logger.info("getObject: total size " + mockS3Storage.size());
+                                        }
+                                        return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
+                                });
 
-                handler = new NeptuneRecordHandler(amazonS3, awsSecretsManager, athena, neptuneConnection);
+                handler = new NeptuneRecordHandler(amazonS3, awsSecretsManager, athena, neptuneConnection, com.google.common.collect.ImmutableMap.of());
                 spillReader = new S3BlockSpillReader(amazonS3, allocator);
         }
 
@@ -191,7 +211,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 // Build Tinker Pop Graph
                 TinkerGraph tinkerGraph = TinkerGraph.open();
                 // Create new Vertex objects to add to traversal for mock
-                Vertex vertex1 = tinkerGraph.addVertex(T.label, "default");
+                Vertex vertex1 = tinkerGraph.addVertex(T.id, "vertex1", T.label, "default");
                 vertex1.property("property1", 10);
                 vertex1.property("property2", "string1");
                 vertex1.property("property3", 12.4);
@@ -201,7 +221,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex1.property("property7", (new Date()));
                 vertex1.property("Property8", "string8");
 
-                Vertex vertex2 = tinkerGraph.addVertex(T.label, "default");
+                Vertex vertex2 = tinkerGraph.addVertex(T.id, "vertex2", T.label, "default");
                 vertex2.property("property1", 5);
                 vertex2.property("property2", "string2");
                 vertex2.property("property3", 20.4);
@@ -210,7 +230,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex2.property("property6", 13.4523);
                 vertex2.property("property7", (new Date()));
 
-                Vertex vertex3 = tinkerGraph.addVertex(T.label, "default");
+                Vertex vertex3 = tinkerGraph.addVertex(T.id, "vertex3", T.label, "default");
                 vertex3.property("property1", 9);
                 vertex3.property("property2", "string3");
                 vertex3.property("property3", 15.4);
@@ -218,7 +238,6 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex3.property("property5", 12379878123l);
                 vertex3.property("property6", 13.4523);
                 vertex3.property("property7", (new Date()));
-
 
                 //add vertex with missing property values to check for nulls
                 tinkerGraph.addVertex(T.label, "default");
@@ -232,178 +251,12 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 when(graphTraversalSource.V()).thenReturn(vertextTraversal);
 
                 //add edge from vertex1 to vertex2
-                tinkerGraph.traversal().addE("default").from(vertex1).to(vertex2).next();
+                tinkerGraph.traversal().addE("default").from(vertex1).to(vertex2).property(T.id, "vertex1-vertex2").next();
 
                 //add edge from vertex1 to vertex2 with attributes
-                tinkerGraph.traversal().addE("default").from(vertex2).to(vertex3).property(Cardinality.single, "property1", 21, 21).next();
+                tinkerGraph.traversal().addE("default").from(vertex2).to(vertex3).property(T.id, "vertex2-vertex3").property(Cardinality.single, "property1", 21).next();
 
                 GraphTraversal<Edge, Edge>  edgeTraversal = (GraphTraversal<Edge, Edge>) tinkerGraph.traversal().E();
-                when(graphTraversalSource.E()).thenReturn(edgeTraversal);
-        }
-
-        private void invokeAndAssertForEdge() throws Exception {
-                HashMap<String, ValueSet> constraintsMap0 = new HashMap<>();
-                invokeAndAssert(schemaPGEdgeForRead, constraintsMap0, 2);
-
-                // Equal to filter
-                HashMap<String, ValueSet> constraintsMap1 = new HashMap<>();
-                constraintsMap1.put("property1",
-                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.INT.getType(), 21)));
-                invokeAndAssert(schemaPGEdgeForRead, constraintsMap1, 1);
-
-                // Greater Than filter
-                HashMap<String, ValueSet> constraintsMap2 = new HashMap<>();
-                constraintsMap2.put("property1",
-                                SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 15)));
-                invokeAndAssert(schemaPGEdgeForRead, constraintsMap2, 1);
-
-                // Greater Than Equal to filter
-                HashMap<String, ValueSet> constraintsMap3 = new HashMap<>();
-                constraintsMap3.put("property1", SortedRangeSet
-                                .of(Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 15)));
-                invokeAndAssert(schemaPGEdgeForRead, constraintsMap3, 1);
-
-                // Less Than filter
-                HashMap<String, ValueSet> constraintsMap4 = new HashMap<>();
-                constraintsMap4.put("property1",
-                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 25)));
-                invokeAndAssert(schemaPGEdgeForRead, constraintsMap4, 1);
-
-                // Less Than Equal to filter
-                HashMap<String, ValueSet> constraintsMap5 = new HashMap<>();
-                constraintsMap5.put("property1",
-                                SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.INT.getType(), 25)));
-                invokeAndAssert(schemaPGEdgeForRead, constraintsMap5, 1);
-        }
-
-        private void invokeAndAssertForVertex() throws Exception {
-                // Equal to filter
-                HashMap<String, ValueSet> constraintsMap0 = new HashMap<>();
-                constraintsMap0.put("property1",
-                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.INT.getType(), 9)));
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap0, 1);
-
-                // Greater Than Equal to filter
-                HashMap<String, ValueSet> constraintsMap = new HashMap<>();
-                constraintsMap.put("property1", SortedRangeSet
-                                .of(Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 9)));
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap, 2);
-
-                // Greater Than filter
-                HashMap<String, ValueSet> constraintsMap1 = new HashMap<>();
-                constraintsMap1.put("property1",
-                                SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 9)));
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap1, 1);
-
-                // Less Than Equal to filter
-                HashMap<String, ValueSet> constraintsMap2 = new HashMap<>();
-                constraintsMap2.put("property1",
-                                SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.INT.getType(), 10)));
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap2, 3);
-
-                // Less Than filter
-                HashMap<String, ValueSet> constraintsMap3 = new HashMap<>();
-                constraintsMap3.put("property1",
-                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 10)));
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap3, 2);
-
-                // Multiple filters
-                HashMap<String, ValueSet> constraintsMap4 = new HashMap<>();
-                constraintsMap4.put("property1",
-                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 10)));
-                constraintsMap4.put("property3", SortedRangeSet
-                                .of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 13.2)));
-                constraintsMap4.put("property4",
-                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.BIT.getType(), 1)));
-                constraintsMap4.put("property5", SortedRangeSet
-                                .of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 12379878123l)));
-
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap4, 2);
-
-                // String comparision
-                HashMap<String, ValueSet> constraintsMap5 = new HashMap<>();
-                constraintsMap5.put("property2", SortedRangeSet
-                                .of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "string2")));
-
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap5, 1);
-
-                // String comparision Equalsto
-                HashMap<String, ValueSet> constraintsMap6 = new HashMap<>();
-                constraintsMap6.put("property2",
-                                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
-                                                .add("string2").build());
-
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap6, 1);
-
-                // String comparision Not Equalsto
-                HashMap<String, ValueSet> constraintsMap7 = new HashMap<>();
-                constraintsMap7.put("property2",
-                                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), false, true)
-                                                .add("string2").build());
-
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap7, 2);
-
-                // Int comparision Equalsto
-                HashMap<String, ValueSet> constraintsMap8 = new HashMap<>();
-                constraintsMap8.put("property1", EquatableValueSet
-                                .newBuilder(allocator, Types.MinorType.INT.getType(), true, true).add(10).build());
-
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap8, 1);
-
-                // Int comparision Not Equalsto
-                HashMap<String, ValueSet> constraintsMap9 = new HashMap<>();
-                constraintsMap9.put("property1", EquatableValueSet
-                                .newBuilder(allocator, Types.MinorType.INT.getType(), false, true).add(10).build());
-
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap9, 2);
-
-                // Check for null values, expect all vertices to return as part of resultset
-                invokeAndAssert(schemaPGVertexForRead, new HashMap<>(), 5);
-
-                // Check for integer to float,double conversion
-                HashMap<String, ValueSet> constraintsMap10 = new HashMap<>();
-                constraintsMap10.put("property3", SortedRangeSet
-                                .of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 13.2)));
-                constraintsMap10.put("property6", SortedRangeSet
-                                .of(Range.greaterThan(allocator, Types.MinorType.FLOAT4.getType(), 11.11f)));
-                invokeAndAssert(schemaPGVertexForRead, constraintsMap10, 3);
-        }
-
-        /**
-         * Used to invoke each test condition and assert
-         * 
-         * @param constraintMap       Constraint Map for Gremlin Query
-         * @param expectedRecordCount Expected Row Count as per Gremlin Query Response
-         */
-        private void invokeAndAssert(Schema schemaPG, HashMap<String, ValueSet> constraintMap, Integer expectedRecordCount)
-                        throws Exception {
-
-                S3SpillLocation spillLoc = S3SpillLocation.newBuilder().withBucket(UUID.randomUUID().toString())
-                                .withSplitId(UUID.randomUUID().toString()).withQueryId(UUID.randomUUID().toString())
-                                .withIsDirectory(true).build();
-
-                allocator = new BlockAllocatorImpl();
-
-                buildGraphTraversal();
-
-                ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
-                schemaPG, Split.newBuilder(spillLoc, null).build(), new Constraints(constraintMap),
-                                100_000_000_000L, 100_000_000_000L);
-
-                RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-                assertTrue(rawResponse instanceof ReadRecordsResponse);
-
-                ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-                assertTrue(response.getRecords().getRowCount() == expectedRecordCount);
-
-                logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        }
-
-        @Test
-        public void doReadRecordsNoSpill() throws Exception {
-
-                invokeAndAssertForVertex(); 
-                invokeAndAssertForEdge(); 
         }
 
         @Test
@@ -423,7 +276,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
                 ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
                 schemaPGVertexForRead, Split.newBuilder(splitLoc, keyFactory.create()).build(),
-                                new Constraints(constraintsMap), 1_500_000L, // ~1.5MB so we should see some spill
+                                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), 1_500_000L, // ~1.5MB so we should see some spill
                                 0L);
 
                 RecordResponse rawResponse = handler.doReadRecords(allocator, request);

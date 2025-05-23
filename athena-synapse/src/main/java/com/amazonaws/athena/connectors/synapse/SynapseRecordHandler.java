@@ -33,12 +33,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -46,6 +40,9 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -53,36 +50,45 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.synapse.SynapseConstants.QUOTE_CHARACTER;
+
 public class SynapseRecordHandler extends JdbcRecordHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SynapseRecordHandler.class);
-    private static final String QUOTE_CHARACTER = "\"";
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    public SynapseRecordHandler()
+    public SynapseRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME, configOptions), configOptions);
     }
-    public SynapseRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SynapseRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), new SynapseJdbcConnectionFactory(databaseConnectionConfig,
+        this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(),
+                AthenaClient.create(), new SynapseJdbcConnectionFactory(databaseConnectionConfig,
                         SynapseMetadataHandler.JDBC_PROPERTIES, new DatabaseConnectionInfo(SynapseConstants.DRIVER_CLASS, SynapseConstants.DEFAULT_PORT)),
-                new SynapseQueryStringBuilder(QUOTE_CHARACTER));
+                new SynapseQueryStringBuilder(QUOTE_CHARACTER, new SynapseFederationExpressionParser(QUOTE_CHARACTER)), configOptions);
     }
 
     @VisibleForTesting
-    SynapseRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
-                         final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    SynapseRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, final S3Client amazonS3, final SecretsManagerClient secretsManager,
+                         final AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
 
     @Override
     public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split) throws SQLException
     {
-        PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        PreparedStatement preparedStatement;
+
+        if (constraints.isQueryPassThrough()) {
+            preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+        }
+        else {
+            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(),
+                    schema, constraints, split);
+        }
         // Disable fetching all rows.
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
@@ -128,7 +134,7 @@ public class SynapseRecordHandler extends JdbcRecordHandler
                 com.microsoft.sqlserver.jdbc.SQLServerException:  '@@TRANCOUNT' is not supported.
                 So we are evading this connection.commit(), in case of Azure serverless environment.
                  */
-                if (!"azureServerless".equals(SynapseUtil.checkEnvironment(connection.getMetaData().getURL()))) {
+                if (!SynapseConstants.SQL_POOL.equalsIgnoreCase(SynapseUtil.checkEnvironment(connection.getMetaData().getURL()))) {
                     connection.commit();
                 }
             }

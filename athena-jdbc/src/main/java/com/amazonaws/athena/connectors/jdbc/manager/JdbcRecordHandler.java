@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -47,15 +49,12 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.athena.connectors.jdbc.connection.RdsSecretsCredentialProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -75,17 +74,22 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Abstracts JDBC record handler and provides common reusable split records handling.
@@ -96,21 +100,29 @@ public abstract class JdbcRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
+    private static final String CLICKHOUSE_DB = "clickhouse";
+
+    protected final JdbcQueryPassthrough queryPassthrough = new JdbcQueryPassthrough();
 
     /**
      * Used only by Multiplexing handler. All invocations will be delegated to respective database handler.
      */
-    protected JdbcRecordHandler(String sourceType)
+    protected JdbcRecordHandler(String sourceType, java.util.Map<String, String> configOptions)
     {
-        super(sourceType);
+        super(sourceType, configOptions);
         this.jdbcConnectionFactory = null;
         this.databaseConnectionConfig = null;
     }
 
-    protected JdbcRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, AmazonAthena athena, final DatabaseConnectionConfig databaseConnectionConfig,
-            final JdbcConnectionFactory jdbcConnectionFactory)
+    protected JdbcRecordHandler(
+        S3Client amazonS3,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
+        DatabaseConnectionConfig databaseConnectionConfig,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig.getEngine());
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig.getEngine(), configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }
@@ -120,11 +132,11 @@ public abstract class JdbcRecordHandler
         return jdbcConnectionFactory;
     }
 
-    protected JdbcCredentialProvider getCredentialProvider()
+    protected CredentialsProvider getCredentialProvider()
     {
         final String secretName = this.databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
-            return new RdsSecretsCredentialProvider(getSecret(secretName));
+            return new DefaultCredentialsProvider(getSecret(secretName));
         }
 
         return null;
@@ -137,7 +149,15 @@ public abstract class JdbcRecordHandler
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
         try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
-            connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            String databaseProductName = connection.getMetaData().getDatabaseProductName();
+
+            // clickhouse does not support disabling auto-commit
+            if (!CLICKHOUSE_DB.equalsIgnoreCase(databaseProductName)) {
+                connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            }
+
+            enableCaseSensitivelyLookUpSession(connection); // For certain connectors, we require to apply session config first to enable case
+
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -164,7 +184,11 @@ public abstract class JdbcRecordHandler
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
-                connection.commit();
+                // clickhouse does not support commit/rollback, so skip commit() for clickhouse
+                if (!CLICKHOUSE_DB.equalsIgnoreCase(databaseProductName)) {
+                    connection.commit();
+                }
+                disableCaseSensitivelyLookUpSession(connection); // For certain connectors, we require to apply session config first to enable case
             }
         }
     }
@@ -188,6 +212,16 @@ public abstract class JdbcRecordHandler
                 };
     }
 
+    protected boolean enableCaseSensitivelyLookUpSession(Connection connection)
+    {
+        return false;
+    }
+
+    protected boolean disableCaseSensitivelyLookUpSession(Connection connection)
+    {
+        return false;
+    }
+
     /**
      * Creates an Extractor for the given field. In this example the extractor just creates some random data.
      */
@@ -195,7 +229,6 @@ public abstract class JdbcRecordHandler
     protected Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
-
         final String fieldName = field.getName();
 
         if (partitionValues.containsKey(fieldName)) {
@@ -247,7 +280,14 @@ public abstract class JdbcRecordHandler
             case FLOAT8:
                 return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
                 {
-                    dst.value = resultSet.getDouble(fieldName);
+                    try {
+                        dst.value = resultSet.getDouble(fieldName);
+                    }
+                    catch (java.sql.SQLException ex) {
+                        // We need to use Double.parseDouble()
+                        // replaceAll() use to strip commas "$25,000.00"
+                        dst.value = Double.parseDouble(resultSet.getString(fieldName).replaceAll(",", "").replaceAll("\\$", ""));
+                    }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case DECIMAL:
@@ -259,8 +299,9 @@ public abstract class JdbcRecordHandler
             case DATEDAY:
                 return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
                 {
+                    //Issue fix for getting different date (offset by 1) for any dates prior to 1/1/1970.
                     if (resultSet.getDate(fieldName) != null) {
-                        dst.value = (int) TimeUnit.MILLISECONDS.toDays(resultSet.getDate(fieldName).getTime());
+                        dst.value = (int) LocalDate.parse(resultSet.getDate(fieldName).toString()).toEpochDay();
                     }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
@@ -287,7 +328,8 @@ public abstract class JdbcRecordHandler
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             default:
-                throw new RuntimeException("Unhandled type " + fieldType);
+                throw new AthenaConnectorException("Unhandled type " + fieldType,
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
     }
 
@@ -305,4 +347,13 @@ public abstract class JdbcRecordHandler
      */
     public abstract PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
             throws SQLException;
+
+    public PreparedStatement buildQueryPassthroughSql(Connection jdbcConnection, Constraints constraints) throws SQLException
+    {
+        PreparedStatement preparedStatement;
+        queryPassthrough.verify(constraints.getQueryPassthroughArguments());
+        String clientPassQuery = constraints.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
+        preparedStatement = jdbcConnection.prepareStatement(clientPassQuery);
+        return preparedStatement;
+    }
 }

@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.tpcds;
 
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connectors.tpcds.qpt.TPCDSQueryPassthrough;
 import com.teradata.tpcds.Table;
 import com.teradata.tpcds.column.Column;
 import com.teradata.tpcds.column.ColumnType;
@@ -28,6 +29,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -95,6 +97,29 @@ public class TPCDSUtils
     {
         Optional<Table> table = Table.getBaseTables().stream()
                 .filter(next -> next.getName().equals(tableName.getTableName()))
+                .findFirst();
+
+        if (!table.isPresent()) {
+            throw new RuntimeException("Unknown table " + tableName);
+        }
+
+        return table.get();
+    }
+
+    /**
+     * Required that the requested Table be present in the TPCDS generated schema
+     * And For Query Passthrough; only support ONE table per select statement;
+     * And should only be used for testing.
+     *
+     * @param query Query Passthrough
+     * @return The TPCDS table, if present, otherwise the method throws.
+     */
+    public static Table validateQptTable(Map<String, String> query)
+    {
+        String tableName = query.get(TPCDSQueryPassthrough.TPCDS_TABLE);
+
+        Optional<Table> table = Table.getBaseTables().stream()
+                .filter(next -> next.getName().equals(tableName))
                 .findFirst();
 
         if (!table.isPresent()) {

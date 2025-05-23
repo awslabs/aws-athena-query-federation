@@ -24,21 +24,6 @@ import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.ListSchemasResult;
-import com.amazonaws.services.glue.model.SchemaListItem;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -46,20 +31,27 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.ByteArrayInputStream;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.util.*;
 
@@ -67,14 +59,8 @@ import static com.amazonaws.athena.connectors.msk.AmazonMskUtils.*;
 import static org.junit.Assert.*;
 import static java.util.Arrays.asList;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.nullable;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*","org.w3c.*","javax.net.ssl.*","sun.security.*","jdk.internal.reflect.*","javax.crypto.*"})
-@PrepareForTest({AWSGlueClientBuilder.class, AWSSecretsManagerClientBuilder.class,
-        AWSStaticCredentialsProvider.class, DefaultAWSCredentialsProviderChain.class, AmazonS3ClientBuilder.class,
-        ListObjectsRequest.class, FileOutputStream.class, Properties.class})
+@RunWith(MockitoJUnitRunner.class)
 public class AmazonMskUtilsTest {
     @Mock
     FileWriter fileWriter;
@@ -82,17 +68,14 @@ public class AmazonMskUtilsTest {
     @Mock
     ObjectMapper objectMapper;
 
-    @Rule
-    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
-
     @Mock
-    AWSSecretsManager awsSecretsManager;
+    SecretsManagerClient awsSecretsManager;
 
     @Mock
     GetSecretValueRequest secretValueRequest;
 
     @Mock
-    GetSecretValueResult secretValueResult;
+    GetSecretValueResponse secretValueResponse;
 
     @Mock
     DefaultAWSCredentialsProviderChain chain;
@@ -104,35 +87,28 @@ public class AmazonMskUtilsTest {
     BasicAWSCredentials credentials;
 
     @Mock
-    AmazonS3Client amazonS3Client;
+    S3Client amazonS3Client;
 
-    @Mock
-    AmazonS3ClientBuilder clientBuilder;
-
-    @Mock
-    ObjectListing oList;
-
-    @Mock
-    AWSGlue awsGlue;
-
+    final java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+        "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-Kafka",
+        "secret_manager_kafka_creds_name", "testSecret",
+        "kafka_endpoint", "12.207.18.179:9092",
+        "certificates_s3_reference", "s3://kafka-connector-test-bucket/kafkafiles/",
+        "secrets_manager_secret", "Kafka_afq");
+    private MockedConstruction<DefaultAWSCredentialsProviderChain> mockedDefaultCredentials;
+    private MockedStatic<S3Client> mockedS3ClientBuilder;
+    private MockedStatic<SecretsManagerClient> mockedSecretsManagerClient;
 
     @Before
     public void init() throws Exception {
         System.setProperty("aws.region", "us-west-2");
         System.setProperty("aws.accessKeyId", "xxyyyioyuu");
         System.setProperty("aws.secretKey", "vamsajdsjkl");
-        environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-MSK");
-        environmentVariables.set("secret_manager_msk_creds_name", "testSecret");
-        environmentVariables.set("kafka_endpoint", "12.207.18.179:9092");
-        environmentVariables.set("certificates_s3_reference", "s3://msk-connector-test-bucket/mskfiles/");
-        environmentVariables.set("secrets_manager_secret", "AmazonMSK_afq");
-        PowerMockito.whenNew(ObjectMapper.class).withNoArguments().thenReturn(objectMapper);
-        String json = "{}";
-        Mockito.when(objectMapper.writeValueAsString(nullable(Map.class))).thenReturn(json);
-        PowerMockito.whenNew(FileWriter.class).withAnyArguments().thenReturn(fileWriter);
-        PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-        PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(awsSecretsManager);
-        PowerMockito.whenNew(GetSecretValueRequest.class).withNoArguments().thenReturn(secretValueRequest);
+        mockedSecretsManagerClient = Mockito.mockStatic(SecretsManagerClient.class);
+        mockedSecretsManagerClient.when(()-> SecretsManagerClient.create()).thenReturn(awsSecretsManager);
+        mockedS3ClientBuilder = Mockito.mockStatic(S3Client.class);
+        mockedS3ClientBuilder.when(()-> S3Client.create()).thenReturn(amazonS3Client);
+
 
         String creds = "{\"username\":\"admin\",\"password\":\"test\",\"keystore_password\":\"keypass\",\"truststore_password\":\"trustpass\",\"ssl_key_password\":\"sslpass\"}";
 
@@ -143,32 +119,33 @@ public class AmazonMskUtilsTest {
         map.put("truststore_password", "trustpass");
         map.put("ssl_key_password", "sslpass");
 
-        Mockito.when(secretValueResult.getSecretString()).thenReturn(creds);
-        Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResult);
+        Mockito.when(secretValueResponse.secretString()).thenReturn(creds);
+        Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResponse);
+        mockedDefaultCredentials = Mockito.mockConstruction(DefaultAWSCredentialsProviderChain.class,
+                (mock, context) -> {
+                    Mockito.when(mock.getCredentials()).thenReturn(credentials);
+                });
+        S3Object s3 = S3Object.builder().key("test/key").build();
+        Mockito.when(amazonS3Client.listObjects(any(ListObjectsRequest.class))).thenReturn(ListObjectsResponse.builder()
+                .contents(s3)
+                .build());
+        Mockito.when(amazonS3Client.getObject(any(GetObjectRequest.class)))
+                .thenReturn(new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream("largeContentFile".getBytes())));
+    }
 
-        Mockito.doReturn(map).when(objectMapper).readValue(Mockito.eq(creds), nullable(TypeReference.class));
-        PowerMockito.whenNew(DefaultAWSCredentialsProviderChain.class).withNoArguments().thenReturn(chain);
-        Mockito.when(chain.getCredentials()).thenReturn(credentials);
-
-        PowerMockito.mockStatic(AmazonS3ClientBuilder.class);
-        PowerMockito.when(AmazonS3ClientBuilder.standard()).thenReturn(clientBuilder);
-        PowerMockito.whenNew(AWSStaticCredentialsProvider.class).withArguments(credentials).thenReturn(credentialsProvider);
-        Mockito.doReturn(clientBuilder).when(clientBuilder).withCredentials(any());
-        Mockito.when(clientBuilder.build()).thenReturn(amazonS3Client);
-        Mockito.when(amazonS3Client.listObjects(any(), any())).thenReturn(oList);
-        S3Object s3Obj = new S3Object();
-        s3Obj.setObjectContent(new ByteArrayInputStream("largeContentFile".getBytes()));
-        Mockito.when(amazonS3Client.getObject(any())).thenReturn(s3Obj);
-        S3ObjectSummary s3 = new S3ObjectSummary();
-        s3.setKey("test/key");
-        Mockito.when(oList.getObjectSummaries()).thenReturn(List.of(s3));
+    @After
+    public void tearDown() {
+        mockedDefaultCredentials.close();
+        mockedS3ClientBuilder.close();
+        mockedSecretsManagerClient.close();
     }
 
     @Test
     public void testGetScramAuthKafkaProperties() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SASL_SSL_SCRAM_SHA512.toString());
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SASL_SSL_SCRAM_SHA512.toString());
         String sasljaasconfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"admin\" password=\"test\";";
-        Properties properties = getKafkaProperties();
+        Properties properties = getKafkaProperties(testConfigOptions);
         assertEquals("SASL_SSL", properties.get("security.protocol"));
         assertEquals("SCRAM-SHA-512", properties.get("sasl.mechanism"));
         assertEquals(sasljaasconfig, properties.get("sasl.jaas.config"));
@@ -176,8 +153,9 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetIAMAuthKafkaProperties() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SASL_SSL_AWS_MSK_IAM.toString());
-        Properties properties = getKafkaProperties();
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SASL_SSL_AWS_MSK_IAM.toString());
+        Properties properties = getKafkaProperties(testConfigOptions);
         assertEquals("SASL_SSL", properties.get("security.protocol"));
         assertEquals("AWS_MSK_IAM", properties.get("sasl.mechanism"));
         assertEquals("software.amazon.msk.auth.iam.IAMLoginModule required;", properties.get("sasl.jaas.config"));
@@ -186,8 +164,9 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetSSLAuthKafkaProperties() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SSL.toString());
-        Properties properties = getKafkaProperties();
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SSL.toString());
+        Properties properties = getKafkaProperties(testConfigOptions);
         assertEquals("SSL", properties.get("security.protocol"));
         assertEquals("keypass", properties.get("ssl.keystore.password"));
         assertEquals("sslpass", properties.get("ssl.key.password"));
@@ -202,7 +181,7 @@ public class AmazonMskUtilsTest {
         assertEquals(Types.MinorType.INT.getType(), toArrowType("INT"));
         assertEquals(Types.MinorType.INT.getType(), toArrowType("INTEGER"));
         assertEquals(Types.MinorType.BIGINT.getType(), toArrowType("BIGINT"));
-        assertEquals(Types.MinorType.FLOAT8.getType(), toArrowType("FLOAT"));
+        assertEquals(Types.MinorType.FLOAT4.getType(), toArrowType("FLOAT"));
         assertEquals(Types.MinorType.FLOAT8.getType(), toArrowType("DOUBLE"));
         assertEquals(Types.MinorType.FLOAT8.getType(), toArrowType("DECIMAL"));
         assertEquals(Types.MinorType.DATEDAY.getType(), toArrowType("DATE"));
@@ -212,25 +191,27 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetKafkaConsumerWithSchema() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
         Field field = new Field("name", FieldType.nullable(new ArrowType.Utf8()), null);
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "json");
         Schema schema= new Schema(asList(field), metadataSchema);
-        Consumer<String, TopicResultSet> consumer = AmazonMskUtils.getKafkaConsumer(schema);
+        Consumer<String, TopicResultSet> consumer = AmazonMskUtils.getKafkaConsumer(schema, testConfigOptions);
         assertNotNull(consumer);
     }
 
     @Test
     public void testGetKafkaConsumer() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
-        Consumer<String, String> consumer = AmazonMskUtils.getKafkaConsumer();
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
+        Consumer<String, String> consumer = AmazonMskUtils.getKafkaConsumer(testConfigOptions);
         assertNotNull(consumer);
     }
 
     @Test
     public void testCreateSplitParam() {
-        Map<String, String> params = Map.of(
+        Map<String, String> params = com.google.common.collect.ImmutableMap.of(
                 SplitParameters.TOPIC, "testTopic",
                 SplitParameters.PARTITION, "0",
                 SplitParameters.START_OFFSET, "0",
@@ -243,13 +224,13 @@ public class AmazonMskUtilsTest {
 
     @Test(expected = RuntimeException.class)
     public void testGetKafkaPropertiesForRuntimeException() throws Exception {
-        environmentVariables.set("auth_type", "UNKNOWN");
-        getKafkaProperties();
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", "UNKNOWN");
+        getKafkaProperties(testConfigOptions);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetKafkaPropertiesForIllegalArgumentException() throws Exception {
-        environmentVariables = new EnvironmentVariables();
-        getKafkaProperties();
+        getKafkaProperties(com.google.common.collect.ImmutableMap.of());
     }
 }

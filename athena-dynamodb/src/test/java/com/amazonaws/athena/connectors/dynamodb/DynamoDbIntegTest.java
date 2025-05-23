@@ -20,9 +20,6 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
-import com.amazonaws.services.athena.model.Datum;
-import com.amazonaws.services.athena.model.Row;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
@@ -33,6 +30,9 @@ import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.athena.model.Row;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -43,7 +43,6 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.testng.AssertJUnit.assertNull;
 
 /**
  * Integration-tests for the DynamoDB connector using the Integration-test module.
@@ -88,17 +87,18 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
     private void addDatatypeItems()
     {
         Map<String, AttributeValue> item = new ImmutableMap.Builder<String, AttributeValue>()
-            .put("int_type", new AttributeValue().withN(String.valueOf(TEST_DATATYPES_INT_VALUE)))
-            .put("smallint_type", new AttributeValue().withN(String.valueOf(TEST_DATATYPES_SHORT_VALUE)))
-            .put("bigint_type", new AttributeValue().withN(String.valueOf(TEST_DATATYPES_LONG_VALUE)))
-            .put("varchar_type", new AttributeValue(TEST_DATATYPES_VARCHAR_VALUE))
-            .put("boolean_type", new AttributeValue().withBOOL(TEST_DATATYPES_BOOLEAN_VALUE))
-            .put("float4_type", new AttributeValue(String.valueOf(TEST_DATATYPES_SINGLE_PRECISION_VALUE)))
-            .put("float8_type", new AttributeValue(String.valueOf(1E-130))) // smallest number dynamo can handle
-            .put("date_type", new AttributeValue(TEST_DATATYPES_DATE_VALUE))
-            .put("timestamp_type", new AttributeValue(TEST_DATATYPES_TIMESTAMP_VALUE))
-            .put("byte_type", new AttributeValue().withB(ByteBuffer.wrap(TEST_DATATYPES_BYTE_ARRAY_VALUE)))
-            .put("textarray_type", new AttributeValue(TEST_DATATYPES_VARCHAR_ARRAY_VALUE)).build();
+                .put("int_type", AttributeValue.builder().n(String.valueOf(TEST_DATATYPES_INT_VALUE)).build())
+                .put("smallint_type", AttributeValue.builder().n(String.valueOf(TEST_DATATYPES_SHORT_VALUE)).build())
+                .put("bigint_type", AttributeValue.builder().n(String.valueOf(TEST_DATATYPES_LONG_VALUE)).build())
+                .put("varchar_type", AttributeValue.builder().s(TEST_DATATYPES_VARCHAR_VALUE).build())
+                .put("boolean_type", AttributeValue.builder().bool(TEST_DATATYPES_BOOLEAN_VALUE).build())
+                .put("float4_type", AttributeValue.builder().s(String.valueOf(TEST_DATATYPES_SINGLE_PRECISION_VALUE)).build())
+                .put("float8_type", AttributeValue.builder().s(String.valueOf(1E-130)).build()) // smallest number dynamo can handle
+                .put("date_type", AttributeValue.builder().s(TEST_DATATYPES_DATE_VALUE).build())
+                .put("timestamp_type", AttributeValue.builder().s(TEST_DATATYPES_TIMESTAMP_VALUE).build())
+                .put("byte_type", AttributeValue.builder().b(SdkBytes.fromByteBuffer(ByteBuffer.wrap(TEST_DATATYPES_BYTE_ARRAY_VALUE))).build())
+                .put("textarray_type", AttributeValue.builder().s(TEST_DATATYPES_VARCHAR_ARRAY_VALUE).build())
+                .build();
         tableUtils.putItem(TEST_DATATYPES_TABLE_NAME, item);
     }
 
@@ -112,25 +112,24 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
      * @param genre List of movie generes.
      */
     private Map<String, AttributeValue> createMovieItem(String year, String title, String director,
-            List<String> cast, List<String> genre)
+                                                        List<String> cast, List<String> genre)
     {
         logger.info("Add item: year=[{}], title=[{}], director=[{}], cast={}, genre={}",
                 year, title, director, cast, genre);
 
         List<AttributeValue> castAttrib = new ArrayList<>();
-        cast.forEach(value -> castAttrib.add(new AttributeValue(value)));
+        cast.forEach(value -> castAttrib.add(AttributeValue.builder().s(value).build()));
 
         List<AttributeValue> genreAttrib = new ArrayList<>();
-        genre.forEach(value -> genreAttrib.add(new AttributeValue(value)));
+        genre.forEach(value -> genreAttrib.add(AttributeValue.builder().s(value).build()));;
 
         Map<String, AttributeValue> item = ImmutableMap.of(
-                "year", new AttributeValue().withN(year),
-                "title", new AttributeValue(title),
-                "info", new AttributeValue().withM(ImmutableMap.of(
-                        "director", new AttributeValue(director),
-                        "cast", new AttributeValue().withL(castAttrib),
-                        "genre", new AttributeValue().withL(genreAttrib))));
-
+                "year", AttributeValue.builder().n(year).build(),
+                "title", AttributeValue.builder().s(title).build(),
+                "info", AttributeValue.builder().m(ImmutableMap.of(
+                        "director", AttributeValue.builder().s(director).build(),
+                        "cast", AttributeValue.builder().l(castAttrib).build(),
+                        "genre", AttributeValue.builder().l(genreAttrib).build())).build());
         return item;
     }
 
@@ -144,7 +143,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
     {
         return Optional.of(PolicyDocument.Builder.create()
                 .statements(ImmutableList.of(PolicyStatement.Builder.create()
-                        .actions(ImmutableList.of("dynamodb:DescribeTable", "dynamodb:ListSchemas",
+                        .actions(ImmutableList.of("dynamodb:DescribeTable", 
                                 "dynamodb:ListTables", "dynamodb:Query", "dynamodb:Scan"))
                         .resources(ImmutableList.of("*"))
                         .effect(Effect.ALLOW)
@@ -240,13 +239,13 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
                 lambdaFunctionName, dynamodbDbName, movieTableName);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<String> titles = new ArrayList<>();
-        rows.forEach(row -> titles.add(row.getData().get(0).getVarCharValue()));
+        rows.forEach(row -> titles.add(row.data().get(0).varCharValue()));
         logger.info("Titles: {}", titles);
         assertEquals("Wrong number of DB records found.", 1, titles.size());
         assertTrue("Movie title not found: Interstellar.", titles.contains("Interstellar"));
@@ -266,13 +265,13 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
 
         String query = String.format("select float8_type from %s.%s.%s;",
                 lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
-        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        List<Row> rows = startQueryExecution(query).resultSet().rows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
             rows.remove(0);
         }
         List<Double> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Double.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Double.valueOf(row.data().get(0).varCharValue())));
         AssertJUnit.assertEquals("Wrong number of DB records found.", 1, values.size());
         AssertJUnit.assertTrue("Float8 not found: " + 1E-130, values.contains(1E-130));
     }

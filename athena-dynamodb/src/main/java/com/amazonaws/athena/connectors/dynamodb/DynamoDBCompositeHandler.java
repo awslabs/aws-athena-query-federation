@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class DynamoDBCompositeHandler
 {
     public DynamoDBCompositeHandler()
     {
-        super(new DynamoDBMetadataHandler(), new DynamoDBRecordHandler());
+        super(new DynamoDBMetadataHandler(new EnvironmentProperties().createEnvironment()), new DynamoDBRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

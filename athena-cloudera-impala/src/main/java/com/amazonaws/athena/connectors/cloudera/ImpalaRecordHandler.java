@@ -28,15 +28,12 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -52,29 +49,36 @@ import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.JDBC_PROP
 public class ImpalaRecordHandler extends JdbcRecordHandler
 {
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    public ImpalaRecordHandler()
+    public ImpalaRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(IMPALA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(IMPALA_NAME, configOptions), configOptions);
     }
-    public ImpalaRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public ImpalaRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(IMPALA_DRIVER_CLASS, IMPALA_DEFAULT_PORT)));
+        this(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(IMPALA_DRIVER_CLASS, IMPALA_DEFAULT_PORT)), configOptions);
     }
-    public ImpalaRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public ImpalaRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                jdbcConnectionFactory, new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER));
+        this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(),
+                jdbcConnectionFactory, new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER)), configOptions);
     }
     @VisibleForTesting
-    ImpalaRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    ImpalaRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
     @Override
     public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split) throws SQLException
     {
-        PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        PreparedStatement preparedStatement;
+
+        if (constraints.isQueryPassThrough()) {
+            preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+        }
+        else {
+            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(), schema, constraints, split);
+        }
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
     }

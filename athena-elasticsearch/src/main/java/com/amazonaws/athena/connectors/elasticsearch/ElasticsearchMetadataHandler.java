@@ -19,14 +19,17 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -37,24 +40,40 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.elasticsearch.qpt.ElasticsearchQueryPassthrough;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.indices.GetDataStreamRequest;
+import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.client.indices.GetIndexResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static java.util.Objects.requireNonNull;
 
 /**
  * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
@@ -66,12 +85,12 @@ public class ElasticsearchMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchMetadataHandler.class);
 
+    // regular expression to match the old pattern of having domain name in `DOMAIN_ENDPOINT` field
+    private static final Pattern DOMAIN_NAME_WITH_ENDPOINT_PATTERN = Pattern.compile("^.+=https.*");
+    private static final String DEFAULT_DOMAIN_NAME = "default";
+
     // Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "elasticsearch";
-
-    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
-    //metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV = "disable_glue";
 
     // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
@@ -83,8 +102,19 @@ public class ElasticsearchMetadataHandler
     // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
     // and the value = endpoint.
     private static final String DOMAIN_MAPPING = "domain_mapping";
+
+    // Individual domain endpoint which is associated with a Glue Connection
+    private static final String DOMAIN_ENDPOINT = "domain_endpoint";
+    // Secret Name that provides credentials
+    private static final String SECRET_NAME = "secret_name";
+
+    // credential keys of secret
+    protected static final String SECRET_USERNAME = "username";
+    protected static final String SECRET_PASSWORD = "password";
+
     // A Map of the domain-names and their respective endpoints.
     private Map<String, String> domainMap;
+    private Map<String, DefaultCredentialsProvider> secretMap;
 
     // Env. variable that holds the query timeout period for the Cluster-Health queries.
     private static final String QUERY_TIMEOUT_CLUSTER = "query_timeout_cluster";
@@ -101,55 +131,83 @@ public class ElasticsearchMetadataHandler
      */
     private static final String SHARD_VALUE = "_shards:";
 
-    private final AWSGlue awsGlue;
+    protected static final String INDEX_KEY = "index";
+
+    private final GlueClient awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchDomainMapProvider domainMapProvider;
 
     private ElasticsearchGlueTypeMapper glueTypeMapper;
+    private final ElasticsearchQueryPassthrough queryPassthrough = new ElasticsearchQueryPassthrough();
 
-    public ElasticsearchMetadataHandler()
+    public ElasticsearchMetadataHandler(Map<String, String> configOptions)
     {
-        //Disable Glue if the env var is present and not explicitly set to "false"
-        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
-        this.autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
+        this.secretMap = new HashMap<>();
+        this.autoDiscoverEndpoint = configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true");
         this.domainMapProvider = new ElasticsearchDomainMapProvider(this.autoDiscoverEndpoint);
-        this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(getEnv(DOMAIN_MAPPING)));
+        this.domainMap = resolveDomainMap(configOptions);
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
-        this.queryTimeout = Long.parseLong(getEnv(QUERY_TIMEOUT_CLUSTER));
+        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, "10"));
     }
 
     @VisibleForTesting
-    protected ElasticsearchMetadataHandler(AWSGlue awsGlue,
-                                           EncryptionKeyFactory keyFactory,
-                                           AWSSecretsManager awsSecretsManager,
-                                           AmazonAthena athena,
-                                           String spillBucket,
-                                           String spillPrefix,
-                                           ElasticsearchDomainMapProvider domainMapProvider,
-                                           AwsRestHighLevelClientFactory clientFactory,
-                                           long queryTimeout)
+    protected ElasticsearchMetadataHandler(
+        GlueClient awsGlue,
+        EncryptionKeyFactory keyFactory,
+        SecretsManagerClient awsSecretsManager,
+        AthenaClient athena,
+        String spillBucket,
+        String spillPrefix,
+        ElasticsearchDomainMapProvider domainMapProvider,
+        AwsRestHighLevelClientFactory clientFactory,
+        long queryTimeout,
+        Map<String, String> configOptions,
+        boolean simulateGlueConnection)
     {
-        super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
+        this.secretMap = new HashMap<>();
         this.domainMapProvider = domainMapProvider;
-        this.domainMap = this.domainMapProvider.getDomainMap(null);
+        this.domainMap = simulateGlueConnection ? resolveDomainMap(configOptions) : this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
         this.queryTimeout = queryTimeout;
     }
 
-    /**
-     * Get an environment variable using System.getenv().
-     * @param var is the environment variable.
-     * @return the contents of the environment variable or an empty String if it's not defined.
-     */
-    protected final String getEnv(String var)
+    protected Map<String, String> resolveDomainMap(Map<String, String> config)
     {
-        String result = System.getenv(var);
+        String domainEndpoint;
+        if (StringUtils.isNotBlank(config.getOrDefault(DEFAULT_GLUE_CONNECTION, ""))) {
+            String secretName = requireNonNull(config.get(SECRET_NAME), String.format("Glue connection field: '%s' is required for Elastic Search connector", SECRET_NAME));
+            domainEndpoint = requireNonNull(config.get(DOMAIN_ENDPOINT), String.format("Glue connection field: '%s' is required for Elastic Search connector", DOMAIN_ENDPOINT));
 
-        return result == null ? "" : result;
+            domainEndpoint = appendDomainNameIfNeeded(domainEndpoint);
+            this.secretMap.put(domainEndpoint.split("=")[0], new DefaultCredentialsProvider(getSecret(secretName)));
+        }
+        else {
+            // non-glue connection use case
+            domainEndpoint = config.getOrDefault(DOMAIN_MAPPING, "");
+            // resolve secret as non-glue connection use case can embedded secret name into domain.
+            domainEndpoint = resolveSecrets(domainEndpoint);
+        }
+
+        return domainMapProvider.getDomainMap(domainEndpoint);
+    }
+
+    /*
+     Given glue connection doesn’t support multi domain, domain endpoint does not required a domain name anymore. We will automatically map the one and only domain as `default`
+     */
+    private String appendDomainNameIfNeeded(String domainEndpoint)
+    {
+        if (!DOMAIN_NAME_WITH_ENDPOINT_PATTERN.matcher(domainEndpoint).find()) {
+            logger.info("Glue Connection's `{}` field has no domain mapping, adding `default` as domain name", DOMAIN_ENDPOINT);
+            return DEFAULT_DOMAIN_NAME + "=" + domainEndpoint;
+        }
+
+        return domainEndpoint;
     }
 
     /**
@@ -183,35 +241,38 @@ public class ElasticsearchMetadataHandler
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
-            throws RuntimeException
+            throws IOException
     {
         logger.debug("doListTables: enter - " + request);
 
-        List<TableName> indices = new ArrayList<>();
+        String endpoint = getDomainEndpoint(request.getSchemaName());
+        String domain = request.getSchemaName();
+        DefaultCredentialsProvider creds = secretMap.get(domain);
+        String username = creds != null ? creds.getCredential().getUser() : "";
+        String password = creds != null ? creds.getCredential().getPassword() : "";
+        AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
+        // get regular indices from ES, ignore all system indices starting with period `.` (e.g. .kibana, .tasks, etc...)
+        Stream<String> indicesStream = client.getAliases()
+                .stream()
+                .filter(index -> !index.startsWith("."));
 
-        try {
-            String endpoint = getDomainEndpoint(request.getSchemaName());
-            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
-            try {
-                for (String index : client.getAliases()) {
-                    // Ignore all system indices starting with period `.` (e.g. .kibana, .tasks, etc...)
-                    if (index.startsWith(".")) {
-                        logger.info("Ignoring system index: {}", index);
-                        continue;
-                    }
+        //combine two different data sources and create tables
+        Stream<String> tableNamesStream = Stream.concat(indicesStream, getDataStreamNames(client)).sorted();
 
-                    indices.add(new TableName(request.getSchemaName(), index));
-                }
-            }
-            catch (IOException error) {
-                throw new RuntimeException("Error retrieving indices: " + error.getMessage(), error);
-            }
+        int startToken = request.getNextToken() == null ? 0 : Integer.parseInt(request.getNextToken());
+        int pageSize = request.getPageSize();
+        String nextToken = null;
+
+        if (request.getPageSize() != UNLIMITED_PAGE_SIZE_VALUE) {
+            logger.info("Pagination starting at token {} w/ page size {}", startToken, pageSize);
+            tableNamesStream = tableNamesStream.skip(startToken).limit(request.getPageSize());
+            nextToken = Integer.toString(startToken + pageSize);
+            logger.info("Next token is {}", nextToken);
         }
-        catch (RuntimeException error) {
-            throw new RuntimeException("Error processing request to list indices: " + error.getMessage(), error);
-        }
 
-        return new ListTablesResponse(request.getCatalogName(), indices, null);
+        List<TableName> tableNames = tableNamesStream.map(tableName -> new TableName(request.getSchemaName(), tableName)).collect(Collectors.toList());
+
+        return new ListTablesResponse(request.getCatalogName(), tableNames, nextToken);
     }
 
     /**
@@ -228,12 +289,9 @@ public class ElasticsearchMetadataHandler
      */
     @Override
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
-            throws RuntimeException
     {
         logger.debug("doGetTable: enter - " + request);
-
         Schema schema = null;
-
         // Look at GLUE catalog first.
         try {
             if (awsGlue != null) {
@@ -251,22 +309,9 @@ public class ElasticsearchMetadataHandler
         // Supplement GLUE catalog if not present.
         if (schema == null) {
             String index = request.getTableName().getTableName();
-            try {
-                String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
-                AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
-                try {
-                    Map<String, Object> mappings = client.getMapping(index);
-                    schema = ElasticsearchSchemaUtils.parseMapping(mappings);
-                }
-                catch (IOException error) {
-                    throw new RuntimeException("Error retrieving mapping information for index (" +
-                            index + "): " + error.getMessage(), error);
-                }
-            }
-            catch (RuntimeException error) {
-                throw new RuntimeException("Error processing request to map index (" +
-                        index + "): " + error.getMessage(), error);
-            }
+            String domain = request.getTableName().getSchemaName();
+            String endpoint = getDomainEndpoint(domain);
+            schema = getSchema(index, endpoint, domain);
         }
 
         return new GetTableResponse(request.getCatalogName(), request.getTableName(),
@@ -299,41 +344,118 @@ public class ElasticsearchMetadataHandler
      */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
-            throws RuntimeException
+            throws IOException
     {
         logger.debug("doGetSplits: enter - " + request);
-
-        // Create set of splits
-        Set<Split> splits = new HashSet<>();
+        String domain;
+        String indx;
         // Get domain
-        String domain = request.getTableName().getSchemaName();
-        // Get index
-        String index = request.getTableName().getTableName();
+        if (request.getConstraints().isQueryPassThrough()) {
+            domain = request.getConstraints().getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA);
+            indx = request.getConstraints().getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
+        }
+        else {
+            domain = request.getTableName().getSchemaName();
+            indx = request.getTableName().getTableName();
+        }
+        String endpoint = getDomainEndpoint(domain);
 
-        try {
-            String endpoint = getDomainEndpoint(domain);
-            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
-            try {
-                Set<Integer> shardIds = client.getShardIds(index, queryTimeout);
-                for (Integer shardId : shardIds) {
-                    // Every split must have a unique location if we wish to spill to avoid failures
-                    SpillLocation spillLocation = makeSpillLocation(request);
-                    // Create a new split (added to the splits set) that includes the domain and endpoint, and
-                    // shard information (to be used later by the Record Handler).
-                    splits.add(new Split(spillLocation, makeEncryptionKey(), ImmutableMap
-                            .of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString())));
-                }
-            }
-            catch (IOException error) {
-                throw new RuntimeException("Error retrieving shard-health information: " + error.getMessage(), error);
-            }
-        }
-        catch (RuntimeException error) {
-            throw new RuntimeException("Error trying to generate splits for index (" +
-                    index + "): " + error.getMessage(), error);
-        }
+        DefaultCredentialsProvider creds = secretMap.get(domain);
+        String username = creds != null ? creds.getCredential().getUser() : "";
+        String password = creds != null ? creds.getCredential().getPassword() : "";
+        AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
+        // We send index request in case the table name is a data stream, a data stream can contains multiple indices which are created by ES
+        // For non data stream, index name is same as table name
+        GetIndexResponse indexResponse = client.indices().get(new GetIndexRequest(indx), RequestOptions.DEFAULT);
+
+        Set<Split> splits = Arrays.stream(indexResponse.getIndices())
+                .flatMap(index -> getShardsIDsFromES(client, index) // get all shards for an index.
+                        .stream()
+                        .map(shardId -> new Split(makeSpillLocation(request), makeEncryptionKey(), ImmutableMap.of(SECRET_USERNAME, username, SECRET_PASSWORD, password, domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString(), INDEX_KEY, index))) // make split for each (index + shardId) combination
+                )
+                .collect(Collectors.toSet());
 
         return new GetSplitsResponse(request.getCatalogName(), splits);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
+    }
+
+    @Override
+    public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
+    {
+        logger.debug("doGetQueryPassthroughSchema: enter - " + request);
+        if (!request.isQueryPassthrough()) {
+            throw new AthenaConnectorException("No Query passed through [{}]" + request, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+        }
+        queryPassthrough.verify(request.getQueryPassthroughArguments());
+        String index = request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.INDEX);
+        String domain = request.getQueryPassthroughArguments().get(ElasticsearchQueryPassthrough.SCHEMA);
+        String endpoint = getDomainEndpoint(domain);
+        Schema schema = getSchema(index, endpoint, domain);
+
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(),
+                (schema == null) ? SchemaBuilder.newBuilder().build() : schema, Collections.emptySet());
+    }
+
+    private Schema getSchema(String index, String endpoint, String domain)
+    {
+        Schema schema;
+        DefaultCredentialsProvider creds = secretMap.get(domain);
+        String username = creds != null ? creds.getCredential().getUser() : "";
+        String password = creds != null ? creds.getCredential().getPassword() : "";
+        AwsRestHighLevelClient client = creds != null ? clientFactory.getOrCreateClient(endpoint, username, password) : clientFactory.getOrCreateClient(endpoint);
+        try {
+            Map<String, Object> mappings = client.getMapping(index);
+            schema = ElasticsearchSchemaUtils.parseMapping(mappings);
+        }
+        catch (IOException error) {
+            throw new AthenaConnectorException("Error retrieving mapping information for index (" +
+                    index + ") ", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+        }
+        return schema;
+    }
+
+    /**
+     * Get all data streams from ES, one data stream can contains multiple indices which start with ".ds-xxxxxxxxxx"
+     * return empty if not supported.
+     * Notes: AWS's version of ES doesn't support data stream, it is a feature only available in the Elasticsearch distributed by Elastic itself, licensed under the Elastic License.
+     */
+    private Stream<String> getDataStreamNames(AwsRestHighLevelClient client)
+    {
+        try {
+            return client.indices().getDataStream(new GetDataStreamRequest("*"), RequestOptions.DEFAULT).getDataStreams()
+                    .stream()
+                    .map(dataStream -> dataStream.getName());
+        }
+        // gracefully exit for exception or non-support data stream.
+        catch (Exception ex) {
+            logger.warn("getDataStreamNamesFromClient: Unable to retrieve datastream or cluster version not support data stream, ignore datastream.", ex);
+            return Stream.empty();
+        }
+    }
+
+    /**
+     * Mandatory checked exception needs to handle from here
+     * This is to keep the lambda stream function clearer.
+     * @param client
+     * @param index
+     * @return
+     */
+    private Set<Integer> getShardsIDsFromES(AwsRestHighLevelClient client, String index)
+    {
+        try {
+            return client.getShardIds(index, queryTimeout);
+        }
+        catch (IOException error) {
+            throw new AthenaConnectorException(String.format("Error trying to get shards ids for index: %s, error message: %s", index, error.getMessage()), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+        }
     }
 
     /**
@@ -356,7 +478,7 @@ public class ElasticsearchMetadataHandler
         }
 
         if (endpoint == null) {
-            throw new RuntimeException("Unable to find domain: " + domain);
+            throw new AthenaConnectorException("Unable to find domain: " + domain, ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
         }
 
         return endpoint;
@@ -371,5 +493,10 @@ public class ElasticsearchMetadataHandler
         logger.debug("convertField - fieldName: {}, glueType: {}", fieldName, glueType);
 
         return GlueFieldLexer.lex(fieldName, glueType, glueTypeMapper);
+    }
+
+    public Map<String, String> getDomainMap()
+    {
+        return domainMap;
     }
 }

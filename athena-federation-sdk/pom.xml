@@ -27,107 +27,111 @@
     </licenses>
     <dependencies>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>jmespath-java</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache-client</artifactId>
+            <version>${aws-sdk-v2.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>athena</artifactId>
+            <version>${aws-sdk-v2.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>com.fasterxml.jackson.datatype</groupId>
-                    <artifactId>jackson-datatype-jsr310</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.dataformat</groupId>
-                    <artifactId>jackson-dataformat-cbor</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-annotations</artifactId>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-core</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>glue</artifactId>
+            <version>${aws-sdk-v2.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>com.fasterxml.jackson.datatype</groupId>
-                    <artifactId>jackson-datatype-jsr310</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.dataformat</groupId>
-                    <artifactId>jackson-dataformat-cbor</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-annotations</artifactId>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>software.amazon.jsii</groupId>
-            <artifactId>jsii-runtime</artifactId>
-            <version>${jsii.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>kms</artifactId>
+            <version>${aws-sdk-v2.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>com.fasterxml.jackson.datatype</groupId>
-                    <artifactId>jackson-datatype-jsr310</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.dataformat</groupId>
-                    <artifactId>jackson-dataformat-cbor</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-annotations</artifactId>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-secretsmanager</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>lambda</artifactId>
+            <version>${aws-sdk-v2.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${aws-sdk-v2.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>secretsmanager</artifactId>
+            <version>${aws-sdk-v2.version}</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
                     <groupId>commons-logging</groupId>
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-glue</artifactId>
-            <version>${aws-sdk.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-athena</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <version>${aws-sdk-v2.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.datatype</groupId>
+                    <artifactId>jackson-datatype-jsr310</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.dataformat</groupId>
+                    <artifactId>jackson-dataformat-cbor</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-databind</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
@@ -167,34 +171,9 @@
             <version>${apache.arrow.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-buffer</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-common</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-core</artifactId>
-            <version>1.2.2</version>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-lambda</artifactId>
-            <version>${aws-sdk.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-s3</artifactId>
-            <version>${aws-sdk.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-kms</artifactId>
-            <version>${aws-sdk.version}</version>
+            <version>1.2.3</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -268,15 +247,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.powermock</groupId>
-            <artifactId>powermock-reflect</artifactId>
-            <version>${powermock.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
+             <!--- to meet engine version 3.17.0 -->
+            <version>3.17.0</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>
@@ -337,21 +311,6 @@
                 </configuration>
             </plugin>
             <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>${surefire.failsafe.version}</version>
-                <configuration>
-                    <!--<groups>fast</groups>-->
-                    <excludedGroups>slow</excludedGroups>
-                    <properties>
-                        <!--
-                    <configurationParameters>
-                        junit.jupiter.conditions.deactivate = *
-                    </configurationParameters>
-                    -->
-                    </properties>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>${mvn.shade.plugin.version}</version>
@@ -370,8 +329,14 @@
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
                         <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
-</transformer>
+                        </transformer>
                     </transformers>
+                    <relocations>
+                        <relocation>
+                            <pattern>io.netty</pattern>
+                            <shadedPattern>athena.com.io.netty</shadedPattern>
+                        </relocation>
+                    </relocations>
                 </configuration>
                 <dependencies>
                     <dependency>
@@ -399,14 +364,15 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <!-- Requires the AWS SDK, Slf4j, and FlatBuffers to be available at runtime for metadata.
-                            Also requires BouncyCastle for records. -->
+                            <!-- Requires the AWS SDK, Slf4j to be available at runtime for metadata.Also requires BouncyCastle for records. -->
+                            <!-- This include Athena Federation SDK, Apache Arrow(including arrow-memory-netty) and io.netty-->
                             <shadedClassifierName>with-arrow</shadedClassifierName>
-                            <minimizeJar>true</minimizeJar>
                             <artifactSet>
                                 <includes>
                                     <include>com.amazonaws.athena:*</include>
                                     <include>org.apache.arrow:*</include>
+                                    <include>com.google.flatbuffers:*</include>
+                                    <include>io.netty:*</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
@@ -416,7 +382,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.0.0</version>
+                <version>2.5.0</version>
                 <configuration>
                     <verbose>false</verbose>
                     <addSvnKeyWords>false</addSvnKeyWords>
@@ -438,6 +404,25 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                 <!--- Allow to Add *-source.jar;  -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${mvn.source.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <attach>true</attach>
+                    <skipSource>false</skipSource>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -22,15 +22,15 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.GetTableRequest;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.sun.jna.platform.unix.LibC;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.GetTableRequest;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -48,15 +48,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 import java.util.Base64;
-import java.util.Date;
-import java.util.concurrent.TimeUnit;
 
-import static com.amazonaws.athena.connector.lambda.data.BlockUtils.UTC_ZONE_ID;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION;
@@ -103,10 +97,10 @@ public class GcsUtil
      * Install/place Google cloud platform credentials from AWS secret manager to temp location
      * This is required for dataset api
      */
-    public static void installGoogleCredentialsJsonFile() throws IOException
+    public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions) throws IOException
     {
-        CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
-        String gcsCredentialsJsonString = secretsManager.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
+        CachableSecretsManager secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
+        String gcsCredentialsJsonString = secretsManager.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
         File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
         boolean destinationDirExists = new File(destination.getParent()).mkdirs();
         if (!destinationDirExists && destination.exists()) {
@@ -148,57 +142,67 @@ public class GcsUtil
      * @param awsGlue AWS Glue client
      * @return Table object
      */
-    public static Table getGlueTable(TableName tableName, AWSGlue awsGlue)
+    public static Table getGlueTable(TableName tableName, GlueClient awsGlue)
     {
-        GetTableRequest getTableRequest = new GetTableRequest();
-        getTableRequest.setDatabaseName(tableName.getSchemaName());
-        getTableRequest.setName(tableName.getTableName());
+        GetTableRequest getTableRequest = GetTableRequest.builder()
+                .databaseName(tableName.getSchemaName())
+                .name(tableName.getTableName())
+                .build();
 
-        GetTableResult result = awsGlue.getTable(getTableRequest);
-        return result.getTable();
+        software.amazon.awssdk.services.glue.model.GetTableResponse response = awsGlue.getTable(getTableRequest);
+        return response.table();
     }
 
+    // The value returned here is going to block.offerValue, which eventually invokes BlockUtils.setValue()
+    // setValue() will take various java date objects to set on the block, so its preferrable to return those
+    // kinds of objects instead of just a raw long.
+    // This generally means that we only have to coerce raw longs into proper java date objects so that
+    // BlockUtils will just do the right thing depending on the target schema.
     public static Object coerce(FieldVector vector, Object value)
     {
-        switch (vector.getMinorType()) {
-            case TIMESTAMPNANO:
-            case TIMENANO:
-                if (value instanceof LocalDateTime) {
-                    return DateTimeFormatterUtil.packDateTimeWithZone(
-                            ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
+        // Since [...]/gcs/storage/StorageMetadata.java is only mapping these
+        // types in the schema, we only have to worry about Time and Timestamp
+        //  case TIMESTAMPNANO:
+        //  case TIMESTAMPSEC:
+        //  case TIMESTAMPMILLI:
+        //  case TIMEMICRO:
+        //  case TIMESTAMPMICRO:
+        //  case TIMENANO:
+        //      return Types.MinorType.DATEMILLI.getType();
+        //  case TIMESTAMPMILLITZ:
+        //  case TIMESTAMPMICROTZ: {
+        //      return new ArrowType.Timestamp(
+        //          org.apache.arrow.vector.types.TimeUnit.MILLISECOND,
+        //          ((ArrowType.Timestamp) arrowType).getTimezone());
+        //  }
+        ArrowType arrowType = vector.getField().getType();
+        switch (arrowType.getTypeID()) {
+            case Time: {
+                ArrowType.Time actualType = (ArrowType.Time) arrowType;
+                if (value instanceof Long) {
+                    return Instant.EPOCH.plus(
+                        (Long) value,
+                        DateTimeFormatterUtil.arrowTimeUnitToChronoUnit(actualType.getUnit())
+                    ).atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
                 }
-                else if (value instanceof Date) {
-                    long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
-                            .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
-                    return DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
-                }
-                else {
-                    return Duration.ofNanos((Long) value).toMillis();
-                }
-            case TIMEMICRO:
-            case TIMESTAMPMICRO:
-                if (value instanceof LocalDateTime) {
-                    return DateTimeFormatterUtil.packDateTimeWithZone(
-                            ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
-                }
-                else {
-                    return TimeUnit.MICROSECONDS.toMillis((Long) value);
-                }
-            case TIMESTAMPMICROTZ:
-                if (value instanceof ZonedDateTime) {
-                    return DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
-                }
-                else if (value instanceof Date) {
-                    long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
-                            .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
-                    return DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
-                }
-                else {
-                    return TimeUnit.MICROSECONDS.toMillis((Long) value);
-                }
-            default:
+                // If its anything other than Long, just let BlockUtils handle it directly.
                 return value;
+            }
+            case Timestamp: {
+                ArrowType.Timestamp actualType = (ArrowType.Timestamp) arrowType;
+                if (value instanceof Long) {
+                    // Convert this long and timezone into a ZonedDateTime
+                    // Since BlockUtils.setValue accepts ZonedDateTime objects for TIMESTAMPMILLITZ
+                    return Instant.EPOCH.plus(
+                        (Long) value,
+                        DateTimeFormatterUtil.arrowTimeUnitToChronoUnit(actualType.getUnit())
+                    ).atZone(java.time.ZoneId.of(actualType.getTimezone()));
+                }
+                // If its anything other than Long, just let BlockUtils handle it directly.
+                return value;
+            }
         }
+        return value;
     }
 
     // Code adapted from: https://stackoverflow.com/a/40774458

@@ -20,7 +20,7 @@ This would return result 'StringToBeCompressed'.
 
 3. "encrypt": encrypt the data with a data key stored in AWS Secrets Manager*
 
-Before testing this query, you would need to create a secret in AWS Secrets Manager. Make sure to use "DefaultEncryptionKey". If you choose to use your KMS key, you would need to update ./athena-udfs.yaml to allow access to your KMS key. Remove all the json brackets and store a base64 encoded string as data key. Sample data is like `AQIDBAUGBwgJAAECAwQFBg==`. 
+Before testing this query, you would need to create a secret in AWS Secrets Manager. Make sure to use "DefaultEncryptionKey". If you choose to use your KMS key, you would need to update ./athena-udfs.yaml to allow access to your KMS key. Remove all the json brackets and store a base64 encoded string as data key. Sample data is like `i5YnyBO4gJKWuIQ+gjuJjcJ/5kUph9pmYFUbW7zf3PE=`. 
 
 Example query:
 
@@ -30,7 +30,7 @@ Example query:
 
 Example query:
 
-`USING EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decrypt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
+`USING EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decrypt('G/VP2sbMb7d4zE2HVl2XkiB5xUHpszlEjccEBsTVji209IaCjg==', 'my_secret_name');`
 
 *To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
@@ -49,8 +49,21 @@ To use this connector in your queries, navigate to AWS Serverless Application Re
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-udfs dir, run `mvn clean install`.
-3. From the athena-udfs dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-udfs` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+3. From the athena-udfs dir, run  `sam deploy --template-file athena-udfs.yaml -g` and follow the guided prompt to synthesize your CloudFormation template and create your IAM policies and Lambda function. 
 4. Try using your UDF(s) in a query.
+
+## Migrating To V2
+This UDF includes a sample encryption/decryption method to showcase the benefits of integrating UDFs into your queries. If you were using the prior version of this UDF with AES-based encryption and wish to transition to the new version, please follow these steps:
+
+1. Deploy the new connector with new name (say v2)  as shown in previous example. 
+2. Use the previously deployed connector to decrypt, and the new one to encrypt:
+
+```
+USING    EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA 'athena_udf_v1',
+         EXTERNAL FUNCTION encrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA 'athena_udf_v2'
+SELECT   encrypt(t.plaintext, 'SOME_SECRET')
+         FROM (SELECT decrypt('PREVIOUSLY_ENCRYPTED_MESSAGE', 'SOME_SECRET') as plaintext) as t
+```
 
 ## License
 

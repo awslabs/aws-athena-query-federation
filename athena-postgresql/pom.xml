@@ -31,14 +31,26 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.5.3</version>
+            <version>42.7.5</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-rds -->
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-rds</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>${mockito.version}</version>
             <scope>test</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/rds -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>rds</artifactId>
+            <version>${aws-sdk-v2.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
         <dependency>

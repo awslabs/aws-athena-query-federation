@@ -20,24 +20,6 @@
 
 package com.amazonaws.athena.connectors.cloudera;
 
-import java.sql.Connection;
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Collections;
-import java.util.concurrent.TimeUnit;
-
-import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -46,15 +28,32 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
+import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mockito;
 
-import static org.mockito.ArgumentMatchers.any;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
+
+import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.nullable;
 
 
@@ -64,27 +63,27 @@ public class ImpalaRecordHandlerTest
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private S3Client amazonS3;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
 
     @Before
     public void setup()
             throws Exception
     {
-        this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
+        this.amazonS3 = Mockito.mock(S3Client.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new ImpalaQueryStringBuilder("`");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        jdbcSplitQueryBuilder = new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER));
 
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ImpalaConstants.IMPALA_NAME,
                 "impala://jdbc:impala://54.89.6.2:10000/authena;{testSecret}","testSecret");
 
-        this.impalaRecordHandler = new ImpalaRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.impalaRecordHandler = new ImpalaRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     private ValueSet getSingleValueSet(Object value) {
@@ -122,7 +121,7 @@ public class ImpalaRecordHandlerTest
         Mockito.when(range1b.getLow().getValue()).thenReturn(2);
         ValueSet valueSet1 = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet1.getRanges().getOrderedRanges()).thenReturn(ImmutableList.of(range1a, range1b));
-        final long dateDays = TimeUnit.DAYS.toDays(Date.valueOf("2020-01-05").getTime());
+        final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2020-01-05").getTime());
         ValueSet valueSet2 = getSingleValueSet(dateDays);
         Constraints constraints = Mockito.mock(Constraints.class);
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
@@ -132,5 +131,9 @@ public class ImpalaRecordHandlerTest
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        Date expectedDate = new Date(120, 0, 5);
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        Mockito.verify(preparedStatement, Mockito.times(1))
+                .setDate(1, expectedDate);
     }
 }

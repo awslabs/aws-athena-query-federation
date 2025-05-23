@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.validation.ConnectorValidator.BLOCK_ALLOCATOR;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -135,7 +136,7 @@ public class ConstraintParser
   public static Constraints parseConstraints(Schema schema, Optional<String> input)
   {
     if (!input.isPresent() || input.get().trim().isEmpty()) {
-      return new Constraints(Collections.EMPTY_MAP);
+      return new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
     }
 
     Map<String, ArrowType> fieldTypes = schema.getFields().stream()
@@ -144,7 +145,7 @@ public class ConstraintParser
     Map<String, ValueSet> constraints = new HashMap<>();
     Iterable<String> constraintStrings = CONSTRAINT_SPLITTER.split(input.get());
     constraintStrings.forEach(str -> parseAndAddConstraint(fieldTypes, constraints, str));
-    return new Constraints(constraints);
+    return new Constraints(constraints, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
   }
 
   private static void parseAndAddConstraint(Map<String, ArrowType> fieldTypes,

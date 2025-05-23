@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.redis;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class RedisCompositeHandler
 {
     public RedisCompositeHandler()
     {
-        super(new RedisMetadataHandler(), new RedisRecordHandler());
+        super(new RedisMetadataHandler(new EnvironmentProperties().createEnvironment()), new RedisRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

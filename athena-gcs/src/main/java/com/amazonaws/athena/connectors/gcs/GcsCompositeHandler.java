@@ -46,9 +46,9 @@ public class GcsCompositeHandler
      */
     public GcsCompositeHandler() throws IOException, CertificateEncodingException, NoSuchAlgorithmException, KeyStoreException
     {
-        super(new GcsMetadataHandler(allocator), new GcsRecordHandler(allocator));
+        super(new GcsMetadataHandler(allocator, new GcsEnvironmentProperties().createEnvironment()), new GcsRecordHandler(allocator, new GcsEnvironmentProperties().createEnvironment()));
         installCaCertificate();
-        installGoogleCredentialsJsonFile();
+        installGoogleCredentialsJsonFile(new GcsEnvironmentProperties().createEnvironment());
         setupNativeEnvironmentVariables();
     }
 }

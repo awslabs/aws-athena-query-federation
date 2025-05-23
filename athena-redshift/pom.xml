@@ -22,8 +22,15 @@
         </dependency>
         <dependency>
             <groupId>com.amazon.redshift</groupId>
-            <artifactId>redshift-jdbc42-no-awssdk</artifactId>
-            <version>1.2.55.1083</version>
+            <artifactId>redshift-jdbc42</artifactId>
+            <!-- Increasing to 2.1.0.31 caused a casing issue in release tests -->
+            <version>2.1.0.30</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -32,12 +39,16 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-redshift -->
+        <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/redshift -->
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-redshift</artifactId>
-            <version>${aws-sdk.version}</version>
-            <scope>test</scope>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>redshift</artifactId>
+            <version>${aws-sdk-v2.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>redshiftserverless</artifactId>
+            <version>${aws-sdk-v2.version}</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/redshift -->
         <dependency>
@@ -46,12 +57,18 @@
             <version>${aws-cdk.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-rds -->
+        <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/rds -->
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-rds</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>rds</artifactId>
+            <version>${aws-sdk-v2.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
         <dependency>

@@ -19,15 +19,13 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
+import com.amazonaws.athena.connector.lambda.data.ArrowSchemaUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.GcsUtil;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Table;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
@@ -43,10 +41,12 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Table;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -132,29 +132,32 @@ public class StorageMetadata
      * @return A list of {@link Map<String, String>} instances
      * @throws URISyntaxException Throws if any occurs during parsing Uri
      */
-    public List<Map<String, String>> getPartitionFolders(Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
+    public List<Map<String, String>> getPartitionFolders(Schema schema, TableName tableInfo, Constraints constraints, GlueClient awsGlue)
             throws URISyntaxException
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
         // Build expression only based on partition keys
-        List<Column> partitionColumns = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
+        List<Column> partitionColumns = table.partitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.partitionKeys();
         // getConstraintsForPartitionedColumns gives us a case insensitive mapping of column names to their value set
         Map<String, Optional<Set<String>>> columnValueConstraintMap = FilterExpressionBuilder.getConstraintsForPartitionedColumns(partitionColumns, constraints);
         LOGGER.info("columnValueConstraintMap for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), columnValueConstraintMap);
-        URI storageLocation = new URI(table.getStorageDescriptor().getLocation());
+        URI storageLocation = new URI(table.storageDescriptor().location());
         LOGGER.info("Listing object in location {} under the bucket {}", storageLocation.getAuthority(), storageLocation.getPath());
         // Trim leading /
         String path = storageLocation.getPath().replaceFirst("^/", "");
         Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
 
         Map<Boolean, List<Map<String, String>>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
-            .filter(blob -> !isBlobFile(blob))
-            .map(blob -> blob.getName().replaceFirst("^" + path, ""))
-             // remove the front-slash, because, the expression generated without it
-            .map(folderPath -> folderPath.replaceFirst("^/", ""))
-            .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
-            .collect(Collectors.partitioningBy(partitionsMap -> partitionConstraintsSatisfied(partitionsMap, columnValueConstraintMap)));
+                .filter(blob -> isBlobFile(blob))
+                .map(blob -> blob.getName().replaceFirst("^" + path, ""))
+                // get partition folder path from complete file location
+                .map(name -> name.substring(0, name.lastIndexOf("/") + 1).trim())
+                .distinct()
+                // remove the front-slash, because, the expression generated without it
+                .map(folderPath -> folderPath.replaceFirst("^/", ""))
+                .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
+                .collect(Collectors.partitioningBy(partitionsMap -> partitionConstraintsSatisfied(partitionsMap, columnValueConstraintMap)));
 
         LOGGER.info("getPartitionFolders results: {}", results);
 
@@ -165,7 +168,7 @@ public class StorageMetadata
      * Retrieves the filename of any file that has a non-zero size within the bucket/prefix
      *
      * @param bucket Name of the bucket
-     * @param prefix Prefix (aka, folder in Storage service) of the bucket from where this method with retrieve files
+     * @param prefixPath Prefix (aka, folder in Storage service) of the bucket from where this method with retrieve files
      * @return A single file name under the prefix
      */
     protected Optional<String> getAnyFilenameInPath(String bucket, String prefixPath)
@@ -223,9 +226,9 @@ public class StorageMetadata
     public Schema buildTableSchema(Table table, BufferAllocator allocator) throws URISyntaxException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        String locationUri = table.getStorageDescriptor().getLocation();
+        String locationUri = table.storageDescriptor().location();
         URI storageLocation = new URI(locationUri);
-        List<Field> fieldList = getFields(storageLocation.getAuthority(), storageLocation.getPath(), table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), allocator);
+        List<Field> fieldList = getFields(storageLocation.getAuthority(), storageLocation.getPath(), table.parameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), allocator);
 
         LOGGER.debug("Schema Fields\n{}", fieldList);
         for (Field field : fieldList) {
@@ -233,8 +236,10 @@ public class StorageMetadata
                 field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
             }
             else {
-                ArrowType arrowType = getCompatibleFieldType(field.getType());
-                field = new Field(field.getName().toLowerCase(), new FieldType(field.isNullable(), arrowType, field.getDictionary(), field.getMetadata()), field.getChildren());
+                // TODO: Need to check to see if nested field names need to be lowercased since this
+                // method was not taking into account the casing of the struct fieldnames before.
+                Field updatedField = ArrowSchemaUtils.remapArrowTypesWithinField(field, StorageMetadata::getCompatibleFieldType);
+                field = new Field(updatedField.getName().toLowerCase(), updatedField.getFieldType(), updatedField.getChildren());
             }
             schemaBuilder.addField(field);
         }
@@ -252,14 +257,19 @@ public class StorageMetadata
             case TIMESTAMPMICRO:
             case TIMENANO:
                 return Types.MinorType.DATEMILLI.getType();
-            case TIMESTAMPMICROTZ:
-                return Types.MinorType.TIMESTAMPMILLITZ.getType();
+            case TIMESTAMPMILLITZ:
+            case TIMESTAMPMICROTZ: {
+                return new ArrowType.Timestamp(
+                    org.apache.arrow.vector.types.TimeUnit.MILLISECOND,
+                    ((ArrowType.Timestamp) arrowType).getTimezone());
+            }
+            // NOTE: Not sure that both of these should go to Utf8,
+            // but just keeping it in-line with how it was before.
             case FIXEDSIZEBINARY:
             case LARGEVARBINARY:
-                return Types.MinorType.VARCHAR.getType();
-            default:
-                return arrowType;
+                return ArrowType.Utf8.INSTANCE;
         }
+        return arrowType;
     }
 
     private static boolean isArrowTypeNull(ArrowType arrowType)

@@ -24,6 +24,7 @@ public class DataLakeGen2Constants
     public static final String NAME = "datalakegentwo";
     public static final String DRIVER_CLASS = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     public static final int DEFAULT_PORT = 1433;
+    public static final String QUOTE_CHARACTER = "\"";
 
     private DataLakeGen2Constants() {}
 }

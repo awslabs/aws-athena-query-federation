@@ -31,21 +31,25 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -74,8 +78,9 @@ public class MySqlMetadataHandlerTest
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
     private FederatedIdentity federatedIdentity;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
+    private BlockAllocator blockAllocator;
 
     @Before
     public void setup()
@@ -83,12 +88,13 @@ public class MySqlMetadataHandlerTest
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.mySqlMetadataHandler = new MySqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        this.mySqlMetadataHandler = new MySqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        this.blockAllocator = Mockito.mock(BlockAllocator.class);
     }
 
     @Test
@@ -183,6 +189,40 @@ public class MySqlMetadataHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getSchemaName());
     }
 
+    @Test
+    public void doListPaginatedTables()
+        throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(MySqlMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}};
+        TableName[] expected = {new TableName("testSchema", "testTable")};
+        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        ListTablesResponse listTablesResponse = this.mySqlMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", null, 1));
+        Assert.assertEquals("1", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(MySqlMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        Object[][] nextValues = {{"testSchema", "testTable2"}};
+        TableName[] nextExpected = {new TableName("testSchema", "testTable2")};
+        ResultSet nextResultSet = mockResultSet(schema, nextValues, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(nextResultSet);
+
+        listTablesResponse = this.mySqlMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "1", 1));
+        Assert.assertEquals("2", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(nextExpected, listTablesResponse.getTables().toArray());
+    }
+
     @Test(expected = RuntimeException.class)
     public void doGetTableLayoutWithSQLException()
             throws Exception
@@ -195,9 +235,9 @@ public class MySqlMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        MySqlMetadataHandler mySqlMetadataHandler = new MySqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
+        MySqlMetadataHandler mySqlMetadataHandler = new MySqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 
         mySqlMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
@@ -273,5 +313,34 @@ public class MySqlMetadataHandlerTest
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
+    }
+
+    @org.testng.annotations.Test(expectedExceptions = {RuntimeException.class}, expectedExceptionsMessageRegExp = "More than one table that matches 'testtable' was returned from Database testSchema")
+    public void doGetTableCaseInsensitiveDuplicateTableNames()
+            throws Exception
+    {
+        TableName inputTableName = new TableName("testSchema", "testtable");
+        String[] columnNames = new String[] {"table_name"};
+        String[][] tableNameValues = new String[][]{new String[] {"testTable"}, new String[] {"TestTable"}};
+        ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = 'testtable' or lower(table_name) = 'testtable') AND table_schema = 'testSchema'";
+        Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
+
+        GetTableResponse getTableResponse = this.mySqlMetadataHandler.doGetTable(this.blockAllocator,
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+    }
+
+    @org.testng.annotations.Test(expectedExceptions = {RuntimeException.class}, expectedExceptionsMessageRegExp = "During Case Insensitive look up could not find Table testtable in Database testSchema")
+    public void doGetTableCaseInsensitiveNoTablesFound()
+            throws Exception
+    {
+        TableName inputTableName = new TableName("testSchema", "testtable");
+        ResultSet resultSetName = Mockito.mock(ResultSet.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(resultSetName.next()).thenReturn(false);
+        String sql = "SELECT table_name FROM information_schema.tables WHERE (table_name = 'testtable' or lower(table_name) = 'testtable') AND table_schema = 'testSchema'";
+        Mockito.when(this.connection.prepareStatement(sql).executeQuery()).thenReturn(resultSetName);
+
+        GetTableResponse getTableResponse = this.mySqlMetadataHandler.doGetTable(this.blockAllocator,
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 }

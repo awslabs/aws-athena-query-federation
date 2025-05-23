@@ -20,12 +20,9 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
+
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.core.RemovalPolicy;
@@ -34,9 +31,11 @@ import software.amazon.awscdk.services.dynamodb.Attribute;
 import software.amazon.awscdk.services.dynamodb.AttributeType;
 import software.amazon.awscdk.services.dynamodb.BillingMode;
 import software.amazon.awscdk.services.dynamodb.Table;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -52,10 +51,10 @@ public class DdbTableUtils {
     private static final long READ_CAPACITY_UNITS = 10L;
     private static final long WRITE_CAPACITY_UNITS = 10L;
 
-    private final AmazonDynamoDB client;
+    private final DynamoDbClient client;
 
     public DdbTableUtils() {
-        client = AmazonDynamoDBClientBuilder.defaultClient();
+        client = DynamoDbClient.create();
     }
 
     /**
@@ -87,11 +86,15 @@ public class DdbTableUtils {
             try {
                 // Add record to table in DynamoDB service.
                 logger.info("Add item attempt: {}", attempt);
-                client.putItem(tableName, item);
+                PutItemRequest putItemRequest = PutItemRequest.builder()
+                        .tableName(tableName)
+                        .item(item)
+                        .build();
+                client.putItem(putItemRequest);
                 logger.info("Added item in {} attempt(s).", attempt);
                 break;
             } catch (ResourceNotFoundException e) {
-                logger.info(e.getErrorMessage());
+                logger.info(e.getMessage());
                 if (attempt < MAX_TRIES) {
                     // Sleep for 10 seconds and try again.
                     logger.info("Sleeping for 10 seconds...");

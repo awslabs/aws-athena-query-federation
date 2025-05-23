@@ -35,15 +35,14 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connectors.sqlserver.resolver.SQLServerJDBCCaseResolver;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -52,6 +51,10 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -68,6 +71,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -75,15 +79,15 @@ public class SqlServerMetadataHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(SqlServerMetadataHandlerTest.class);
-    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SqlServerConstants.NAME,
     		  "sqlserver://jdbc:sqlserver://hostname;databaseName=fakedatabase");
     private SqlServerMetadataHandler sqlServerMetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
     private FederatedIdentity federatedIdentity;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
     private BlockAllocator allocator;
 
     @Before
@@ -94,11 +98,11 @@ public class SqlServerMetadataHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         logger.info(" this.connection.."+ this.connection);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}").build());
+        this.sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SQLServerJDBCCaseResolver(SqlServerConstants.NAME));
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.allocator = new BlockAllocatorImpl();
     }
@@ -107,7 +111,7 @@ public class SqlServerMetadataHandlerTest
     public void getPartitionSchema()
     {
         Assert.assertEquals(SchemaBuilder.newBuilder()
-                        .addField(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
+                        .addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
                 this.sqlServerMetadataHandler.getPartitionSchema("testCatalogName"));
     }
 
@@ -130,7 +134,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{"2"},{"3"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -148,10 +152,10 @@ public class SqlServerMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(Arrays.asList("[PARTITION_NUMBER : 1:::pf:::pc]","[PARTITION_NUMBER : 2:::pf:::pc]","[PARTITION_NUMBER : 3:::pf:::pc]"), actualValues);
+        Assert.assertEquals(Arrays.asList("[partition_number : 1:::pf:::pc]","[partition_number : 2:::pf:::pc]","[partition_number : 3:::pf:::pc]"), actualValues);
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
@@ -174,7 +178,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.VARCHAR};
         Object[][] values = {{}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -194,10 +198,10 @@ public class SqlServerMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(Arrays.asList("[PARTITION_NUMBER : 0]"), actualValues);
+        Assert.assertEquals(Arrays.asList("[partition_number : 0]"), actualValues);
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
@@ -218,9 +222,9 @@ public class SqlServerMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        SqlServerMetadataHandler sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
+        SqlServerMetadataHandler sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SQLServerJDBCCaseResolver(SqlServerConstants.NAME));
 
         sqlServerMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
@@ -246,7 +250,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.INTEGER};
         Object[][] values = {{2}, {3}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -269,19 +273,19 @@ public class SqlServerMetadataHandlerTest
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
-        Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(sqlServerMetadataHandler.PARTITION_NUMBER, "1"),
-                Map.entry("PARTITIONING_COLUMN", "pc"),
-                Map.entry("PARTITION_FUNCTION", "pf")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(sqlServerMetadataHandler.PARTITION_NUMBER, "2"),
-                Map.entry("PARTITIONING_COLUMN", "pc"),
-                Map.entry("PARTITION_FUNCTION", "pf")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(sqlServerMetadataHandler.PARTITION_NUMBER, "3"),
-                Map.entry("PARTITIONING_COLUMN", "pc"),
-                Map.entry("PARTITION_FUNCTION", "pf")));
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+            com.google.common.collect.ImmutableMap.of(
+                PARTITION_NUMBER, "1",
+                "PARTITIONING_COLUMN", "pc",
+                "PARTITION_FUNCTION", "pf"),
+            com.google.common.collect.ImmutableMap.of(
+                PARTITION_NUMBER, "2",
+                "PARTITIONING_COLUMN", "pc",
+                "PARTITION_FUNCTION", "pf"),
+            com.google.common.collect.ImmutableMap.of(
+                PARTITION_NUMBER, "3",
+                "PARTITIONING_COLUMN", "pc",
+                "PARTITION_FUNCTION", "pf"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -308,7 +312,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.INTEGER};
         Object[][] values = {{}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -327,7 +331,7 @@ public class SqlServerMetadataHandlerTest
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap(sqlServerMetadataHandler.PARTITION_NUMBER, "0"));
+        expectedSplits.add(Collections.singletonMap(PARTITION_NUMBER, "0"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -352,7 +356,7 @@ public class SqlServerMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
 
-        String[] columns = {sqlServerMetadataHandler.PARTITION_NUMBER};
+        String[] columns = {PARTITION_NUMBER};
         int[] types = {Types.INTEGER};
         Object[][] values = {{2},{3}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
@@ -371,14 +375,48 @@ public class SqlServerMetadataHandlerTest
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, "2");
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
-        Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(sqlServerMetadataHandler.PARTITION_NUMBER, "3"),
-                Map.entry("PARTITIONING_COLUMN", "pc"),
-                Map.entry("PARTITION_FUNCTION", "pf")));
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+            com.google.common.collect.ImmutableMap.of(
+                PARTITION_NUMBER, "3",
+                "PARTITIONING_COLUMN", "pc",
+                "PARTITION_FUNCTION", "pf"));
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }
+
+    @Test
+    public void doListPaginatedTables()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}};
+        TableName[] expected = {new TableName("testSchema", "testTable")};
+        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        ListTablesResponse listTablesResponse = this.sqlServerMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", null, 1));
+        Assert.assertEquals("1", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        Object[][] nextValues = {{"testSchema", "testTable2"}};
+        TableName[] nextExpected = {new TableName("testSchema", "testTable2")};
+        ResultSet nextResultSet = mockResultSet(schema, nextValues, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(nextResultSet);
+
+        listTablesResponse = this.sqlServerMetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "1", 1));
+        Assert.assertEquals("2", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(nextExpected, listTablesResponse.getTables().toArray());
+    } 
 
     @Test
     public void doGetTable()
@@ -395,7 +433,7 @@ public class SqlServerMetadataHandlerTest
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
@@ -403,7 +441,7 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
         GetTableResponse getTableResponse = this.sqlServerMetadataHandler.doGetTable(
-                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());

@@ -27,10 +27,13 @@ import org.junit.Test;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.zip.DataFormatException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -41,8 +44,7 @@ public class AthenaUDFHandlerTest
 
     private AthenaUDFHandler athenaUDFHandler;
 
-    private static final String PLAINTEXT_DATA_KEY = "AQIDBAUGBwgJAAECAwQFBg==";
-
+    private static final String PLAINTEXT_DATA_KEY = "i5YnyBO4gJKWuIQ+gjuJjcJ/5kUph9pmYFUbW7zf3PE=";
     private Base64.Decoder decoder = Base64.getDecoder();
     private Base64.Encoder encoder = Base64.getEncoder();
 
@@ -66,16 +68,16 @@ public class AthenaUDFHandlerTest
         assertEquals(input, decompressed);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testCompressNull()
     {
-        athenaUDFHandler.compress(null);
+        assertNull(athenaUDFHandler.compress(null));
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testDecompressNull()
     {
-        athenaUDFHandler.decompress(null);
+        assertNull(athenaUDFHandler.decompress(null));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -105,31 +107,27 @@ public class AthenaUDFHandlerTest
     @Test
     public void testKmsDecryption() throws Exception
     {
-        SecretKeySpec skeySpec = new SecretKeySpec(decoder.decode(PLAINTEXT_DATA_KEY), "AES");
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
-
+        Cipher cipher = AthenaUDFHandler.getCipher(Cipher.ENCRYPT_MODE, decoder.decode(PLAINTEXT_DATA_KEY.getBytes()), AthenaUDFHandler.getGCMSpecEncryption());
         String expected = "abcdef";
-        String encryptedString = new String(encoder.encode(cipher.doFinal(expected.getBytes())));
+        byte[] encryptedString = cipher.doFinal(expected.getBytes(StandardCharsets.UTF_8));
+        ByteBuffer byteBuffer = ByteBuffer.allocate(AthenaUDFHandler.GCM_IV_LENGTH + encryptedString.length);
+        byteBuffer.put(cipher.getIV());
+        byteBuffer.put(encryptedString);
 
-        String result = athenaUDFHandler.decrypt(encryptedString, DUMMY_SECRET_NAME);
+        String encodedString = new String(encoder.encode(byteBuffer.array()));
+        String result = athenaUDFHandler.decrypt(encodedString, DUMMY_SECRET_NAME);
 
         assertEquals(expected, result);
     }
 
     @Test
-    public void testKmsEncryption() throws Exception
-    {
-        SecretKeySpec skeySpec = new SecretKeySpec(decoder.decode(PLAINTEXT_DATA_KEY), "AES");
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
+    public void testKmsEncryptionNull() {
+        assertNull(athenaUDFHandler.encrypt(null, DUMMY_SECRET_NAME));
+    }
 
-        String content = "abcdef";
-        String expected = new String(encoder.encode(cipher.doFinal(content.getBytes())));
-
-        String result = athenaUDFHandler.encrypt(content, DUMMY_SECRET_NAME);
-
-        assertEquals(expected, result);
+    @Test
+    public void testKmsDecryptionNull() {
+        assertNull(athenaUDFHandler.decrypt(null, DUMMY_SECRET_NAME));
     }
 
     /**
@@ -141,45 +139,41 @@ public class AthenaUDFHandlerTest
     @Test
     public void testKmsDecryptionEndToEnd() throws Exception
     {
-        String secretName = "<fill-in-your-secret-name>";
+        String secretName = "<fill-in-secret-name>";
         String secretValue = "<fill-in-secret-value>";
 
         this.athenaUDFHandler = new AthenaUDFHandler();
 
-        SecretKeySpec skeySpec = new SecretKeySpec(decoder.decode(secretValue), "AES");
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
+        Cipher cipher = AthenaUDFHandler.getCipher(Cipher.ENCRYPT_MODE, decoder.decode(secretValue.getBytes()), AthenaUDFHandler.getGCMSpecEncryption());
 
         String expected = "abcdef";
-        String encryptedString = new String(encoder.encode(cipher.doFinal(expected.getBytes())));
+        byte[] encryptedString = cipher.doFinal(expected.getBytes(StandardCharsets.UTF_8));
+        ByteBuffer byteBuffer = ByteBuffer.allocate(AthenaUDFHandler.GCM_IV_LENGTH + encryptedString.length);
+        byteBuffer.put(cipher.getIV());
+        byteBuffer.put(encryptedString);
+        String encodedString = new String(encoder.encode(byteBuffer.array()));
 
-        String result = athenaUDFHandler.decrypt(encryptedString, secretName);
+        String result = athenaUDFHandler.decrypt(encodedString, secretName);
 
         assertEquals(expected, result);
     }
 
     /**
-     * This UT is used to test {@link AthenaUDFHandler#encrypt(String, String)} method end-to-end.
+     * This UT is used to test encryption and decryption end-to-end.
      * It requires AWS Secret Manager setup and AWS credential setup.
      * @throws Exception
      */
     @Ignore("Enabled as needed to do end-to-end test")
     @Test
-    public void testKmsEncryptionEndToEnd() throws Exception
+    public void testKmsEndToEnd() throws Exception
     {
-        String secretName = "<fill-in-your-secret-name>";
-        String secretValue = "<fill-in-secret-value>";
+        String secretName = "<fill-in-secret-name>";
 
         this.athenaUDFHandler = new AthenaUDFHandler();
-
-        SecretKeySpec skeySpec = new SecretKeySpec(decoder.decode(secretValue), "AES");
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
-
         String expected = "abcdef";
-        String encryptedString = new String(encoder.encode(cipher.doFinal(expected.getBytes())));
 
-        String result = athenaUDFHandler.decrypt(encryptedString, secretName);
+        String encodedString = athenaUDFHandler.encrypt(expected, secretName);
+        String result = athenaUDFHandler.decrypt(encodedString, secretName);
 
         assertEquals(expected, result);
     }

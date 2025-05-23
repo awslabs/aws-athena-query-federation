@@ -2,14 +2,14 @@
  * #%L
  * athena-dynamodb
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,18 +20,21 @@
 package com.amazonaws.athena.connectors.dynamodb.resolver;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBPaginatedTables;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.model.ListTablesRequest;
-import com.amazonaws.services.dynamodbv2.model.ListTablesResult;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.ListTablesRequest;
+import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,8 +43,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
-import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
-import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * This class helps with resolving the differences in casing between DynamoDB and Presto. Presto expects all
@@ -56,11 +58,11 @@ public class DynamoDBTableResolver
 {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBTableResolver.class);
 
-    private AmazonDynamoDB ddbClient;
+    private DynamoDbClient ddbClient;
     // used to handle Throttling events using an AIMD strategy for congestion control.
     private ThrottlingInvoker invoker;
 
-    public DynamoDBTableResolver(ThrottlingInvoker invoker, AmazonDynamoDB ddbClient)
+    public DynamoDBTableResolver(ThrottlingInvoker invoker, DynamoDbClient ddbClient)
     {
         this.invoker = invoker;
         this.ddbClient = ddbClient;
@@ -71,29 +73,32 @@ public class DynamoDBTableResolver
      *
      * @return the list of tables in DynamoDB
      */
-    public List<TableName> listTables()
+    public DynamoDBPaginatedTables listTables(String token, int pageSize)
             throws TimeoutException
     {
-        return listTablesInternal().stream()
-                .map(table -> table.toLowerCase(Locale.ENGLISH)) // lowercase for compatibility
-                .map(table -> new TableName(DEFAULT_SCHEMA, table))
-                .collect(toImmutableList());
+        return listPaginatedTables(token, pageSize);
     }
 
-    private List<String> listTablesInternal()
-            throws TimeoutException
+    private DynamoDBPaginatedTables listPaginatedTables(String token, int pageSize) throws TimeoutException
     {
         List<String> tables = new ArrayList<>();
-        String nextToken = null;
-        do {
-            ListTablesRequest ddbRequest = new ListTablesRequest()
-                    .withExclusiveStartTableName(nextToken);
-            ListTablesResult result = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
-            tables.addAll(result.getTableNames());
-            nextToken = result.getLastEvaluatedTableName();
+        String nextToken = token;
+        int limit = pageSize;
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            limit = 100;
         }
-        while (nextToken != null);
-        return tables;
+        do {
+            ListTablesRequest ddbRequest = ListTablesRequest.builder()
+                        .exclusiveStartTableName(nextToken)
+                        .limit(limit)
+                        .build();
+            ListTablesResponse response = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
+            tables.addAll(response.tableNames());
+            nextToken = response.lastEvaluatedTableName();
+        }
+        while (nextToken != null && pageSize == UNLIMITED_PAGE_SIZE_VALUE);
+        logger.info("{} tables returned with pagination", tables.size());
+        return new DynamoDBPaginatedTables(tables, nextToken);
     }
 
     /**
@@ -116,7 +121,7 @@ public class DynamoDBTableResolver
                 return DDBTableUtils.peekTableForSchema(caseInsensitiveMatch.get(), invoker, ddbClient);
             }
             else {
-                throw e;
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
         }
     }
@@ -155,7 +160,8 @@ public class DynamoDBTableResolver
     {
         logger.info("Table {} not found.  Falling back to case insensitive search.", tableName);
         Multimap<String, String> lowerCaseNameMapping = ArrayListMultimap.create();
-        for (String nextTableName : listTablesInternal()) {
+        List<String> tableNames = listPaginatedTables(null, UNLIMITED_PAGE_SIZE_VALUE).getTables();
+        for (String nextTableName : tableNames) {
             lowerCaseNameMapping.put(nextTableName.toLowerCase(Locale.ENGLISH), nextTableName);
         }
         Collection<String> mappedNames = lowerCaseNameMapping.get(tableName);

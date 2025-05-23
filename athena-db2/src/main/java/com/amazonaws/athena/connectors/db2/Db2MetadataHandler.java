@@ -28,16 +28,23 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -46,19 +53,19 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -67,13 +74,16 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
+import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 
 public class Db2MetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Db2MetadataHandler.class);
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
     static final String PARTITIONING_COLUMN = "PARTITIONING_COLUMN";
     /**
      * DB2 has max number of partition 32,000
@@ -85,9 +95,9 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * <p>
      * Recommend using {@link Db2MuxCompositeHandler} instead.
      */
-    public Db2MetadataHandler()
+    public Db2MetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME, configOptions), configOptions);
     }
 
     /**
@@ -95,9 +105,9 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      *
      * @param databaseConnectionConfig
      */
-    public Db2MetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public Db2MetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(Db2Constants.DRIVER_CLASS, Db2Constants.DEFAULT_PORT)));
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(Db2Constants.DRIVER_CLASS, Db2Constants.DEFAULT_PORT)), configOptions);
     }
 
     /**
@@ -106,16 +116,23 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @param databaseConnectionConfig
      * @param jdbcConnectionFactory
      */
-    public Db2MetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public Db2MetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     @VisibleForTesting
-    protected Db2MetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                 AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected Db2MetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
 
     /**
@@ -149,26 +166,6 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
             List<String> tableNames = getTableList(connection, Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
             List<TableName> tables = tableNames.stream().map(tableName -> new TableName(listTablesRequest.getSchemaName(), tableName)).collect(Collectors.toList());
             return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
-        }
-    }
-
-    /**
-     * Creating TableName object, Schema object for partition framing fields,
-     * and Schema object for table fields.
-     *
-     * @param blockAllocator
-     * @param getTableRequest
-     * @return
-     */
-    @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest) throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = getTableRequest.getTableName();
-            Schema schema = getSchema(connection, tableName, partitionSchema);
-            Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-            return new GetTableResponse(getTableRequest.getCatalogName(), tableName, schema, partitionCols);
         }
     }
 
@@ -252,6 +249,10 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+        if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
+            LOGGER.info("QPT Split Requested");
+            return setupQueryPassthroughSplit(getSplitsRequest);
+        }
 
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         Block partitions = getSplitsRequest.getPartitions();
@@ -289,6 +290,38 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
             }
         }
         return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+    }
+
+    /**
+     * Overridden this method to describe the types of capabilities supported by a data source
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details about the catalog being used.
+     * @return A GetDataSourceCapabilitiesResponse object which returns a map of supported capabilities
+     */
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        Set<StandardFunctions> unsupportedFunctions = ImmutableSet.of(NULLIF_FUNCTION_NAME);
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+                FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                                .filter(values -> !unsupportedFunctions.contains(values))
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
+                TopNPushdownSubType.SUPPORTS_ORDER_BY
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+                LimitPushdownSubType.INTEGER_CONSTANT
+        ));
+
+        jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     /**
@@ -392,7 +425,8 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @return
      * @throws Exception
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    @Override
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
         String typeName;
@@ -415,10 +449,11 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                 }
 
                 while (resultSet.next()) {
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                    Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                             resultSet.getInt("DATA_TYPE"),
                             resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS")
+                            resultSet.getInt("DECIMAL_DIGITS"),
+                            configOptions
                     );
                     columnName = resultSet.getString("COLUMN_NAME");
                     typeName = columnNameMap.get(columnName);
@@ -427,27 +462,27 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                     If arrow type is struct then convert to VARCHAR, because struct is
                     considered as Unhandled type by JdbcRecordHandler's makeExtractor method.
                      */
-                    if (columnType != null && columnType.getTypeID().name().equalsIgnoreCase("Struct")) {
-                        columnType = Types.MinorType.VARCHAR.getType();
+                    if (columnType.isPresent() && columnType.get().getTypeID().name().equalsIgnoreCase("Struct")) {
+                        columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     }
 
                     /*
                      * Converting REAL, DOUBLE, DECFLOAT data types into FLOAT8 since framework is unable to map it by default
                      */
                     if ("real".equalsIgnoreCase(typeName) || "double".equalsIgnoreCase(typeName) || "decfloat".equalsIgnoreCase(typeName)) {
-                        columnType = Types.MinorType.FLOAT8.getType();
+                        columnType = Optional.of(Types.MinorType.FLOAT8.getType());
                     }
 
                     /*
                      * converting into VARCHAR for non supported data types.
                      */
-                    if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
+                    if (columnType.isEmpty() || !SupportedTypes.isSupported(columnType.get())) {
+                        columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     }
 
                     LOGGER.debug("columnType: " + columnType);
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                         found = true;
                     }
                     else {
@@ -462,25 +497,5 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                 return schemaBuilder.build();
             }
         }
-    }
-
-    /**
-     * Gets columns meta information from jdbc DatabaseMetaData object.
-     *
-     * @param catalogName
-     * @param tableHandle
-     * @param metadata
-     * @return
-     * @throws Exception
-     */
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws Exception
-    {
-        String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(
-                catalogName,
-                escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape),
-                null);
     }
 }

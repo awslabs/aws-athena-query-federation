@@ -36,9 +36,10 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
 import static org.junit.Assert.*;
 
@@ -93,7 +94,38 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT))
+                .build().replace("\n", "");
+
+        logger.info("build: actual[{}]", actual);
+        assertEquals(expected, actual);
+
+        logger.info("build: exit");
+    }
+
+    @Test
+    public void buildWithTime() {
+        logger.info("build: enter");
+
+        String expected = "SELECT val FROM \"myDatabase\".\"myTable\" WHERE ((\"time1\" > '2024-04-05 09:31:12.000000000')) AND ((\"time0\" > '2024-04-05 09:31:12.142000000'))";
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("time0", SortedRangeSet.copyOf(Types.MinorType.DATEMILLI.getType(),
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.DATEMILLI.getType(),
+                        LocalDateTime.of(2024, 4, 5, 9, 31, 12, 142000000))), false));
+        constraintsMap.put("time1", SortedRangeSet.copyOf(Types.MinorType.DATEMILLI.getType(),
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.DATEMILLI.getType(),
+                        LocalDateTime.of(2024, 4, 5, 9, 31, 12))), false));
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField("val", Types.MinorType.DATEMILLI.getType())
+                .build();
+
+        String actual = queryFactory.createSelectQueryBuilder(VIEW_METADATA_FIELD)
+                .withDatabaseName("myDatabase")
+                .withTableName("myTable")
+                .withProjection(schema)
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);
@@ -128,7 +160,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);

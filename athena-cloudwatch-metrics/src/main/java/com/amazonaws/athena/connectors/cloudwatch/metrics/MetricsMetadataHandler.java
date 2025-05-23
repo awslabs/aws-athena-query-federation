@@ -42,19 +42,18 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.cloudwatch.model.MetricStat;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.util.CollectionUtils;
 import com.google.common.collect.Lists;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.utils.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -105,9 +104,9 @@ public class MetricsMetadataHandler
     //The minimum number of splits we'd like to have for some parallelization
     private static final int MIN_NUM_SPLITS_FOR_PARALLELIZATION = 3;
     //Used to handle throttling events by applying AIMD congestion control
-    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker;
 
-    private final AmazonCloudWatch metrics;
+    private final CloudWatchClient metrics;
 
     static {
         //The statistics supported by Cloudwatch Metrics by default
@@ -130,22 +129,26 @@ public class MetricsMetadataHandler
         TABLES.put(METRIC_SAMPLES_TABLE_NAME, METRIC_DATA_TABLE);
     }
 
-    public MetricsMetadataHandler()
+    public MetricsMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
-        metrics = AmazonCloudWatchClientBuilder.standard().build();
+        super(SOURCE_TYPE, configOptions);
+        this.metrics = CloudWatchClient.create();
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
     }
 
     @VisibleForTesting
-    protected MetricsMetadataHandler(AmazonCloudWatch metrics,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected MetricsMetadataHandler(
+        CloudWatchClient metrics,
+        EncryptionKeyFactory keyFactory,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.metrics = metrics;
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
     }
 
     /**
@@ -231,32 +234,41 @@ public class MetricsMetadataHandler
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(blockAllocator,
                 METRIC_DATA_TABLE.getSchema(),
                 getSplitsRequest.getConstraints())) {
-            ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
-            MetricUtils.pushDownPredicate(getSplitsRequest.getConstraints(), listMetricsRequest);
-            listMetricsRequest.setNextToken(getSplitsRequest.getContinuationToken());
+            ListMetricsRequest.Builder listMetricsRequestBuilder = ListMetricsRequest.builder();
+            MetricUtils.pushDownPredicate(getSplitsRequest.getConstraints(), listMetricsRequestBuilder);
+            listMetricsRequestBuilder.nextToken(getSplitsRequest.getContinuationToken());
 
             String period = getPeriodFromConstraint(getSplitsRequest.getConstraints());
             Set<Split> splits = new HashSet<>();
-            ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
+            ListMetricsRequest listMetricsRequest = listMetricsRequestBuilder.build();
+            ListMetricsResponse result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
 
             List<MetricStat> metricStats = new ArrayList<>(100);
-            for (Metric nextMetric : result.getMetrics()) {
+            for (Metric nextMetric : result.metrics()) {
                 for (String nextStatistic : STATISTICS) {
                     if (MetricUtils.applyMetricConstraints(constraintEvaluator, nextMetric, nextStatistic)) {
-                        metricStats.add(new MetricStat()
-                                .withMetric(new Metric()
-                                        .withNamespace(nextMetric.getNamespace())
-                                        .withMetricName(nextMetric.getMetricName())
-                                        .withDimensions(nextMetric.getDimensions()))
-                                .withPeriod(Integer.valueOf(period))
-                                .withStat(nextStatistic));
+                        metricStats.add(MetricStat.builder()
+                                .metric(Metric.builder()
+                                        .namespace(nextMetric.namespace())
+                                        .metricName(nextMetric.metricName())
+                                        .dimensions(nextMetric.dimensions())
+                                        .build())
+                                .period(Integer.valueOf(period))
+                                .stat(nextStatistic)
+                                .build());
                     }
                 }
             }
 
+            String continuationToken = null;
+            if (result.nextToken() != null &&
+                    !result.nextToken().equalsIgnoreCase(listMetricsRequest.nextToken())) {
+                continuationToken = result.nextToken();
+            }
+
             if (CollectionUtils.isNullOrEmpty(metricStats)) {
                 logger.info("No metric stats present after filtering predicates.");
-                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);
             }
 
             List<List<MetricStat>> partitions = Lists.partition(metricStats, calculateSplitSize(metricStats.size()));
@@ -265,12 +277,6 @@ public class MetricsMetadataHandler
                 splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
                         .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, serializedMetricStats)
                         .build());
-            }
-
-            String continuationToken = null;
-            if (result.getNextToken() != null &&
-                    !result.getNextToken().equalsIgnoreCase(listMetricsRequest.getNextToken())) {
-                continuationToken = result.getNextToken();
             }
 
             return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);

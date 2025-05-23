@@ -30,7 +30,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_THREE;
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_FOUR;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
 import static org.junit.Assert.assertEquals;
 
@@ -40,9 +40,10 @@ public class ObjectMapperUtil
 
     public static <T> void assertSerialization(Object object)
     {
+        //We expect consuming engines to manage backwards/forwards serialization. A consuming engine must use whichever
+        //SerDe is best supported. For example, if an engine is using the V2 SerDe and the connector supports the V3 SerDe,
+        //then the engine will use the V2 SerDe path for both.
         assertBaseSerialization(object);
-        assertSerializationForwardsCompatibleV2toV3(object);
-        assertSerializationBackwardsCompatibleV3toV2(object);
     }
 
     private static <T> void assertBaseSerialization(Object object)
@@ -60,50 +61,6 @@ public class ObjectMapperUtil
             serDe.writeValue(serDeOut, object);
             byte[] serDeOutput = serDeOut.toByteArray();
             assertEquals(object, serDe.readValue(new ByteArrayInputStream(serDeOutput), clazz));
-        }
-        catch (IOException | AssertionError ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    private static <T> void assertSerializationBackwardsCompatibleV3toV2(Object object)
-    {
-        Class<?> clazz = object.getClass();
-        if (object instanceof FederationRequest)
-            clazz = FederationRequest.class;
-        else if (object instanceof FederationResponse) {
-            clazz = FederationResponse.class;
-        }
-        try (BlockAllocator allocator = new BlockAllocatorImpl()){
-            // check SerDe write, SerDe read
-            ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
-            ObjectMapper serDeV3 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
-            ObjectMapper serDeV2 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
-            serDeV3.writeValue(serDeOut, object);
-            byte[] serDeOutput = serDeOut.toByteArray();
-            assertEquals(object, serDeV2.readValue(new ByteArrayInputStream(serDeOutput), clazz));
-        }
-        catch (IOException | AssertionError ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    private static <T> void assertSerializationForwardsCompatibleV2toV3(Object object)
-    {
-        Class<?> clazz = object.getClass();
-        if (object instanceof FederationRequest)
-            clazz = FederationRequest.class;
-        else if (object instanceof FederationResponse) {
-            clazz = FederationResponse.class;
-        }
-        try (BlockAllocator allocator = new BlockAllocatorImpl()){
-            // check SerDe write, SerDe read
-            ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
-            ObjectMapper serDeV3 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
-            ObjectMapper serDeV2 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
-            serDeV2.writeValue(serDeOut, object);
-            byte[] serDeOutput = serDeOut.toByteArray();
-            assertEquals(object, serDeV3.readValue(new ByteArrayInputStream(serDeOutput), clazz));
         }
         catch (IOException | AssertionError ex) {
             throw new RuntimeException(ex);

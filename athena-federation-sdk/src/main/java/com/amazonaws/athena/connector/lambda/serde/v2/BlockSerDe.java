@@ -19,9 +19,11 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
+import com.amazonaws.athena.connector.lambda.data.AthenaFederationIpcOption;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorRegistry;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
@@ -35,8 +37,9 @@ import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -90,7 +93,7 @@ public final class BlockSerDe
                 throws IOException
         {
             try {
-                IpcOption option = new IpcOption(true, MetadataVersion.V4);
+                IpcOption option = AthenaFederationIpcOption.DEFAULT;
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), recordBatch, option);
                 return out.toByteArray();
@@ -151,7 +154,7 @@ public final class BlockSerDe
                 return allocatorRegistry.getOrCreateAllocator(allocatorId);
             }
             else {
-                throw new IllegalStateException("allocator and allocatorRegistry are both null");
+                throw new AthenaConnectorException("allocator and allocatorRegistry are both null", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
         }
 

@@ -19,30 +19,54 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.*;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.google.api.gax.paging.Page;
-import com.google.cloud.bigquery.*;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.FieldValue;
+import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobStatus;
+import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableResult;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
-import java.util.*;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -51,11 +75,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
-})
-@PrepareForTest({BigQueryUtils.class})
+@RunWith(MockitoJUnitRunner.class)
 public class BigQueryMetadataHandlerTest
 {
     private static final String QUERY_ID = "queryId";
@@ -71,30 +91,35 @@ public class BigQueryMetadataHandlerTest
     private Job job;
     private JobStatus jobStatus;
 
+    private Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+            "gcp_project_id", "testProject",
+            "concurrencyLimit", "10"
+    );
+    private MockedStatic<BigQueryUtils> mockedStatic;
+
     @Before
-    public void setUp() throws InterruptedException {
+    public void setUp() throws InterruptedException, IOException
+    {
         System.setProperty("aws.region", "us-east-1");
         MockitoAnnotations.initMocks(this);
-        bigQueryMetadataHandler = new BigQueryMetadataHandler();
+        bigQueryMetadataHandler = new BigQueryMetadataHandler(configOptions);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         job = mock(Job.class);
         jobStatus = mock(JobStatus.class);
-        when(bigQuery.create(nullable(JobInfo.class), any())).thenReturn(job);
-        when(job.waitFor(any())).thenReturn(job);
-        when(job.getStatus()).thenReturn(jobStatus);
-
-        PowerMockito.stub(PowerMockito.method(BigQueryUtils.class, "getBigQueryClient")).toReturn(bigQuery);
+        mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
+        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
     }
 
     @After
     public void tearDown()
     {
         blockAllocator.close();
+        mockedStatic.close();
     }
 
     @Test
-    public void testDoListSchemaNames() throws java.io.IOException
+    public void testDoListSchemaNames() throws IOException
     {
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
@@ -111,7 +136,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListTables() throws java.io.IOException
+    public void testDoListTables() throws IOException
     {
         //Build mocks for Datasets
         final int numDatasets = 5;
@@ -134,7 +159,6 @@ public class BigQueryMetadataHandlerTest
 
         // This commented out line was used when the wrong UNLIMITED_PAGE_SIZE_VALUE was set, which
         // triggered a method invocation to the same name but different signature.
-        //when(bigQuery.listTables(nullable(DatasetId.class), nullable(BigQuery.TableListOption.class))).thenReturn(tablesPage);
 
         when(bigQuery.listTables(nullable(DatasetId.class))).thenReturn(tablesPage);
         ListTablesResponse tableNames = bigQueryMetadataHandler.doListTables(blockAllocator, listTablesRequest);
@@ -143,7 +167,7 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetTable() throws java.io.IOException
+    public void testDoGetTable() throws IOException
     {
         //Build mocks for Datasets
         final int numDatasets = 5;
@@ -169,14 +193,12 @@ public class BigQueryMetadataHandlerTest
                 .setSchema(tableSchema).build();
 
         Table table = mock(Table.class);
-        when(table.getTableId()).thenReturn(TableId.of(BigQueryTestUtils.PROJECT_1_NAME, datasetName, tableName));
         when(table.getDefinition()).thenReturn(tableDefinition);
         when(bigQuery.getTable(nullable(TableId.class))).thenReturn(table);
-
         //Make the call
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,
-                new TableName(datasetName, tableName));
+                new TableName(datasetName, tableName), Collections.emptyMap());
 
         GetTableResponse response = bigQueryMetadataHandler.doGetTable(blockAllocator, getTableRequest);
 
@@ -184,21 +206,38 @@ public class BigQueryMetadataHandlerTest
 
         //Number of Fields
         assertEquals(tableSchema.getFields().size(), response.getSchema().getFields().size());
+
+        Schema tableSchemaComplex = BigQueryTestUtils.getTestSchemaComplexSchema();
+        StandardTableDefinition tableDefinitionComplex = StandardTableDefinition.newBuilder()
+                .setSchema(tableSchemaComplex).build();
+
+        when(table.getDefinition()).thenReturn(tableDefinitionComplex);
+        when(bigQuery.getTable(nullable(TableId.class))).thenReturn(table);
+        //Make the call
+        GetTableRequest getTableRequest1 = new GetTableRequest(federatedIdentity,
+                QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,
+                new TableName(datasetName, tableName), Collections.emptyMap());
+
+        GetTableResponse responseComplex = bigQueryMetadataHandler.doGetTable(blockAllocator, getTableRequest1);
+
+        assertNotNull(responseComplex);
+        //Number of Fields
+        assertEquals(tableSchemaComplex.getFields().size(), responseComplex.getSchema().getFields().size());
     }
 
     @Test
     public void testDoGetSplits() throws Exception
     {
-        BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        PowerMockito.mockStatic(BigQueryUtils.class);
-        when(BigQueryUtils.getEnvVar("concurrencyLimit")).thenReturn("10");
 
+//        mockedStatic.when(() -> BigQueryUtils.fixCaseForDatasetName(any(String.class), any(String.class), any(BigQuery.class))).thenReturn("testDataset");
+//        mockedStatic.when(() -> BigQueryUtils.fixCaseForTableName(any(String.class), any(String.class), any(String.class), any(BigQuery.class))).thenReturn("testTable");
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                mock(Block.class), Collections.<String>emptyList(), new Constraints(new HashMap<>()), null);
+                mock(Block.class), Collections.<String>emptyList(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), null);
         // added schema with integer column countCol
         List<Field> testSchemaFields = Arrays.asList(Field.of("countCol", LegacySQLTypeName.INTEGER));
-        com.google.cloud.bigquery.Schema tableSchema = Schema.of(testSchemaFields);
+        Schema tableSchema = Schema.of(testSchemaFields);
 
         // mocked table row count as 15
         List<FieldValue> bigQueryRowValue = Arrays.asList(FieldValue.of(FieldValue.Attribute.PRIMITIVE, "15"));
@@ -206,30 +245,21 @@ public class BigQueryMetadataHandlerTest
                 FieldList.of(testSchemaFields));
         List<FieldValueList> tableRows = Arrays.asList(fieldValueList);
 
-        when(job.isDone()).thenReturn(false).thenReturn(true);
         Page<FieldValueList> pageNoSchema = new BigQueryPage<>(tableRows);
         TableResult result = new TableResult(tableSchema, tableRows.size(), pageNoSchema);
-        when(job.getQueryResults()).thenReturn(result);
-
-        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
-        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+//        when(job.getQueryResults()).thenReturn(result);
 
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
-        assertNotNull(response);
+        assertEquals(1, response.getSplits().size());
     }
 
-    @Test
-    public void testDoListSchemaNamesForException() throws java.io.IOException {
-        final int numDatasets = 5;
-        BigQueryPage<Dataset> datasetPage =
-                new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasetPage);
-
+    @Test(expected = Exception.class)
+    public void testDoListSchemaNamesForException() throws IOException
+    {
         ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());
         when(bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request)).thenThrow(new BigQueryExceptions.TooManyTablesException());
-        ListSchemasResponse schemaNames = bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
-        assertEquals(null, schemaNames);
+        bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
     }
 }

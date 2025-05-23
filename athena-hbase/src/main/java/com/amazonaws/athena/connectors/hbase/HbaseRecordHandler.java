@@ -23,36 +23,38 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.ParseFilter;
 import org.apache.hadoop.hbase.filter.RowFilter;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
+import java.nio.charset.CharacterCodingException;
 import java.util.Map;
 
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.END_KEY_FIELD;
@@ -78,21 +80,25 @@ public class HbaseRecordHandler
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
 
-    private final AmazonS3 amazonS3;
+    private final S3Client amazonS3;
     private final HbaseConnectionFactory connectionFactory;
 
-    public HbaseRecordHandler()
+    private final HbaseQueryPassthrough queryPassthrough = new HbaseQueryPassthrough();
+
+    public HbaseRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                new HbaseConnectionFactory());
+        this(
+            S3Client.create(),
+            SecretsManagerClient.create(),
+            AthenaClient.create(),
+            new HbaseConnectionFactory(),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected HbaseRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, HbaseConnectionFactory connectionFactory)
+    protected HbaseRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, HbaseConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
         this.connectionFactory = connectionFactory;
     }
@@ -117,18 +123,43 @@ public class HbaseRecordHandler
         String conStr = split.getProperty(HBASE_CONN_STR);
         boolean isNative = projection.getCustomMetadata().get(HBASE_NATIVE_STORAGE_FLAG) != null;
 
-        //setup the scan so that we only read the key range associated with the region represented by our Split.
-        Scan scan = new Scan(split.getProperty(START_KEY_FIELD).getBytes(), split.getProperty(END_KEY_FIELD).getBytes());
-
-        //attempts to push down a partial predicate using HBase Filters
-        scan.setFilter(pushdownPredicate(isNative, request.getConstraints()));
+        String schemaName;
+        String tableName;
+        Scan scan;
+        if (request.getConstraints().isQueryPassThrough()) {
+            Map<String, String> qptArguments = request.getConstraints().getQueryPassthroughArguments();
+            queryPassthrough.verify(qptArguments);
+            schemaName = qptArguments.get(HbaseQueryPassthrough.DATABASE);
+            tableName = qptArguments.get(HbaseQueryPassthrough.COLLECTION);
+            String filter = qptArguments.get(HbaseQueryPassthrough.FILTER);
+            scan = new Scan();
+            //Empty filter is allowed in HBase scan operation, so we don't have else condition.
+            //If filter is empty then we are scanning all the records from table.
+            if (!StringUtils.isEmpty(filter)) {
+                try {
+                    scan.setFilter(new ParseFilter().parseFilterString(filter));
+                }
+                catch (CharacterCodingException e) {
+                    throw new RuntimeException("Can't parse filter argument as hbase scan filer: ", e);
+                }
+            }
+        }
+        else {
+            //setup the scan so that we only read the key range associated with the region represented by our Split.
+            scan = new Scan(split.getProperty(START_KEY_FIELD).getBytes(), split.getProperty(END_KEY_FIELD).getBytes());
+            //attempts to push down a partial predicate using HBase Filters
+            scan.setFilter(pushdownPredicate(isNative, request.getConstraints()));
+            schemaName = request.getTableName().getSchemaName();
+            tableName = request.getTableName().getTableName();
+        }
+        TableName tableNameObj = new TableName(schemaName, tableName);
 
         //setup the projection so we only pull columns/families that we need
         for (Field next : request.getSchema().getFields()) {
             addToProjection(scan, next);
         }
 
-        getOrCreateConn(conStr).scanTable(HbaseSchemaUtils.getQualifiedTable(request.getTableName()),
+        getOrCreateConn(conStr).scanTable(HbaseTableNameUtils.getQualifiedTable(tableNameObj),
                 scan,
                 (ResultScanner scanner) -> scanFilterProject(scanner, request, blockSpiller, queryStatusChecker));
     }

@@ -19,14 +19,14 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
-import com.amazonaws.services.cloudwatch.model.MetricStat;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.CollectionType;
+import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Used to serialize and deserialize Cloudwatch Metrics MetricStat objects. This is used
@@ -48,7 +48,7 @@ public class MetricStatSerDe
     public static String serialize(List<MetricStat> metricStats)
     {
         try {
-            return mapper.writeValueAsString(new MetricStatHolder(metricStats));
+            return mapper.writeValueAsString(metricStats.stream().map(stat -> stat.toBuilder()).collect(Collectors.toList()));
         }
         catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
@@ -64,30 +64,11 @@ public class MetricStatSerDe
     public static List<MetricStat> deserialize(String serializedMetricStats)
     {
         try {
-            return mapper.readValue(serializedMetricStats, MetricStatHolder.class).getMetricStats();
+            CollectionType metricStatBuilderCollection = mapper.getTypeFactory().constructCollectionType(List.class, MetricStat.serializableBuilderClass());
+            return ((List<MetricStat.Builder>) mapper.readValue(serializedMetricStats, metricStatBuilderCollection)).stream().map(stat -> stat.build()).collect(Collectors.toList());
         }
         catch (IOException ex) {
             throw new RuntimeException(ex);
-        }
-    }
-
-    /**
-     * Helper which allows us to use Jackson's Object Mapper to serialize a List of MetricStats.
-     */
-    private static class MetricStatHolder
-    {
-        private final List<MetricStat> metricStats;
-
-        @JsonCreator
-        public MetricStatHolder(@JsonProperty("metricStats") List<MetricStat> metricStats)
-        {
-            this.metricStats = metricStats;
-        }
-
-        @JsonProperty
-        public List<MetricStat> getMetricStats()
-        {
-            return metricStats;
         }
     }
 }

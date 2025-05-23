@@ -29,48 +29,46 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
+
 public class SqlServerRecordHandler extends JdbcRecordHandler
 {
-    private static final String SQLSERVER_QUOTE_CHARACTER = "\"";
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
 
-    public SqlServerRecordHandler()
+    public SqlServerRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SqlServerConstants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SqlServerConstants.NAME, configOptions), configOptions);
     }
 
-    public SqlServerRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SqlServerRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, new SqlServerJdbcConnectionFactory(databaseConnectionConfig, SqlServerMetadataHandler.JDBC_PROPERTIES,
-                new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT)));
+                new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT)), configOptions);
     }
 
-    public SqlServerRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public SqlServerRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), jdbcConnectionFactory, new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER));
+        this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(),
+                AthenaClient.create(), jdbcConnectionFactory, new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER, new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER)), configOptions);
     }
 
     @VisibleForTesting
-    SqlServerRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
-                           final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    SqlServerRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, final S3Client amazonS3, final SecretsManagerClient secretsManager,
+                           final AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
 
@@ -78,8 +76,15 @@ public class SqlServerRecordHandler extends JdbcRecordHandler
     public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints,
                                            Split split) throws SQLException
     {
-        PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(),
-                schema, constraints, split);
+        PreparedStatement preparedStatement;
+
+        if (constraints.isQueryPassThrough()) {
+            preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+        }
+        else {
+            preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName(), tableName.getTableName(),
+                    schema, constraints, split);
+        }
         // Disable fetching all rows.
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;

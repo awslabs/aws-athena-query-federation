@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
@@ -33,6 +34,7 @@ import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeStampMicroTZVector;
 import org.apache.arrow.vector.TimeStampMilliTZVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.UInt1Vector;
@@ -58,6 +60,7 @@ import org.apache.arrow.vector.complex.writer.Float4Writer;
 import org.apache.arrow.vector.complex.writer.Float8Writer;
 import org.apache.arrow.vector.complex.writer.IntWriter;
 import org.apache.arrow.vector.complex.writer.SmallIntWriter;
+import org.apache.arrow.vector.complex.writer.TimeStampMicroTZWriter;
 import org.apache.arrow.vector.complex.writer.TimeStampMilliTZWriter;
 import org.apache.arrow.vector.complex.writer.TinyIntWriter;
 import org.apache.arrow.vector.complex.writer.UInt1Writer;
@@ -72,7 +75,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.apache.commons.codec.Charsets;
-import org.joda.time.DateTimeZone;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -81,6 +85,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -150,7 +155,7 @@ public class BlockUtils
                 setValue(block.getFieldVector(columnName), count++, next);
             }
             catch (Exception ex) {
-                throw new RuntimeException("Error for " + type + " " + columnName + " " + next, ex);
+                throw new AthenaConnectorException("Error for " + type + " " + columnName + " " + next, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).errorMessage(ex.getMessage()).build());
             }
         }
         block.setRowCount(count);
@@ -216,8 +221,8 @@ public class BlockUtils
                     resolver);
         }
         else {
-            throw new RuntimeException("Unsupported 'Complex' vector " +
-                    vector.getClass().getSimpleName() + " for field " + vector.getField().getName());
+            throw new AthenaConnectorException("Unsupported 'Complex' vector " +
+                    vector.getClass().getSimpleName() + " for field " + vector.getField().getName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
     }
 
@@ -239,35 +244,28 @@ public class BlockUtils
             }
             /**
              * We will convert any types that are not supported by setValue to types that are supported
-             * ex) (not supported) org.joda.time.LocalDateTime which is returned on read from vectors
+             * ex) (not supported) LocalDateTime which is returned on read from vectors
              * will be converted to (supported) java.time.ZonedDateTime
              */
 
             //TODO: add all types
             switch (vector.getMinorType()) {
                 case TIMESTAMPMILLITZ:
-                    if (value instanceof org.joda.time.LocalDateTime) {
-                        DateTimeZone dtz = ((org.joda.time.LocalDateTime) value).getChronology().getZone();
-                        long dateTimeWithZone = ((org.joda.time.LocalDateTime) value).toDateTime(dtz).getMillis();
-                        ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
-                    }
-                    if (value instanceof ZonedDateTime) {
-                        long dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
-                        ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
-                    }
-                    else if (value instanceof LocalDateTime) {
-                        long dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(
-                                ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
-                        ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
-                    }
-                    else if (value instanceof Date) {
-                        long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
-                                .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
-                        long dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
-                        ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
+                    if (value instanceof Long) {
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, (long) value);
                     }
                     else {
-                        ((TimeStampMilliTZVector) vector).setSafe(pos, (long) value);
+                        String targetTimeZone = ((ArrowType.Timestamp) vector.getField().getType()).getTimezone();
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value, targetTimeZone));
+                    }
+                    break;
+                case TIMESTAMPMICROTZ:
+                    if (value instanceof Long) {
+                        ((TimeStampMicroTZVector) vector).setSafe(pos, (long) value);
+                    }
+                    else {
+                        String targetTimeZone = ((ArrowType.Timestamp) vector.getField().getType()).getTimezone();
+                        ((TimeStampMicroTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value, targetTimeZone));
                     }
                     break;
                 case DATEMILLI:
@@ -279,15 +277,17 @@ public class BlockUtils
                                 pos,
                                 ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli());
                     }
+                    else if (value instanceof Instant) {
+                        ((DateMilliVector) vector).setSafe(pos, ((Instant) value).toEpochMilli());
+                    }
                     else {
                         ((DateMilliVector) vector).setSafe(pos, (long) value);
                     }
                     break;
                 case DATEDAY:
                     if (value instanceof Date) {
-                        org.joda.time.Days days = org.joda.time.Days.daysBetween(EPOCH,
-                                new org.joda.time.DateTime(((Date) value).getTime()));
-                        ((DateDayVector) vector).setSafe(pos, days.getDays());
+                        long days = java.time.Duration.of(((Date) value).getTime(), java.time.temporal.ChronoUnit.MILLIS).toDays();
+                        ((DateDayVector) vector).setSafe(pos, new Long(days).intValue());
                     }
                     else if (value instanceof LocalDate) {
                         int days = (int) ((LocalDate) value).toEpochDay();
@@ -398,14 +398,14 @@ public class BlockUtils
                     }
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
+                    throw new AthenaConnectorException("Unknown type " + vector.getMinorType(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
         }
         catch (RuntimeException ex) {
             String fieldName = (vector != null) ? vector.getField().getName() : "null_vector";
-            throw new RuntimeException("Unable to set value for field " + fieldName
+            throw new AthenaConnectorException("Unable to set value for field " + fieldName
                 + " using value " + value
-                + " of type " + vector.getMinorType(), ex);
+                + " of type " + vector.getMinorType(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -420,7 +420,7 @@ public class BlockUtils
     public static String rowToString(Block block, int row)
     {
         if (row > block.getRowCount()) {
-            throw new IllegalArgumentException(row + " exceeds available rows " + block.getRowCount());
+            throw new AthenaConnectorException(row + " exceeds available rows " + block.getRowCount(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         StringBuilder sb = new StringBuilder();
@@ -437,7 +437,7 @@ public class BlockUtils
                 sb.append("]");
             }
             catch (RuntimeException ex) {
-                throw new RuntimeException("Error processing field " + nextReader.getField().getName(), ex);
+                throw new AthenaConnectorException("Error processing field " + nextReader.getField().getName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(ex.getMessage()).build());
             }
         }
 
@@ -455,9 +455,12 @@ public class BlockUtils
     {
         switch (reader.getMinorType()) {
             case DATEDAY:
-                return String.valueOf(reader.readInteger());
+                LocalDate localDate = LocalDate.ofEpochDay(reader.readInteger());
+                return localDate.format(DateTimeFormatter.ISO_DATE);
+            case TIMESTAMPMICROTZ:
             case TIMESTAMPMILLITZ:
-                return String.valueOf(DateTimeFormatterUtil.constructZonedDateTime(reader.readLong()));
+                ArrowType.Timestamp actualType = (ArrowType.Timestamp) reader.getField().getType();
+                return String.valueOf(DateTimeFormatterUtil.constructZonedDateTime(reader.readLong(), actualType));
             case DATEMILLI:
                 return String.valueOf(reader.readLocalDateTime());
             case FLOAT8:
@@ -531,8 +534,8 @@ public class BlockUtils
     public static int copyRows(Block srcBlock, Block dstBlock, int firstRow, int lastRow)
     {
         if (firstRow > lastRow || lastRow > srcBlock.getRowCount() - 1) {
-            throw new RuntimeException("src has " + srcBlock.getRowCount()
-                    + " but requested copy of " + firstRow + " to " + lastRow);
+            throw new AthenaConnectorException("src has " + srcBlock.getRowCount()
+                    + " but requested copy of " + firstRow + " to " + lastRow, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
 
         for (FieldReader src : srcBlock.getFieldReaders()) {
@@ -559,8 +562,8 @@ public class BlockUtils
     public static boolean isNullRow(Block block, int row)
     {
         if (row > block.getRowCount() - 1) {
-            throw new RuntimeException("block has " + block.getRowCount()
-                    + " rows but requested to check " + row);
+            throw new AthenaConnectorException("block has " + block.getRowCount()
+                    + " rows but requested to check " + row, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         //If any column is non-null then return false
@@ -681,12 +684,12 @@ public class BlockUtils
         List<Field> children = field.getChildren();
         Field keyValueStructField;
         if (children.size() != 1) {
-            throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+            throw new AthenaConnectorException("Invalid Arrow Map schema: " + field, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         else {
             keyValueStructField = children.get(0);
             if (!MapVector.DATA_VECTOR_NAME.equals(keyValueStructField.getName()) || !(keyValueStructField.getType() instanceof ArrowType.Struct)) {
-                throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+                throw new AthenaConnectorException("Invalid Arrow Map schema: " + field, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
         }
 
@@ -694,13 +697,13 @@ public class BlockUtils
         Field keyField;
         Field valueField;
         if (keyValueChildren.size() != 2) {
-            throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+            throw new AthenaConnectorException("Invalid Arrow Map schema: " + field, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         else {
             keyField = keyValueChildren.get(0);
             valueField = keyValueChildren.get(1);
             if (!MapVector.KEY_NAME.equals(keyField.getName()) || !MapVector.VALUE_NAME.equals(valueField.getName())) {
-                throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+                throw new AthenaConnectorException("Invalid Arrow Map schema: " + field, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
         }
 
@@ -783,33 +786,28 @@ public class BlockUtils
         ArrowType type = field.getType();
         try {
             switch (Types.getMinorTypeForArrowType(type)) {
-                case TIMESTAMPMILLITZ:
-                    long dateTimeWithZone;
+                case TIMESTAMPMILLITZ: {
                     String timezone =  ((ArrowType.Timestamp) type).getTimezone();
-
                     // Known issue with Lists and Maps of TimeStampMilliTZ. This will throw.
                     TimeStampMilliTZWriter timeStampMilliTZWriter = fromMapOrStruct ? writer.timeStampMilliTZ(field.getName(), timezone) : writer.timeStampMilliTZ();
                     if (value == null) {
                         timeStampMilliTZWriter.writeNull();
                         break;
                     }
-                    else if (value instanceof ZonedDateTime) {
-                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
-                    }
-                    else if (value instanceof LocalDateTime) {
-                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(
-                                ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
-                    }
-                    else if (value instanceof Date) {
-                        long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
-                                .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
-                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
-                    }
-                    else {
-                        dateTimeWithZone = (long) value;
-                    }
-                    timeStampMilliTZWriter.writeTimeStampMilliTZ(dateTimeWithZone);
+                    timeStampMilliTZWriter.write(DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value, timezone));
                     break;
+                }
+                case TIMESTAMPMICROTZ: {
+                    String timezone = ((ArrowType.Timestamp) type).getTimezone();
+                    // Known issue with Lists and Maps of TimeStampMicroTZ. This will throw.
+                    TimeStampMicroTZWriter timeStampMicroTZWriter = fromMapOrStruct ? writer.timeStampMicroTZ(field.getName(), timezone) : writer.timeStampMicroTZ();
+                    if (value == null) {
+                        timeStampMicroTZWriter.writeNull();
+                        break;
+                    }
+                    timeStampMicroTZWriter.write(DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value, timezone));
+                    break;
+                }
                 case DATEMILLI:
                     DateMilliWriter dateMilliWriter = fromMapOrStruct ? writer.dateMilli(field.getName()) : writer.dateMilli();
                     if (value == null) {
@@ -831,9 +829,8 @@ public class BlockUtils
                         dateDayWriter.writeNull();
                     }
                     else if (value instanceof Date) {
-                        org.joda.time.Days days = org.joda.time.Days.daysBetween(EPOCH,
-                                new org.joda.time.DateTime(((Date) value).getTime()));
-                        dateDayWriter.writeDateDay(days.getDays());
+                        long days = java.time.Duration.of(((Date) value).getTime(), java.time.temporal.ChronoUnit.MILLIS).toDays();
+                        dateDayWriter.writeDateDay(new Long(days).intValue());
                     }
                     else if (value instanceof LocalDate) {
                         int days = (int) ((LocalDate) value).toEpochDay();
@@ -1021,13 +1018,13 @@ public class BlockUtils
                     }
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown type " + type);
+                    throw new AthenaConnectorException("Unknown type " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
             }
         }
         catch (RuntimeException ex) {
-            throw new RuntimeException("Unable to write value for field "
+            throw new AthenaConnectorException("Unable to write value for field "
                 + field.getName() + " using value " + value
-                + " with minor type " + Types.getMinorTypeForArrowType(type), ex);
+                + " with minor type " + Types.getMinorTypeForArrowType(type), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -1040,6 +1037,9 @@ public class BlockUtils
     private static void setNullValue(FieldVector vector, int pos)
     {
         switch (vector.getMinorType()) {
+            case TIMESTAMPMICROTZ:
+                ((TimeStampMicroTZVector) vector).setNull(pos);
+                break;
             case TIMESTAMPMILLITZ:
                 ((TimeStampMilliTZVector) vector).setNull(pos);
                 break;
@@ -1092,7 +1092,7 @@ public class BlockUtils
                 ((BitVector) vector).setNull(pos);
                 break;
             default:
-                throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
+                throw new AthenaConnectorException("Unknown type " + vector.getMinorType(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -1108,6 +1108,9 @@ public class BlockUtils
     {
         for (FieldVector vector : block.getFieldVectors()) {
             switch (vector.getMinorType()) {
+                case TIMESTAMPMICROTZ:
+                    ((TimeStampMicroTZVector) vector).setNull(row);
+                    break;
                 case TIMESTAMPMILLITZ:
                     ((TimeStampMilliTZVector) vector).setNull(row);
                     break;
@@ -1173,7 +1176,7 @@ public class BlockUtils
                     ((MapVector) vector).setNull(row);
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
+                    throw new AthenaConnectorException("Unknown type " + vector.getMinorType(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
         }
     }
@@ -1187,6 +1190,7 @@ public class BlockUtils
     public static Class getJavaType(Types.MinorType minorType)
     {
         switch (minorType) {
+            case TIMESTAMPMICROTZ:
             case TIMESTAMPMILLITZ:
                 return ZonedDateTime.class;
             case DATEMILLI:
@@ -1223,14 +1227,8 @@ public class BlockUtils
             case STRUCT:
                 return Map.class;
             default:
-                throw new IllegalArgumentException("Unknown type " + minorType);
+                throw new AthenaConnectorException("Unknown type " + minorType, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
-    }
-
-    public static final org.joda.time.MutableDateTime EPOCH = new org.joda.time.MutableDateTime();
-
-    static {
-        EPOCH.setDate(0);
     }
 
     private BlockUtils() {}

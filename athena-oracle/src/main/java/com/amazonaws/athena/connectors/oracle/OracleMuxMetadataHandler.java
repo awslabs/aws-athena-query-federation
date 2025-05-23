@@ -25,9 +25,10 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.oracle.resolver.OracleJDBCCaseResolver;
 import org.apache.arrow.util.VisibleForTesting;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 
@@ -41,24 +42,24 @@ class OracleMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new OracleMetadataHandler(config);
+        return new OracleMetadataHandler(config, configOptions);
     }
 }
 
 public class OracleMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public OracleMuxMetadataHandler()
+    public OracleMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new OracleMetadataHandlerFactory());
+        super(new OracleMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected OracleMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                       final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected OracleMuxMetadataHandler(SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                     Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions, new OracleJDBCCaseResolver(OracleConstants.ORACLE_NAME));
     }
 }

@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaMSKConnector
-    Description: 'This connector enables Amazon Athena to communicate with Kafka clusters and fetch data.'
+    Description: 'This connector enables Amazon Athena to communicate with MSK clusters and fetch data.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
@@ -26,7 +26,7 @@ Parameters:
       - SSL
       - NO_AUTH
   KafkaEndpoint:
-    Description: 'Kafka/MSK cluster endpoint'
+    Description: 'MSK cluster endpoint'
     Type: String
   LambdaFunctionName:
     Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
@@ -81,7 +81,8 @@ Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
-
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 Resources:
   AthenaMSKConnector:
     Type: 'AWS::Serverless::Function'
@@ -96,10 +97,13 @@ Resources:
           kafka_endpoint: !Ref KafkaEndpoint
           auth_type: !Ref AuthType
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.msk.AmazonMskCompositeHandler"
-      CodeUri: "./target/athena-msk-2022.47.1.jar"
-      Description: "Enables Amazon Athena to communicate with MSK and Kafka clusters"
-      Runtime: java11
+      PackageType: "Image"
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-msk:2022.47.1'
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
+      ImageConfig:
+        Command: [ "com.amazonaws.athena.connectors.msk.AmazonMskCompositeHandler" ]
+      Description: "Enables Amazon Athena to communicate with MSK clusters"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
@@ -113,7 +117,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -147,7 +151,6 @@ Resources:
             Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
           - Action:
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
               - s3:ListBucket
               - s3:GetObject
               - s3:GetBucketLocation

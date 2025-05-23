@@ -29,11 +29,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -41,12 +38,16 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2Constants.QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class DataLakeRecordHandlerTest
@@ -55,26 +56,26 @@ public class DataLakeRecordHandlerTest
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private S3Client amazonS3;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
 
     @Before
     public void setup()
             throws Exception
     {
         System.setProperty("aws.region", "us-east-1");
-        this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.amazonS3 = Mockito.mock(S3Client.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new DataLakeGen2QueryStringBuilder("`");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        jdbcSplitQueryBuilder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", DataLakeGen2Constants.NAME,
                 "datalakegentwo://jdbc:sqlserver://hostname;databaseName=fakedatabase");
 
-        this.dataLakeGen2RecordHandler = new DataLakeGen2RecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.dataLakeGen2RecordHandler = new DataLakeGen2RecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     private ValueSet getSingleValueSet(Object value) {
@@ -107,8 +108,9 @@ public class DataLakeRecordHandlerTest
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
                 .put("testCol4", valueSet)
                 .build());
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4` FROM `testSchema`.`testTable`  WHERE (`testCol4` = ?)";
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\" FROM \"testSchema\".\"testTable\"  WHERE (\"testCol4\" = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.dataLakeGen2RecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);

@@ -32,18 +32,19 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceNetworkInterface;
-import com.amazonaws.services.ec2.model.InstanceState;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.StateReason;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceNetworkInterface;
+import software.amazon.awssdk.services.ec2.model.InstanceState;
+import software.amazon.awssdk.services.ec2.model.Reservation;
+import software.amazon.awssdk.services.ec2.model.StateReason;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 import java.util.Collections;
 import java.util.List;
@@ -56,9 +57,9 @@ public class Ec2TableProvider
         implements TableProvider
 {
     private static final Schema SCHEMA;
-    private AmazonEC2 ec2;
+    private Ec2Client ec2;
 
-    public Ec2TableProvider(AmazonEC2 ec2)
+    public Ec2TableProvider(Ec2Client ec2)
     {
         this.ec2 = ec2;
     }
@@ -100,25 +101,25 @@ public class Ec2TableProvider
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         boolean done = false;
-        DescribeInstancesRequest request = new DescribeInstancesRequest();
+        DescribeInstancesRequest.Builder request = DescribeInstancesRequest.builder();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("instance_id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
-            request.setInstanceIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
+            request.instanceIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }
 
         while (!done) {
-            DescribeInstancesResult response = ec2.describeInstances(request);
+            DescribeInstancesResponse response = ec2.describeInstances(request.build());
 
-            for (Reservation reservation : response.getReservations()) {
-                for (Instance instance : reservation.getInstances()) {
+            for (Reservation reservation : response.reservations()) {
+                for (Instance instance : reservation.instances()) {
                     instanceToRow(instance, spiller);
                 }
             }
 
-            request.setNextToken(response.getNextToken());
+            request.nextToken(response.nextToken());
 
-            if (response.getNextToken() == null || !queryStatusChecker.isQueryRunning()) {
+            if (response.nextToken() == null || !queryStatusChecker.isQueryRunning()) {
                 done = true;
             }
         }
@@ -138,93 +139,106 @@ public class Ec2TableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("instance_id", row, instance.getInstanceId());
-            matched &= block.offerValue("image_id", row, instance.getImageId());
-            matched &= block.offerValue("instance_type", row, instance.getInstanceType());
-            matched &= block.offerValue("platform", row, instance.getPlatform());
-            matched &= block.offerValue("private_dns_name", row, instance.getPrivateDnsName());
-            matched &= block.offerValue("private_ip_address", row, instance.getPrivateIpAddress());
-            matched &= block.offerValue("public_dns_name", row, instance.getPublicDnsName());
-            matched &= block.offerValue("public_ip_address", row, instance.getPublicIpAddress());
-            matched &= block.offerValue("subnet_id", row, instance.getSubnetId());
-            matched &= block.offerValue("vpc_id", row, instance.getVpcId());
-            matched &= block.offerValue("architecture", row, instance.getArchitecture());
-            matched &= block.offerValue("instance_lifecycle", row, instance.getInstanceLifecycle());
-            matched &= block.offerValue("root_device_name", row, instance.getRootDeviceName());
-            matched &= block.offerValue("root_device_type", row, instance.getRootDeviceType());
-            matched &= block.offerValue("spot_instance_request_id", row, instance.getSpotInstanceRequestId());
-            matched &= block.offerValue("virtualization_type", row, instance.getVirtualizationType());
-            matched &= block.offerValue("key_name", row, instance.getKeyName());
-            matched &= block.offerValue("kernel_id", row, instance.getKernelId());
-            matched &= block.offerValue("capacity_reservation_id", row, instance.getCapacityReservationId());
-            matched &= block.offerValue("launch_time", row, instance.getLaunchTime());
+            matched &= block.offerValue("instance_id", row, instance.instanceId());
+            matched &= block.offerValue("image_id", row, instance.imageId());
+            matched &= block.offerValue("instance_type", row, instance.instanceTypeAsString());
+            matched &= block.offerValue("platform", row, instance.platformAsString());
+            matched &= block.offerValue("private_dns_name", row, instance.privateDnsName());
+            matched &= block.offerValue("private_ip_address", row, instance.privateIpAddress());
+            matched &= block.offerValue("public_dns_name", row, instance.publicDnsName());
+            matched &= block.offerValue("public_ip_address", row, instance.publicIpAddress());
+            matched &= block.offerValue("subnet_id", row, instance.subnetId());
+            matched &= block.offerValue("vpc_id", row, instance.vpcId());
+            matched &= block.offerValue("architecture", row, instance.architectureAsString());
+            matched &= block.offerValue("instance_lifecycle", row, instance.instanceLifecycleAsString());
+            matched &= block.offerValue("root_device_name", row, instance.rootDeviceName());
+            matched &= block.offerValue("root_device_type", row, instance.rootDeviceTypeAsString());
+            matched &= block.offerValue("spot_instance_request_id", row, instance.spotInstanceRequestId());
+            matched &= block.offerValue("virtualization_type", row, instance.virtualizationTypeAsString());
+            matched &= block.offerValue("key_name", row, instance.keyName());
+            matched &= block.offerValue("kernel_id", row, instance.kernelId());
+            matched &= block.offerValue("capacity_reservation_id", row, instance.capacityReservationId());
+            matched &= block.offerValue("launch_time", row, instance.launchTime());
 
             matched &= block.offerComplexValue("state",
                     row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("name")) {
-                            return ((InstanceState) val).getName();
+                            return ((InstanceState) val).nameAsString();
                         }
                         else if (field.getName().equals("code")) {
-                            return ((InstanceState) val).getCode();
+                            return ((InstanceState) val).code();
                         }
                         throw new RuntimeException("Unknown field " + field.getName());
-                    }, instance.getState());
+                    }, instance.state());
 
             matched &= block.offerComplexValue("network_interfaces",
                     row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("status")) {
-                            return ((InstanceNetworkInterface) val).getStatus();
+                            return ((InstanceNetworkInterface) val).statusAsString();
                         }
                         else if (field.getName().equals("subnet")) {
-                            return ((InstanceNetworkInterface) val).getSubnetId();
+                            return ((InstanceNetworkInterface) val).subnetId();
                         }
                         else if (field.getName().equals("vpc")) {
-                            return ((InstanceNetworkInterface) val).getVpcId();
+                            return ((InstanceNetworkInterface) val).vpcId();
                         }
                         else if (field.getName().equals("mac")) {
-                            return ((InstanceNetworkInterface) val).getMacAddress();
+                            return ((InstanceNetworkInterface) val).macAddress();
                         }
                         else if (field.getName().equals("private_dns")) {
-                            return ((InstanceNetworkInterface) val).getPrivateDnsName();
+                            return ((InstanceNetworkInterface) val).privateDnsName();
                         }
                         else if (field.getName().equals("private_ip")) {
-                            return ((InstanceNetworkInterface) val).getPrivateIpAddress();
+                            return ((InstanceNetworkInterface) val).privateIpAddress();
                         }
                         else if (field.getName().equals("security_groups")) {
-                            return ((InstanceNetworkInterface) val).getGroups().stream().map(next -> next.getGroupName() + ":" + next.getGroupId()).collect(Collectors.toList());
+                            return ((InstanceNetworkInterface) val).groups().stream().map(next -> next.groupName() + ":" + next.groupId()).collect(Collectors.toList());
                         }
                         else if (field.getName().equals("interface_id")) {
-                            return ((InstanceNetworkInterface) val).getNetworkInterfaceId();
+                            return ((InstanceNetworkInterface) val).networkInterfaceId();
                         }
 
                         throw new RuntimeException("Unknown field " + field.getName());
-                    }, instance.getNetworkInterfaces());
+                    }, instance.networkInterfaces());
 
             matched &= block.offerComplexValue("state_reason", row, (Field field, Object val) -> {
                 if (field.getName().equals("message")) {
-                    return ((StateReason) val).getMessage();
+                    return ((StateReason) val).message();
                 }
                 else if (field.getName().equals("code")) {
-                    return ((StateReason) val).getCode();
+                    return ((StateReason) val).code();
                 }
                 throw new RuntimeException("Unknown field " + field.getName());
-            }, instance.getStateReason());
+            }, instance.stateReason());
 
-            matched &= block.offerValue("ebs_optimized", row, instance.getEbsOptimized());
+            matched &= block.offerValue("ebs_optimized", row, instance.ebsOptimized());
 
-            List<String> securityGroups = instance.getSecurityGroups().stream()
-                    .map(next -> next.getGroupId()).collect(Collectors.toList());
+            List<String> securityGroups = instance.securityGroups().stream()
+                    .map(next -> next.groupId()).collect(Collectors.toList());
             matched &= block.offerComplexValue("security_groups", row, FieldResolver.DEFAULT, securityGroups);
 
-            List<String> securityGroupNames = instance.getSecurityGroups().stream()
-                    .map(next -> next.getGroupName()).collect(Collectors.toList());
+            List<String> securityGroupNames = instance.securityGroups().stream()
+                    .map(next -> next.groupName()).collect(Collectors.toList());
             matched &= block.offerComplexValue("security_group_names", row, FieldResolver.DEFAULT, securityGroupNames);
 
-            List<String> ebsVolumes = instance.getBlockDeviceMappings().stream()
-                    .map(next -> next.getEbs().getVolumeId()).collect(Collectors.toList());
+            List<String> ebsVolumes = instance.blockDeviceMappings().stream()
+                    .map(next -> next.ebs().volumeId()).collect(Collectors.toList());
             matched &= block.offerComplexValue("ebs_volumes", row, FieldResolver.DEFAULT, ebsVolumes);
+
+            matched &= block.offerComplexValue("tags", row,
+                    (Field field, Object val) -> {
+                        if (field.getName().equals("key")) {
+                            return ((Tag) val).key();
+                        }
+                        else if (field.getName().equals("value")) {
+                            return ((Tag) val).value();
+                        }
+
+                        throw new RuntimeException("Unexpected field " + field.getName());
+                    },
+                    instance.tags());
 
             return matched ? 1 : 0;
         });
@@ -281,6 +295,12 @@ public class Ec2TableProvider
                 .addListField("security_groups", Types.MinorType.VARCHAR.getType())
                 .addListField("security_group_names", Types.MinorType.VARCHAR.getType())
                 .addListField("ebs_volumes", Types.MinorType.VARCHAR.getType())
+                .addField(FieldBuilder.newBuilder("tags", new ArrowType.List())
+                        .addField(FieldBuilder.newBuilder("tag", Types.MinorType.STRUCT.getType())
+                                        .addStringField("key")
+                                        .addStringField("value")
+                                        .build())
+                        .build())
                 .addMetadata("instance_id", "EC2 Instance id.")
                 .addMetadata("image_id", "The id of the AMI used to boot the instance.")
                 .addMetadata("instance_type", "The EC2 instance type,")
@@ -308,6 +328,7 @@ public class Ec2TableProvider
                 .addMetadata("security_groups", "The list of security group (ids) attached to this instance.")
                 .addMetadata("security_group_names", "The list of security group (names) attached to this instance.")
                 .addMetadata("ebs_volumes", "The list of ebs volume (ids) attached to this instance.")
+                .addMetadata("tags", "Tags associated with the instance.")
                 .build();
     }
 }

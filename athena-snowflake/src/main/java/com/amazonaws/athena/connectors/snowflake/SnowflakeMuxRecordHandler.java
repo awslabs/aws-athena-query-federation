@@ -25,10 +25,10 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 
@@ -41,23 +41,23 @@ class SnowflakeMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new SnowflakeRecordHandler(config);
+        return new SnowflakeRecordHandler(config, configOptions);
     }
 }
 
 public class SnowflakeMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public SnowflakeMuxRecordHandler()
+    public SnowflakeMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new SnowflakeMuxRecordHandlerFactory());
+        super(new SnowflakeMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    SnowflakeMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                     final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    SnowflakeMuxRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                     DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

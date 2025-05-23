@@ -19,59 +19,51 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
-        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*"})
-@PrepareForTest({AWSSecretsManagerClientBuilder.class,
-        AWSSecretsManager.class, AmazonMskUtils.class})
+@RunWith(MockitoJUnitRunner.class)
 public class AmazonMskCompositeHandlerTest {
 
     static {
         System.setProperty("aws.region", "us-west-2");
     }
 
-    @Rule
-    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
+    private java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+        "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-Kafka",
+        "bootstrap.servers", "test"
+    );
 
     @Mock
     KafkaConsumer<String, String> kafkaConsumer;
+    @Mock
+    private SecretsManagerClient secretsManager;
 
     private AmazonMskCompositeHandler amazonMskCompositeHandler;
-
-    @Mock
-    private AWSSecretsManager secretsManager;
+    private MockedStatic<AmazonMskUtils> mockedMskUtils;
 
     @Before
-    public void setUp() {
-        environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-MSK");
+    public void setUp() throws Exception {
+        mockedMskUtils = Mockito.mockStatic(AmazonMskUtils.class);
+        mockedMskUtils.when(() -> AmazonMskUtils.getKafkaConsumer(configOptions)).thenReturn(kafkaConsumer);
+    }
+
+    @After
+    public void close() {
+        mockedMskUtils.close();
     }
 
     @Test
     public void amazonMskCompositeHandlerTest() throws Exception {
-        mockStatic(AWSSecretsManagerClientBuilder.class);
-        PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-        mockStatic(System.class);
-        PowerMockito.when(System.getenv(nullable(String.class))).thenReturn("test");
-        mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer()).thenReturn(kafkaConsumer);
         amazonMskCompositeHandler = new AmazonMskCompositeHandler();
         Assert.assertTrue(amazonMskCompositeHandler instanceof AmazonMskCompositeHandler);
     }

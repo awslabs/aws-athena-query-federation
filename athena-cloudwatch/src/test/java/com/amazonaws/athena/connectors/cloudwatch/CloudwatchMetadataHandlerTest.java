@@ -43,15 +43,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.logs.AWSLogs;
-import com.amazonaws.services.logs.model.DescribeLogGroupsRequest;
-import com.amazonaws.services.logs.model.DescribeLogGroupsResult;
-import com.amazonaws.services.logs.model.DescribeLogStreamsRequest;
-import com.amazonaws.services.logs.model.DescribeLogStreamsResult;
-import com.amazonaws.services.logs.model.LogGroup;
-import com.amazonaws.services.logs.model.LogStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -65,6 +56,15 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogGroupsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogStreamsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.DescribeLogStreamsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.LogGroup;
+import software.amazon.awssdk.services.cloudwatchlogs.model.LogStream;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,6 +73,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -91,28 +92,34 @@ public class CloudwatchMetadataHandlerTest
     private BlockAllocator allocator;
 
     @Mock
-    private AWSLogs mockAwsLogs;
+    private CloudWatchLogsClient mockAwsLogs;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
             throws Exception
     {
         Mockito.lenient().when(mockAwsLogs.describeLogStreams(nullable(DescribeLogStreamsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
-            return new DescribeLogStreamsResult().withLogStreams(new LogStream().withLogStreamName("table-9"),
-                    new LogStream().withLogStreamName("table-10"));
+            return DescribeLogStreamsResponse.builder()
+                    .logStreams(
+                            LogStream.builder().logStreamName("table-9").build(),
+                            LogStream.builder().logStreamName("table-10").build())
+                    .build();
         });
 
         when(mockAwsLogs.describeLogGroups(nullable(DescribeLogGroupsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
-            return new DescribeLogGroupsResult().withLogGroups(new LogGroup().withLogGroupName("schema-1"),
-                    new LogGroup().withLogGroupName("schema-20"));
+            return DescribeLogGroupsResponse.builder()
+                    .logGroups(
+                            LogGroup.builder().logGroupName("schema-1").build(),
+                            LogGroup.builder().logGroupName("schema-20").build())
+                    .build();
         });
-        handler = new CloudwatchMetadataHandler(mockAwsLogs, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix");
+        handler = new CloudwatchMetadataHandler(mockAwsLogs, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
     }
 
@@ -132,34 +139,33 @@ public class CloudwatchMetadataHandlerTest
         when(mockAwsLogs.describeLogGroups(nullable(DescribeLogGroupsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             DescribeLogGroupsRequest request = (DescribeLogGroupsRequest) invocationOnMock.getArguments()[0];
 
-            DescribeLogGroupsResult result = new DescribeLogGroupsResult();
+            DescribeLogGroupsResponse.Builder responseBuilder = DescribeLogGroupsResponse.builder();
 
             Integer nextToken;
-            if (request.getNextToken() == null) {
+            if (request.nextToken() == null) {
                 nextToken = 1;
             }
-            else if (Integer.valueOf(request.getNextToken()) < 3) {
-                nextToken = Integer.valueOf(request.getNextToken()) + 1;
+            else if (Integer.valueOf(request.nextToken()) < 3) {
+                nextToken = Integer.valueOf(request.nextToken()) + 1;
             }
             else {
                 nextToken = null;
             }
 
             List<LogGroup> logGroups = new ArrayList<>();
-            if (request.getNextToken() == null || Integer.valueOf(request.getNextToken()) < 3) {
+            if (request.nextToken() == null || Integer.valueOf(request.nextToken()) < 3) {
                 for (int i = 0; i < 10; i++) {
-                    LogGroup nextLogGroup = new LogGroup();
-                    nextLogGroup.setLogGroupName("schema-" + String.valueOf(i));
+                    LogGroup nextLogGroup = LogGroup.builder().logGroupName("schema-" + String.valueOf(i)).build();
                     logGroups.add(nextLogGroup);
                 }
             }
 
-            result.withLogGroups(logGroups);
+            responseBuilder.logGroups(logGroups);
             if (nextToken != null) {
-                result.setNextToken(String.valueOf(nextToken));
+                responseBuilder.nextToken(String.valueOf(nextToken));
             }
 
-            return result;
+            return responseBuilder.build();
         });
 
         ListSchemasRequest req = new ListSchemasRequest(identity, "queryId", "default");
@@ -182,34 +188,33 @@ public class CloudwatchMetadataHandlerTest
         when(mockAwsLogs.describeLogStreams(nullable(DescribeLogStreamsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             DescribeLogStreamsRequest request = (DescribeLogStreamsRequest) invocationOnMock.getArguments()[0];
 
-            DescribeLogStreamsResult result = new DescribeLogStreamsResult();
+            DescribeLogStreamsResponse.Builder responseBuilder = DescribeLogStreamsResponse.builder();
 
             Integer nextToken;
-            if (request.getNextToken() == null) {
+            if (request.nextToken() == null) {
                 nextToken = 1;
             }
-            else if (Integer.valueOf(request.getNextToken()) < 3) {
-                nextToken = Integer.valueOf(request.getNextToken()) + 1;
+            else if (Integer.valueOf(request.nextToken()) < 3) {
+                nextToken = Integer.valueOf(request.nextToken()) + 1;
             }
             else {
                 nextToken = null;
             }
 
             List<LogStream> logStreams = new ArrayList<>();
-            if (request.getNextToken() == null || Integer.valueOf(request.getNextToken()) < 3) {
+            if (request.nextToken() == null || Integer.valueOf(request.nextToken()) < 3) {
                 for (int i = 0; i < 10; i++) {
-                    LogStream nextLogStream = new LogStream();
-                    nextLogStream.setLogStreamName("table-" + String.valueOf(i));
+                    LogStream nextLogStream = LogStream.builder().logStreamName("table-" + String.valueOf(i)).build();
                     logStreams.add(nextLogStream);
                 }
             }
 
-            result.withLogStreams(logStreams);
+            responseBuilder.logStreams(logStreams);
             if (nextToken != null) {
-                result.setNextToken(String.valueOf(nextToken));
+                responseBuilder.nextToken(String.valueOf(nextToken));
             }
 
-            return result;
+            return responseBuilder.build();
         });
 
         ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default",
@@ -237,38 +242,37 @@ public class CloudwatchMetadataHandlerTest
         when(mockAwsLogs.describeLogStreams(nullable(DescribeLogStreamsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             DescribeLogStreamsRequest request = (DescribeLogStreamsRequest) invocationOnMock.getArguments()[0];
 
-            assertTrue(request.getLogGroupName().equals(expectedSchema));
-            DescribeLogStreamsResult result = new DescribeLogStreamsResult();
+            assertTrue(request.logGroupName().equals(expectedSchema));
+            DescribeLogStreamsResponse.Builder responseBuilder = DescribeLogStreamsResponse.builder();
 
             Integer nextToken;
-            if (request.getNextToken() == null) {
+            if (request.nextToken() == null) {
                 nextToken = 1;
             }
-            else if (Integer.valueOf(request.getNextToken()) < 3) {
-                nextToken = Integer.valueOf(request.getNextToken()) + 1;
+            else if (Integer.valueOf(request.nextToken()) < 3) {
+                nextToken = Integer.valueOf(request.nextToken()) + 1;
             }
             else {
                 nextToken = null;
             }
 
             List<LogStream> logStreams = new ArrayList<>();
-            if (request.getNextToken() == null || Integer.valueOf(request.getNextToken()) < 3) {
+            if (request.nextToken() == null || Integer.valueOf(request.nextToken()) < 3) {
                 for (int i = 0; i < 10; i++) {
-                    LogStream nextLogStream = new LogStream();
-                    nextLogStream.setLogStreamName("table-" + String.valueOf(i));
+                    LogStream nextLogStream = LogStream.builder().logStreamName("table-" + String.valueOf(i)).build();
                     logStreams.add(nextLogStream);
                 }
             }
 
-            result.withLogStreams(logStreams);
+            responseBuilder.logStreams(logStreams);
             if (nextToken != null) {
-                result.setNextToken(String.valueOf(nextToken));
+                responseBuilder.nextToken(String.valueOf(nextToken));
             }
 
-            return result;
+            return responseBuilder.build();
         });
 
-        GetTableRequest req = new GetTableRequest(identity, "queryId", "default", new TableName(expectedSchema, "table-9"));
+        GetTableRequest req = new GetTableRequest(identity, "queryId", "default", new TableName(expectedSchema, "table-9"), Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {} {}", res.getTableName(), res.getSchema());
 
@@ -289,36 +293,37 @@ public class CloudwatchMetadataHandlerTest
         when(mockAwsLogs.describeLogStreams(nullable(DescribeLogStreamsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             DescribeLogStreamsRequest request = (DescribeLogStreamsRequest) invocationOnMock.getArguments()[0];
 
-            DescribeLogStreamsResult result = new DescribeLogStreamsResult();
+            DescribeLogStreamsResponse.Builder responseBuilder = DescribeLogStreamsResponse.builder();
 
             Integer nextToken;
-            if (request.getNextToken() == null) {
+            if (request.nextToken() == null) {
                 nextToken = 1;
             }
-            else if (Integer.valueOf(request.getNextToken()) < 3) {
-                nextToken = Integer.valueOf(request.getNextToken()) + 1;
+            else if (Integer.valueOf(request.nextToken()) < 3) {
+                nextToken = Integer.valueOf(request.nextToken()) + 1;
             }
             else {
                 nextToken = null;
             }
 
             List<LogStream> logStreams = new ArrayList<>();
-            if (request.getNextToken() == null || Integer.valueOf(request.getNextToken()) < 3) {
-                int continuation = request.getNextToken() == null ? 0 : Integer.valueOf(request.getNextToken());
+            if (request.nextToken() == null || Integer.valueOf(request.nextToken()) < 3) {
+                int continuation = request.nextToken() == null ? 0 : Integer.valueOf(request.nextToken());
                 for (int i = 0 + continuation * 100; i < 300; i++) {
-                    LogStream nextLogStream = new LogStream();
-                    nextLogStream.setLogStreamName("table-" + String.valueOf(i));
-                    nextLogStream.setStoredBytes(i * 1000L);
+                    LogStream nextLogStream = LogStream.builder()
+                            .logStreamName("table-" + String.valueOf(i))
+                            .storedBytes(i * 1000L)
+                            .build();
                     logStreams.add(nextLogStream);
                 }
             }
 
-            result.withLogStreams(logStreams);
+            responseBuilder.logStreams(logStreams);
             if (nextToken != null) {
-                result.setNextToken(String.valueOf(nextToken));
+                responseBuilder.nextToken(String.valueOf(nextToken));
             }
 
-            return result;
+            return responseBuilder.build();
         });
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
@@ -333,7 +338,7 @@ public class CloudwatchMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName("schema-1", "all_log_streams"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 schema,
                 Collections.singleton("log_stream"));
 
@@ -378,7 +383,7 @@ public class CloudwatchMetadataHandlerTest
                 new TableName("schema", "all_log_streams"),
                 partitions,
                 Collections.singletonList(CloudwatchMetadataHandler.LOG_STREAM_FIELD),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
         int numContinuations = 0;
         do {

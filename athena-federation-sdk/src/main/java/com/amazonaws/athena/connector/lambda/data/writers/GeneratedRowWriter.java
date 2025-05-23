@@ -50,6 +50,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.VarCharFi
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -68,11 +69,16 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 
 public class GeneratedRowWriter
 {
@@ -103,7 +109,7 @@ public class GeneratedRowWriter
 
     public static RowWriterBuilder newBuilder()
     {
-        return new RowWriterBuilder(new Constraints(ImmutableMap.of()));
+        return new RowWriterBuilder(new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
     }
 
     public boolean writeRow(Block block, int rowNum, Object context)
@@ -149,7 +155,7 @@ public class GeneratedRowWriter
         }
 
         if (extractor == null) {
-            throw new IllegalStateException("Missing extractor for field[" + fieldName + "]");
+            throw new AthenaConnectorException("Missing extractor for field[" + fieldName + "]", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         switch (fieldType) {
@@ -178,7 +184,7 @@ public class GeneratedRowWriter
             case VARBINARY:
                 return new VarBinaryFieldWriter((VarBinaryExtractor) extractor, (VarBinaryVector) vector, constraint);
             default:
-                throw new RuntimeException(fieldType + " is not supported");
+                throw new AthenaConnectorException(fieldType + " is not supported", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 

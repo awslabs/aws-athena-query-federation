@@ -27,11 +27,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -39,6 +35,10 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.*;
 import java.util.*;
@@ -57,8 +57,8 @@ public class HiveMetadataHandlerTest
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
     private FederatedIdentity federatedIdentity;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
     private BlockAllocator blockAllocator;
 
     @BeforeClass
@@ -73,11 +73,11 @@ public class HiveMetadataHandlerTest
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.hiveMetadataHandler = new HiveMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        this.hiveMetadataHandler = new HiveMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
 
     }
@@ -115,7 +115,7 @@ public class HiveMetadataHandlerTest
         int[] types3 = {Types.VARCHAR};
         Object[][] values4 = {{"PARTITIONED:true"}};
         ResultSet resultSet2 = mockResultSet(columns3, types3, values4, new AtomicInteger(-1));
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
         final String getPartitionExistsSql = "show table extended like "  + tableName;
         final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
@@ -159,7 +159,7 @@ public class HiveMetadataHandlerTest
         String[] columns2 = {"Partition"};
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {};
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
         final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
@@ -192,9 +192,9 @@ public class HiveMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        HiveMetadataHandler implalaMetadataHandler = new HiveMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
+        HiveMetadataHandler implalaMetadataHandler = new HiveMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         implalaMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
 
@@ -222,7 +222,7 @@ public class HiveMetadataHandlerTest
         String[] columns2 = {"Partition"};
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {{value2},{value3}};
-        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(connection);
         String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
         final String getPartitionExistsSql = "show table extended like "  + tableName;
         final String getPartitionDetailsSql = "show partitions "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
@@ -293,7 +293,7 @@ public class HiveMetadataHandlerTest
         Mockito.when(this.connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet1);
         Mockito.when(this.connection.getCatalog()).thenReturn("testCatalog");
         GetTableResponse getTableResponse = this.hiveMetadataHandler.doGetTable(
-                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
@@ -302,7 +302,7 @@ public class HiveMetadataHandlerTest
     public void doGetTableNoColumns() throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
-        this.hiveMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.hiveMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 
     @Test(expected = SQLException.class)
@@ -312,6 +312,6 @@ public class HiveMetadataHandlerTest
         TableName inputTableName = new TableName("testSchema", "testTable");
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.hiveMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.hiveMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 }

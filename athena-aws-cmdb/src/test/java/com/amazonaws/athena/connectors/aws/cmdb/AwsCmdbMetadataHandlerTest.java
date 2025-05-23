@@ -22,10 +22,8 @@ package com.amazonaws.athena.connectors.aws.cmdb;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -40,15 +38,15 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,6 +54,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -76,7 +75,7 @@ public class AwsCmdbMetadataHandlerTest
     private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
 
     @Mock
-    private AmazonS3 mockS3;
+    private S3Client mockS3;
 
     @Mock
     private TableProviderFactory mockTableProviderFactory;
@@ -99,10 +98,10 @@ public class AwsCmdbMetadataHandlerTest
     private Block mockBlock;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     private AwsCmdbMetadataHandler handler;
 
@@ -127,7 +126,7 @@ public class AwsCmdbMetadataHandlerTest
 
         when(mockTableProviderFactory.getSchemas()).thenReturn(schemas);
 
-        handler = new AwsCmdbMetadataHandler(mockTableProviderFactory, new LocalKeyFactory(), mockSecretsManager, mockAthena, bucket, prefix);
+        handler = new AwsCmdbMetadataHandler(mockTableProviderFactory, new LocalKeyFactory(), mockSecretsManager, mockAthena, bucket, prefix, com.google.common.collect.ImmutableMap.of());
 
         verify(mockTableProviderFactory, times(1)).getTableProviders();
         verify(mockTableProviderFactory, times(1)).getSchemas();
@@ -167,7 +166,7 @@ public class AwsCmdbMetadataHandlerTest
     @Test
     public void doGetTable()
     {
-        GetTableRequest request = new GetTableRequest(identity, queryId, catalog, new TableName("schema1", "table1"));
+        GetTableRequest request = new GetTableRequest(identity, queryId, catalog, new TableName("schema1", "table1"), Collections.emptyMap());
 
         when(mockTableProvider1.getTable(eq(blockAllocator), eq(request))).thenReturn(mock(GetTableResponse.class));
         GetTableResponse response = handler.doGetTable(blockAllocator, request);
@@ -199,7 +198,7 @@ public class AwsCmdbMetadataHandlerTest
                 new TableName("schema1", "table1"),
                 mockBlock,
                 Collections.emptyList(),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
 
         GetSplitsResponse response = handler.doGetSplits(blockAllocator, request);

@@ -21,13 +21,13 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.amazonaws.athena.connector.lambda.serde.PingRequestSerDe;
 import com.amazonaws.athena.connector.lambda.serde.PingResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
-import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -52,12 +52,15 @@ import com.fasterxml.jackson.databind.ser.Serializers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.lambda.model.LambdaException;
 
 @Deprecated
 public class ObjectMapperFactoryV2
 {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
-    private static final String LAMDA_EXCEPTION_CLASS_NAME = LambdaFunctionException.class.getName();
+    private static final String LAMDA_EXCEPTION_CLASS_NAME = LambdaException.class.getName();
 
     private static final SerializerFactory SERIALIZER_FACTORY;
 
@@ -101,7 +104,7 @@ public class ObjectMapperFactoryV2
                     return (JsonSerializer<Object>) ser;
                 }
             }
-            throw new IllegalArgumentException("No explicitly configured serializer for " + origType);
+            throw new AthenaConnectorException("No explicitly configured serializer for " + origType, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -135,7 +138,7 @@ public class ObjectMapperFactoryV2
                     return (JsonDeserializer<Object>) deser;
                 }
             }
-            throw new IllegalArgumentException("No explicitly configured deserializer for " + type);
+            throw new AthenaConnectorException("No explicitly configured deserializer for " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -153,7 +156,7 @@ public class ObjectMapperFactoryV2
             ImmutableMap<Class<?>, JsonDeserializer<?>> desers = ImmutableMap.of(
                     FederationRequest.class, createRequestDeserializer(allocator),
                     FederationResponse.class, createResponseDeserializer(allocator),
-                    LambdaFunctionException.class, new LambdaFunctionExceptionSerDe.Deserializer());
+                    LambdaException.class, new LambdaFunctionExceptionSerDe.Deserializer());
             SimpleDeserializers deserializers = new SimpleDeserializers(desers);
             DeserializerFactoryConfig dConfig = new DeserializerFactoryConfig().withAdditionalDeserializers(deserializers);
             _deserializationContext = new DefaultDeserializationContext.Impl(new StrictDeserializerFactory(dConfig));

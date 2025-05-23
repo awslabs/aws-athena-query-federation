@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.handlers;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.records.RecordRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
@@ -35,6 +36,8 @@ import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -95,13 +98,32 @@ public class CompositeHandler
             throws IOException
     {
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
-            ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
-            try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
-                if (rawReq instanceof MetadataRequest) {
-                    ((MetadataRequest) rawReq).setContext(context);
+            int resolvedSerDeVersion = SerDeVersion.SERDE_VERSION;
+            byte[] allInputBytes = com.google.common.io.ByteStreams.toByteArray(inputStream);
+            FederationRequest rawReq = null;
+            ObjectMapper objectMapper = null;
+            while (resolvedSerDeVersion >= 1) {
+                try {
+                    objectMapper = VersionedObjectMapperFactory.create(allocator, resolvedSerDeVersion);
+                    rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);
+                    break;
                 }
-                handleRequest(allocator, rawReq, outputStream, objectMapper);
+                catch (IllegalStateException e) { // if client has not upgraded to our latest, fallback to lower version
+                    logger.debug("Client's SerDe mis-matched with connector version:, attempt with lower version: '{}'", --resolvedSerDeVersion);
+                }
             }
+
+            if (rawReq == null || objectMapper == null) {
+                throw new AthenaConnectorException(String.format("FederationRequest/ObjectMapper is null with SerDeVersion: '%d'", resolvedSerDeVersion), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+            }
+
+            logger.info("Parsing request with resolvedSerDeVersion: '{}', connector SerDeVersion: '{}'", resolvedSerDeVersion, SerDeVersion.SERDE_VERSION);
+
+            if (rawReq instanceof MetadataRequest) {
+                ((MetadataRequest) rawReq).setContext(context);
+            }
+            handleRequest(allocator, rawReq, outputStream, objectMapper);
+            rawReq.close();
         }
         catch (Exception ex) {
             logger.warn("handleRequest: Completed with an exception.", ex);
@@ -141,7 +163,7 @@ public class CompositeHandler
             udfhandler.doHandleRequest(allocator, objectMapper, (UserDefinedFunctionRequest) rawReq, outputStream);
         }
         else {
-            throw new IllegalArgumentException("Unknown request class " + rawReq.getClass());
+            throw new AthenaConnectorException("Unknown request class " + rawReq.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -151,7 +173,7 @@ public class CompositeHandler
     private void assertNotNull(FederationResponse response)
     {
         if (response == null) {
-            throw new RuntimeException("Response was null");
+            throw new AthenaConnectorException("Response was null", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString()).build());
         }
     }
 }

@@ -40,11 +40,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
@@ -53,6 +49,10 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -69,21 +69,22 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class Db2MetadataHandlerTest extends TestBase {
     private static final Logger logger = LoggerFactory.getLogger(Db2MetadataHandlerTest.class);
-    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+    private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2Constants.NAME,
             "dbtwo://jdbc:db2://hostname:50001/dummydatabase:user=dummyuser;password=dummypwd");
     private Db2MetadataHandler db2MetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
     private FederatedIdentity federatedIdentity;
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
     private BlockAllocator blockAllocator;
-    private AmazonAthena athena;
+    private AthenaClient athena;
 
     @Before
     public void setup() throws Exception {
@@ -91,11 +92,11 @@ public class Db2MetadataHandlerTest extends TestBase {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         logger.info(" this.connection.."+ this.connection);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}").build());
+        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = new BlockAllocatorImpl();
     }
@@ -104,7 +105,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     public void getPartitionSchema()
     {
         Assert.assertEquals(SchemaBuilder.newBuilder()
-                        .addField(Db2MetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
+                        .addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
                 this.db2MetadataHandler.getPartitionSchema("testCatalogName"));
     }
 
@@ -131,7 +132,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Collections.singletonMap(db2MetadataHandler.PARTITION_NUMBER, "0"));
+        expectedSplits.add(Collections.singletonMap(PARTITION_NUMBER, "0"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -166,16 +167,16 @@ public class Db2MetadataHandlerTest extends TestBase {
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
         GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
-        Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(db2MetadataHandler.PARTITION_NUMBER, "0"),
-                Map.entry(db2MetadataHandler.PARTITIONING_COLUMN, "PC")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(db2MetadataHandler.PARTITION_NUMBER, "1"),
-                Map.entry(db2MetadataHandler.PARTITIONING_COLUMN, "PC")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(db2MetadataHandler.PARTITION_NUMBER, "2"),
-                Map.entry(db2MetadataHandler.PARTITIONING_COLUMN, "PC")));
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+            com.google.common.collect.ImmutableMap.of(
+                PARTITION_NUMBER, "0",
+                db2MetadataHandler.PARTITIONING_COLUMN, "PC"),
+            com.google.common.collect.ImmutableMap.of(
+                PARTITION_NUMBER, "1",
+                db2MetadataHandler.PARTITIONING_COLUMN, "PC"),
+            com.google.common.collect.ImmutableMap.of(
+                PARTITION_NUMBER, "2",
+                db2MetadataHandler.PARTITIONING_COLUMN, "PC"));
 
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
@@ -223,7 +224,7 @@ public class Db2MetadataHandlerTest extends TestBase {
 
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
         GetTableResponse getTableResponse = this.db2MetadataHandler.doGetTable(
-                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(new TableName(schemaName, tableName), getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
@@ -249,7 +250,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName inputTableName = new TableName(schemaName, tableName);
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 
     @Test(expected = SQLException.class)
@@ -271,7 +272,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName inputTableName = new TableName(schemaName, tableName);
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 
     @Test(expected = SQLException.class)
@@ -293,7 +294,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName inputTableName = new TableName(schemaName, tableName);
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 
     @Test(expected = SQLException.class)
@@ -315,7 +316,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         TableName inputTableName = new TableName(schemaName, tableName);
         Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
-        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+        this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 
     @Test

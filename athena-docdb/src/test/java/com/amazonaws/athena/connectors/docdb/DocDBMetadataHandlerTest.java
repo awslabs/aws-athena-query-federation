@@ -39,13 +39,12 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableList;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.MongoIterable;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -61,12 +60,17 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,6 +78,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -95,13 +100,13 @@ public class DocDBMetadataHandlerTest
     private MongoClient mockClient;
 
     @Mock
-    private AWSGlue awsGlue;
+    private GlueClient awsGlue;
 
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
@@ -111,7 +116,7 @@ public class DocDBMetadataHandlerTest
 
         when(connectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
-        handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix");
+        handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
     }
 
@@ -124,7 +129,7 @@ public class DocDBMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNames()
+    public void doListSchemaNames() throws Exception
     {
         List<String> schemaNames = new ArrayList<>();
         schemaNames.add("schema1");
@@ -141,20 +146,28 @@ public class DocDBMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
+    public void doListTables() throws Exception
     {
         List<String> tableNames = new ArrayList<>();
         tableNames.add("table1");
         tableNames.add("table2");
         tableNames.add("table3");
 
+        Document tableNamesDocument = new Document("cursor",
+                new Document("firstBatch",
+                        Arrays.asList(new Document("name", "table1"),
+                                new Document("name", "table2"),
+                                new Document("name", "table3"))));
+
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
-        when(mockDatabase.listCollectionNames()).thenReturn(StubbingCursor.iterate(tableNames));
+        when(mockDatabase.runCommand(any())).thenReturn(tableNamesDocument);
 
         ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, DEFAULT_SCHEMA,
                 null, UNLIMITED_PAGE_SIZE_VALUE);
+
         ListTablesResponse res = handler.doListTables(allocator, req);
+
         logger.info("doListTables - {}", res.getTables());
 
         for (TableName next : res.getTables()) {
@@ -206,7 +219,7 @@ public class DocDBMetadataHandlerTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
@@ -241,6 +254,175 @@ public class DocDBMetadataHandlerTest
     }
 
     @Test
+    public void doGetTableCaseInsensitiveMatch()
+            throws Exception
+    {
+
+        DocDBMetadataHandler caseInsensitiveHandler = new DocDBMetadataHandler(awsGlue,
+                connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena,
+                "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of("enable_case_insensitive_match", "true"));
+        List<Document> documents = new ArrayList<>();
+
+        Document doc1 = new Document();
+        documents.add(doc1);
+        doc1.put("stringCol", "stringVal");
+        doc1.put("intCol", 1);
+        doc1.put("doubleCol", 2.2D);
+        doc1.put("longCol", 100L);
+        doc1.put("unsupported", new UnsupportedType());
+
+        Document doc2 = new Document();
+        documents.add(doc2);
+        doc2.put("stringCol2", "stringVal");
+        doc2.put("intCol2", 1);
+        doc2.put("doubleCol2", 2.2D);
+        doc2.put("longCol2", 100L);
+
+        Document doc3 = new Document();
+        documents.add(doc3);
+        doc3.put("stringCol", "stringVal");
+        doc3.put("intCol2", 1);
+        doc3.put("doubleCol", 2.2D);
+        doc3.put("longCol2", 100L);
+
+        MongoDatabase mockDatabase = mock(MongoDatabase.class);
+        MongoCollection mockCollection = mock(MongoCollection.class);
+        FindIterable mockIterable = mock(FindIterable.class);
+
+        MongoIterable mockListDatabaseNamesIterable = mock(MongoIterable.class);
+        when(mockClient.listDatabaseNames()).thenReturn(mockListDatabaseNamesIterable);
+
+        when(mockListDatabaseNamesIterable.spliterator()).thenReturn(ImmutableList.of(DEFAULT_SCHEMA).spliterator());
+
+        MongoIterable mockListCollectionsNamesIterable = mock(MongoIterable.class);
+        when(mockDatabase.listCollectionNames()).thenReturn(mockListCollectionsNamesIterable);
+        when(mockListCollectionsNamesIterable.spliterator()).thenReturn(ImmutableList.of(TEST_TABLE).spliterator());
+
+        when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        TableName tableNameInput = new TableName("DEfault", TEST_TABLE.toUpperCase());
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput, Collections.emptyMap());
+        GetTableResponse res = caseInsensitiveHandler.doGetTable(allocator, req);
+
+        assertEquals(DEFAULT_SCHEMA, res.getTableName().getSchemaName());
+        assertEquals(TEST_TABLE, res.getTableName().getTableName());
+        logger.info("doGetTable - {}", res);
+
+        assertEquals(9, res.getSchema().getFields().size());
+
+        Field stringCol = res.getSchema().findField("stringCol");
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(stringCol.getType()));
+
+        Field stringCol2 = res.getSchema().findField("stringCol2");
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(stringCol2.getType()));
+
+        Field intCol = res.getSchema().findField("intCol");
+        assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(intCol.getType()));
+
+        Field intCol2 = res.getSchema().findField("intCol2");
+        assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(intCol2.getType()));
+
+        Field doubleCol = res.getSchema().findField("doubleCol");
+        assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(doubleCol.getType()));
+
+        Field doubleCol2 = res.getSchema().findField("doubleCol2");
+        assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(doubleCol2.getType()));
+
+        Field longCol = res.getSchema().findField("longCol");
+        assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(longCol.getType()));
+
+        Field longCol2 = res.getSchema().findField("longCol2");
+        assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(longCol2.getType()));
+
+        Field unsupported = res.getSchema().findField("unsupported");
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(unsupported.getType()));
+    }
+
+
+    @Test
+    public void doGetTableCaseInsensitiveMatchMultipleMatch()
+            throws Exception
+    {
+
+        DocDBMetadataHandler caseInsensitiveHandler = new DocDBMetadataHandler(awsGlue,
+                connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena,
+                "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of("enable_case_insensitive_match", "true"));
+
+        MongoIterable mockListDatabaseNamesIterable = mock(MongoIterable.class);
+        when(mockClient.listDatabaseNames()).thenReturn(mockListDatabaseNamesIterable);
+        when(mockListDatabaseNamesIterable.spliterator()).thenReturn(ImmutableList.of(DEFAULT_SCHEMA, DEFAULT_SCHEMA.toUpperCase()).spliterator());
+
+        TableName tableNameInput = new TableName("deFAULT", TEST_TABLE.toUpperCase());
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput, Collections.emptyMap());
+        try {
+            GetTableResponse res = caseInsensitiveHandler.doGetTable(allocator, req);
+            fail("doGetTableCaseInsensitiveMatchMultipleMatch should failed");
+        } catch(IllegalArgumentException ex){
+            assertEquals("Schema name is empty or more than 1 for case insensitive match. schemaName: deFAULT, size: 2", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void doGetTableCaseInsensitiveMatchNotEnable()
+            throws Exception
+    {
+
+        String mixedCaseSchemaName = "deFAULT";
+        String mixedCaseTableName = "tesT_Table";
+        List<Document> documents = new ArrayList<>();
+
+        Document doc1 = new Document();
+        documents.add(doc1);
+        doc1.put("stringCol", "stringVal");
+        doc1.put("intCol", 1);
+        doc1.put("doubleCol", 2.2D);
+        doc1.put("longCol", 100L);
+        doc1.put("unsupported", new UnsupportedType());
+
+        Document doc2 = new Document();
+        documents.add(doc2);
+        doc2.put("stringCol2", "stringVal");
+        doc2.put("intCol2", 1);
+        doc2.put("doubleCol2", 2.2D);
+        doc2.put("longCol2", 100L);
+
+        Document doc3 = new Document();
+        documents.add(doc3);
+        doc3.put("stringCol", "stringVal");
+        doc3.put("intCol2", 1);
+        doc3.put("doubleCol", 2.2D);
+        doc3.put("longCol2", 100L);
+
+        MongoDatabase mockDatabase = mock(MongoDatabase.class);
+        MongoCollection mockCollection = mock(MongoCollection.class);
+        FindIterable mockIterable = mock(FindIterable.class);
+        when(mockClient.getDatabase(eq(mixedCaseSchemaName))).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(eq(mixedCaseTableName))).thenReturn(mockCollection);
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        TableName tableNameInput = new TableName(mixedCaseSchemaName, mixedCaseTableName);
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, tableNameInput, Collections.emptyMap());
+        GetTableResponse res = handler.doGetTable(allocator, req);
+
+        assertEquals(mixedCaseSchemaName, res.getTableName().getSchemaName());
+        assertEquals(mixedCaseTableName, res.getTableName().getTableName());
+
+        verify(mockClient, Mockito.never()).listDatabaseNames();
+        verify(mockDatabase, Mockito.never()).listCollectionNames();
+
+    }
+
+    @Test
     public void doGetTableLayout()
             throws Exception
     {
@@ -249,7 +431,7 @@ public class DocDBMetadataHandlerTest
                 QUERY_ID,
                 DEFAULT_CATALOG,
                 TABLE_NAME,
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 schema,
                 Collections.EMPTY_SET);
 
@@ -278,7 +460,7 @@ public class DocDBMetadataHandlerTest
                 TABLE_NAME,
                 partitions,
                 partitionCols,
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);

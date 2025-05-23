@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.db2;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
@@ -28,12 +29,14 @@ import org.slf4j.LoggerFactory;
 import java.util.Collections;
 import java.util.List;
 
+import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
+
 public class Db2QueryStringBuilder extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Db2QueryStringBuilder.class);
-    public Db2QueryStringBuilder(String quoteCharacters)
+    public Db2QueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, federationExpressionParser);
     }
 
     /**
@@ -73,7 +76,7 @@ public class Db2QueryStringBuilder extends JdbcSplitQueryBuilder
         if (column != null) {
             LOGGER.debug("Fetching data using Partition");
             //example query: select * from EMP_TABLE WHERE DATAPARTITIONNUM(EMP_NO) = 0
-            return Collections.singletonList(" DATAPARTITIONNUM(" + column + ") = " + split.getProperty(Db2MetadataHandler.PARTITION_NUMBER));
+            return Collections.singletonList(" DATAPARTITIONNUM(" + column + ") = " + split.getProperty(PARTITION_NUMBER));
         }
         else {
             LOGGER.debug("Fetching data without Partition");

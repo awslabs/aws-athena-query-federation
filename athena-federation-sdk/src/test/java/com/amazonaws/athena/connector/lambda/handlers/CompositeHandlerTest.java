@@ -50,12 +50,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +64,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -154,7 +154,7 @@ public class CompositeHandlerTest
                         .withSplitId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), null).build(),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -211,7 +211,7 @@ public class CompositeHandlerTest
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
         SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
         doNothing().when(mockVerifier).checkBucketAuthZ(nullable(String.class));
-        Whitebox.setInternalState(mockMetadataHandler, "verifier", mockVerifier);
+        FieldUtils.writeField(mockMetadataHandler, "verifier", mockVerifier, true);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class));
     }

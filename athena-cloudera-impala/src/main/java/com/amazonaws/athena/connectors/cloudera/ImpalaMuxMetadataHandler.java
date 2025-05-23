@@ -25,9 +25,9 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 
@@ -41,24 +41,24 @@ class ImpalaMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new ImpalaMetadataHandler(config);
+        return new ImpalaMetadataHandler(config, configOptions);
     }
 }
 
 public class ImpalaMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public ImpalaMuxMetadataHandler()
+    public ImpalaMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new ImpalaMetadataHandlerFactory());
+        super(new ImpalaMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected ImpalaMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                       final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected ImpalaMuxMetadataHandler(SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                     Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

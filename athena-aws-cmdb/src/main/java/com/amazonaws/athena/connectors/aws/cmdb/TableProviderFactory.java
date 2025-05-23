@@ -32,15 +32,11 @@ import com.amazonaws.athena.connectors.aws.cmdb.tables.ec2.SubnetTableProvider;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.ec2.VpcTableProvider;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.s3.S3BucketsTableProvider;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.s3.S3ObjectsTableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduceClientBuilder;
-import com.amazonaws.services.rds.AmazonRDS;
-import com.amazonaws.services.rds.AmazonRDSClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.emr.EmrClient;
+import software.amazon.awssdk.services.rds.RdsClient;
+import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,16 +52,18 @@ public class TableProviderFactory
     private Map<String, List<TableName>> schemas = new HashMap<>();
     private Map<TableName, TableProvider> tableProviders = new HashMap<>();
 
-    public TableProviderFactory()
+    public TableProviderFactory(java.util.Map<String, String> configOptions)
     {
-        this(AmazonEC2ClientBuilder.standard().build(),
-                AmazonElasticMapReduceClientBuilder.standard().build(),
-                AmazonRDSClientBuilder.standard().build(),
-                AmazonS3ClientBuilder.standard().build());
+        this(
+            Ec2Client.create(),
+            EmrClient.create(),
+            RdsClient.create(),
+            S3Client.create(),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected TableProviderFactory(AmazonEC2 ec2, AmazonElasticMapReduce emr, AmazonRDS rds, AmazonS3 amazonS3)
+    protected TableProviderFactory(Ec2Client ec2, EmrClient emr, RdsClient rds, S3Client amazonS3, java.util.Map<String, String> configOptions)
     {
         addProvider(new Ec2TableProvider(ec2));
         addProvider(new EbsTableProvider(ec2));
@@ -73,7 +71,7 @@ public class TableProviderFactory
         addProvider(new SecurityGroupsTableProvider(ec2));
         addProvider(new RouteTableProvider(ec2));
         addProvider(new SubnetTableProvider(ec2));
-        addProvider(new ImagesTableProvider(ec2));
+        addProvider(new ImagesTableProvider(ec2, configOptions));
         addProvider(new EmrClusterTableProvider(emr));
         addProvider(new RdsTableProvider(rds));
         addProvider(new S3ObjectsTableProvider(amazonS3));

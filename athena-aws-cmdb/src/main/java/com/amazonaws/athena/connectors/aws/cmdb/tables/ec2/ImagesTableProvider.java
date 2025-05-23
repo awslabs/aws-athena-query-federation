@@ -31,17 +31,17 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeImagesResult;
-import com.amazonaws.services.ec2.model.EbsBlockDevice;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Tag;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
+import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeImagesResponse;
+import software.amazon.awssdk.services.ec2.model.EbsBlockDevice;
+import software.amazon.awssdk.services.ec2.model.Image;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 import java.util.Collections;
 import java.util.List;
@@ -56,13 +56,14 @@ public class ImagesTableProvider
     private static final int MAX_IMAGES = 1000;
     //Sets a default owner filter (when not null) to reduce the number of irrelevant AMIs returned when you do not
     //query for a specific owner.
-    private static final String DEFAULT_OWNER = System.getenv(DEFAULT_OWNER_ENV);
+    private final String defaultOwner;
     private static final Schema SCHEMA;
-    private AmazonEC2 ec2;
+    private Ec2Client ec2;
 
-    public ImagesTableProvider(AmazonEC2 ec2)
+    public ImagesTableProvider(Ec2Client ec2, java.util.Map<String, String> configOptions)
     {
         this.ec2 = ec2;
+        this.defaultOwner = configOptions.get(DEFAULT_OWNER_ENV);
     }
 
     /**
@@ -103,28 +104,28 @@ public class ImagesTableProvider
     @Override
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        DescribeImagesRequest request = new DescribeImagesRequest();
+        DescribeImagesRequest.Builder request = DescribeImagesRequest.builder();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("id");
         ValueSet ownerConstraint = recordsRequest.getConstraints().getSummary().get("owner");
         if (idConstraint != null && idConstraint.isSingleValue()) {
-            request.setImageIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
+            request.imageIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }
         else if (ownerConstraint != null && ownerConstraint.isSingleValue()) {
-            request.setOwners(Collections.singletonList(ownerConstraint.getSingleValue().toString()));
+            request.owners(Collections.singletonList(ownerConstraint.getSingleValue().toString()));
         }
-        else if (DEFAULT_OWNER != null) {
-            request.setOwners(Collections.singletonList(DEFAULT_OWNER));
+        else if (defaultOwner != null) {
+            request.owners(Collections.singletonList(defaultOwner));
         }
         else {
             throw new RuntimeException("A default owner account must be set or the query must have owner" +
                     "in the where clause with exactly 1 value otherwise results may be too big.");
         }
 
-        DescribeImagesResult response = ec2.describeImages(request);
+        DescribeImagesResponse response = ec2.describeImages(request.build());
 
         int count = 0;
-        for (Image next : response.getImages()) {
+        for (Image next : response.images()) {
             if (count++ > MAX_IMAGES) {
                 throw new RuntimeException("Too many images returned, add an owner or id filter.");
             }
@@ -146,34 +147,34 @@ public class ImagesTableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("id", row, image.getImageId());
-            matched &= block.offerValue("architecture", row, image.getArchitecture());
-            matched &= block.offerValue("created", row, image.getCreationDate());
-            matched &= block.offerValue("description", row, image.getDescription());
-            matched &= block.offerValue("hypervisor", row, image.getHypervisor());
-            matched &= block.offerValue("location", row, image.getImageLocation());
-            matched &= block.offerValue("type", row, image.getImageType());
-            matched &= block.offerValue("kernel", row, image.getKernelId());
-            matched &= block.offerValue("name", row, image.getName());
-            matched &= block.offerValue("owner", row, image.getOwnerId());
-            matched &= block.offerValue("platform", row, image.getPlatform());
-            matched &= block.offerValue("ramdisk", row, image.getRamdiskId());
-            matched &= block.offerValue("root_device", row, image.getRootDeviceName());
-            matched &= block.offerValue("root_type", row, image.getRootDeviceType());
-            matched &= block.offerValue("srvio_net", row, image.getSriovNetSupport());
-            matched &= block.offerValue("state", row, image.getState());
-            matched &= block.offerValue("virt_type", row, image.getVirtualizationType());
-            matched &= block.offerValue("is_public", row, image.getPublic());
+            matched &= block.offerValue("id", row, image.imageId());
+            matched &= block.offerValue("architecture", row, image.architectureAsString());
+            matched &= block.offerValue("created", row, image.creationDate());
+            matched &= block.offerValue("description", row, image.description());
+            matched &= block.offerValue("hypervisor", row, image.hypervisorAsString());
+            matched &= block.offerValue("location", row, image.imageLocation());
+            matched &= block.offerValue("type", row, image.imageTypeAsString());
+            matched &= block.offerValue("kernel", row, image.kernelId());
+            matched &= block.offerValue("name", row, image.name());
+            matched &= block.offerValue("owner", row, image.ownerId());
+            matched &= block.offerValue("platform", row, image.platformAsString());
+            matched &= block.offerValue("ramdisk", row, image.ramdiskId());
+            matched &= block.offerValue("root_device", row, image.rootDeviceName());
+            matched &= block.offerValue("root_type", row, image.rootDeviceTypeAsString());
+            matched &= block.offerValue("srvio_net", row, image.sriovNetSupport());
+            matched &= block.offerValue("state", row, image.stateAsString());
+            matched &= block.offerValue("virt_type", row, image.virtualizationTypeAsString());
+            matched &= block.offerValue("is_public", row, image.publicLaunchPermissions());
 
-            List<Tag> tags = image.getTags();
+            List<Tag> tags = image.tags();
             matched &= block.offerComplexValue("tags",
                     row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("key")) {
-                            return ((Tag) val).getKey();
+                            return ((Tag) val).key();
                         }
                         else if (field.getName().equals("value")) {
-                            return ((Tag) val).getValue();
+                            return ((Tag) val).value();
                         }
 
                         throw new RuntimeException("Unexpected field " + field.getName());
@@ -184,33 +185,33 @@ public class ImagesTableProvider
                     row,
                     (Field field, Object val) -> {
                         if (field.getName().equals("dev_name")) {
-                            return ((BlockDeviceMapping) val).getDeviceName();
+                            return ((BlockDeviceMapping) val).deviceName();
                         }
                         else if (field.getName().equals("no_device")) {
-                            return ((BlockDeviceMapping) val).getNoDevice();
+                            return ((BlockDeviceMapping) val).noDevice();
                         }
                         else if (field.getName().equals("virt_name")) {
-                            return ((BlockDeviceMapping) val).getVirtualName();
+                            return ((BlockDeviceMapping) val).virtualName();
                         }
                         else if (field.getName().equals("ebs")) {
-                            return ((BlockDeviceMapping) val).getEbs();
+                            return ((BlockDeviceMapping) val).ebs();
                         }
                         else if (field.getName().equals("ebs_size")) {
-                            return ((EbsBlockDevice) val).getVolumeSize();
+                            return ((EbsBlockDevice) val).volumeSize();
                         }
                         else if (field.getName().equals("ebs_iops")) {
-                            return ((EbsBlockDevice) val).getIops();
+                            return ((EbsBlockDevice) val).iops();
                         }
                         else if (field.getName().equals("ebs_type")) {
-                            return ((EbsBlockDevice) val).getVolumeType();
+                            return ((EbsBlockDevice) val).volumeTypeAsString();
                         }
                         else if (field.getName().equals("ebs_kms_key")) {
-                            return ((EbsBlockDevice) val).getKmsKeyId();
+                            return ((EbsBlockDevice) val).kmsKeyId();
                         }
 
                         throw new RuntimeException("Unexpected field " + field.getName());
                     },
-                    image.getBlockDeviceMappings());
+                    image.blockDeviceMappings());
 
             return matched ? 1 : 0;
         });

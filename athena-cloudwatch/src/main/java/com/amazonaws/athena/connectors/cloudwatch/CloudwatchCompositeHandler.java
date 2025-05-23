@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch;
 
+import com.amazonaws.athena.connector.lambda.connection.EnvironmentProperties;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
@@ -30,6 +31,6 @@ public class CloudwatchCompositeHandler
 {
     public CloudwatchCompositeHandler()
     {
-        super(new CloudwatchMetadataHandler(), new CloudwatchRecordHandler());
+        super(new CloudwatchMetadataHandler(new EnvironmentProperties().createEnvironment()), new CloudwatchRecordHandler(new EnvironmentProperties().createEnvironment()));
     }
 }

@@ -19,23 +19,20 @@
  * #L%
  */
 package com.amazonaws.athena.connectors.snowflake;
+
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.*;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.athena.connectors.snowflake.SnowflakeConstants;
-import com.amazonaws.athena.connectors.snowflake.SnowflakeQueryStringBuilder;
-import com.amazonaws.athena.connectors.snowflake.SnowflakeRecordHandler;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -44,13 +41,16 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
-import static org.mockito.ArgumentMatchers.any;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class SnowflakeRecordHandlerTest
@@ -59,25 +59,25 @@ public class SnowflakeRecordHandlerTest
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private S3Client amazonS3;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
 
     @Before
     public void setup()
             throws Exception
     {
-        this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.amazonS3 = Mockito.mock(S3Client.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new SnowflakeQueryStringBuilder("`");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        jdbcSplitQueryBuilder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
                 "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
 
-        this.snowflakeRecordHandler = new SnowflakeRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.snowflakeRecordHandler = new SnowflakeRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test

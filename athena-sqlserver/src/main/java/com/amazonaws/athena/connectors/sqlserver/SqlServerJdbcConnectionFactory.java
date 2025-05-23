@@ -20,10 +20,10 @@
 
 package com.amazonaws.athena.connectors.sqlserver;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import org.apache.commons.lang3.Validate;
 
 import java.sql.Connection;
@@ -56,14 +56,14 @@ public class SqlServerJdbcConnectionFactory extends GenericJdbcConnectionFactory
     }
 
     @Override
-    public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
+    public Connection getConnection(final CredentialsProvider credentialsProvider)
     {
         try {
             final String derivedJdbcString;
-            if (null != jdbcCredentialProvider) {
+            if (null != credentialsProvider) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 // replace aws secret value with credentials and change username as user
-                final String secretReplacement = String.format("%s;%s", "user=" + jdbcCredentialProvider.getCredential().getUser(), "password=" + jdbcCredentialProvider.getCredential().getPassword());
+                final String secretReplacement = String.format("%s;%s", "user=" + credentialsProvider.getCredential().getUser(), "password=" + credentialsProvider.getCredential().getPassword());
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {

@@ -23,17 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.EbsInstanceBlockDevice;
-import com.amazonaws.services.ec2.model.GroupIdentifier;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
-import com.amazonaws.services.ec2.model.InstanceNetworkInterface;
-import com.amazonaws.services.ec2.model.InstanceState;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.StateReason;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -43,14 +32,27 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.EbsInstanceBlockDevice;
+import software.amazon.awssdk.services.ec2.model.GroupIdentifier;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceBlockDeviceMapping;
+import software.amazon.awssdk.services.ec2.model.InstanceNetworkInterface;
+import software.amazon.awssdk.services.ec2.model.InstanceState;
+import software.amazon.awssdk.services.ec2.model.Reservation;
+import software.amazon.awssdk.services.ec2.model.StateReason;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -60,7 +62,7 @@ public class Ec2TableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(Ec2TableProviderTest.class);
 
     @Mock
-    private AmazonEC2 mockEc2;
+    private Ec2Client mockEc2;
 
     protected String getIdField()
     {
@@ -98,13 +100,11 @@ public class Ec2TableProviderTest
         when(mockEc2.describeInstances(nullable(DescribeInstancesRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             DescribeInstancesRequest request = (DescribeInstancesRequest) invocation.getArguments()[0];
 
-            assertEquals(getIdValue(), request.getInstanceIds().get(0));
-            DescribeInstancesResult mockResult = mock(DescribeInstancesResult.class);
+            assertEquals(getIdValue(), request.instanceIds().get(0));
             List<Reservation> reservations = new ArrayList<>();
             reservations.add(makeReservation());
             reservations.add(makeReservation());
-            when(mockResult.getReservations()).thenReturn(reservations);
-            return mockResult;
+            return DescribeInstancesResponse.builder().reservations(reservations).build();
         });
     }
 
@@ -160,67 +160,66 @@ public class Ec2TableProviderTest
 
     private Reservation makeReservation()
     {
-        Reservation reservation = mock(Reservation.class);
         List<Instance> instances = new ArrayList<>();
         instances.add(makeInstance(getIdValue()));
         instances.add(makeInstance(getIdValue()));
         instances.add(makeInstance("non-matching-id"));
-        when(reservation.getInstances()).thenReturn(instances);
-        return reservation;
+        return Reservation.builder().instances(instances).build();
     }
 
     private Instance makeInstance(String id)
     {
-        Instance instance = new Instance();
-        instance.withInstanceId(id)
-                .withImageId("image_id")
-                .withInstanceType("instance_type")
-                .withPlatform("platform")
-                .withPrivateDnsName("private_dns_name")
-                .withPrivateIpAddress("private_ip_address")
-                .withPublicDnsName("public_dns_name")
-                .withPublicIpAddress("public_ip_address")
-                .withSubnetId("subnet_id")
-                .withVpcId("vpc_id")
-                .withArchitecture("architecture")
-                .withInstanceLifecycle("instance_lifecycle")
-                .withRootDeviceName("root_device_name")
-                .withRootDeviceType("root_device_type")
-                .withSpotInstanceRequestId("spot_instance_request_id")
-                .withVirtualizationType("virtualization_type")
-                .withKeyName("key_name")
-                .withKernelId("kernel_id")
-                .withCapacityReservationId("capacity_reservation_id")
-                .withLaunchTime(new Date(100_000))
-                .withState(new InstanceState().withCode(100).withName("name"))
-                .withStateReason(new StateReason().withCode("code").withMessage("message"))
-                .withEbsOptimized(true);
+        Instance.Builder instance = Instance.builder()
+                .instanceId(id)
+                .imageId("image_id")
+                .instanceType("instance_type")
+                .platform("platform")
+                .privateDnsName("private_dns_name")
+                .privateIpAddress("private_ip_address")
+                .publicDnsName("public_dns_name")
+                .publicIpAddress("public_ip_address")
+                .subnetId("subnet_id")
+                .vpcId("vpc_id")
+                .architecture("architecture")
+                .instanceLifecycle("instance_lifecycle")
+                .rootDeviceName("root_device_name")
+                .rootDeviceType("root_device_type")
+                .spotInstanceRequestId("spot_instance_request_id")
+                .virtualizationType("virtualization_type")
+                .keyName("key_name")
+                .kernelId("kernel_id")
+                .capacityReservationId("capacity_reservation_id")
+                .launchTime(new Date(100_000).toInstant())
+                .state(InstanceState.builder().code(100).name("name").build())
+                .stateReason(StateReason.builder().code("code").message("message").build())
+                .ebsOptimized(true)
+                .tags(Tag.builder().key("key").value("value").build());
 
         List<InstanceNetworkInterface> interfaces = new ArrayList<>();
-        interfaces.add(new InstanceNetworkInterface()
-                .withStatus("status")
-                .withSubnetId("subnet")
-                .withVpcId("vpc")
-                .withMacAddress("mac_address")
-                .withPrivateDnsName("private_dns")
-                .withPrivateIpAddress("private_ip")
-                .withNetworkInterfaceId("interface_id")
-                .withGroups(new GroupIdentifier().withGroupId("group_id").withGroupName("group_name")));
+        interfaces.add(InstanceNetworkInterface.builder()
+                .status("status")
+                .subnetId("subnet")
+                .vpcId("vpc")
+                .macAddress("mac_address")
+                .privateDnsName("private_dns")
+                .privateIpAddress("private_ip")
+                .networkInterfaceId("interface_id")
+                .groups(GroupIdentifier.builder().groupId("group_id").groupName("group_name").build()).build());
 
-        interfaces.add(new InstanceNetworkInterface()
-                .withStatus("status")
-                .withSubnetId("subnet")
-                .withVpcId("vpc")
-                .withMacAddress("mac")
-                .withPrivateDnsName("private_dns")
-                .withPrivateIpAddress("private_ip")
-                .withNetworkInterfaceId("interface_id")
-                .withGroups(new GroupIdentifier().withGroupId("group_id").withGroupName("group_name")));
+        interfaces.add(InstanceNetworkInterface.builder()
+                .status("status")
+                .subnetId("subnet")
+                .vpcId("vpc")
+                .macAddress("mac")
+                .privateDnsName("private_dns")
+                .privateIpAddress("private_ip")
+                .networkInterfaceId("interface_id")
+                .groups(GroupIdentifier.builder().groupId("group_id").groupName("group_name").build()).build());
 
-        instance.withNetworkInterfaces(interfaces)
-                .withSecurityGroups(new GroupIdentifier().withGroupId("group_id").withGroupName("group_name"))
-                .withBlockDeviceMappings(new InstanceBlockDeviceMapping().withDeviceName("device_name").withEbs(new EbsInstanceBlockDevice().withVolumeId("volume_id")));
+        instance.networkInterfaces(interfaces)
+                .securityGroups(GroupIdentifier.builder().groupId("group_id").groupName("group_name").build())
+                .blockDeviceMappings(InstanceBlockDeviceMapping.builder().deviceName("device_name").ebs(EbsInstanceBlockDevice.builder().volumeId("volume_id").build()).build());
 
-        return instance;
+        return instance.build();
     }
 }

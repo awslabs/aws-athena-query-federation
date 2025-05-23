@@ -43,17 +43,23 @@ Parameters:
     Default: 'false'
     Type: String
   SecurityGroupIds:
-    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
-    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+    Description: '(Optional) One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: CommaDelimitedList
+    Default: ""
   SubnetIds:
-    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
-    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: '(Optional) One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: CommaDelimitedList
+    Default: ""
   PermissionsBoundaryARN:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
 Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
+  HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -65,10 +71,13 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.snowflake.SnowflakeMuxCompositeHandler"
-      CodeUri: "./target/athena-snowflake-2022.47.1.jar"
+      PackageType: "Image"
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-snowflake:2022.47.1'
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
+      ImageConfig:
+        Command: [ "com.amazonaws.athena.connectors.snowflake.SnowflakeMuxCompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with Snowflake using JDBC"
-      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
@@ -95,7 +104,6 @@ Resources:
         - Statement:
             - Action:
                 - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
               Effect: Allow
               Resource: '*'
           Version: '2012-10-17'
@@ -106,5 +114,5 @@ Resources:
         #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
         - VPCAccessPolicy: {}
       VpcConfig:
-        SecurityGroupIds: !Ref SecurityGroupIds
-        SubnetIds: !Ref SubnetIds
+        SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
+        SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue" ]

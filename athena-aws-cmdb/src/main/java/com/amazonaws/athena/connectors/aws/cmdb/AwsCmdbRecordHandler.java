@@ -25,10 +25,10 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 
@@ -49,16 +49,16 @@ public class AwsCmdbRecordHandler
     //Map of available fully qualified TableNames to their respective TableProviders.
     private Map<TableName, TableProvider> tableProviders;
 
-    public AwsCmdbRecordHandler()
+    public AwsCmdbRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
-        tableProviders = new TableProviderFactory().getTableProviders();
+        super(SOURCE_TYPE, configOptions);
+        tableProviders = new TableProviderFactory(configOptions).getTableProviders();
     }
 
     @VisibleForTesting
-    protected AwsCmdbRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, TableProviderFactory tableProviderFactory)
+    protected AwsCmdbRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, TableProviderFactory tableProviderFactory, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         tableProviders = tableProviderFactory.getTableProviders();
     }
 

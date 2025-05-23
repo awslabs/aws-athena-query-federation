@@ -25,10 +25,20 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -36,8 +46,8 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.mysql.resolver.MySqlJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -45,10 +55,13 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -75,34 +88,64 @@ public class MySqlMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(MySqlMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
+    static final String LIST_PAGINATED_TABLES_QUERY = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ? ORDER BY TABLE_NAME LIMIT ?, ?";
+
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
      * Recommend using {@link MySqlMuxCompositeHandler} instead.
      */
-    public MySqlMetadataHandler()
+    public MySqlMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(MYSQL_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(MYSQL_NAME, configOptions), configOptions);
     }
 
     /**
      * Used by Mux.
      */
-    public MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public MySqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT)));
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT)), configOptions);
     }
 
-    public MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public MySqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory);
+        this(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new MySqlJDBCCaseResolver(MYSQL_NAME));
+    }
+
+    public MySqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions, JDBCCaseResolver caseResolver)
+    {
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions, caseResolver);
     }
 
     @VisibleForTesting
-    protected MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-            AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected MySqlMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+            FilterPushdownSubType.SORTED_RANGE_SET, FilterPushdownSubType.NULLABLE_COMPARISON
+        ));
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+            ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                    .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                            .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                            .toArray(String[]::new))
+        ));
+
+        jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     @Override
@@ -158,6 +201,11 @@ public class MySqlMetadataHandler
             final BlockAllocator blockAllocator, final GetSplitsRequest getSplitsRequest)
     {
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+        if (getSplitsRequest.getConstraints().isQueryPassThrough()) {
+            LOGGER.info("QPT Split Requested");
+            return setupQueryPassthroughSplit(getSplitsRequest);
+        }
+
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         Set<Split> splits = new HashSet<>();
         Block partitions = getSplitsRequest.getPartitions();
@@ -183,6 +231,42 @@ public class MySqlMetadataHandler
         }
 
         return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
+    }
+
+    @VisibleForTesting
+    protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int token, int limit) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setInt(2, token);
+        preparedStatement.setInt(3, limit);
+        LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
+    }
+
+    @Override
+    protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    {
+        String token = listTablesRequest.getNextToken();
+        int pageSize = listTablesRequest.getPageSize();
+
+        int t = token != null ? Integer.parseInt(token) : 0;
+
+        LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
+
+        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize ? null : Integer.toString(t + pageSize);
+        // return next token is null when reaching end of files
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
+    }
+
+    @Override
+    protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
+            throws SQLException
+    {
+        // Gets list of Tables and Views using Information Schema.tables
+        return JDBCUtil.getTables(jdbcConnection, databaseName);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)

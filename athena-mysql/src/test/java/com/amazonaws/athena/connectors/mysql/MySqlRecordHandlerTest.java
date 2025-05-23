@@ -25,16 +25,15 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField.Direction;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -43,6 +42,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -58,25 +60,25 @@ public class MySqlRecordHandlerTest
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private S3Client amazonS3;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
 
     @Before
     public void setup()
             throws Exception
     {
-        this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.amazonS3 = Mockito.mock(S3Client.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new MySqlQueryStringBuilder("`");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        jdbcSplitQueryBuilder = new MySqlQueryStringBuilder("`", new MySqlFederationExpressionParser("`"));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", MYSQL_NAME,
                 "mysql://jdbc:mysql://hostname/user=A&password=B");
 
-        this.mySqlRecordHandler = new MySqlRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.mySqlRecordHandler = new MySqlRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
@@ -118,8 +120,8 @@ public class MySqlRecordHandlerTest
         ValueSet valueSet7 = getSingleValueSet(1.2d);
         ValueSet valueSet8 = getSingleValueSet(true);
 
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
+        Constraints constraints = new Constraints(
+            new ImmutableMap.Builder<String, ValueSet>()
                 .put("testCol1", valueSet1)
                 .put("testCol2", valueSet2)
                 .put("testCol3", valueSet3)
@@ -128,9 +130,16 @@ public class MySqlRecordHandlerTest
                 .put("testCol6", valueSet6)
                 .put("testCol7", valueSet7)
                 .put("testCol8", valueSet8)
-                .build());
+                .build(),
+            ImmutableList.of(),
+            ImmutableList.of(
+                new OrderByField("testCol1", Direction.ASC_NULLS_FIRST),
+                new OrderByField("testCol3", Direction.DESC_NULLS_FIRST)
+            ),
+            100L
+        );
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8` FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?)";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8` FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) ORDER BY `testCol1` ASC, ISNULL(`testCol3`) DESC, `testCol3` DESC LIMIT 100";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 

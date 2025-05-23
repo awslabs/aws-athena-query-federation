@@ -28,12 +28,6 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -53,13 +47,16 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsThrottlingExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 
@@ -73,13 +70,13 @@ public class GcsRecordHandler
     private BufferAllocator allocator;
 
     // to handle back-pressure during API invocation to GCS
-    ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker;
 
-    public GcsRecordHandler(BufferAllocator allocator)
+    public GcsRecordHandler(BufferAllocator allocator, java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient());
+        this(S3Client.create(),
+                SecretsManagerClient.create(),
+                AthenaClient.create(), configOptions);
         this.allocator = allocator;
     }
 
@@ -91,9 +88,10 @@ public class GcsRecordHandler
      * @param amazonAthena   An instance of AmazonAthena
      */
     @VisibleForTesting
-    protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    protected GcsRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient amazonAthena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
     }
 
     /**
@@ -114,12 +112,14 @@ public class GcsRecordHandler
     {
         invoker.setBlockSpiller(spiller);
         TableName tableInfo = recordsRequest.getTableName();
+        Schema schema = recordsRequest.getSchema();
         LOGGER.info("Reading records from the table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
         Split split = recordsRequest.getSplit();
         List<String> fileList = new ObjectMapper()
-            .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8), new TypeReference<>(){});
-        String classification = split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM);
+            .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8), new TypeReference<List<String>>(){});
+        String classification = split.getProperty(FILE_FORMAT);
         FileFormat format = FileFormat.valueOf(classification.toUpperCase());
+        List<Field> partitionColumns = schema.getFields().stream().filter(field -> split.getProperties().containsKey(field.getName().toLowerCase())).collect(Collectors.toList());
         for (String file : fileList) {
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
@@ -154,7 +154,7 @@ public class GcsRecordHandler
                         // We will loop on batch records and consider each records to write in spiller.
                         for (int rowIndex = 0; rowIndex < root.getRowCount(); rowIndex++) {
                             // we are passing record to spiller to be written.
-                            execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex);
+                            execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex, partitionColumns, split);
                         }
                     }
                 }
@@ -166,17 +166,23 @@ public class GcsRecordHandler
      * We are writing data to spiller. This function received the whole batch
      * along with row index. We will access into batch using the row index and
      * get the record to write into spiller.
-     *
-     * @param spiller         - block spiller
+     *  @param spiller         - block spiller
      * @param gcsFieldVectors - the batch
      * @param rowIndex        - row index
+     * @param partitionColumns   - partition column
+     * @param split           - split
      */
     private void execute(
             BlockSpiller spiller,
-            List<FieldVector> gcsFieldVectors, int rowIndex)
+            List<FieldVector> gcsFieldVectors, int rowIndex, List<Field> partitionColumns, Split split)
     {
         spiller.writeRows((Block block, int rowNum) -> {
             boolean isMatched = true;
+            // offer value for partition column
+            for (Field field : partitionColumns) {
+                isMatched &= block.offerValue(field.getName().toLowerCase(), rowNum, split.getProperty(field.getName().toLowerCase()));
+            }
+
             for (FieldVector vector : gcsFieldVectors) {
                 Object value = vector.getObject(rowIndex);
                 // Writing data in spiller for each field.

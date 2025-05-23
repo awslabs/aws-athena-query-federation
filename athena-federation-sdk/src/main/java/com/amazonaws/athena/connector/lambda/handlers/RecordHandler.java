@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordRequest;
@@ -40,17 +41,16 @@ import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,32 +70,37 @@ public abstract class RecordHandler
     private static final Logger logger = LoggerFactory.getLogger(RecordHandler.class);
     private static final String MAX_BLOCK_SIZE_BYTES = "MAX_BLOCK_SIZE_BYTES";
     private static final int NUM_SPILL_THREADS = 2;
-    private final AmazonS3 amazonS3;
+    protected final java.util.Map<String, String> configOptions;
+    private final S3Client amazonS3;
     private final String sourceType;
     private final CachableSecretsManager secretsManager;
-    private final AmazonAthena athena;
-    private final ThrottlingInvoker athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER).build();
+    private final AthenaClient athena;
+    private final ThrottlingInvoker athenaInvoker;
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    public RecordHandler(String sourceType)
+    public RecordHandler(String sourceType, java.util.Map<String, String> configOptions)
     {
         this.sourceType = sourceType;
-        this.amazonS3 = AmazonS3ClientBuilder.defaultClient();
-        this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
-        this.athena = AmazonAthenaClientBuilder.defaultClient();
+        this.amazonS3 = S3Client.create();
+        this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
+        this.athena = AthenaClient.create();
+        this.configOptions = configOptions;
+        this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    public RecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType)
+    public RecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, String sourceType, java.util.Map<String, String> configOptions)
     {
         this.sourceType = sourceType;
         this.amazonS3 = amazonS3;
         this.secretsManager = new CachableSecretsManager(secretsManager);
         this.athena = athena;
+        this.configOptions = configOptions;
+        this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
 
     /**
@@ -111,6 +116,11 @@ public abstract class RecordHandler
     protected String resolveSecrets(String rawString)
     {
         return secretsManager.resolveSecrets(rawString);
+    }
+
+    protected String resolveWithDefaultCredentials(String rawString)
+    {
+        return secretsManager.resolveWithDefaultCredentials(rawString);
     }
 
     protected String getSecret(String secretName)
@@ -133,7 +143,7 @@ public abstract class RecordHandler
                 }
 
                 if (!(rawReq instanceof RecordRequest)) {
-                    throw new RuntimeException("Expected a RecordRequest but found " + rawReq.getClass());
+                    throw new AthenaConnectorException("Expected a RecordRequest but found " + rawReq.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
                 }
 
                 doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
@@ -162,7 +172,7 @@ public abstract class RecordHandler
                 }
                 return;
             default:
-                throw new IllegalArgumentException("Unknown request type " + type);
+                throw new AthenaConnectorException("Unknown request type " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -186,7 +196,7 @@ public abstract class RecordHandler
         try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator,
                 request.getSchema(),
                 request.getConstraints());
-                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema(), evaluator);
+                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema(), evaluator, configOptions);
                 QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, request.getQueryId())
         ) {
             readWithConstraint(spiller, request, queryStatusChecker);
@@ -225,8 +235,8 @@ public abstract class RecordHandler
     protected SpillConfig getSpillConfig(ReadRecordsRequest request)
     {
         long maxBlockSize = request.getMaxBlockSize();
-        if (System.getenv(MAX_BLOCK_SIZE_BYTES) != null) {
-            maxBlockSize = Long.parseLong(System.getenv(MAX_BLOCK_SIZE_BYTES));
+        if (configOptions.get(MAX_BLOCK_SIZE_BYTES) != null) {
+            maxBlockSize = Long.parseLong(configOptions.get(MAX_BLOCK_SIZE_BYTES));
         }
 
         return SpillConfig.newBuilder()
@@ -259,7 +269,7 @@ public abstract class RecordHandler
     private void assertNotNull(FederationResponse response)
     {
         if (response == null) {
-            throw new RuntimeException("Response was null");
+            throw new AthenaConnectorException("Response was null", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString()).build());
         }
     }
 }

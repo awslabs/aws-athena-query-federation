@@ -27,12 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -43,6 +38,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -67,6 +65,8 @@ public class DocDBRecordHandler
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "documentdb";
+    //The env secret_name to use if defined 
+    private static final String SECRET_NAME = "secret_name";
     //Controls the page size for fetching batches of documents from the MongoDB client.
     private static final int MONGO_QUERY_BATCH_SIZE = 100;
 
@@ -75,18 +75,22 @@ public class DocDBRecordHandler
 
     private final DocDBConnectionFactory connectionFactory;
 
-    public DocDBRecordHandler()
+    private final DocDBQueryPassthrough queryPassthrough = new DocDBQueryPassthrough();
+
+    public DocDBRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                new DocDBConnectionFactory());
+        this(
+            S3Client.create(),
+            SecretsManagerClient.create(),
+            AthenaClient.create(),
+            new DocDBConnectionFactory(),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected DocDBRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, DocDBConnectionFactory connectionFactory)
+    protected DocDBRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, DocDBConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.connectionFactory = connectionFactory;
     }
 
@@ -101,11 +105,11 @@ public class DocDBRecordHandler
      */
     private MongoClient getOrCreateConn(Split split)
     {
-        String conStr = split.getProperty(DOCDB_CONN_STR);
-        if (conStr == null) {
+        String connStr = split.getProperty(DOCDB_CONN_STR);
+        if (connStr == null) {
             throw new RuntimeException(DOCDB_CONN_STR + " Split property is null! Unable to create connection.");
         }
-        String endpoint = resolveSecrets(conStr);
+        String endpoint = resolveWithDefaultCredentials(connStr);
         return connectionFactory.getOrCreateConn(endpoint);
     }
 
@@ -136,16 +140,27 @@ public class DocDBRecordHandler
             SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
 
         logger.info("Resolved tableName to: {}", tableName);
-
         Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
 
         MongoClient client = getOrCreateConn(recordsRequest.getSplit());
-        MongoDatabase db = client.getDatabase(schemaName);
-        MongoCollection<Document> table = db.getCollection(tableName);
+        MongoDatabase db;
+        MongoCollection<Document> table;
+        Document query;
 
-        Document query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+        if (recordsRequest.getConstraints().isQueryPassThrough()) {
+            Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            queryPassthrough.verify(qptArguments);
+            db = client.getDatabase(qptArguments.get(DocDBQueryPassthrough.DATABASE));
+            table = db.getCollection(qptArguments.get(DocDBQueryPassthrough.COLLECTION));
+            query = QueryUtils.parseFilter(qptArguments.get(DocDBQueryPassthrough.FILTER));
+        }
+        else {
+            db =  client.getDatabase(schemaName);
+            table = db.getCollection(tableName);
+            query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+        }
 
-        String disableProjectionAndCasingEnvValue = System.getenv().getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
+        String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
         boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
         logger.info("{} environment variable set to: {}. Resolved to: {}",
             DISABLE_PROJECTION_AND_CASING_ENV, disableProjectionAndCasingEnvValue, disableProjectionAndCasing);
@@ -155,7 +170,6 @@ public class DocDBRecordHandler
         // Once AWS DocumentDB supports collation, then projections do not have to be disabled anymore because case
         // insensitive indexes allows for case insensitive projections.
         Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
-
         logger.info("readWithConstraint: query[{}] projection[{}]", query, projection);
 
         final MongoCursor<Document> iterable = table

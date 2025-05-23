@@ -23,15 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.IpPermission;
-import com.amazonaws.services.ec2.model.IpRange;
-import com.amazonaws.services.ec2.model.Ipv6Range;
-import com.amazonaws.services.ec2.model.PrefixListId;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.UserIdGroupPair;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -41,6 +32,15 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
+import software.amazon.awssdk.services.ec2.model.IpPermission;
+import software.amazon.awssdk.services.ec2.model.IpRange;
+import software.amazon.awssdk.services.ec2.model.Ipv6Range;
+import software.amazon.awssdk.services.ec2.model.PrefixListId;
+import software.amazon.awssdk.services.ec2.model.SecurityGroup;
+import software.amazon.awssdk.services.ec2.model.UserIdGroupPair;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +49,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -59,7 +58,7 @@ public class SecurityGroupsTableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(SecurityGroupsTableProviderTest.class);
 
     @Mock
-    private AmazonEC2 mockEc2;
+    private Ec2Client mockEc2;
 
     protected String getIdField()
     {
@@ -98,14 +97,12 @@ public class SecurityGroupsTableProviderTest
                 .thenAnswer((InvocationOnMock invocation) -> {
                     DescribeSecurityGroupsRequest request = (DescribeSecurityGroupsRequest) invocation.getArguments()[0];
 
-                    assertEquals(getIdValue(), request.getGroupIds().get(0));
-                    DescribeSecurityGroupsResult mockResult = mock(DescribeSecurityGroupsResult.class);
+                    assertEquals(getIdValue(), request.groupIds().get(0));
                     List<SecurityGroup> values = new ArrayList<>();
                     values.add(makeSecurityGroup(getIdValue()));
                     values.add(makeSecurityGroup(getIdValue()));
                     values.add(makeSecurityGroup("fake-id"));
-                    when(mockResult.getSecurityGroups()).thenReturn(values);
-                    return mockResult;
+                    return DescribeSecurityGroupsResponse.builder().securityGroups(values).build();
                 });
     }
 
@@ -161,19 +158,18 @@ public class SecurityGroupsTableProviderTest
 
     private SecurityGroup makeSecurityGroup(String id)
     {
-        return new SecurityGroup()
-                .withGroupId(id)
-                .withGroupName("name")
-                .withDescription("description")
-                .withIpPermissions(new IpPermission()
-                        .withIpProtocol("protocol")
-                        .withFromPort(100)
-                        .withToPort(100)
-                        .withIpv4Ranges(new IpRange().withCidrIp("cidr").withDescription("description"))
-
-                        .withIpv6Ranges(new Ipv6Range().withCidrIpv6("cidr").withDescription("description"))
-                        .withPrefixListIds(new PrefixListId().withPrefixListId("prefix").withDescription("description"))
-                        .withUserIdGroupPairs(new UserIdGroupPair().withGroupId("group_id").withUserId("user_id"))
-                );
+        return SecurityGroup.builder()
+                .groupId(id)
+                .groupName("name")
+                .description("description")
+                .ipPermissions(IpPermission.builder()
+                        .ipProtocol("protocol")
+                        .fromPort(100)
+                        .toPort(100)
+                        .ipRanges(IpRange.builder().cidrIp("cidr").description("description").build())
+                        .ipv6Ranges(Ipv6Range.builder().cidrIpv6("cidr").description("description").build())
+                        .prefixListIds(PrefixListId.builder().prefixListId("prefix").description("description").build())
+                        .userIdGroupPairs(UserIdGroupPair.builder().groupId("group_id").userId("user_id").build()).build()
+                ).build();
     }
 }

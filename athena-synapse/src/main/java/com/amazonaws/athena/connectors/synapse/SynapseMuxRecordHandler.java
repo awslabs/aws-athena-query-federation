@@ -24,10 +24,10 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 
@@ -40,23 +40,23 @@ class SynapseMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new SynapseRecordHandler(config);
+        return new SynapseRecordHandler(config, configOptions);
     }
 }
 
 public class SynapseMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public SynapseMuxRecordHandler()
+    public SynapseMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new SynapseMuxRecordHandlerFactory());
+        super(new SynapseMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    SynapseMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                           final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    SynapseMuxRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
+                           DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.synapse;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -27,9 +28,11 @@ import org.testng.Assert;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.synapse.SynapseConstants.QUOTE_CHARACTER;
+
 public class SynapseQueryStringBuilderTest
 {
-    SynapseQueryStringBuilder builder = new SynapseQueryStringBuilder("'");
+    SynapseQueryStringBuilder builder = new SynapseQueryStringBuilder(QUOTE_CHARACTER, new SynapseFederationExpressionParser(QUOTE_CHARACTER));
 
     @Test
     public void testQueryBuilder()
@@ -40,8 +43,8 @@ public class SynapseQueryStringBuilderTest
 
         builder.getFromClauseWithSplit("default", "", "table", split);
         builder.getFromClauseWithSplit("default", "schema", "table", split);
-        Assert.assertEquals(" FROM 'default'.'table' ", builder.getFromClauseWithSplit("default", "", "table", split));
-        Assert.assertEquals(" FROM 'default'.'schema'.'table' ", builder.getFromClauseWithSplit("default", "schema", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"table\" ", builder.getFromClauseWithSplit("default", "", "table", split));
+        Assert.assertEquals(" FROM \"default\".\"schema\".\"table\" ", builder.getFromClauseWithSplit("default", "schema", "table", split));
     }
 
     @Test
@@ -75,5 +78,15 @@ public class SynapseQueryStringBuilderTest
         Mockito.when(split4.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_FROM)).thenReturn("");
         Mockito.when(split4.getProperty(SynapseMetadataHandler.PARTITION_BOUNDARY_TO)).thenReturn("");
         Assert.assertEquals(Collections.emptyList(), builder.getPartitionWhereClauses(split4));
+    }
+
+    @Test
+    public void testLimitClause()
+    {
+        Split split = Mockito.mock(Split.class);
+        SynapseQueryStringBuilder builder = new SynapseQueryStringBuilder(QUOTE_CHARACTER, new SynapseFederationExpressionParser(QUOTE_CHARACTER));
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        org.testng.Assert.assertEquals("", builder.appendLimitOffset(split, constraints));
     }
 }

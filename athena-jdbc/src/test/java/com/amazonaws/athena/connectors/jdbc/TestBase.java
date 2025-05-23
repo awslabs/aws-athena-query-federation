@@ -77,6 +77,25 @@ public class TestBase
             }
         });
 
+
+        Mockito.when(resultSet.getDouble(any())).thenAnswer((Answer<Double>) invocation -> {
+            Object argument = invocation.getArguments()[0];
+            if (argument instanceof Integer) {
+                int colIndex = (Integer) argument - 1;
+                return (Double) rows[rowNumber.get()][colIndex];
+            }
+            else if (argument instanceof String) {
+                throw new java.sql.SQLException("Postgres Money Type");
+            }
+            else if (argument instanceof Double) {
+                int colIndex = Arrays.asList(columnNames).indexOf(argument);
+                return (Double) rows[rowNumber.get()][colIndex];
+            }
+            else {
+                throw new RuntimeException("Unexpected argument type " + argument.getClass());
+            }
+        });
+
         if (columnTypes != null) {
             Mockito.when(resultSet.getMetaData().getColumnCount()).thenReturn(columnNames.length);
             Mockito.when(resultSet.getMetaData().getColumnDisplaySize(anyInt())).thenReturn(10);

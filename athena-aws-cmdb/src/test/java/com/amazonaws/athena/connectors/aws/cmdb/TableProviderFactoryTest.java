@@ -21,19 +21,19 @@ package com.amazonaws.athena.connectors.aws.cmdb;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
-import com.amazonaws.services.rds.AmazonRDS;
-import com.amazonaws.services.s3.AmazonS3;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.emr.EmrClient;
+import software.amazon.awssdk.services.rds.RdsClient;
+import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TableProviderFactoryTest
@@ -42,18 +42,18 @@ public class TableProviderFactoryTest
     private int expectedTables = 11;
 
     @Mock
-    private AmazonEC2 mockEc2;
+    private Ec2Client mockEc2;
 
     @Mock
-    private AmazonElasticMapReduce mockEmr;
+    private EmrClient mockEmr;
 
     @Mock
-    private AmazonRDS mockRds;
+    private RdsClient mockRds;
 
     @Mock
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
 
-    private TableProviderFactory factory = new TableProviderFactory(mockEc2, mockEmr, mockRds, amazonS3);
+    private TableProviderFactory factory = new TableProviderFactory(mockEc2, mockEmr, mockRds, amazonS3, com.google.common.collect.ImmutableMap.of());
 
     @Test
     public void getTableProviders()

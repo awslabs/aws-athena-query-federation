@@ -6,7 +6,7 @@ To deploy the Amazon Athena Neptune connector, we will need the following pre-re
 2)	NeptuneClusterEndpoint – You can get this information from the Neptune console and copying the cluster “Writer” endpoint information.
 ![](./assets/connector-clusterendpoint.png)
 
-3)	NeptuneClusterResourceID - To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.
+3)	NeptuneClusterResId/NeptuneClusterResourceID - To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.
 ![](./assets/connector-clusterId.png)
 
 4)	SecurityGroupIds – These are the Security Group ID(s) that the connector Lambda function uses to communicate with Neptune. There are two steps:
@@ -41,11 +41,13 @@ Scroll down to “Application Settings” and specify the following field values
 
   * AthenaCatalogName: The name you want to use for this catalog in Athena which will also be used as the connector lambda function name. Example: athena-catalog-neptune
 
-  * DisableSpillEncryption: This option helps in disabling or enabling encryption of spilled over data in S3 bucket. Choose which ever option makes sense for your use case. Default value is “false”.
+  * DisableSpillEncryption: This option helps in disabling or enabling encryption of spilled over data in S3 bucket. Choose which ever option makes sense for your use case. Default value is "false".
+
+  * EnableCaseInsensitiveMatch: This should be set to "true" for connector to perform a case insensitive search
 
   * GlueDatabaseName: This should be same as the glue database you created in one of the earlier steps. Example: graph-database.
 
-  * IAMEnabled: This option indicates whether you have IAM DB Auth enabled on your Neptune Cluster or not. Default value is false.
+  * IAMEnabled: This option indicates whether you have IAM DB Auth enabled on your Neptune Cluster or not. Default value is "false".
 
   * LambdaMemory: The memory allocation for the connector lambda function ranging between 128 – 3008 MB. The default is 3008 MB.
 
@@ -53,7 +55,7 @@ Scroll down to “Application Settings” and specify the following field values
 
   * NeptuneClusterEndpoint: Provide the Neptune Cluster endpoint that you have captured in one of the previous steps. 
 
-  * NeptuneClusterResourceID: Provide the Neptune Cluster resourceid that you have captured in one of the previous steps.
+  * NeptuneClusterResId/NeptuneClusterResourceID: Provide the Neptune Cluster resourceid that you have captured in one of the previous steps.
 
   * NeptunePort: The listener 	port for your Neptune Cluster. Default is 8182.
 
@@ -64,6 +66,8 @@ Scroll down to “Application Settings” and specify the following field values
   * SpillSSEAlgorithm: Set this to: 'aes256' if you want to turn on server side encryption for spilling.
 
   * SubnetIds: Subnet IDs that you have captured in one of the earlier steps separated by commas.
+
+  * NeptuneGraphType: PROPERTYGRAPH or RDF.
 
 Provide Acknowledgement on the custom IAM roles creation and click on “Deploy”.
 Sample screenshots below:

@@ -19,6 +19,10 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.google.common.collect.ImmutableList;
+import org.apache.arrow.vector.holders.TimeStampMilliTZHolder;
+import org.apache.arrow.vector.holders.TimeStampMicroTZHolder;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -33,6 +37,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.TimeZone;
 
@@ -49,6 +54,10 @@ public class DateTimeFormatterUtilTest {
     @Before
     public void setUp() {
         logger.info("{}: enter", testName.getMethodName());
+        // re-enable for each test because that is the default behavior
+        // We will selectively disable in parts of tests that we
+        // want to test the disabled behavior.
+        DateTimeFormatterUtil.enableTimezonePacking();
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
@@ -136,13 +145,70 @@ public class DateTimeFormatterUtilTest {
     }
 
     @Test
-    public void packDateTimeWithZoneTest() {
+    public void timestampMilliTzHolderFromObject() {
+        ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "-05:00");
+        long expectedPackedLong = 5942221840384541L;
         LocalDateTime localDateTimeExpected = LocalDateTime.of(2015, 12, 21, 17, 42, 34, 0);
         ZoneId zoneIdExpected = ZoneId.of("-05:00");
-        long expectedLong = 5942221840384541L;
         ZonedDateTime expectedZdt = ZonedDateTime.of(localDateTimeExpected, zoneIdExpected);
-        assertEquals(expectedLong, DateTimeFormatterUtil.packDateTimeWithZone(expectedZdt));
-        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedLong));
+        long expectedUnpackedLong = expectedZdt.toInstant().toEpochMilli();
 
+        assertEquals(expectedPackedLong, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(expectedZdt, null).value);
+        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedPackedLong, arrowType));
+
+        // Now disable packing and test again
+        DateTimeFormatterUtil.disableTimezonePacking();
+        TimeStampMilliTZHolder holder = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(expectedZdt, null);
+        assertEquals(expectedUnpackedLong, holder.value);
+        assertEquals("-05:00", holder.timezone);
+        assertNotEquals(expectedPackedLong, holder.value);
+        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedUnpackedLong, arrowType));
+    }
+
+    @Test
+    public void timestampMicroTzHolderFromObject() {
+        long expectedMicros = 2134123412348117L + java.util.concurrent.TimeUnit.HOURS.toMicros(5);
+        Instant expectedInstant = Instant.EPOCH.plus(expectedMicros, java.time.temporal.ChronoUnit.MICROS);
+        LocalDateTime localDateTimeExpected = LocalDateTime.of(
+            2037, 8, 17,
+            12, 3, 32,
+            (int) java.util.concurrent.TimeUnit.MICROSECONDS.toNanos(348117));
+        ZoneId zoneIdExpected = ZoneId.of("-05:00");
+        ZonedDateTime expectedZdt = ZonedDateTime.of(localDateTimeExpected, zoneIdExpected);
+
+        // This is to just make sure that the expected values being used are consistent
+        assertEquals(expectedInstant, expectedZdt.toInstant());
+
+        try {
+            DateTimeFormatterUtil.timestampMicroTzHolderFromObject(expectedZdt, null);
+            fail("Exception was expected since packing should not work for microseconds");
+        }
+        catch (RuntimeException ex) {
+        }
+
+        // Now disable packing and test again
+        DateTimeFormatterUtil.disableTimezonePacking();
+        TimeStampMicroTZHolder holder = DateTimeFormatterUtil.timestampMicroTzHolderFromObject(expectedZdt, null);
+        assertEquals(expectedMicros, holder.value);
+        assertEquals("-05:00", holder.timezone);
+        ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MICROSECOND, "-05:00");
+        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedMicros, arrowType));
+    }
+
+    // Adapted the test cases from: https://github.com/awslabs/aws-athena-query-federation/issues/293#issue-740925274
+    @Test
+    public void dateTimePackingRoundTrip() {
+        ImmutableList.of(
+            ZonedDateTime.ofInstant(Instant.ofEpochMilli(10), ZoneOffset.UTC),
+            ZonedDateTime.of(LocalDateTime.of(2015, 12, 21, 17, 42, 34, 0), ZoneOffset.UTC),
+            ZonedDateTime.ofInstant(Instant.ofEpochMilli(45423958493L), ZoneOffset.of("-11:00"))
+        ).forEach(zonedDateTime -> {
+            org.apache.arrow.vector.holders.TimeStampMilliTZHolder holder = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zonedDateTime, null);
+            ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, holder.timezone);
+            ZonedDateTime zonedDateTimeBack = DateTimeFormatterUtil.constructZonedDateTime(holder.value, arrowType);
+
+            assertEquals(zonedDateTime.getOffset(), zonedDateTimeBack.getOffset());
+            assertEquals(zonedDateTime.toInstant(), zonedDateTimeBack.toInstant());
+        });
     }
 }

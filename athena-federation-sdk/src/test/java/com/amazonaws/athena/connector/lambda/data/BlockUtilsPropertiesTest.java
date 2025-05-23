@@ -95,8 +95,8 @@ public class BlockUtilsPropertiesTest {
         CustomFieldVector customFieldVector = new CustomFieldVector(field);
         generator.generateValues(field, vector, customFieldVector);
 
-        Schema schema = new Schema(java.util.List.of(field));
-        VectorSchemaRoot inputSchemaRoot = new VectorSchemaRoot(schema, java.util.List.of(vector), 1);
+        Schema schema = new Schema(com.google.common.collect.ImmutableList.of(field));
+        VectorSchemaRoot inputSchemaRoot = new VectorSchemaRoot(schema, com.google.common.collect.ImmutableList.of(vector), 1);
 
         int valueCount = inputSchemaRoot.getVector(0).getValueCount();
         VectorSchemaRoot outputSchemaRoot = VectorSchemaRoot.create(inputSchemaRoot.getSchema(), allocator);

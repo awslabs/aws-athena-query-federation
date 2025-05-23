@@ -6,8 +6,8 @@ from bs4 import BeautifulSoup
 def get_new_version():
     # Get latest release version
     previous_release_version = subprocess.check_output(['''
-        curl -s https://api.github.com/repos/awslabs/aws-athena-query-federation/releases/latest |
-        grep "tag_name" | sed 's/.*"v\(.*\)".*/\\1/g'
+        gh release list --exclude-drafts --exclude-pre-releases -L 1 |
+        sed 's/.*\s\+Latest\s\+v\(.*\)\s\+.*/\\1/g'
     '''], shell=True).decode("utf-8")
 
     # Generate the version without iteration for this week
@@ -36,6 +36,12 @@ def update_yaml(yaml_files, new_version):
     for yml in yaml_files:
         subprocess.run(["sed", "-i", f"s/\(SemanticVersion:\s*\).*/\\1{new_version}/", yml])
         subprocess.run(["sed", "-i", f"s/\(CodeUri:.*-\)[0-9]*\.[0-9]*\.[0-9]*\(-\?.*\.jar\)/\\1{new_version}\\2/", yml])
+        subprocess.run(["sed", "-i", f"s|\(athena-federation-repository-.*:\)[0-9]*\.[0-9]*\.[0-9]*\(\'\)|\\1{new_version}\\2|", yml])
+
+
+def update_dockerfile(dockerfiles, new_version):
+    for file in dockerfiles:
+        subprocess.run(["sed", "-i", f"s|\(athena-.*\)-[0-9]*\.[0-9]*\.[0-9]*\.jar|\\1-{new_version}.jar|g", file])
 
 
 def update_project_version(soup, new_version):

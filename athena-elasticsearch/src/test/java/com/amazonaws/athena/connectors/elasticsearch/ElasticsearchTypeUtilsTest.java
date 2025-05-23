@@ -92,7 +92,7 @@ public class ElasticsearchTypeUtilsTest
 
         Map<String, Object> expectedResults = ImmutableMap.of(
                 "mytext", "My favorite Sci-Fi movie is Interstellar.",
-                "mytextlist", "Hey, this is an array!");
+                "mytextlist", "[Hey, this is an array!, Wasn't expecting this!]");
         Map<String, Object> extractedResults = testField(mapping, document);
         logger.info("makeVarCharExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);

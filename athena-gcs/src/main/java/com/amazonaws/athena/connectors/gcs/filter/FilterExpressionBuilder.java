@@ -21,9 +21,9 @@ package com.amazonaws.athena.connectors.gcs.filter;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.services.glue.model.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.Column;
 
 import java.util.List;
 import java.util.Map;
@@ -50,8 +50,8 @@ public class FilterExpressionBuilder
     {
         LOGGER.info("Constraint summaries: \n{}", constraints.getSummary());
         return partitionColumns.stream().collect(Collectors.toMap(
-            column -> column.getName(),
-            column -> singleValuesStringSetFromValueSet(constraints.getSummary().get(column.getName())),
+            column -> column.name(),
+            column -> singleValuesStringSetFromValueSet(constraints.getSummary().get(column.name())),
             // Also we are forced to use Optional here because Collectors.toMap() doesn't allow null values to
             // be passed into the merge function (it asserts that the values are not null)
             // We shouldn't have duplicates but just merge the sets if we do.
@@ -59,10 +59,11 @@ public class FilterExpressionBuilder
                 if (!value1.isPresent() && !value2.isPresent()) {
                     return Optional.empty();
                 }
-                return Optional.of(
-                  java.util.stream.Stream.concat(value1.stream(), value2.stream()).flatMap(Set::stream).collect(Collectors.toSet()));
+                Set<String> value1Set = value1.orElse(java.util.Collections.emptySet());
+                Set<String> value2Set = value2.orElse(java.util.Collections.emptySet());
+                return Optional.of(com.google.common.collect.ImmutableSet.<String>builder().addAll(value1Set).addAll(value2Set).build());
             },
-            () -> new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER)
+            () -> new java.util.TreeMap<String, Optional<Set<String>>>(String.CASE_INSENSITIVE_ORDER)
         ));
     }
 

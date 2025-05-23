@@ -24,5 +24,5 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 public interface JdbcMetadataHandlerFactory
 {
     String getEngine();
-    JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config);
+    JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions);
 }

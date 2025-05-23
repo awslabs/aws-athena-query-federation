@@ -43,12 +43,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -60,6 +54,12 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -67,6 +67,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
@@ -74,6 +75,7 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NA
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
@@ -90,19 +92,19 @@ public class MetricsMetadataHandlerTest
     private BlockAllocator allocator;
 
     @Mock
-    private AmazonCloudWatch mockMetrics;
+    private CloudWatchClient mockMetrics;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
             throws Exception
     {
-        handler = new MetricsMetadataHandler(mockMetrics, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix");
+        handler = new MetricsMetadataHandler(mockMetrics, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
     }
 
@@ -150,7 +152,7 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doGetMetricsTable - enter");
 
-        GetTableRequest metricsTableReq = new GetTableRequest(identity, "queryId", "default", new TableName(defaultSchema, "metrics"));
+        GetTableRequest metricsTableReq = new GetTableRequest(identity, "queryId", "default", new TableName(defaultSchema, "metrics"), Collections.emptyMap());
         GetTableResponse metricsTableRes = handler.doGetTable(allocator, metricsTableReq);
         logger.info("doGetMetricsTable - {} {}", metricsTableRes.getTableName(), metricsTableRes.getSchema());
 
@@ -169,7 +171,7 @@ public class MetricsMetadataHandlerTest
         GetTableRequest metricsTableReq = new GetTableRequest(identity,
                 "queryId",
                 "default",
-                new TableName(defaultSchema, "metric_samples"));
+                new TableName(defaultSchema, "metric_samples"), Collections.emptyMap());
 
         GetTableResponse metricsTableRes = handler.doGetTable(allocator, metricsTableReq);
         logger.info("doGetMetricSamplesTable - {} {}", metricsTableRes.getTableName(), metricsTableRes.getSchema());
@@ -197,7 +199,7 @@ public class MetricsMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName(defaultSchema, "metrics"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -230,7 +232,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metrics"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
         int numContinuations = 0;
         do {
@@ -271,15 +273,20 @@ public class MetricsMetadataHandlerTest
             ListMetricsRequest request = invocation.getArgument(0, ListMetricsRequest.class);
 
             //assert that the namespace filter was indeed pushed down
-            assertEquals(namespaceFilter, request.getNamespace());
-            String nextToken = (request.getNextToken() == null) ? "valid" : null;
+            assertEquals(namespaceFilter, request.namespace());
+            String nextToken = (request.nextToken() == null) ? "valid" : null;
             List<Metric> metrics = new ArrayList<>();
 
             for (int i = 0; i < numMetrics; i++) {
-                metrics.add(new Metric().withNamespace(namespaceFilter).withMetricName("metric-" + i));
+                //first page does not match constraints, but second page should
+                String mockNamespace = (request.nextToken() == null) ? "NotMyNameSpace" : namespaceFilter;
+                metrics.add(Metric.builder()
+                        .namespace(mockNamespace)
+                        .metricName("metric-" + i)
+                        .build());
             }
 
-            return new ListMetricsResult().withNextToken(nextToken).withMetrics(metrics);
+            return ListMetricsResponse.builder().nextToken(nextToken).metrics(metrics).build();
         });
 
         Schema schema = SchemaBuilder.newBuilder().addIntField("partitionId").build();
@@ -304,33 +311,37 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
 
-        int numContinuations = 0;
-        do {
-            GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
-            logger.info("doGetMetricSamplesSplits: req[{}]", req);
+        GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+        logger.info("doGetMetricSamplesSplits: req[{}]", req);
 
-            MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-            assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
-            GetSplitsResponse response = (GetSplitsResponse) rawResponse;
-            continuationToken = response.getContinuationToken();
+        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        continuationToken = response.getContinuationToken();
 
-            logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
-            assertEquals(3, response.getSplits().size());
-            for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
-            }
+        //first page does not match constraints
+        logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+        assertEquals(0, response.getSplits().size());
 
-            if (continuationToken != null) {
-                numContinuations++;
-            }
+        req = new GetSplitsRequest(originalReq, continuationToken);
+
+        rawResponse = handler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+
+        response = (GetSplitsResponse) rawResponse;
+        continuationToken = response.getContinuationToken();
+
+        //but second page should
+        logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+        assertEquals(3, response.getSplits().size());
+        for (Split nextSplit : response.getSplits()) {
+            assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
         }
-        while (continuationToken != null);
-
-        assertEquals(1, numContinuations);
+        assertNull(continuationToken);
 
         logger.info("doGetMetricSamplesSplits: exit");
     }
@@ -348,9 +359,12 @@ public class MetricsMetadataHandlerTest
         when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             List<Metric> metrics = new ArrayList<>();
             for (int i = 0; i < numMetrics; i++) {
-                metrics.add(new Metric().withNamespace(namespace).withMetricName("metric-" + i));
+                metrics.add(Metric.builder()
+                        .namespace(namespace)
+                        .metricName("metric-" + i)
+                        .build());
             }
-            return new ListMetricsResult().withNextToken(null).withMetrics(metrics);
+            return ListMetricsResponse.builder().nextToken(null).metrics(metrics).build();
         });
 
         Schema schema = SchemaBuilder.newBuilder().addIntField("partitionId").build();
@@ -371,7 +385,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);

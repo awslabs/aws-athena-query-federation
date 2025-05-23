@@ -1,0 +1,145 @@
+{
+  "@type" : "ReadRecordsRequest",
+  "identity" : {
+    "id" : "UNKNOWN",
+    "principal" : "UNKNOWN",
+    "account" : "0123456789",
+    "arn" : "testArn",
+    "tags" : { },
+    "groups" : [ ]
+  },
+  "queryId" : "test-catalog",
+  "catalogName" : "test-query-id",
+  "tableName" : {
+    "schemaName" : "test-schema",
+    "tableName" : "test-table"
+  },
+  "schema" : "//////ABAAAQAAAAAAAKAA4ABgANAAgACgAAAAAABAAQAAAAAAEKAAwAAAAIAAQACgAAAAgAAAAIAAAAAAAAAAcAAABwAQAAJAEAAOwAAAC0AAAAdAAAADwAAAAEAAAAvv7//xQAAAAUAAAAFAAAAAAAAwEUAAAAAAAAAAAAAACW////AAACAAQAAABjb2w1AAAAAPL+//8UAAAAFAAAABQAAAAAAAMBFAAAAAAAAAAAAAAAyv///wAAAgAEAAAAY29sNAAAAAAm////FAAAABQAAAAcAAAAAAADARwAAAAAAAAAAAAAAAAABgAIAAYABgAAAAAAAgAEAAAAY29sMwAAAABi////FAAAABQAAAAYAAAAAAAFARQAAAAAAAAAAAAAAAQABAAEAAAABAAAAGNvbDIAAAAAlv///xQAAAAUAAAAFAAAAAAAAgEYAAAAAAAAAAAAAACE////AAAAASAAAAADAAAAZGF5AMr///8UAAAAFAAAABQAAAAAAAIBGAAAAAAAAAAAAAAAuP///wAAAAEgAAAABQAAAG1vbnRoABIAGAAUABMAEgAMAAAACAAEABIAAAAUAAAAFAAAABwAAAAAAAIBIAAAAAAAAAAAAAAACAAMAAgABwAIAAAAAAAAASAAAAAEAAAAeWVhcgAAAAAAAAAA",
+  "split" : {
+    "spillLocation" : {
+      "@type" : "S3SpillLocation",
+      "bucket" : "athena-virtuoso-test",
+      "key" : "lambda-spill/test-query-id/test-split-id",
+      "directory" : true
+    },
+    "encryptionKey" : {
+      "key" : "dGVzdC1rZXk=",
+      "nonce" : "dGVzdC1ub25jZQ=="
+    },
+    "properties" : {
+      "month" : "11",
+      "year" : "2017",
+      "day" : "1"
+    }
+  },
+  "constraints" : {
+    "summary" : {
+      "col4" : {
+        "@type" : "EquatableValueSet",
+        "valueBlock" : {
+          "aId" : "test-allocator-id",
+          "schema" : "/////5AAAAAQAAAAAAAKAA4ABgANAAgACgAAAAAABAAQAAAAAAEKAAwAAAAIAAQACgAAAAgAAAAIAAAAAAAAAAEAAAAYAAAAAAASABgAFAATABIADAAAAAgABAASAAAAFAAAABQAAAAcAAAAAAADARwAAAAAAAAAAAAAAAAABgAIAAYABgAAAAAAAgAEAAAAY29sMQAAAAA=",
+          "records" : "/////4gAAAAUAAAAAAAAAAwAFgAOABUAEAAEAAwAAAAQAAAAAAAAAAAABAAQAAAAAAMKABgADAAIAAQACgAAABQAAAA4AAAAAQAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAAAAAAEAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAACamZmZmZnxPw=="
+        },
+        "whiteList" : false,
+        "nullAllowed" : true
+      },
+      "col5" : {
+        "@type" : "AllOrNoneValueSet",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        },
+        "all" : false,
+        "nullAllowed" : true
+      },
+      "col3" : {
+        "@type" : "SortedRangeSet",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        },
+        "ranges" : [ {
+          "low" : {
+            "valueBlock" : {
+              "aId" : "test-allocator-id",
+              "schema" : "/////5AAAAAQAAAAAAAKAA4ABgANAAgACgAAAAAABAAQAAAAAAEKAAwAAAAIAAQACgAAAAgAAAAIAAAAAAAAAAEAAAAYAAAAAAASABgAFAATABIADAAAAAgABAASAAAAFAAAABQAAAAcAAAAAAADARwAAAAAAAAAAAAAAAAABgAIAAYABgAAAAAAAgAEAAAAY29sMQAAAAA=",
+              "records" : "/////4gAAAAUAAAAAAAAAAwAFgAOABUAEAAEAAwAAAAQAAAAAAAAAAAABAAQAAAAAAMKABgADAAIAAQACgAAABQAAAA4AAAAAQAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAAAAAAEAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAIjDwA=="
+            },
+            "bound" : "ABOVE",
+            "nullValue" : false
+          },
+          "high" : {
+            "valueBlock" : {
+              "aId" : "test-allocator-id",
+              "schema" : "/////5AAAAAQAAAAAAAKAA4ABgANAAgACgAAAAAABAAQAAAAAAEKAAwAAAAIAAQACgAAAAgAAAAIAAAAAAAAAAEAAAAYAAAAAAASABgAFAATABIADAAAAAgABAASAAAAFAAAABQAAAAcAAAAAAADARwAAAAAAAAAAAAAAAAABgAIAAYABgAAAAAAAgAEAAAAY29sMQAAAAA=",
+              "records" : ""
+            },
+            "bound" : "BELOW",
+            "nullValue" : true
+          }
+        } ],
+        "nullAllowed" : false
+      }
+    },
+    "expression" : [ {
+      "@type" : "FunctionCallExpression",
+      "type" : {
+        "@type" : "Bool"
+      },
+      "functionName" : {
+        "functionName" : "$greater_than"
+      },
+      "arguments" : [ {
+        "@type" : "FunctionCallExpression",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        },
+        "functionName" : {
+          "functionName" : "$add"
+        },
+        "arguments" : [ {
+          "@type" : "VariableExpression",
+          "columnName" : "col3",
+          "type" : {
+            "@type" : "FloatingPoint",
+            "precision" : "DOUBLE"
+          }
+        }, {
+          "@type" : "ConstantExpression",
+          "valueBlock" : {
+            "aId" : "test-allocator-id",
+            "schema" : "/////5gAAAAQAAAAAAAKAA4ABgANAAgACgAAAAAABAAQAAAAAAEKAAwAAAAIAAQACgAAAAgAAAAIAAAAAAAAAAEAAAAYAAAAAAASABgAFAATABIADAAAAAgABAASAAAAFAAAABQAAAAcAAAAAAACASAAAAAAAAAAAAAAAAgADAAIAAcACAAAAAAAAAEgAAAABAAAAGNvbDEAAAAAAAAAAA==",
+            "records" : "/////4gAAAAUAAAAAAAAAAwAFgAOABUAEAAEAAwAAAAQAAAAAAAAAAAABAAQAAAAAAMKABgADAAIAAQACgAAABQAAAA4AAAAAQAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAAQAAAAAAAAAAAAAAAEAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAKAAAAAAAAAA=="
+          },
+          "type" : {
+            "@type" : "Int",
+            "bitWidth" : 32,
+            "isSigned" : true
+          }
+        } ]
+      }, {
+        "@type" : "VariableExpression",
+        "columnName" : "col2",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        }
+      } ]
+    } ],
+    "orderByClause" : [ {
+      "columnName" : "col3",
+      "direction" : "ASC_NULLS_FIRST"
+    }, {
+      "columnName" : "col2",
+      "direction" : "DESC_NULLS_FIRST"
+    } ],
+    "limit" : -1,
+    "queryPassthroughArguments" : {
+      "query" : "SELECT * FROM DUMMY_TABLE;"
+    }
+  },
+  "maxBlockSize" : "100000000000",
+  "maxInlineBlockSize" : "100000000000"
+}

@@ -30,11 +30,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -42,12 +39,17 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.PARTITION_NUMBER;
+import static com.amazonaws.athena.connectors.sqlserver.SqlServerConstants.SQLSERVER_QUOTE_CHARACTER;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class SqlServerRecordHandlerTest
@@ -56,26 +58,26 @@ public class SqlServerRecordHandlerTest
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private S3Client amazonS3;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
 
     @Before
     public void setup()
             throws Exception
     {
         System.setProperty("aws.region", "us-east-1");
-        this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.amazonS3 = Mockito.mock(S3Client.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new SqlServerQueryStringBuilder("`");
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        jdbcSplitQueryBuilder = new SqlServerQueryStringBuilder(SQLSERVER_QUOTE_CHARACTER ,new SqlServerFederationExpressionParser(SQLSERVER_QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SqlServerConstants.NAME,
                 "sqlserver://jdbc:sqlserver://hostname;databaseName=fakedatabase");
 
-        this.sqlServerRecordHandler = new SqlServerRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.sqlServerRecordHandler = new SqlServerRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     private ValueSet getSingleValueSet(Object value) {
@@ -103,7 +105,7 @@ public class SqlServerRecordHandlerTest
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_FUNCTION)).thenReturn("pf");
         Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITIONING_COLUMN)).thenReturn("testCol1");
-        Mockito.when(split.getProperty(SqlServerMetadataHandler.PARTITION_NUMBER)).thenReturn("1");
+        Mockito.when(split.getProperty(PARTITION_NUMBER)).thenReturn("1");
 
         ValueSet valueSet = getSingleValueSet("varcharTest");
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -111,7 +113,8 @@ public class SqlServerRecordHandlerTest
                 .put("testCol4", valueSet)
                 .build());
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4` FROM `testSchema`.`testTable`  WHERE (`testCol4` = ?) AND  $PARTITION.pf(testCol1) = 1";
+        Mockito.when(constraints.getLimit()).thenReturn(5L);
+        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\" FROM \"testSchema\".\"testTable\"  WHERE (\"testCol4\" = ?) AND  $PARTITION.pf(testCol1) = 1";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.sqlServerRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);

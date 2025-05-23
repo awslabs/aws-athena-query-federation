@@ -24,5 +24,5 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 public interface JdbcRecordHandlerFactory
 {
     String getEngine();
-    JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config);
+    JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions);
 }

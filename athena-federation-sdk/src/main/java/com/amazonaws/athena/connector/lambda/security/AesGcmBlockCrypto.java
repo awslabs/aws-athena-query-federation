@@ -23,8 +23,13 @@ package com.amazonaws.athena.connector.lambda.security;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.RecordBatchSerDe;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -49,9 +54,10 @@ import java.security.Security;
 public class AesGcmBlockCrypto
         implements BlockCrypto
 {
+    private static final Logger logger = LoggerFactory.getLogger(AesGcmBlockCrypto.class);
     protected static final int GCM_TAG_LENGTH_BITS = 16 * 8;
     protected static final int NONCE_BYTES = 12;
-    protected static final int KEY_BYTES = 16;
+    protected static final int KEY_BYTES = 32;
     protected static final String KEYSPEC = "AES";
     protected static final String ALGO = "AES/GCM/NoPadding";
     protected static final String ALGO_BC = "BC";
@@ -79,7 +85,7 @@ public class AesGcmBlockCrypto
             return cipher.doFinal(out.toByteArray());
         }
         catch (BadPaddingException | IllegalBlockSizeException | IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -95,7 +101,7 @@ public class AesGcmBlockCrypto
             return resultBlock;
         }
         catch (BadPaddingException | IllegalBlockSizeException | IOException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
@@ -106,18 +112,19 @@ public class AesGcmBlockCrypto
             return cipher.doFinal(bytes);
         }
         catch (BadPaddingException | IllegalBlockSizeException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 
     private Cipher makeCipher(int mode, EncryptionKey key)
     {
         if (key.getNonce().length != NONCE_BYTES) {
-            throw new RuntimeException("Expected " + NONCE_BYTES + " nonce bytes but found " + key.getNonce().length);
+            throw new AthenaConnectorException("Expected " + NONCE_BYTES + " nonce bytes but found " + key.getNonce().length, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
-        if (key.getKey().length != KEY_BYTES) {
-            throw new RuntimeException("Expected " + KEY_BYTES + " key bytes but found " + key.getKey().length);
+        logger.debug("Cipher key bytes length: " + key.getKey().length);
+        if (key.getKey() == null || key.getKey().length == 0) {
+            throw new AthenaConnectorException("Invalid key", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, key.getNonce());
@@ -130,7 +137,7 @@ public class AesGcmBlockCrypto
         }
         catch (NoSuchAlgorithmException | InvalidKeyException | InvalidAlgorithmParameterException
                 | NoSuchProviderException | NoSuchPaddingException ex) {
-            throw new RuntimeException(ex);
+            throw new AthenaConnectorException(ex, ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
     }
 }

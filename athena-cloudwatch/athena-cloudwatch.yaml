@@ -53,7 +53,9 @@ Conditions:
   HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
   NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
-
+  CreateKMSPolicy: !And [ !Condition HasKMSKeyId, !Condition NotHasLambdaRole ]
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -65,10 +67,13 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
       FunctionName: !Ref AthenaCatalogName
-      Handler: "com.amazonaws.athena.connectors.cloudwatch.CloudwatchCompositeHandler"
-      CodeUri: "./target/athena-cloudwatch-2022.47.1.jar"
+      PackageType: "Image"
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-cloudwatch:2022.47.1'
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
+      ImageConfig:
+        Command: [ "com.amazonaws.athena.connectors.cloudwatch.CloudwatchCompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with Cloudwatch, making your log accessible via SQL"
-      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
@@ -79,7 +84,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -107,34 +112,33 @@ Resources:
               - logs:TestMetricFilter
               - logs:FilterLogEvents
               - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
             Effect: Allow
             Resource: '*'
           - Action:
-             - s3:GetObject
-             - s3:ListBucket
-             - s3:GetBucketLocation
-             - s3:GetObjectVersion
-             - s3:PutObject
-             - s3:PutObjectAcl
-             - s3:GetLifecycleConfiguration
-             - s3:PutLifecycleConfiguration
-             - s3:DeleteObject
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:DeleteObject
             Effect: Allow
             Resource:
               - Fn::Sub:
-                - arn:${AWS::Partition}:s3:::${bucketName}
-                - bucketName:
-                    Ref: SpillBucket
+                  - arn:${AWS::Partition}:s3:::${bucketName}
+                  - bucketName:
+                      Ref: SpillBucket
               - Fn::Sub:
-                - arn:${AWS::Partition}:s3:::${bucketName}/*
-                - bucketName:
-                    Ref: SpillBucket
+                  - arn:${AWS::Partition}:s3:::${bucketName}/*
+                  - bucketName:
+                      Ref: SpillBucket
       Roles:
         - !Ref FunctionRole
 
   FunctionKMSPolicy:
-    Condition: HasKMSKeyId
+    Condition: CreateKMSPolicy
     Type: "AWS::IAM::Policy"
     Properties:
       PolicyName: FunctionKMSPolicy
@@ -142,12 +146,12 @@ Resources:
         Version: 2012-10-17
         Statement:
           - Action:
-             - kms:GenerateRandom
+              - kms:GenerateRandom
             Effect: Allow
             Resource: '*'
           - Action:
               - kms:GenerateDataKey
             Effect: Allow
-            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
+            Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
       Roles:
         - !Ref FunctionRole

@@ -1,0 +1,10 @@
+{
+  "@type" : "GetDataSourceCapabilitiesResponse",
+  "catalogName" : "test-catalog",
+  "capabilities" : {
+    "supports_complex_expression_pushdown" : [ {
+      "subType" : "supported_function_expression_types",
+      "properties" : [ "$add", "$subtract" ]
+    } ]
+  }
+}

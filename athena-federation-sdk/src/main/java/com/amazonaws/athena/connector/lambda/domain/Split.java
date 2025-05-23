@@ -240,6 +240,17 @@ public class Split
         }
 
         /**
+         * Apply a map of properties to the split
+         * @param inputProperties
+         * @return Builder
+         */
+        public Builder applyProperties(Map<String, String> inputProperties)
+        {
+            properties.putAll(inputProperties);
+            return this;
+        }
+
+        /**
          * Builds the Split
          *
          * @return A newly constructed Split using the attributes collected by this builder.

@@ -19,9 +19,12 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -37,6 +40,7 @@ public enum SupportedTypes
     DATEMILLI(Types.MinorType.DATEMILLI),
     DATEDAY(Types.MinorType.DATEDAY),
     TIMESTAMPMILLITZ(Types.MinorType.TIMESTAMPMILLITZ),
+    TIMESTAMPMICROTZ(Types.MinorType.TIMESTAMPMICROTZ),
     FLOAT8(Types.MinorType.FLOAT8),
     FLOAT4(Types.MinorType.FLOAT4),
     INT(Types.MinorType.INT),
@@ -125,8 +129,8 @@ public enum SupportedTypes
     public static void assertSupported(Field field)
     {
         if (!isSupported(field)) {
-            throw new RuntimeException("Detected unsupported type[" + field.getType() + " / " + Types.getMinorTypeForArrowType(field.getType()) +
-                    " for column[" + field.getName() + "]");
+            throw new AthenaConnectorException("Detected unsupported type[" + field.getType() + " / " + Types.getMinorTypeForArrowType(field.getType()) +
+                    " for column[" + field.getName() + "]", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
     }
 }

@@ -47,9 +47,9 @@ public class JDBCUtilTest
 
     class FakeDatabaseJdbcMetadataHandler extends JdbcMetadataHandler {
 
-        public FakeDatabaseJdbcMetadataHandler(String sourceType)
+        public FakeDatabaseJdbcMetadataHandler(String sourceType, java.util.Map<String, String> configOptions)
         {
-            super(sourceType);
+            super(sourceType, configOptions);
         }
 
         @Override
@@ -73,9 +73,9 @@ public class JDBCUtilTest
     }
 
     class FakeDatabaseJdbcRecordHandler extends JdbcRecordHandler {
-        protected FakeDatabaseJdbcRecordHandler(String sourceType)
+        protected FakeDatabaseJdbcRecordHandler(String sourceType, java.util.Map<String, String> configOptions)
         {
-            super(sourceType);
+            super(sourceType, configOptions);
         }
 
         @Override
@@ -95,9 +95,9 @@ public class JDBCUtilTest
         }
 
         @Override
-        public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+        public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
         {
-            return new FakeDatabaseJdbcMetadataHandler("fakedatabase");
+            return new FakeDatabaseJdbcMetadataHandler("fakedatabase", configOptions);
         }
     }
 
@@ -110,9 +110,9 @@ public class JDBCUtilTest
         }
 
         @Override
-        public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+        public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
         {
-            return new FakeDatabaseJdbcRecordHandler("fakedatabase");
+            return new FakeDatabaseJdbcRecordHandler("fakedatabase", configOptions);
         }
     }
 

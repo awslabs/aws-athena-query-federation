@@ -26,7 +26,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-public abstract class TypedSerializer<T> extends BaseSerializer<T>
+public abstract class TypedSerializer<T> extends BaseSerializer<T> implements VersionedSerDe.Serializer<T>
 {
     private Class<? extends T> subType;
 

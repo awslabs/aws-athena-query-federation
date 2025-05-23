@@ -1,0 +1,57 @@
+name: Daily Run release tests
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  run_release_tests:
+    name: run release tests
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: install dependencies. note aws is pre-installed and we use a specific action for node.
+        run: |
+          sudo apt update && sudo apt install -y tar gzip unzip wget less groff vim git python3 python3-pip unixodbc-dev curl jq;
+          pip3 install boto3;
+      - name: install node and npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build jars
+        run: mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
+      - name: Setup Repo Root Directory
+        run: echo "REPOSITORY_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - name: Setup AWS Cred
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-duration-seconds: 18000
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE }}
+      - name: Run tests
+        run: |
+            cd $GITHUB_WORKSPACE/validation_testing;
+            python3 main.py;
+        env:
+          # env vars that are secrets should always be set in the env field, so they aren't visible in $GITHUB_ENV file
+          AWS_DEFAULT_REGION: 'us-east-1'
+          RESULTS_LOCATION: ${{ secrets.RESULTS_LOCATION }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          S3_DATA_PATH: ${{ secrets.S3_DATA_PATH }}
+          SPILL_BUCKET: ${{ secrets.SPILL_BUCKET }}
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

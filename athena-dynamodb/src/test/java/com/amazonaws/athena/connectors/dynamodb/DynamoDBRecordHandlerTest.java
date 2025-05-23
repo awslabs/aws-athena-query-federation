@@ -37,16 +37,8 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.impl.UnionListReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -59,23 +51,34 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
@@ -116,13 +119,13 @@ public class DynamoDBRecordHandlerTest
     private DynamoDBMetadataHandler metadataHandler;
 
     @Mock
-    private AWSGlue glueClient;
+    private GlueClient glueClient;
 
     @Mock
-    private AWSSecretsManager secretsManager;
+    private SecretsManagerClient secretsManager;
 
     @Mock
-    private AmazonAthena athena;
+    private AthenaClient athena;
 
     @Rule
     public TestName testName = new TestName();
@@ -133,8 +136,8 @@ public class DynamoDBRecordHandlerTest
         logger.info("{}: enter", testName.getMethodName());
 
         allocator = new BlockAllocatorImpl();
-        handler = new DynamoDBRecordHandler(ddbClient, mock(AmazonS3.class), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "source_type");
-        metadataHandler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient);
+        handler = new DynamoDBRecordHandler(ddbClient, mock(S3Client.class), mock(SecretsManagerClient.class), mock(AthenaClient.class), "source_type", com.google.common.collect.ImmutableMap.of());
+        metadataHandler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient, com.google.common.collect.ImmutableMap.of());
     }
 
     @After
@@ -161,7 +164,71 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(1000, response.getRecords().getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testReadScanSplitWithLimit()
+        throws Exception
+    {
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 5),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(5, response.getRecords().getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testReadScanSplitWithLimitLargerThanN()
+            throws Exception
+    {
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 10_000),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -181,14 +248,14 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_6", "col_6");
-        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(0), ":v1", toAttributeValue(1));
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(0), ":v1", DDBTypeUtils.toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(SEGMENT_ID_PROPERTY, "0")
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .add(NON_KEY_FILTER_METADATA, "NOT #col_6 IN (:v0,:v1)")
                 .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -198,7 +265,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -218,14 +285,14 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
-        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(toAttributeValue("test_str_0")))
+                .add("col_0", DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue("test_str_0"), "col_0"))
                 .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
                 .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -235,7 +302,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -251,18 +318,18 @@ public class DynamoDBRecordHandlerTest
     }
 
     @Test
-    public void testZeroRowQuery()
+    public void testReadQuerySplitWithLimit()
             throws Exception
     {
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
-        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", toJsonString(toAttributeValue("test_str_999999")))
+                .add("col_0", DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue("test_str_0"), "col_0"))
                 .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
                 .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
-                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -272,7 +339,44 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 1),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadQuerySplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(1, response.getRecords().getRowCount());
+        logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testZeroRowQuery()
+            throws Exception
+    {
+        Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(1));
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(HASH_KEY_NAME_METADATA, "col_0")
+                .add("col_0", DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue("test_str_999999"), "col_0"))
+                .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
+                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .add(EXPRESSION_VALUES_METADATA, EnhancedDocument.fromAttributeValueMap(expressionValues).toJson())
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -292,28 +396,29 @@ public class DynamoDBRecordHandlerTest
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
 
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col0").withType("string"));
-        columns.add(new Column().withName("col1").withType("timestamp"));
-        columns.add(new Column().withName("col2").withType("timestamp"));
-        columns.add(new Column().withName("col3").withType("date"));
-        columns.add(new Column().withName("col4").withType("date"));
-        columns.add(new Column().withName("col5").withType("timestamptz"));
-        columns.add(new Column().withName("col6").withType("timestamptz"));
-        columns.add(new Column().withName("col7").withType("timestamptz"));
+        columns.add(Column.builder().name("col0").type("string").build());
+        columns.add(Column.builder().name("col1").type("timestamp").build());
+        columns.add(Column.builder().name("col2").type("timestamp").build());
+        columns.add(Column.builder().name("col3").type("date").build());
+        columns.add(Column.builder().name("col4").type("date").build());
+        columns.add(Column.builder().name("col5").type("timestamptz").build());
+        columns.add(Column.builder().name("col6").type("timestamptz").build());
+        columns.add(Column.builder().name("col7").type("timestamptz").build());
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE3,
                 COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1 , col2=Col2 ,col3=Col3, col4=Col4,col5=Col5,col6=Col6,col7=Col7",
                 DATETIME_FORMAT_MAPPING_PROPERTY, "col1=yyyyMMdd'S'HHmmss,col3=dd/MM/yyyy ");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .partitionKeys(Collections.EMPTY_SET)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(tableResponse);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE3);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testDateTimeSupportFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testDateTimeSupportFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
@@ -333,7 +438,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_3_NAME,
                 schema3,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -357,20 +462,21 @@ public class DynamoDBRecordHandlerTest
     public void testStructWithNullFromGlueTable() throws Exception
     {
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col0").withType("string"));
-        columns.add(new Column().withName("col1").withType("struct<field1:string, field2:string>"));
+        columns.add(Column.builder().name("col0").type("string").build());
+        columns.add(Column.builder().name("col1").type("struct<field1:string, field2:string>").build());
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE4,
                 COLUMN_NAME_MAPPING_PROPERTY, "col0=Col0,col1=Col1,col2=Col2");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .partitionKeys(Collections.EMPTY_SET)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(tableResponse);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
@@ -397,7 +503,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_4_NAME,
                 schema4,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -414,10 +520,10 @@ public class DynamoDBRecordHandlerTest
     @Test
     public void testStructWithNullFromDdbTable() throws Exception
     {
-        when(glueClient.getTable(any())).thenThrow(new EntityNotFoundException(""));
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(EntityNotFoundException.builder().message("").build());
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
@@ -442,7 +548,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_4_NAME,
                 schema4,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -465,22 +571,23 @@ public class DynamoDBRecordHandlerTest
         }
 
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col0").withType("string"));
-        columns.add(new Column().withName("outermap").withType("MAP<STRING,array<STRING,STRING>>"));
-        columns.add(new Column().withName("structcol").withType("MAP<STRING,struct<key1:STRING,key2:STRING>>"));
+        columns.add(Column.builder().name("col0").type("string").build());
+        columns.add(Column.builder().name("outermap").type("MAP<STRING,array<STRING,STRING>>").build());
+        columns.add(Column.builder().name("structcol").type("MAP<STRING,struct<key1:STRING,key2:STRING>>").build());
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE5,
                 COLUMN_NAME_MAPPING_PROPERTY, "col0=Col0,col1=Col1,col2=Col2");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .partitionKeys(Collections.EMPTY_SET)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(tableResponse);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE5);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testMapWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testMapWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
@@ -500,7 +607,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_5_NAME,
                 schema5,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -518,22 +625,23 @@ public class DynamoDBRecordHandlerTest
     public void testStructWithSchemaFromGlueTable() throws Exception
     {
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col0").withType("string"));
-        columns.add(new Column().withName("outermap").withType("struct<list:array<string>>"));
-        columns.add(new Column().withName("structcol").withType("struct<structKey:struct<key1:STRING,key2:STRING>>"));
+        columns.add(Column.builder().name("col0").type("string").build());
+        columns.add(Column.builder().name("outermap").type("struct<list:array<string>>").build());
+        columns.add(Column.builder().name("structcol").type("struct<structKey:struct<key1:STRING,key2:STRING>>").build());
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE6,
                 COLUMN_NAME_MAPPING_PROPERTY, "col0=Col0,col1=Col1,col2=Col2");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .partitionKeys(Collections.EMPTY_SET)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(tableResponse);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE6);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testStructWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
@@ -553,7 +661,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_6_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -572,23 +680,24 @@ public class DynamoDBRecordHandlerTest
     public void testListWithSchemaFromGlueTable() throws Exception
     {
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col0").withType("string"));
-        columns.add(new Column().withName("stringList").withType("ARRAY <STRING>"));
-        columns.add(new Column().withName("intList").withType("ARRAY <int>"));
-        columns.add(new Column().withName("listStructCol").withType("array<struct<key1:STRING,key2:STRING>>"));
+        columns.add(Column.builder().name("col0").type("string").build());
+        columns.add(Column.builder().name("stringList").type("ARRAY <STRING>").build());
+        columns.add(Column.builder().name("intList").type("ARRAY <int>").build());
+        columns.add(Column.builder().name("listStructCol").type("array<struct<key1:STRING,key2:STRING>>").build());
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE7,
                 COLUMN_NAME_MAPPING_PROPERTY, "col0=Col0,col1=Col1,col2=Col2");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .partitionKeys(Collections.EMPTY_SET)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse tableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(tableResponse);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE7);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testListWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testListWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
@@ -608,7 +717,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_7_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -654,21 +763,22 @@ public class DynamoDBRecordHandlerTest
         }
 
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col0").withType("string"));
-        columns.add(new Column().withName("nummap").withType("map<String,int>"));
+        columns.add(Column.builder().name("col0").type("string").build());
+        columns.add(Column.builder().name("nummap").type("map<String,int>").build());
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE8,
                 COLUMN_NAME_MAPPING_PROPERTY, "col0=Col0,col1=Col1,col2=Col2");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .partitionKeys(Collections.EMPTY_SET)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse mockResult = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testNumMapWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testNumMapWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
@@ -688,7 +798,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_8_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -718,21 +828,22 @@ public class DynamoDBRecordHandlerTest
     public void testNumStructWithSchemaFromGlueTable() throws Exception
     {
         List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col0").withType("string"));
-        columns.add(new Column().withName("nummap").withType("struct<key1:int,key2:int>"));
+        columns.add(Column.builder().name("col0").type("string").build());
+        columns.add(Column.builder().name("nummap").type("struct<key1:int,key2:int>").build());
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE8,
                 COLUMN_NAME_MAPPING_PROPERTY, "col0=Col0,col1=Col1,col2=Col2");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(glueClient.getTable(any())).thenReturn(mockResult);
+        Table table = Table.builder()
+                .parameters(param)
+                .partitionKeys(Collections.EMPTY_SET)
+                .storageDescriptor(StorageDescriptor.builder().columns(columns).build())
+                .build();
+        software.amazon.awssdk.services.glue.model.GetTableResponse mockResult = software.amazon.awssdk.services.glue.model.GetTableResponse.builder().table(table).build();
+        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName, Collections.emptyMap());
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testNumStructWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testNumStructWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
@@ -752,7 +863,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_8_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -772,6 +883,6 @@ public class DynamoDBRecordHandlerTest
     private long getPackedDateTimeWithZone(String s)
     {
         ZonedDateTime zdt = ZonedDateTime.parse(s);
-        return DateTimeFormatterUtil.packDateTimeWithZone(zdt);
+        return DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zdt, null).value;
     }
 }

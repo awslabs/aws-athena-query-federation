@@ -25,6 +25,6 @@ public class SynapseCompositeHandler extends CompositeHandler
 {
     public SynapseCompositeHandler()
     {
-        super(new SynapseMetadataHandler(), new SynapseRecordHandler());
+        super(new SynapseMetadataHandler(new SynapseEnvironmentProperties().createEnvironment()), new SynapseRecordHandler(new SynapseEnvironmentProperties().createEnvironment()));
     }
 }

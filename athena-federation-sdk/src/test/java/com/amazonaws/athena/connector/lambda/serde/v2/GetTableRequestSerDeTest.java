@@ -33,6 +33,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,7 +45,7 @@ public class GetTableRequestSerDeTest extends TypedSerDeTest<FederationRequest>
     public void beforeTest()
             throws IOException
     {
-        expected = new GetTableRequest(federatedIdentity, "test-query-id", "test-catalog", new TableName("test-schema", "test-table"));
+        expected = new GetTableRequest(federatedIdentity, "test-query-id", "test-catalog", new TableName("test-schema", "test-table"), Collections.emptyMap());
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "GetTableRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();

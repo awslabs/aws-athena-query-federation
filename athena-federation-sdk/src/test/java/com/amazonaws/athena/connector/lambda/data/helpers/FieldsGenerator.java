@@ -165,7 +165,7 @@ public class FieldsGenerator {
             Arbitrary<List<Field>> structField = Combinators.combine(keyField, valueField).as((key, value) ->
                 new Field(MapVector.DATA_VECTOR_NAME,
                     structType,
-                    List.of(key, value)
+                    com.google.common.collect.ImmutableList.of(key, value)
             )).list().ofSize(1);
             return structField;
         }

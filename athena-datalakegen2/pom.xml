@@ -32,12 +32,18 @@
             <artifactId>mssql-jdbc</artifactId>
             <version>${mssql.jdbc.version}</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-rds -->
+        <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/rds -->
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-rds</artifactId>
-            <version>${aws-sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>rds</artifactId>
+            <version>${aws-sdk-v2.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
         <dependency>
@@ -46,33 +52,16 @@
             <version>${aws-cdk.version}</version>
             <scope>test</scope>
         </dependency>
-        <!--
-          This is purposefully using a legacy version because these tests
-          rely on powermock and it will break on a later version.
-          Eventually we should fix the test code to not rely on powermock.
-        -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>${mockito.legacy.version}</version>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.powermock</groupId>
-            <artifactId>powermock-api-mockito2</artifactId>
-            <version>${powermock.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.powermock</groupId>
-            <artifactId>powermock-core</artifactId>
-            <version>${powermock.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.powermock</groupId>
-            <artifactId>powermock-module-junit4</artifactId>
-            <version>${powermock.version}</version>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

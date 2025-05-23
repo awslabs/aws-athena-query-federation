@@ -30,6 +30,6 @@ public class HbaseCompositeHandler
 {
     public HbaseCompositeHandler()
     {
-        super(new HbaseMetadataHandler(), new HbaseRecordHandler());
+        super(new HbaseMetadataHandler(new HbaseEnvironmentProperties().createEnvironment()), new HbaseRecordHandler(new HbaseEnvironmentProperties().createEnvironment()));
     }
 }

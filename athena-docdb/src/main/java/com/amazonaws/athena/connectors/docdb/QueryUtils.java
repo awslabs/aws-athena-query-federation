@@ -44,10 +44,13 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.bson.Document;
+import org.bson.json.JsonParseException;
+import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
@@ -75,6 +78,7 @@ public final class QueryUtils
     private static final String LTE_OP = "$lte";
     private static final String IN_OP = "$in";
     private static final String NOTIN_OP = "$nin";
+    private static final String COLUMN_NAME_ID = "_id";
 
     private QueryUtils()
     {
@@ -203,15 +207,45 @@ public final class QueryUtils
 
         // Add back all of the possible single values either as an equality or an IN predicate
         if (singleValues.size() == 1) {
-            disjuncts.add(documentOf(EQ_OP, singleValues.get(0)));
+            Object value = singleValues.get(0);
+            if (name.equals(COLUMN_NAME_ID)) {
+                ObjectId objectId = new ObjectId(value.toString());
+                disjuncts.add(documentOf(EQ_OP, objectId));
+            }
+            else {
+                disjuncts.add(documentOf(EQ_OP, value));
+            }
         }
         else if (singleValues.size() > 1) {
-            disjuncts.add(documentOf(IN_OP, singleValues));
+            if (name.equals(COLUMN_NAME_ID)) {
+                List<ObjectId> objectIdList = singleValues.stream()
+                        .map(obj -> new ObjectId(obj.toString()))
+                        .collect(Collectors.toList());
+                disjuncts.add(documentOf(IN_OP, objectIdList));
+            }
+            else {
+                disjuncts.add(documentOf(IN_OP, singleValues));
+            }
         }
 
         return orPredicate(disjuncts.stream()
                 .map(disjunct -> new Document(name, disjunct))
                 .collect(toList()));
+    }
+
+    /**
+     * Parses DocDB/MongoDB Json Filter/Projection to confirm its valid and convert it to Doc
+     * @param filter json's based filter
+     * @return Document
+     */
+    public static Document parseFilter(String filter)
+    {
+        try {
+            return Document.parse(filter);
+        }
+        catch (JsonParseException e) {
+            throw new IllegalArgumentException("Can't parse 'filter' argument as json", e);
+        }
     }
 
     private static Document documentOf(String key, Object value)
