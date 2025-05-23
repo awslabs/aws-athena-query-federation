@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -221,7 +222,7 @@ public class JdbcMetadataHandlerTest
         Assert.assertEquals(null, listTablesResponse.getNextToken());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void doListTablesNumberFormatException()
             throws Exception {
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
@@ -234,6 +235,36 @@ public class JdbcMetadataHandlerTest
         // Test: startToken is not a valid number with pageSize unlimited (all items)
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                 "testCatalog", "testSchema", "not_a_valid_number", UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void doListTablesInvalidArgumentExceptionNegativeToken()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: startToken is not a valid number with pageSize unlimited. (all items)
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "-1", UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void doListTablesInvalidArgumentExceptionNegativePageSize()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: pageSize is negative and invalid.
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "0", -3));
     }
 
     @Test
