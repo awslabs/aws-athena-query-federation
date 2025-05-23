@@ -88,6 +88,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
 import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.allocator;
@@ -238,15 +239,20 @@ public class GcsMetadataHandlerTest
         ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, TEST_TOKEN, 50);
         ListTablesResponse tableNamesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
         assertEquals(2, tableNamesResponse.getTables().size());
-    }
 
-    @Test(expected = RuntimeException.class)
-    public void testDoListTablesThrowsException() throws Exception
-    {
-        ListTablesRequest listTablesRequest = mock(ListTablesRequest.class);
-        when(listTablesRequest.getCatalogName()).thenThrow(new RuntimeException("RunTimeException() "));
-        ListTablesResponse listTablesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
-        assertNull(listTablesResponse);
+        //Testing pageSize = UNLIMITED_PAGE_SIZE_VALUE and nextToken is null
+        listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, null, UNLIMITED_PAGE_SIZE_VALUE);
+        tableNamesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
+        assertEquals(2, tableNamesResponse.getTables().size());
+        assertNull(null, tableNamesResponse.getNextToken());
+
+        //Testing next table returned of page size 1 and nextToken 1
+        getTablesResponse = GetTablesResponse.builder().tableList(tableList).nextToken("1").build();
+        Mockito.when(awsGlue.getTables(any(GetTablesRequest.class))).thenReturn(getTablesResponse);
+        listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, TEST_TOKEN, 1);
+        tableNamesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
+        assertEquals(2, tableNamesResponse.getTables().size());
+        assertEquals("1", tableNamesResponse.getNextToken());
     }
 
     @Test
