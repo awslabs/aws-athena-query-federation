@@ -99,4 +99,17 @@ public class PaginationHelper
 
         return new ListTablesResponse(catalogName, sortedTables.subList(startToken, endToken), nextToken);
     }
+
+    /**
+     * Calculates the nextToken or index to begin next pagination based on number of tables returns and pageSize.
+     *
+     * @param token the start position in the subset
+     * @param pageSize the number of tables to retrieve
+     * @param paginatedTables sublist of tables that were returned after pagination
+     * @return ListTableResponse with subset of tables.
+     */
+    public static String calculateNextToken(int token, int pageSize, List<TableName> paginatedTables)
+    {
+        return (pageSize == Integer.MAX_VALUE || paginatedTables.isEmpty() || paginatedTables.size() < pageSize) ? null : Integer.toString(token + pageSize);
+    }
 }

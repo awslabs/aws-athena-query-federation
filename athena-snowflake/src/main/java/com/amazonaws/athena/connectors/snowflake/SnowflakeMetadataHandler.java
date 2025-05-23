@@ -339,7 +339,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
         LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
         List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, token, pageSize);
-        String nextToken = (pageSize == Integer.MAX_VALUE || paginatedTables.isEmpty() || paginatedTables.size() < pageSize) ? null : Integer.toString(token + pageSize);
+        String nextToken = PaginationHelper.calculateNextToken(token, pageSize, paginatedTables);
         LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), nextToken);
 
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);

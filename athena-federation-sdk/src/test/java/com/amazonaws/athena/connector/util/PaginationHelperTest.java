@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 class PaginationHelperTest
@@ -163,5 +164,71 @@ class PaginationHelperTest
         assertEquals("tableD", resultTables.get(0).getTableName());
         assertEquals("tableE", resultTables.get(1).getTableName());
         assertNull(response.getNextToken()); // Should be null as we've reached the end
+    }
+
+    @Test
+    void testCalculateNextToken_UnlimitedPageSize()
+    {
+        List<TableName> tables = Arrays.asList(
+                new TableName("schema1", "table1"),
+                new TableName("schema1", "table2")
+        );
+        String nextToken = PaginationHelper.calculateNextToken(0, Integer.MAX_VALUE, tables);
+        assertNull(nextToken);
+    }
+
+    @Test
+    void testCalculateNextToken_EmptyList() {
+        List<TableName> emptyList = Collections.emptyList();
+        String nextToken = PaginationHelper.calculateNextToken(5, 10, emptyList);
+        assertNull(nextToken);
+    }
+
+    @Test
+    void testCalculateNextToken_PartialPage()
+    {
+        // When returned tables is less than pageSize (reaching end of list)
+        List<TableName> tables = Arrays.asList(
+                new TableName("schema1", "table1"),
+                new TableName("schema1", "table2")
+        );
+        String nextToken = PaginationHelper.calculateNextToken(10, 5, tables);
+        assertNull(nextToken);
+    }
+
+    @Test
+    void testCalculateNextToken_FullPage()
+    {
+        // When returned tables equals pageSize (more tables might exist)
+        List<TableName> tables = Arrays.asList(
+                new TableName("schema1", "table1"),
+                new TableName("schema1", "table2"),
+                new TableName("schema1", "table3")
+        );
+        String nextToken = PaginationHelper.calculateNextToken(0, 3, tables);
+        assertEquals("3", nextToken);
+    }
+
+    @Test
+    void testCalculateNextToken_NonZeroStartToken()
+    {
+        List<TableName> tables = Arrays.asList(
+                new TableName("schema1", "table4"),
+                new TableName("schema1", "table5")
+        );
+        String nextToken = PaginationHelper.calculateNextToken(5, 2, tables);
+        assertEquals("7", nextToken);
+    }
+
+    @Test
+    void testCalculateNextToken_LargeValues()
+    {
+        // Test with large numbers to ensure no integer overflow
+        List<TableName> tables = Arrays.asList(
+                new TableName("schema1", "table1"),
+                new TableName("schema1", "table2")
+        );
+        String nextToken = PaginationHelper.calculateNextToken(Integer.MAX_VALUE - 5, 2, tables);
+        assertEquals(String.valueOf(Integer.MAX_VALUE - 3L), nextToken);
     }
 }
