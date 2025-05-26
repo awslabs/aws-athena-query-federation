@@ -37,6 +37,7 @@ import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.Fi
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -80,15 +81,19 @@ public class DateMilliFieldWriterTest {
     }
 
     @Test
-    public void write_withValidDateMilliValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(expectedDate)).thenReturn(true);
-        configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 1);
+    public void write_withValidDateMilliValue_shouldWriteSuccessfully() {
+        try {
+            when(mockConstraintProjector.apply(expectedDate)).thenReturn(true);
+            configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 1);
 
-        boolean result = dateMilliFieldWriter.write(new Object(), 0);
+            boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(expectedDate);
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
+            verify(mockConstraintProjector, times(1)).apply(expectedDate);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -104,14 +109,18 @@ public class DateMilliFieldWriterTest {
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
-        dateMilliFieldWriter = new DateMilliFieldWriter(mockExtractor, vector, null);
-        configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 1);
+    public void write_withoutConstraints_shouldWriteSuccessfully() {
+        try {
+            dateMilliFieldWriter = new DateMilliFieldWriter(mockExtractor, vector, null);
+            configureDateMilliExtractor(mockExtractor, expectedEpochMilliseconds, 1);
 
-        boolean result = dateMilliFieldWriter.write(new Object(), 0);
+            boolean result = dateMilliFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableDateMilliHolder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test

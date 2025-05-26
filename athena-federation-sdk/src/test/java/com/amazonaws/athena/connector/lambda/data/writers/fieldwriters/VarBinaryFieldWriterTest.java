@@ -34,6 +34,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -74,15 +75,19 @@ public class VarBinaryFieldWriterTest {
     }
 
     @Test
-    public void write_withValidVarBinaryValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(expectedBinaryValue)).thenReturn(true);
-        configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 1);
+    public void write_withValidVarBinaryValue_shouldWriteSuccessfully() {
+        try {
+            when(mockConstraintProjector.apply(expectedBinaryValue)).thenReturn(true);
+            configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 1);
 
-        boolean result = varBinaryFieldWriter.write(new Object(), 0);
+            boolean result = varBinaryFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor).extract(any(), any(NullableVarBinaryHolder.class));
-        verify(mockConstraintProjector).apply(expectedBinaryValue);
+            verifyAssertions(true, result);
+            verify(mockExtractor).extract(any(), any(NullableVarBinaryHolder.class));
+            verify(mockConstraintProjector).apply(expectedBinaryValue);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -98,14 +103,18 @@ public class VarBinaryFieldWriterTest {
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
-        varBinaryFieldWriter = new VarBinaryFieldWriter(mockExtractor, vector, null);
-        configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 1);
+    public void write_withoutConstraints_shouldWriteSuccessfully() {
+        try {
+            varBinaryFieldWriter = new VarBinaryFieldWriter(mockExtractor, vector, null);
+            configureVarBinaryExtractor(mockExtractor, expectedBinaryValue, 1);
 
-        boolean result = varBinaryFieldWriter.write(new Object(), 0);
+            boolean result = varBinaryFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor).extract(any(), any(NullableVarBinaryHolder.class));
+            verifyAssertions(true, result);
+            verify(mockExtractor).extract(any(), any(NullableVarBinaryHolder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test

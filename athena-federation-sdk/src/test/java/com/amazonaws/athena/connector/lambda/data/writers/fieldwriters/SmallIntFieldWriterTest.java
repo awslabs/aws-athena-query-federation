@@ -33,6 +33,7 @@ import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.Fi
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -74,15 +75,19 @@ public class SmallIntFieldWriterTest {
     }
 
     @Test
-    public void write_withValidSmallIntValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(expectedSmallInt)).thenReturn(true);
-        configureSmallIntExtractor(mockExtractor, expectedSmallInt, 1);
+    public void write_withValidSmallIntValue_shouldWriteSuccessfully() {
+        try {
+            when(mockConstraintProjector.apply(expectedSmallInt)).thenReturn(true);
+            configureSmallIntExtractor(mockExtractor, expectedSmallInt, 1);
 
-        boolean result = smallIntFieldWriter.write(new Object(), 0);
+            boolean result = smallIntFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableSmallIntHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(expectedSmallInt);
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableSmallIntHolder.class));
+            verify(mockConstraintProjector, times(1)).apply(expectedSmallInt);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -98,14 +103,18 @@ public class SmallIntFieldWriterTest {
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
-        smallIntFieldWriter = new SmallIntFieldWriter(mockExtractor, vector, null);
-        configureSmallIntExtractor(mockExtractor, expectedSmallInt, 1);
+    public void write_withoutConstraints_shouldWriteSuccessfully() {
+        try {
+            smallIntFieldWriter = new SmallIntFieldWriter(mockExtractor, vector, null);
+            configureSmallIntExtractor(mockExtractor, expectedSmallInt, 1);
 
-        boolean result = smallIntFieldWriter.write(new Object(), 0);
+            boolean result = smallIntFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableSmallIntHolder.class));
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableSmallIntHolder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test

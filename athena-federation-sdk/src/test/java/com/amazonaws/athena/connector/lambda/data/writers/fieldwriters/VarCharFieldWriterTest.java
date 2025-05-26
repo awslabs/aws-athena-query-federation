@@ -33,6 +33,7 @@ import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.Fi
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -73,15 +74,19 @@ public class VarCharFieldWriterTest {
     }
 
     @Test
-    public void write_withValidVarCharValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(expectedVarCharValue)).thenReturn(true);
-        configureVarCharExtractor(mockExtractor, expectedVarCharValue, 1);
+    public void write_withValidVarCharValue_shouldWriteSuccessfully() {
+        try {
+            when(mockConstraintProjector.apply(expectedVarCharValue)).thenReturn(true);
+            configureVarCharExtractor(mockExtractor, expectedVarCharValue, 1);
 
-        boolean result = varCharFieldWriter.write(new Object(), 0);
+            boolean result = varCharFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor).extract(any(), any(NullableVarCharHolder.class));
-        verify(mockConstraintProjector).apply(expectedVarCharValue);
+            verifyAssertions(true, result);
+            verify(mockExtractor).extract(any(), any(NullableVarCharHolder.class));
+            verify(mockConstraintProjector).apply(expectedVarCharValue);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -97,14 +102,19 @@ public class VarCharFieldWriterTest {
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
-        varCharFieldWriter = new VarCharFieldWriter(mockExtractor, vector, null);
-        configureVarCharExtractor(mockExtractor, expectedVarCharValue, 1);
+    public void write_withoutConstraints_shouldWriteSuccessfully() {
+        try {
 
-        boolean result = varCharFieldWriter.write(new Object(), 0);
+            varCharFieldWriter = new VarCharFieldWriter(mockExtractor, vector, null);
+            configureVarCharExtractor(mockExtractor, expectedVarCharValue, 1);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor).extract(any(), any(NullableVarCharHolder.class));
+            boolean result = varCharFieldWriter.write(new Object(), 0);
+
+            verifyAssertions(true, result);
+            verify(mockExtractor).extract(any(), any(NullableVarCharHolder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test

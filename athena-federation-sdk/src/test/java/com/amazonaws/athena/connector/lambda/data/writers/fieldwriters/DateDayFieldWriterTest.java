@@ -33,6 +33,7 @@ import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.Fi
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -77,16 +78,20 @@ public class DateDayFieldWriterTest
     }
 
     @Test
-    public void write_withValidDateDayValue_shouldWriteSuccessfully() throws Exception
+    public void write_withValidDateDayValue_shouldWriteSuccessfully()
     {
-        configureDateDayExtractor(mockExtractor, expectedEpochDays, 1);
-        when(mockConstraintProjector.apply(expectedEpochDays)).thenReturn(true);
+        try {
+            configureDateDayExtractor(mockExtractor, expectedEpochDays, 1);
+            when(mockConstraintProjector.apply(expectedEpochDays)).thenReturn(true);
 
-        boolean result = dateDayFieldWriter.write(new Object(), 0);
+            boolean result = dateDayFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableDateDayHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(expectedEpochDays);
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableDateDayHolder.class));
+            verify(mockConstraintProjector, times(1)).apply(expectedEpochDays);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -103,16 +108,20 @@ public class DateDayFieldWriterTest
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception
+    public void write_withoutConstraints_shouldWriteSuccessfully()
     {
-        dateDayFieldWriter = new DateDayFieldWriter(mockExtractor, vector, null);
+        try {
+            dateDayFieldWriter = new DateDayFieldWriter(mockExtractor, vector, null);
 
-        configureDateDayExtractor(mockExtractor, expectedEpochDays, 1);
+            configureDateDayExtractor(mockExtractor, expectedEpochDays, 1);
 
-        boolean result = dateDayFieldWriter.write(new Object(), 0);
+            boolean result = dateDayFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableDateDayHolder.class));
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableDateDayHolder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test

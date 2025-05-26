@@ -78,15 +78,19 @@ public class DecimalFieldWriterTest {
     }
 
     @Test
-    public void write_withValidDecimalValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(actualValue)).thenReturn(true);
-        configureDecimalExtractor(mockExtractor, actualValue, 1);
+    public void write_withValidDecimalValue_shouldWriteSuccessfully() {
+        try {
+            when(mockConstraintProjector.apply(actualValue)).thenReturn(true);
+            configureDecimalExtractor(mockExtractor, actualValue, 1);
 
-        boolean result = decimalFieldWriter.write(new Object(), 0);
+            boolean result = decimalFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(actualValue);
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+            verify(mockConstraintProjector, times(1)).apply(actualValue);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -102,14 +106,18 @@ public class DecimalFieldWriterTest {
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
-        decimalFieldWriter = new DecimalFieldWriter(mockExtractor, vector, null);
-        configureDecimalExtractor(mockExtractor, actualValue, 1);
+    public void write_withoutConstraints_shouldWriteSuccessfully() {
+        try {
+            decimalFieldWriter = new DecimalFieldWriter(mockExtractor, vector, null);
+            configureDecimalExtractor(mockExtractor, actualValue, 1);
 
-        boolean result = decimalFieldWriter.write(new Object(), 0);
+            boolean result = decimalFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableDecimalHolder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test

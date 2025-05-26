@@ -33,6 +33,7 @@ import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.Fi
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -75,15 +76,19 @@ public class Float4FieldWriterTest {
     }
 
     @Test
-    public void write_withValidFloat4Value_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(expectedFloatValue)).thenReturn(true);
-        configureFloat4Extractor(mockExtractor, expectedFloatValue, 1);
+    public void write_withValidFloat4Value_shouldWriteSuccessfully() {
+        try {
+            when(mockConstraintProjector.apply(expectedFloatValue)).thenReturn(true);
+            configureFloat4Extractor(mockExtractor, expectedFloatValue, 1);
 
-        boolean result = float4FieldWriter.write(new Object(), 0);
+            boolean result = float4FieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat4Holder.class));
-        verify(mockConstraintProjector, times(1)).apply(expectedFloatValue);
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableFloat4Holder.class));
+            verify(mockConstraintProjector, times(1)).apply(expectedFloatValue);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -99,18 +104,23 @@ public class Float4FieldWriterTest {
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
-        float4FieldWriter = new Float4FieldWriter(mockExtractor, vector, null);
-        configureFloat4Extractor(mockExtractor, expectedFloatValue, 1);
+    public void write_withoutConstraints_shouldWriteSuccessfully() {
+        try {
+            float4FieldWriter = new Float4FieldWriter(mockExtractor, vector, null);
+            configureFloat4Extractor(mockExtractor, expectedFloatValue, 1);
 
-        boolean result = float4FieldWriter.write(new Object(), 0);
+            boolean result = float4FieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat4Holder.class));
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableFloat4Holder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
-    public void write_withNullFloat4Value_shouldMarkVectorAsNull() throws Exception {
+    public void write_withNullFloat4Value_shouldMarkVectorAsNull() throws Exception
+    {
         configureFloat4Extractor(mockExtractor, 0.0f, 0);
 
         boolean result = float4FieldWriter.write(new Object(), 0);

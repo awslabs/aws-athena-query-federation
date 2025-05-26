@@ -33,6 +33,7 @@ import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.Fi
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -73,15 +74,19 @@ public class BigIntFieldWriterTest {
     }
 
     @Test
-    public void write_withValidBigIntValue_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(12345L)).thenReturn(true);
-        configureBigIntExtractor(mockExtractor, expectedValue, 1);
+    public void write_withValidBigIntValue_shouldWriteSuccessfully() {
+        try {
+            when(mockConstraintProjector.apply(12345L)).thenReturn(true);
+            configureBigIntExtractor(mockExtractor, expectedValue, 1);
 
-        boolean result = bigIntFieldWriter.write(new Object(), 0);
+            boolean result = bigIntFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor).extract(any(), any(NullableBigIntHolder.class));
-        verify(mockConstraintProjector).apply(expectedValue);
+            verifyAssertions(true, result);
+            verify(mockExtractor).extract(any(), any(NullableBigIntHolder.class));
+            verify(mockConstraintProjector).apply(expectedValue);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -97,14 +102,18 @@ public class BigIntFieldWriterTest {
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
-        bigIntFieldWriter = new BigIntFieldWriter(mockExtractor, vector, null);
-        configureBigIntExtractor(mockExtractor, expectedValue, 1);
+    public void write_withoutConstraints_shouldWriteSuccessfully() {
+        try {
+            bigIntFieldWriter = new BigIntFieldWriter(mockExtractor, vector, null);
+            configureBigIntExtractor(mockExtractor, expectedValue, 1);
 
-        boolean result = bigIntFieldWriter.write(new Object(), 0);
+            boolean result = bigIntFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor).extract(any(), any(NullableBigIntHolder.class));
+            verifyAssertions(true, result);
+            verify(mockExtractor).extract(any(), any(NullableBigIntHolder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test

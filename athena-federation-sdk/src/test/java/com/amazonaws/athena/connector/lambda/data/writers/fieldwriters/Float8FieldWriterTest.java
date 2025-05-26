@@ -33,6 +33,7 @@ import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.Fi
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -75,15 +76,19 @@ public class Float8FieldWriterTest {
     }
 
     @Test
-    public void write_withValidFloat8Value_shouldWriteSuccessfully() throws Exception {
-        when(mockConstraintProjector.apply(expectedDoubleValue)).thenReturn(true);
-        configureFloat8Extractor(mockExtractor, expectedDoubleValue, 1);
+    public void write_withValidFloat8Value_shouldWriteSuccessfully() {
+        try {
+            when(mockConstraintProjector.apply(expectedDoubleValue)).thenReturn(true);
+            configureFloat8Extractor(mockExtractor, expectedDoubleValue, 1);
 
-        boolean result = float8FieldWriter.write(new Object(), 0);
+            boolean result = float8FieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
-        verify(mockConstraintProjector, times(1)).apply(expectedDoubleValue);
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+            verify(mockConstraintProjector, times(1)).apply(expectedDoubleValue);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -99,14 +104,18 @@ public class Float8FieldWriterTest {
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception {
-        float8FieldWriter = new Float8FieldWriter(mockExtractor, vector, null);
-        configureFloat8Extractor(mockExtractor, expectedDoubleValue, 1);
+    public void write_withoutConstraints_shouldWriteSuccessfully() {
+        try {
+            float8FieldWriter = new Float8FieldWriter(mockExtractor, vector, null);
+            configureFloat8Extractor(mockExtractor, expectedDoubleValue, 1);
 
-        boolean result = float8FieldWriter.write(new Object(), 0);
+            boolean result = float8FieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+            verifyAssertions(true, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableFloat8Holder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test

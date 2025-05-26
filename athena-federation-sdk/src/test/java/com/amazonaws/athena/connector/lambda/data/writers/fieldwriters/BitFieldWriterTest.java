@@ -33,6 +33,7 @@ import static com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.Fi
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -78,29 +79,37 @@ public class BitFieldWriterTest
     }
 
     @Test
-    public void write_withValidTrueBitValue_shouldWriteSuccessfully() throws Exception
+    public void write_withValidTrueBitValue_shouldWriteSuccessfully()
     {
-        when(mockConstraintProjector.apply(true)).thenReturn(true);
-        configureBitExtractor(mockExtractor, trueBit, 1);
+        try {
+            when(mockConstraintProjector.apply(true)).thenReturn(true);
+            configureBitExtractor(mockExtractor, trueBit, 1);
 
-        boolean result = bitFieldWriter.write(new Object(), 0);
+            boolean result = bitFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, trueBit, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(true);
+            verifyAssertions(true, trueBit, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+            verify(mockConstraintProjector, times(1)).apply(true);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
-    public void write_withValidFalseBitValue_shouldWriteSuccessfully() throws Exception
+    public void write_withValidFalseBitValue_shouldWriteSuccessfully()
     {
-        when(mockConstraintProjector.apply(false)).thenReturn(true);
-        configureBitExtractor(mockExtractor, falseBit, 1);
+        try {
+            when(mockConstraintProjector.apply(false)).thenReturn(true);
+            configureBitExtractor(mockExtractor, falseBit, 1);
 
-        boolean result = bitFieldWriter.write(new Object(), 0);
+            boolean result = bitFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, falseBit, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
-        verify(mockConstraintProjector, times(1)).apply(false);
+            verifyAssertions(true, falseBit, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+            verify(mockConstraintProjector, times(1)).apply(false);
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
@@ -117,15 +126,19 @@ public class BitFieldWriterTest
     }
 
     @Test
-    public void write_withoutConstraints_shouldWriteSuccessfully() throws Exception
+    public void write_withoutConstraints_shouldWriteSuccessfully()
     {
-        bitFieldWriter = new BitFieldWriter(mockExtractor, vector, null);
-        configureBitExtractor(mockExtractor, falseBit, 1);
+        try {
+            bitFieldWriter = new BitFieldWriter(mockExtractor, vector, null);
+            configureBitExtractor(mockExtractor, falseBit, 1);
 
-        boolean result = bitFieldWriter.write(new Object(), 0);
+            boolean result = bitFieldWriter.write(new Object(), 0);
 
-        verifyAssertions(true, falseBit, result);
-        verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+            verifyAssertions(true, falseBit, result);
+            verify(mockExtractor, times(1)).extract(any(), any(NullableBitHolder.class));
+        } catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
     }
 
     @Test
