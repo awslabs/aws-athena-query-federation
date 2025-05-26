@@ -31,17 +31,12 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
@@ -50,6 +45,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -63,8 +59,6 @@ import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
 import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
 import com.amazonaws.athena.connectors.snowflake.resolver.SnowflakeJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
@@ -77,6 +71,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.GetFunctionRequest;
 import software.amazon.awssdk.services.lambda.model.GetFunctionResponse;
@@ -84,8 +80,6 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
-import software.amazon.awssdk.services.glue.model.ErrorDetails;
-import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
@@ -107,9 +101,6 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWF
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_NAME;
 
 /**
  * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns` in
@@ -130,23 +121,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     "WHERE table_schema = ? " +
                     "ORDER BY TABLE_NAME " +
                     "LIMIT ? OFFSET ?";
-    /**
-     * fetching number of records in the table
-     */
-    static final String COUNT_RECORDS_QUERY = "SELECT row_count\n" +
-            "FROM   information_schema.tables\n" +
-            "WHERE  table_type = 'BASE TABLE'\n" +
-            "AND table_schema= ?\n" +
-            "AND TABLE_NAME = ? ";
-    static final String SHOW_PRIMARY_KEYS_QUERY = "SHOW PRIMARY KEYS IN ";
-    static final String PRIMARY_KEY_COLUMN_NAME = "column_name";
-    static final String COUNTS_COLUMN_NAME = "COUNTS";
-    /**
-     * Query to check view
-     */
-    static final String VIEW_CHECK_QUERY = "SELECT * FROM information_schema.views WHERE table_schema = ? AND table_name = ?";
-    static final String ALL_PARTITIONS = "*";
-
     static final Map<String, ArrowType> STRING_ARROW_TYPE_MAP = com.google.common.collect.ImmutableMap.of(
             "INTEGER", (ArrowType) Types.MinorType.INT.getType(),
             "DATE", (ArrowType) Types.MinorType.DATEDAY.getType(),
@@ -168,11 +142,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         this.amazonS3 = S3Client.create();
     }
 
-    /**
-     * Used by Mux.
-     */
     public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig,
+                SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
+                new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS, SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)), configOptions);
         this(databaseConnectionConfig,
                 new SnowflakeConnectionFactory(databaseConnectionConfig, SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
                 new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS, SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)),
@@ -195,6 +169,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
         this.amazonS3 = s3Client;
+    }
+
+    public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
+    {
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     @Override
@@ -220,11 +199,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
-    }
-
-    public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
-    {
-        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     /**
@@ -461,7 +435,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * @return
      * @throws Exception
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName)
     @Override
     protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
@@ -529,7 +502,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             if (!found) {
                 throw new AthenaConnectorException("Could not find table in " + tableName.getSchemaName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
         }
         catch (SnowflakeSQLException ex) {
             throw new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
@@ -562,6 +534,12 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
             return schemaNames.build();
         }
+    }
+
+    @Override
+    public Schema getPartitionSchema(String catalogName)
+    {
+        return SchemaBuilder.newBuilder().build();
     }
 
     public String getS3ExportBucket()
