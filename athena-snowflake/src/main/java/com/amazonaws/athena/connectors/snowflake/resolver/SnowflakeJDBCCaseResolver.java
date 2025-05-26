@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.snowflake.resolver;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
+import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +39,12 @@ public class SnowflakeJDBCCaseResolver
     public SnowflakeJDBCCaseResolver(String sourceType)
     {
         super(sourceType, FederationSDKCasingMode.ANNOTATION, FederationSDKCasingMode.NONE);
+    }
+
+    @VisibleForTesting
+    public SnowflakeJDBCCaseResolver(String sourceType, FederationSDKCasingMode casingMode)
+    {
+        super(sourceType, casingMode, casingMode);
     }
 
     @Override

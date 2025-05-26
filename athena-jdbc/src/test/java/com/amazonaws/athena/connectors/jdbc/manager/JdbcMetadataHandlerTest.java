@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -55,6 +56,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -158,6 +160,111 @@ public class JdbcMetadataHandlerTest
                 this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", null, UNLIMITED_PAGE_SIZE_VALUE));
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+    }
+
+    @Test
+    public void doListTablesFakePaginationSinglePage()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testtable2"}, {"testSchema", "testtable3"}, {"testSchema", "testtable4"}, {"testSchema", "testtable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: null token with pageSize 1 (single item with next token at 1)
+        ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
+                this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", null, 1));
+
+        TableName[] expected = {new TableName("testSchema", "testTable")};
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+        Assert.assertEquals("1", listTablesResponse.getNextToken());
+    }
+
+    @Test
+    public void doListTablesFakePaginationMultiPage()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: null token with pageSize 5 (all items)
+        ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
+                this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", null, 5));
+
+        TableName[] expected = {new TableName("testSchema", "testTable"), new TableName("testSchema", "testTable2"), new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4"), new TableName("testSchema", "testTable5")};
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+        Assert.assertEquals(null, listTablesResponse.getNextToken());
+    }
+
+    @Test
+    public void doListTablesFakePaginationUnlimitedPageSize()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: startToken at index "1" with pageSize unlimited (all items)
+        ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
+                this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "1", UNLIMITED_PAGE_SIZE_VALUE));
+
+        TableName[] expected = {new TableName("testSchema", "testTable2"), new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4"), new TableName("testSchema", "testTable5")};
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+        Assert.assertEquals(null, listTablesResponse.getNextToken());
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void doListTablesNumberFormatException()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: startToken is not a valid number with pageSize unlimited (all items)
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "not_a_valid_number", UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void doListTablesInvalidArgumentExceptionNegativeToken()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: startToken is not a valid number with pageSize unlimited. (all items)
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "-1", UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void doListTablesInvalidArgumentExceptionNegativePageSize()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: pageSize is negative and invalid.
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "0", -3));
     }
 
     @Test
@@ -280,13 +387,17 @@ public class JdbcMetadataHandlerTest
         Assert.assertEquals("testTable", getTableResponse.getTableName().getTableName());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void doGetTableNoColumns()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
 
-        this.jdbcMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+        GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        Assert.assertEquals("testTable", getTableResponse.getTableName().getTableName());
+        Assert.assertTrue(getTableResponse.getSchema().getFields().isEmpty());
     }
 
     @Test(expected = SQLException.class)

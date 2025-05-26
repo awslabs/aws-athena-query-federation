@@ -41,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
@@ -217,9 +218,9 @@ public abstract class JdbcMetadataHandler
 
             String token = listTablesRequest.getNextToken();
             int pageSize = listTablesRequest.getPageSize();
-            String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
 
             if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) { // perform no pagination
+                String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
                 LOGGER.info("doListTables - NO pagination");
                 return new ListTablesResponse(listTablesRequest.getCatalogName(), listTables(connection, adjustedSchemaName), null);
             }
@@ -230,8 +231,9 @@ public abstract class JdbcMetadataHandler
     }
 
     /**
-     * This is default getAllTables no pagination.
-     * Override this if you want to support the behavior.
+     * This is default getAllTables without true pagination.
+     * Paginated list of tables will be returned by retrieving all tables first, then returning subset based off request.
+     * Override this if you want to support true pagination behavior.
      * @param connection
      * @param listTablesRequest
      * @return
@@ -239,12 +241,17 @@ public abstract class JdbcMetadataHandler
      */
     protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
     {
-        // no-op is call listTables
-        // override this function to implement pagination
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
-        LOGGER.debug("Request is asking for pagination, but pagination has not been implemented");
-        return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                listTables(connection, adjustedSchemaName), null);
+        LOGGER.debug("Request is asking for pagination, but true pagination has not been implemented.");
+
+        // Validate nextToken and pageSize
+        int pageSize = listTablesRequest.getPageSize();
+        String startToken = listTablesRequest.getNextToken();
+
+        // Retrieve all tables
+        List<TableName> allTables = listTables(connection, adjustedSchemaName);
+
+        return PaginationHelper.manualPagination(allTables, startToken, pageSize, listTablesRequest.getCatalogName());
     }
 
     protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
@@ -414,12 +421,13 @@ public abstract class JdbcMetadataHandler
             }
 
             if (!found) {
-                throw new AthenaConnectorException(String.format("Could not find table %s in %s", tableName.getTableName(), tableName.getSchemaName()),
-                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
+                // log a warning if table columns are not found
+                LOGGER.warn("getSchema: Could not find table {} in {}", tableName.getTableName(), tableName.getSchemaName());
             }
-
-            // add partition columns
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
+            else {
+                // add partition columns
+                partitionSchema.getFields().forEach(schemaBuilder::addField);
+            }
 
             return schemaBuilder.build();
         }
