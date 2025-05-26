@@ -42,9 +42,6 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCha
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -77,8 +74,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
-import software.amazon.awssdk.services.glue.model.ErrorDetails;
-import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -130,6 +125,19 @@ public class SnowflakeRecordHandler extends RecordHandler
         super(amazonS3, secretsManager, athena, SNOWFLAKE_NAME, configOptions);
     }
 
+    /**
+     * Used to read data from S3, converts to arrow, and also handles spillover logic..
+     *
+     * @param spiller            A BlockSpiller that should be used to write the row data associated with this Split.
+     *                           The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
+     * @param recordsRequest     Details of the read request, including:
+     *                           1. The Split
+     *                           2. The Catalog, Database, and Table the read request is for.
+     *                           3. The filtering predicate (if any)
+     *                           4. The columns required for projection.
+     * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
+     * @throws IOException       Throws an IOException
+     */
     @Override
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws IOException
