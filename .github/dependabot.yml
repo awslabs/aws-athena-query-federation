@@ -18,7 +18,8 @@ updates:
       - dependency-name: "software.amazon.msk:aws-msk-iam-auth"
       # bumping redshift version causes release tests to fail
       - dependency-name: "com.amazon.redshift:redshift-jdbc42"
-
+      # bumping kafka-protobuf-provider causing conflicts with square wire transitive dependencies
+      - dependency-name: "io.confluent:kafka-protobuf-provider"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
