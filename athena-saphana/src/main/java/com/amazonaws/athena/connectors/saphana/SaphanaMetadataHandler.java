@@ -36,12 +36,15 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -76,6 +79,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.DATA_TYPE_QUERY_FOR_TABLE;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.DATA_TYPE_QUERY_FOR_VIEW;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.SAPHANA_NAME;
@@ -85,6 +89,13 @@ import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.TO_WELL_K
 public class SaphanaMetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SaphanaMetadataHandler.class);
+
+    public static final String LIST_PAGINATED_TABLES_QUERY =
+            "SELECT OBJECT_NAME AS \"TABLE_NAME\", SCHEMA_NAME AS \"TABLE_SCHEM\" " +
+                    "FROM SYS.OBJECTS " +
+                    "WHERE SCHEMA_NAME = ? AND OBJECT_TYPE IN ('TABLE', 'VIEW') " +
+                    "ORDER BY OBJECT_NAME " +
+                    "LIMIT ? OFFSET ?";
 
     public SaphanaMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -227,6 +238,38 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                 }
             }
         }
+    }
+
+    @Override
+    public ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    {
+        LOGGER.debug("Starting listPaginatedTables for Saphana.");
+        int pageSize = listTablesRequest.getPageSize();
+        int token = PaginationHelper.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
+
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            pageSize = Integer.MAX_VALUE;
+        }
+
+        String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
+
+        LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, adjustedSchemaName, token, pageSize);
+        String nextToken = PaginationHelper.calculateNextToken(token, pageSize, paginatedTables);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), nextToken);
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
+        }
+
+    @VisibleForTesting
+    protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int offset, int limit) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(LIST_PAGINATED_TABLES_QUERY);
+
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setInt(2, limit);
+        preparedStatement.setInt(3, offset);
+
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
 
     /**
