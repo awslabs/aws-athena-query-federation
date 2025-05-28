@@ -159,7 +159,6 @@ public class HbaseMetadataHandlerTest
 
     @Test
     public void doListTables()
-            throws IOException
     {
         logger.info("doListTables - enter");
 
@@ -177,6 +176,7 @@ public class HbaseMetadataHandlerTest
         tableNames.add("table3");
 
         when(mockClient.listTableNamesByNamespace(eq(schema))).thenReturn(tables);
+        //With No-Pagination Request: Returns all tables without pagination
         ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, schema,
                 null, UNLIMITED_PAGE_SIZE_VALUE);
         ListTablesResponse res = handler.doListTables(allocator, req);
@@ -187,6 +187,30 @@ public class HbaseMetadataHandlerTest
             assertTrue(tableNames.contains(next.getTableName()));
         }
         assertEquals(tableNames.size(), res.getTables().size());
+
+        //With Pagination Request: nextToken is null and pageSize is 2. Returns first 2 tables with manual pagination.
+        req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, schema,
+                null, 2);
+        res = handler.doListTables(allocator, req);
+
+        assertEquals(2, res.getTables().size());
+        assertEquals("2", res.getNextToken());
+
+        //With Pagination Request: nextToken is 0 and pageSize is -1. Returns all tables with manual pagination.
+        req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, schema,
+                "0", UNLIMITED_PAGE_SIZE_VALUE);
+        res = handler.doListTables(allocator, req);
+
+        assertEquals(3, res.getTables().size());
+        assertNull(res.getNextToken());
+
+        //With Pagination Request: nextToken is 2 and pageSize is -1. Returns all tables from index 2 with manual pagination.
+        req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, schema,
+                "2", UNLIMITED_PAGE_SIZE_VALUE);
+        res = handler.doListTables(allocator, req);
+
+        assertEquals(1, res.getTables().size());
+        assertNull(res.getNextToken());
     }
 
     /**
