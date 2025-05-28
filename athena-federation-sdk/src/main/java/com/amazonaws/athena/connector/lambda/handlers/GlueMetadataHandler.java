@@ -311,6 +311,7 @@ public abstract class GlueMetadataHandler
         Set<TableName> tables = new HashSet<>();
         String nextToken = request.getNextToken();
         int pageSize = request.getPageSize();
+        logger.info("Starting pagination at {} with page size {}", nextToken, pageSize);
         do {
             GetTablesRequest.Builder getTablesRequest = GetTablesRequest.builder()
                     .catalogId(getCatalog(request))
@@ -332,6 +333,7 @@ public abstract class GlueMetadataHandler
             }
 
             nextToken = response.nextToken();
+            logger.info("{} tables returned. Next token is {}", tables.size(), nextToken);
         }
         while (nextToken != null && (pageSize == UNLIMITED_PAGE_SIZE_VALUE || pageSize > 0));
 
