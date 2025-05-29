@@ -38,12 +38,12 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.msk.dto.AvroTopicSchema;
+import com.amazonaws.athena.connectors.msk.dto.MSKField;
+import com.amazonaws.athena.connectors.msk.dto.ProtobufTopicSchema;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicPartitionPiece;
 import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.Descriptors;
-import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -462,17 +462,16 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         else if (dataFormat.equalsIgnoreCase(PROTOBUF_DATA_FORMAT)) {
             // Get protobuf topic schema from Glue registry
             String glueSchema = registryReader.getSchemaDef(glueRegistryName, glueSchemaName);
-            ProtobufSchema protobufSchema = new ProtobufSchema(glueSchema);
-            Descriptors.Descriptor descriptor = protobufSchema.toDescriptor();
-            // Creating ArrowType for each field in the protobuf topic schema.
-            for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
+            ProtobufTopicSchema protoSchema = AmazonMskUtils.parseProtobufSchema(glueSchema);
+            // Creating ArrowType for each field in the protobuf topic schema
+            for (MSKField field : protoSchema.getFields()) {
                 FieldType fieldType = new FieldType(
                         true,
-                        AmazonMskUtils.toArrowType(fieldDescriptor.getType().toString()),
+                        AmazonMskUtils.toArrowType(field.getType()),
                         null
                 );
-                Field field = new Field(fieldDescriptor.getName(), fieldType, null);
-                schemaBuilder.addField(field);
+                Field arrowField = new Field(field.getName(), fieldType, null);
+                schemaBuilder.addField(arrowField);
             }
             schemaBuilder.addMetadata("dataFormat", PROTOBUF_DATA_FORMAT);
         }
