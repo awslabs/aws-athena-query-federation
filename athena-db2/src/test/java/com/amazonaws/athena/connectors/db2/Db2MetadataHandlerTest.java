@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -401,28 +402,41 @@ public class Db2MetadataHandlerTest extends TestBase {
         Assert.assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
-        // Test 4: Testing when requesting pageSize UNLIMITED_PAGE_SIZE_VALUE(-1) and nextToken is 2.
+        // Test 4: nextToken is 2 and pageSize is UNLIMITED. Return all tables starting from index 2.
         preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
-        values = new Object[][]{{"testSchema", "testTable2"}};
-        expected = new TableName[]{new TableName("testSchema", "testTable2")};
+        values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4")};
         resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
-
-        PreparedStatement preparedStatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Db2Constants.ALL_TABLES_COUNT_QUERY)).thenReturn(preparedStatement1);
-        schema = new String[]{"ALL_TABLES_COUNT"};
-        values = new Object[][] {{5}};
-        resultSet = mockResultSet(schema, values, new AtomicInteger(1));
-        Mockito.when(preparedStatement1.executeQuery()).thenReturn(resultSet);
-        Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
-        Mockito.when(resultSet.getInt(1)).thenReturn(5);
 
         listTablesResponse = this.db2MetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "2", ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
         Assert.assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        // Test 5: AthenaConnectorException with negative nextToken value
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        Assert.assertThrows(AthenaConnectorException.class, () -> this.db2MetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "-1", 3)));
+
+        // Test 6: AthenaConnectorException with negative pageSize value
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable3"}, {"testSchema", "testTable4"}};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        Assert.assertThrows(AthenaConnectorException.class, () -> this.db2MetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "0", -3)));
     }
 }
 

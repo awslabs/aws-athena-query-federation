@@ -45,6 +45,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -184,39 +185,19 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
     public ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
     {
         LOGGER.debug("Starting listPaginatedTables for Db2.");
-        String token = listTablesRequest.getNextToken();
         int pageSize = listTablesRequest.getPageSize();
+        int token = PaginationHelper.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
 
         if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
-            LOGGER.debug("listPaginatedTables - pagination with UNLIMITED_PAGE_SIZE_VALUE");
-            pageSize = getAllTablesCount(connection, listTablesRequest.getSchemaName());
+            pageSize = Integer.MAX_VALUE;
         }
 
-        int t = token != null ? Integer.parseInt(token) : 0;
+        LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), token, pageSize);
+        String nextToken = PaginationHelper.calculateNextToken(token, pageSize, paginatedTables);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), nextToken);
 
-        LOGGER.info("Starting pagination at {} with page size {}", t, pageSize);
-        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), t, pageSize);
-        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), t + pageSize);
-
-        String nextToken = paginatedTables.isEmpty() || paginatedTables.size() < pageSize || listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE ? null : Integer.toString(t + pageSize);
-        // return next token is null when reaching end of files
         return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
-    }
-
-    private int getAllTablesCount(Connection connection, String schemaName) throws SQLException
-    {
-        PreparedStatement preparedStatement = connection.prepareStatement(Db2Constants.ALL_TABLES_COUNT_QUERY);
-        preparedStatement.setString(1, schemaName);
-        int allTablesCount = 0;
-        try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            while (resultSet.next()) {
-                allTablesCount = resultSet.getInt(1);
-            }
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
-        }
-        return allTablesCount;
     }
 
     @VisibleForTesting

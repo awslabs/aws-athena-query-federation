@@ -38,8 +38,6 @@ public class Db2Constants
     public static final String LIST_PAGINATED_TABLES_QUERY = "select tabschema AS \"TABLE_SCHEM\", tabname AS \"TABLE_NAME\" " +
             "from syscat.tables where type in ('T', 'U', 'V', 'W') and tabschema = ? " +
             "ORDER BY tabname OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
-    public static final String ALL_TABLES_COUNT_QUERY = "select count(*) AS \"ALL_TABLES_COUNT\" " +
-            "from syscat.tables where type in ('T', 'U', 'V', 'W') and tabschema = ? ";
 
     static final String PARTITION_QUERY = "SELECT DATAPARTITIONID FROM SYSCAT.DATAPARTITIONS WHERE TABSCHEMA = ? AND TABNAME = ? AND SEQNO > 0";
     static final String COLUMN_INFO_QUERY = "select colname, typename from syscat.columns where tabschema = ? AND tabname = ?";
