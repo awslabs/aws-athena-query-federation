@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import org.apache.arrow.vector.types.Types;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.PartitionInfo;
@@ -57,8 +58,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.msk.AmazonMskConstants.PROTOBUF_DATA_FORMAT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -179,6 +182,65 @@ public class AmazonMskMetadataHandlerTest {
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "kafka", new TableName("default", "testtable"), Collections.emptyMap());
         GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         assertEquals(1, getTableResponse.getSchema().getFields().size());
+    }
+
+    @Test
+    public void testDoGetTableWithProtobufSchema()
+    {
+        String arn = "defaultarn";
+        String schemaName = "defaultschemaname";
+        String schemaVersionId = "defaultversionid";
+        Long latestSchemaVersion = 123L;
+        GetSchemaResponse getSchemaResponse = GetSchemaResponse.builder()
+                .schemaArn(arn)
+                .schemaName(schemaName)
+                .latestSchemaVersion(latestSchemaVersion)
+                .build();
+        GetSchemaVersionResponse getSchemaVersionResponse = GetSchemaVersionResponse.builder()
+                .schemaArn(arn)
+                .schemaVersionId(schemaVersionId)
+                .schemaDefinition("syntax = \"proto3\";\n" +
+                        "package test;\n" +
+                        "message TestMessage {\n" +
+                        "    int32 id = 1;\n" +
+                        "    string name = 2;\n" +
+                        "    double value = 3;\n" +
+                        "}")
+                .dataFormat(DataFormat.PROTOBUF)
+                .build();
+        Mockito.when(awsGlue.getSchema(any(GetSchemaRequest.class))).thenReturn(getSchemaResponse);
+        Mockito.when(awsGlue.getSchemaVersion(any(GetSchemaVersionRequest.class))).thenReturn(getSchemaVersionResponse);
+
+        GetTableRequest getTableRequest = new GetTableRequest(
+            federatedIdentity, 
+            QUERY_ID, 
+            "kafka",
+            new TableName("default", "testmessage"), 
+            Collections.emptyMap()
+        );
+
+        GetTableResponse getTableResponse;
+        try {
+            getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
+        }
+        catch (Exception e) {
+            fail("Unexpected exception in doGetTable():" + e.getMessage());
+            return;
+        }
+        
+        // Verify schema field names
+        assertEquals(3, getTableResponse.getSchema().getFields().size());
+        assertEquals("id", getTableResponse.getSchema().getFields().get(0).getName());
+        assertEquals("name", getTableResponse.getSchema().getFields().get(1).getName());
+        assertEquals("value", getTableResponse.getSchema().getFields().get(2).getName());
+
+        // verify schema field types
+        assertEquals(Types.MinorType.INT.getType(), getTableResponse.getSchema().getFields().get(0).getType());
+        assertEquals(Types.MinorType.VARCHAR.getType(), getTableResponse.getSchema().getFields().get(1).getType());
+        assertEquals(Types.MinorType.FLOAT8.getType(), getTableResponse.getSchema().getFields().get(2).getType());
+
+        // Verify data format metadata
+        assertEquals(PROTOBUF_DATA_FORMAT, getTableResponse.getSchema().getCustomMetadata().get("dataFormat"));
     }
 
     @Test
