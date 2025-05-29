@@ -100,7 +100,6 @@ public class AmazonMskUtils
     private static final String KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG = "max.partition.fetch.bytes";
     private static final String KAFKA_KEY_DESERIALIZER_CLASS_CONFIG = "key.deserializer";
     private static final String KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG = "value.deserializer";
-
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private AmazonMskUtils() {}
