@@ -214,7 +214,7 @@ public class SchemaUtilsTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
 
-        Schema schema = SchemaUtils.inferSchema(mockClient, new TableName("test", "test"), 10);
+        Schema schema = SchemaUtils.inferSchema(mockDatabase, new TableName("test", "test"), 10);
         assertEquals(2, schema.getFields().size());
 
         Map<String, Field> fields = new HashMap<>();

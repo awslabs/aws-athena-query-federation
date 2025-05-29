@@ -463,7 +463,7 @@ public class DocDBRecordHandlerTest
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
-        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME,Collections.emptyMap());
         GetTableResponse res = mdHandler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
@@ -493,7 +493,7 @@ public class DocDBRecordHandlerTest
                 TABLE_NAME,
                 res.getSchema(),
                 Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap,Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
