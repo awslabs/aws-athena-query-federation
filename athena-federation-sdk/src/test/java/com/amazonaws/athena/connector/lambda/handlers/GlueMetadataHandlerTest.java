@@ -148,7 +148,7 @@ public class GlueMetadataHandlerTest
             throws Exception
     {
         logger.info("{}: enter", testName.getMethodName());
-
+        System.setProperty("aws.region", "us-east-1");
         handler = new GlueMetadataHandler(mockGlue,
                 new LocalKeyFactory(),
                 mock(SecretsManagerClient.class),
