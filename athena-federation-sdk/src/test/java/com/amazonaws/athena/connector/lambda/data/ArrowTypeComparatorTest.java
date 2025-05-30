@@ -187,7 +187,7 @@ public class ArrowTypeComparatorTest {
 
     @Test
     public void testCompareStructNotEqual() {
-        assertNotEquals(0, ArrowTypeComparator.compare(structType, struct1, struct2));
+        assertStructComparison(1, struct1, struct2);
     }
 
     @Test
