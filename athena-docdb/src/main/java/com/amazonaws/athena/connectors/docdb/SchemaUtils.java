@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.docdb;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.mongodb.DBRef;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import org.apache.arrow.vector.types.Types;
@@ -249,6 +250,13 @@ public class SchemaUtils
                 Field child = getArrowField(childKey, childVal);
                 children.add(child);
             }
+            return new Field(key, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
+        }
+        else if (value instanceof DBRef) {
+            List<Field> children = new ArrayList<>();
+            children.add(new Field("_db", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null));
+            children.add(new Field("_ref", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null));
+            children.add(new Field("_id", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null));
             return new Field(key, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
         }
 

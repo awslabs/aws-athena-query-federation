@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.docdb;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.google.common.collect.ImmutableMap;
+import com.mongodb.DBRef;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -29,6 +29,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -185,5 +186,47 @@ public class SchemaUtilsTest
         assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(fields.get("col3").getType()));
         assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(fields.get("col4").getType()));
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(fields.get("col4").getChildren().get(0).getType()));
+    }
+
+    @Test
+    public void dbRefTet()
+    {
+        List<Document> docs = new ArrayList<>();
+        Document doc1 = new Document();
+        doc1.put("col1", 1);
+        doc1.put("col2", new DBRef("otherColl", ObjectId.get()));
+        docs.add(doc1);
+
+        Document doc2 = new Document();
+        doc2.put("col1", 1);
+        doc2.put("col2", new DBRef("otherDb", "otherColl", ObjectId.get()));
+        docs.add(doc2);
+
+        MongoClient mockClient = mock(MongoClient.class);
+        MongoDatabase mockDatabase = mock(MongoDatabase.class);
+        MongoCollection mockCollection = mock(MongoCollection.class);
+        FindIterable mockIterable = mock(FindIterable.class);
+        when(mockClient.getDatabase(any())).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(any())).thenReturn(mockCollection);
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
+
+        Schema schema = SchemaUtils.inferSchema(mockDatabase, new TableName("test", "test"), 10);
+        assertEquals(2, schema.getFields().size());
+
+        Map<String, Field> fields = new HashMap<>();
+        schema.getFields().stream().forEach(next -> fields.put(next.getName(), next));
+
+        assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(fields.get("col1").getType()));
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(fields.get("col2").getType()));
+        assertEquals("_db", fields.get("col2").getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(fields.get("col2").getChildren().get(0).getType()));
+        assertEquals("_ref", fields.get("col2").getChildren().get(1).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(fields.get("col2").getChildren().get(1).getType()));
+        assertEquals("_id", fields.get("col2").getChildren().get(2).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(fields.get("col2").getChildren().get(2).getType()));
     }
 }
