@@ -41,32 +41,33 @@ import static org.junit.Assert.assertThrows;
 
 public class ArrowTypeComparatorTest {
 
-    private String stringABC = "abc";
-    private String stringXYZ = "xyz";
-    private BigDecimal decimal1 = new BigDecimal("123.45");
-    private BigDecimal decimal2 = new BigDecimal("678.90");
-    private byte[] binary1 = {0x01, 0x02};
-    private byte[] binary2 = {0x01, 0x03};
-    private LocalDateTime date1 = LocalDateTime.of(2023, 1, 1, 12, 0);
-    private  LocalDateTime date2 = LocalDateTime.of(2023, 1, 2, 12, 0);
+    private static final String stringABC = "abc";
+    private static final String stringXYZ = "xyz";
+    private static final BigDecimal decimal1 = new BigDecimal("123.45");
+    private static final BigDecimal decimal2 = new BigDecimal("678.90");
+    private static final byte[] binary1 = {0x01, 0x02};
+    private static final byte[] binary2 = {0x01, 0x03};
+    private static final LocalDateTime date1 = LocalDateTime.of(2023, 1, 1, 12, 0);
+    private static final LocalDateTime date2 = LocalDateTime.of(2023, 1, 2, 12, 0);
+
     private Map<String, Object> struct1;
     private Map<String, Object> struct2;
 
-    private ArrowType intType = new ArrowType.Int(32, true); // Signed 32-bit integer
-    private ArrowType tinyIntType = new ArrowType.Int(8, true); // Signed 8-bit integer
-    private ArrowType smallIntType = new ArrowType.Int(16, true); // Signed 16-bit integer
-    private ArrowType uint2Type = new ArrowType.Int(16, false); // Unsigned 16-bit integer
-    private ArrowType bigIntType = new ArrowType.Int(64, true); // Signed 64-bit integer
-    private ArrowType float8Type = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE); // Double precision
-    private ArrowType float4Type = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE); // Single precision
-    private ArrowType varcharType = new ArrowType.Utf8(); // VARCHAR
-    private ArrowType varbinaryType = new ArrowType.Binary(); // VARBINARY
-    private ArrowType decimalType = new ArrowType.Decimal(10, 2, 128); // DECIMAL
-    private ArrowType bitType = new ArrowType.Bool(); // BOOLEAN
-    private ArrowType dateMilliType = new ArrowType.Timestamp(TimeUnit.MILLISECOND, ZoneOffset.UTC.getId()); // TIMESTAMP
-    private ArrowType dateDayType = new ArrowType.Date(DateUnit.DAY); // DATE
-    private ArrowType structType = new ArrowType.Struct(); // STRUCT type
-    private ArrowType unsupportedType = new ArrowType.Interval(IntervalUnit.YEAR_MONTH); // Unsupported interval type
+    private static final ArrowType intType = new ArrowType.Int(32, true);
+    private static final ArrowType tinyIntType = new ArrowType.Int(8, true);
+    private static final ArrowType smallIntType = new ArrowType.Int(16, true);
+    private static final ArrowType uint2Type = new ArrowType.Int(16, false);
+    private static final ArrowType bigIntType = new ArrowType.Int(64, true);
+    private static final ArrowType float8Type = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
+    private static final ArrowType float4Type = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
+    private static final ArrowType varcharType = new ArrowType.Utf8();
+    private static final ArrowType varbinaryType = new ArrowType.Binary();
+    private static final ArrowType decimalType = new ArrowType.Decimal(10, 2, 128);
+    private static final ArrowType bitType = new ArrowType.Bool();
+    private static final ArrowType dateMilliType = new ArrowType.Timestamp(TimeUnit.MILLISECOND, ZoneOffset.UTC.getId());
+    private static final ArrowType dateDayType = new ArrowType.Date(DateUnit.DAY);
+    private static final ArrowType structType = new ArrowType.Struct();
+    private static final ArrowType unsupportedType = new ArrowType.Interval(IntervalUnit.YEAR_MONTH);
 
     @Before
     public void setUp() {

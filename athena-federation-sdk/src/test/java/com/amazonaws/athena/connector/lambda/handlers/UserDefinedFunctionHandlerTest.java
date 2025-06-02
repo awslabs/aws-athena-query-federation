@@ -75,7 +75,6 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
@@ -157,7 +156,8 @@ public class UserDefinedFunctionHandlerTest
 
         for (int pos = 0; pos < rowCount; ++pos) {
             fieldReader.setPosition(pos);
-            byte val = (byte) UnitTestBlockUtils.getValue(fieldReader, pos);
+            Object objVal = UnitTestBlockUtils.getValue(fieldReader, pos);
+            byte val = objVal != null ? (byte) objVal : 0;
             byte expected = handler.test_tiny_int((byte) (pos + 1));
             assertEquals(expected, val);
         }
@@ -186,7 +186,8 @@ public class UserDefinedFunctionHandlerTest
 
         for (int pos = 0; pos < rowCount; ++pos) {
             fieldReader.setPosition(pos);
-            short val = (short) UnitTestBlockUtils.getValue(fieldReader, pos);
+            Object objVal = UnitTestBlockUtils.getValue(fieldReader, pos);
+            short val = objVal != null ? (short) objVal : 0;
             short expected = handler.test_small_int((short) (pos + 1));
             assertEquals(expected, val);
         }
@@ -238,7 +239,8 @@ public class UserDefinedFunctionHandlerTest
 
         for (int pos = 0; pos < rowCount; ++pos) {
             fieldReader.setPosition(pos);
-            double val = (double) UnitTestBlockUtils.getValue(fieldReader, pos);
+            Object objVal = UnitTestBlockUtils.getValue(fieldReader, pos);
+            double val = objVal != null ? (double) objVal : 0.0;
             double expected = handler.test_float8(pos + 0.5);
             assertEquals(expected, val, 0.0001); // Allowing a small delta for floating-point precision
         }
@@ -267,7 +269,8 @@ public class UserDefinedFunctionHandlerTest
 
         for (int pos = 0; pos < rowCount; ++pos) {
             fieldReader.setPosition(pos);
-            boolean val = (boolean) UnitTestBlockUtils.getValue(fieldReader, pos);
+            Object objVal = UnitTestBlockUtils.getValue(fieldReader, pos);
+            boolean val = objVal != null && (boolean) objVal;
             boolean expected = handler.test_bit(pos % 2 == 0); // Example logic: true for even, false for odd
             assertEquals(expected, val);
         }
@@ -296,7 +299,8 @@ public class UserDefinedFunctionHandlerTest
 
         for (int pos = 0; pos < rowCount; ++pos) {
             fieldReader.setPosition(pos);
-            long val = (long) UnitTestBlockUtils.getValue(fieldReader, pos);
+            Object objVal = UnitTestBlockUtils.getValue(fieldReader, pos);
+            long val = objVal != null ? (long) objVal : 0L;
             long expected = handler.test_big_int(pos + 1L); // Example logic: increment by 1
             assertEquals(expected, val);
         }
@@ -861,10 +865,6 @@ public class UserDefinedFunctionHandlerTest
         public Long test_big_int(Long input)
         {
             return input * 2; // Example: double the input
-        }
-        public ZonedDateTime test_date_milli(ZonedDateTime input)
-        {
-            return input.plusHours(1);
         }
 
         public String test_varchar(String input)

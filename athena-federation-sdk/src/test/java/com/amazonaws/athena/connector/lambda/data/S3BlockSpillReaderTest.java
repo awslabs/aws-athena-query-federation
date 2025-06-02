@@ -60,10 +60,10 @@ public class S3BlockSpillReaderTest
     private S3SpillLocation spillLocation;
     private Block expected;
 
-    private final String bucket = "test-bucket";
-    private final String prefix = "test-prefix";
-    private final String requestId = "1234";
-    private final String splitId = "5678";
+    private static final String bucket = "test-bucket";
+    private static final String prefix = "test-prefix";
+    private static final String requestId = "1234";
+    private static final String splitId = "5678";
 
     @Before
     public void setup()
@@ -106,7 +106,7 @@ public class S3BlockSpillReaderTest
     }
 
     @Test
-    public void read_EncryptedBlock_Succeeds() throws Exception
+    public void read_EncryptedBlock_Succeeds()
     {
         BlockCrypto blockCrypto = new AesGcmBlockCrypto(allocator);
         byte[] spilledBytes = blockCrypto.encrypt(encryptionKey, expected);
@@ -222,7 +222,7 @@ public class S3BlockSpillReaderTest
     }
 
     @Test
-    public void read_UnencryptedBlockWithNullEncryptionKey_Succeeds() throws Exception
+    public void read_UnencryptedBlockWithNullEncryptionKey_Succeeds()
     {
         encryptionKey = null;
         BlockCrypto blockCrypto = new NoOpBlockCrypto(allocator);

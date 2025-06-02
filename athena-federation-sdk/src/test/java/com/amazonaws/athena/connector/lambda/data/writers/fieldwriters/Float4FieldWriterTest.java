@@ -42,9 +42,9 @@ import static org.mockito.Mockito.when;
 
 public class Float4FieldWriterTest {
 
-    private String vectorName = "testVector";
-    private float expectedFloatValue = 123.45f;
-    private float delta = 0.001f;
+    private static final String vectorName = "testVector";
+    private static final float expectedFloatValue = 123.45f;
+    private static final float delta = 0.001f;
 
     private BufferAllocator allocator;
     private Float4Vector vector;

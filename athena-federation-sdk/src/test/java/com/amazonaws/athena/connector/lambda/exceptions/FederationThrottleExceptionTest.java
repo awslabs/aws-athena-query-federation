@@ -27,7 +27,7 @@ import org.junit.Test;
 
 public class FederationThrottleExceptionTest {
 
-    private String errorMessage = "An error occurred";
+    private static final String errorMessage = "An error occurred";
 
     @Test
     public void testWithDefaultConstructor() {

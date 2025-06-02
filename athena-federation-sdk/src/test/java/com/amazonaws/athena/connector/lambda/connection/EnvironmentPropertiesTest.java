@@ -43,12 +43,13 @@ import static org.mockito.Mockito.spy;
 
 public class EnvironmentPropertiesTest {
 
-    private String glueConnName = "my-glue-conn";
-    private String secretArn = "arn:aws:secretsmanager:us-east-1:1234567890:secret:my-secret-abc123";
-    private String expectedSecretName = "my-secret";
-    private String testValue = "test";
-    private String kmsKeyId = "kms-123";
-    private String lambdaValue = "lambda-value";
+    private static final String glueConnName = "my-glue-conn";
+    private static final String secretArn = "arn:aws:secretsmanager:us-east-1:1234567890:secret:my-secret-abc123";
+    private static final String expectedSecretName = "my-secret";
+    private static final String testValue = "test";
+    private static final String kmsKeyId = "kms-123";
+    private static final String lambdaValue = "lambda-value";
+
 
     @Test
     public void testCreateEnvironmentWithSystemLambda() throws Exception {

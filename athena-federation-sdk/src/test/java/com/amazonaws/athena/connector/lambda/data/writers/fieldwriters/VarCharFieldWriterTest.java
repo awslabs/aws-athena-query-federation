@@ -41,8 +41,8 @@ import static org.mockito.Mockito.verify;
 
 public class VarCharFieldWriterTest {
 
-    private String vectorName = "testVarCharVector";
-    private String expectedVarCharValue = "Hello, Athena!";
+    private static final String vectorName = "testVarCharVector";
+    private static final String expectedVarCharValue = "Hello, Athena!";
 
     private BufferAllocator allocator;
     private VarCharVector vector;

@@ -41,8 +41,8 @@ import static org.mockito.Mockito.verify;
 
 public class TinyIntFieldWriterTest {
 
-    private String vectorName = "testVector";
-    private byte expectedTinyIntValue = 42;
+    private static final String vectorName = "testVector";
+    private static final byte expectedTinyIntValue = 42;
 
     private BufferAllocator allocator;
     private TinyIntVector vector;

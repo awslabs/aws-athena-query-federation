@@ -47,7 +47,7 @@ public class KmsKeyFactoryTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         kmsKeyFactory = new KmsKeyFactory(mockKmsClient, MASTER_KEY_ID);
     }
 

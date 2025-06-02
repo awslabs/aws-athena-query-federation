@@ -44,9 +44,9 @@ import static org.mockito.Mockito.when;
 
 public class DecimalFieldWriterTest {
 
-    private String vectorName = "testVector";
-    private BigDecimal actualValue = new BigDecimal("123.456");
-    private BigDecimal RoundedValue = new BigDecimal("123.46");
+    private static final String vectorName = "testVector";
+    private static final BigDecimal actualValue = new BigDecimal("123.456");
+    private static final BigDecimal RoundedValue = new BigDecimal("123.46");
 
     private BufferAllocator allocator;
     private DecimalVector vector;

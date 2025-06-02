@@ -41,8 +41,8 @@ import static org.mockito.Mockito.when;
 
 public class BigIntFieldWriterTest {
 
-    private long expectedValue = 12345L;
-    private String vectorName = "testVector";
+    private static final long expectedValue = 12345L;
+    private static final String vectorName = "testVector";
 
     private BigIntExtractor mockExtractor;
     private ConstraintProjector mockConstraintProjector;

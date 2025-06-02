@@ -28,18 +28,18 @@ import static org.junit.Assert.assertNull;
 
 public class AthenaConnectorExceptionTest
 {
-    private String errorMessage = "Test Message";
-    private String errorCode = "TestErrorCode";
-    private Object testResponse = "Test Response";
-    private Exception testCause = new RuntimeException("Test Cause");
+    private static final String errorMessage = "Test Message";
+    private static final String errorCode = "TestErrorCode";
+    private static final Object testResponse = "Test Response";
+    private static final Exception testCause = new RuntimeException("Test Cause");
 
     // Assertion messages
-    private String errorMessageMatchMsg = "Error message should match";
-    private String responseMatchMsg = "Response should match";
-    private String causeMatchMsg = "Cause should match";
-    private String errorDetailsMatchMsg = "Error details should match";
-    private String causeNullMsg = "Expected no cause for (message, details) constructor";
-    private String responseNullMsg = "Response should be null when not provided";
+    private static final String errorMessageMatchMsg = "Error message should match";
+    private static final String responseMatchMsg = "Response should match";
+    private static final String causeMatchMsg = "Cause should match";
+    private static final String errorDetailsMatchMsg = "Error details should match";
+    private static final String causeNullMsg = "Expected no cause for (message, details) constructor";
+    private static final String responseNullMsg = "Response should be null when not provided";
 
     private ErrorDetails errorDetails;
 

@@ -46,9 +46,9 @@ import static org.mockito.Mockito.when;
 
 public class DateMilliFieldWriterTest {
 
-    private String vectorName = "testVector";
-    private long expectedEpochMilliseconds = 1672531200000L;
-    private LocalDateTime expectedDate = LocalDateTime.ofInstant(
+    private static final String vectorName = "testVector";
+    private static final long expectedEpochMilliseconds = 1672531200000L;
+    private static final LocalDateTime expectedDate = LocalDateTime.ofInstant(
             Instant.ofEpochMilli(expectedEpochMilliseconds), ZoneOffset.UTC);
 
     private BufferAllocator allocator;

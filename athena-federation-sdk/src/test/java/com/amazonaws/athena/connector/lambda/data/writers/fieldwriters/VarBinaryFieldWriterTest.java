@@ -42,8 +42,8 @@ import static org.mockito.Mockito.verify;
 
 public class VarBinaryFieldWriterTest {
 
-    private String vectorName = "testVector";
-    private byte[] expectedBinaryValue = new byte[]{0x01, 0x02, 0x03};
+    private static final String vectorName = "testVector";
+    private static final byte[] expectedBinaryValue = new byte[]{0x01, 0x02, 0x03};
 
     private BufferAllocator allocator;
     private VarBinaryVector vector;

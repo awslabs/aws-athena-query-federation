@@ -42,8 +42,8 @@ import static org.mockito.Mockito.when;
 
 public class IntFieldWriterTest {
 
-    private String vectorName = "testVector";
-    private int expectedIntValue = 123;
+    private static final String vectorName = "testVector";
+    private static final int expectedIntValue = 123;
 
     private BufferAllocator allocator;
     private IntVector vector;

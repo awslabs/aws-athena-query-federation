@@ -42,9 +42,9 @@ import static org.mockito.Mockito.when;
 
 public class BitFieldWriterTest
 {
-    private String vectorName = "testVector";
-    private int trueBit = 1;
-    private int falseBit = 0;
+    private static final String vectorName = "testVector";
+    private static final int trueBit = 1;
+    private static final int falseBit = 0;
 
     private BitExtractor mockExtractor;
     private ConstraintProjector mockConstraintProjector;

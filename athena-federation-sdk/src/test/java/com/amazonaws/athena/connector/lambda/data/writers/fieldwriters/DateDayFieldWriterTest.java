@@ -42,8 +42,8 @@ import static org.mockito.Mockito.when;
 
 public class DateDayFieldWriterTest
 {
-    private String vectorName = "testVector";
-    private int expectedEpochDays = 18765;
+    private static final String vectorName = "testVector";
+    private static final int expectedEpochDays = 18765;
 
     private BufferAllocator allocator;
     private DateDayVector vector;

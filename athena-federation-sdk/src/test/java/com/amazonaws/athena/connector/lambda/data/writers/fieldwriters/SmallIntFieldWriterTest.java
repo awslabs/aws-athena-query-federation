@@ -42,8 +42,8 @@ import static org.mockito.Mockito.when;
 
 public class SmallIntFieldWriterTest {
 
-    private String vectorName = "testVector";
-    private short expectedSmallInt = 123;
+    private static final String vectorName = "testVector";
+    private static final short expectedSmallInt = 123;
 
     private BufferAllocator allocator;
     private SmallIntVector vector;

@@ -176,7 +176,7 @@ public class RecordHandlerTest
                         .add("totalNumberSplits", "10000")
                         .add("scaleFactor", "1")
                         .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 1_500_000L, //~1.5MB so we should see some spill
                 0
         );
