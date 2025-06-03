@@ -20,6 +20,7 @@
 
 package com.amazonaws.athena.connectors.cloudera;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -30,8 +31,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -40,7 +41,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
-
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -56,9 +56,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_CHARACTER;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class HiveRecordHandlerTest
@@ -90,7 +92,8 @@ public class HiveRecordHandlerTest
     }
 
   
-    private ValueSet getSingleValueSet(Object value) {
+    private ValueSet getSingleValueSet(Object value)
+    {
         Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range.isSingleValue()).thenReturn(true);
         Mockito.when(range.getLow().getValue()).thenReturn(value);
@@ -167,10 +170,50 @@ public class HiveRecordHandlerTest
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        LocalDateTime timestampExp = LocalDateTime.parse("2024-10-03 12:34:56", formatter);
         Timestamp expectedTimestamp = new Timestamp(timestamp.toInstant(ZoneOffset.UTC).toEpochMilli());
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
                 .setTimestamp(1, expectedTimestamp);
+    }
+
+    @Test
+    public void testBuildSplitSql_withQueryPassthrough()
+    {
+        try {
+            TableName tableName = new TableName("testSchema", "testTable");
+
+            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+            schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.INT.getType()).build());
+            schemaBuilder.addField(FieldBuilder.newBuilder("partition", Types.MinorType.VARCHAR.getType()).build());
+            Schema schema = schemaBuilder.build();
+
+            Split split = Mockito.mock(Split.class);
+            Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
+            Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
+
+            Constraints constraints = Mockito.mock(Constraints.class);
+            Mockito.when(constraints.isQueryPassThrough()).thenReturn(true);
+
+            Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
+                    .put(JdbcQueryPassthrough.QUERY, "SELECT * FROM testSchema.testTable WHERE testCol1 = 1")
+                    .put("schemaFunctionName", "system.query")
+                    .put("enableQueryPassthrough", "true")
+                    .put("name", "query")
+                    .put("schema", "system")
+                    .build();
+
+            Mockito.when(constraints.getQueryPassthroughArguments()).thenReturn(queryPassthroughArgs);
+
+            PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+            Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+
+            PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
+
+            Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+            Mockito.verify(this.connection).prepareStatement("SELECT * FROM testSchema.testTable WHERE testCol1 = 1");
+        }
+        catch (Exception e) {
+            fail("Unexpected exception:" + e.getMessage());
+        }
     }
 }

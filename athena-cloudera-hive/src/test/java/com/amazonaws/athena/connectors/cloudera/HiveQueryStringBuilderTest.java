@@ -20,19 +20,21 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import java.util.Collections;
+
 import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_CHARACTER;
+import static org.junit.Assert.assertEquals;
 
 @SuppressWarnings("deprecation")
 @RunWith(MockitoJUnitRunner.class)
 public class HiveQueryStringBuilderTest
 {
-	
 	@Mock
 	Split split;
 	
@@ -44,8 +46,17 @@ public class HiveQueryStringBuilderTest
 		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
 		String fromResult1 = builder.getFromClauseWithSplit("default", "schema", "table", split);
 		String fromResult2 = builder.getFromClauseWithSplit("default", "", "table", split);
-		Assert.assertEquals(expectedFrom1, fromResult1);
-		Assert.assertEquals(expectedFrom2, fromResult2);
+		assertEquals(expectedFrom1, fromResult1);
+		assertEquals(expectedFrom2, fromResult2);
 	}
 
+	@Test
+	public void testGetPartitionWhereClauses_withAllPartitions()
+	{
+		Mockito.when(split.getProperty(HiveConstants.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("*");
+		
+		HiveQueryStringBuilder builder = new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER, new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER));
+		
+		assertEquals(Collections.emptyList(), builder.getPartitionWhereClauses(split));
+	}
 }
