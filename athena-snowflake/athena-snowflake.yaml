@@ -58,6 +58,13 @@ Parameters:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Type: String
     Default: ""
+  EnableS3Export:
+    Description: '(Optional) Enable S3 export functionality for data transfer. Set to true to use S3 export path, false for direct query path.'
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
 Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
@@ -75,13 +82,14 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
+          SNOWFLAKE_ENABLE_S3_EXPORT: !Ref EnableS3Export
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
         - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-snowflake:2022.47.1'
         - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       ImageConfig:
-        Command: [ "com.amazonaws.athena.connectors.snowflake.SnowflakeCompositeHandler" ]
+        Command: [ "com.amazonaws.athena.connectors.snowflake.SnowflakeMuxCompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with Snowflake using JDBC"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
@@ -104,7 +112,6 @@ Resources:
             Principal:
               Service:
                 - lambda.amazonaws.com
-              AWS: '*'
             Action:
               - "sts:AssumeRole"
 
@@ -135,6 +142,13 @@ Resources:
             Resource: !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}'
           - Action:
               - athena:GetQueryExecution
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DetachNetworkInterface
             Effect: Allow
             Resource: '*'
         #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy

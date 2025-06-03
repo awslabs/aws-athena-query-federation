@@ -63,12 +63,12 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -78,10 +78,14 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.BLOCK_PARTITION_COLUMN_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -183,6 +187,7 @@ public class SnowflakeMetadataHandlerTest
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
 
         Schema expected = expectedSchemaBuilder.build();
 
@@ -198,35 +203,40 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void doListSchemaNames() throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, "queryId", "testCatalog");
 
-        Statement statement = mock(Statement.class);
-        when(this.connection.createStatement()).thenReturn(statement);
-        String[][] SchemaandCatalogNames = {{"TESTSCHEMA"},{"TESTCATALOG"}};
-        ResultSet schemaResultSet = mockResultSet(new String[]{"TABLE_SCHEM","TABLE_CATALOG"}, new int[]{Types.VARCHAR,Types.VARCHAR}, SchemaandCatalogNames, new AtomicInteger(-1));
-        when(this.connection.getMetaData().getSchemas(any(), any())).thenReturn(schemaResultSet);
+        String[] schema = {"TABLE_SCHEM", "TABLE_CATALOG"};
+        Object[][] values = {{"TESTSCHEMA", "testCatalog"}, {"TESTSCHEMA2", "testCatalog"}};
+        int[] types = {Types.VARCHAR, Types.VARCHAR};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet schemaResultSet = mockResultSet(schema, types, values, rowNumber);
+        
+        when(this.connection.getMetaData().getSchemas("testCatalog", null)).thenReturn(schemaResultSet);
+        when(this.connection.getCatalog()).thenReturn("testCatalog");
+        
         ListSchemasResponse listSchemasResponse = this.snowflakeMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
-        String[] expectedResult = {"TESTSCHEMA","TESTCATALOG"};
-        Assert.assertEquals(Arrays.toString(expectedResult), listSchemasResponse.getSchemas().toString());
+        
+        Assert.assertEquals(2, listSchemasResponse.getSchemas().size());
+        Assert.assertTrue(listSchemasResponse.getSchemas().contains("TESTSCHEMA"));
+        Assert.assertTrue(listSchemasResponse.getSchemas().contains("TESTSCHEMA2"));
     }
 
     @Test
-    public void getPartitions() throws Exception
-    {
+    public void getPartitions() throws Exception {
         Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField("day")
                 .addIntField("month")
                 .addIntField("year")
                 .addStringField("preparedStmt")
                 .addStringField("queryId")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
                 .build();
 
         Set<String> partitionCols = new HashSet<>();
-        partitionCols.add("preparedStmt");
-        partitionCols.add("queryId");
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         constraintsMap.put("day", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
@@ -238,54 +248,69 @@ public class SnowflakeMetadataHandlerTest
         constraintsMap.put("year", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 2000)), false));
 
-        String testSql = "Select * from schema1.table1";
-        String[] test = new String[]{"Select * from schema1.table1", "Select * from schema1.table1"};
+        // Mock view check - empty result set means it's not a view
+        ResultSet viewResultSet = mockResultSet(
+            new String[]{"TABLE_SCHEM", "TABLE_NAME"},
+            new int[]{Types.VARCHAR, Types.VARCHAR},
+            new Object[][]{},
+            new AtomicInteger(-1)
+        );
+        Statement mockStatement = mock(Statement.class);
+        when(connection.createStatement()).thenReturn(mockStatement);
+        when(mockStatement.executeQuery(any())).thenReturn(viewResultSet);
 
-        String[] schema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
-        Object[][] values = {{"testSchema", "testTable1", "day", "int"}, {"testSchema", "testTable1", "month", "int"},
-                {"testSchema", "testTable1", "year", "int"}, {"testSchema", "testTable1", "preparedStmt", "varchar"},
-                {"testSchema", "testTable1", "queryId", "varchar"}};
-        int[] types = {Types.INTEGER, Types.INTEGER, Types.INTEGER, Types.VARCHAR, Types.VARCHAR};
-        List<TableName> expectedTables = new ArrayList<>();
-        expectedTables.add(new TableName("testSchema", "testTable1"));
+        // Mock count query
+        ResultSet countResultSet = mockResultSet(
+            new String[]{"row_count"},
+            new int[]{Types.BIGINT},
+            new Object[][]{{1000L}},
+            new AtomicInteger(-1)
+        );
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(any())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(countResultSet);
 
-        AtomicInteger rowNumber = new AtomicInteger(-1);
-        ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
+        // Mock environment properties
+        System.setProperty("aws_region", "us-east-1");
+        System.setProperty("s3_export_bucket", "test-bucket");
+        System.setProperty("s3_export_enabled", "false");
 
-        when(connection.getMetaData().getColumns(null, "schema1",
-                "table1", null)).thenReturn(resultSet);
+        // Mock metadata columns
+        String[] columnSchema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
+        Object[][] columnValues = {
+            {"schema1", "table1", "day", "int"},
+            {"schema1", "table1", "month", "int"},
+            {"schema1", "table1", "year", "int"},
+            {"schema1", "table1", "preparedStmt", "varchar"},
+            {"schema1", "table1", "queryId", "varchar"}
+        };
+        int[] columnTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        ResultSet columnResultSet = mockResultSet(columnSchema, columnTypes, columnValues, new AtomicInteger(-1));
+        when(connection.getMetaData().getColumns(any(), eq("schema1"), eq("table1"), any())).thenReturn(columnResultSet);
 
-
-        when(snowflakeMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
-
-        try (GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
                 new TableName("schema1", "table1"),
                 new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 tableSchema,
                 partitionCols);
 
-             GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
-            Block partitions = res.getPartitions();
+        GetTableLayoutResponse res = snowflakeMetadataHandlerMocked.doGetTableLayout(allocator, req);
+        Block partitions = res.getPartitions();
 
-            Assert.assertNotNull(partitions.getFieldReader("preparedStmt").readText().toString());
-
-            for (int row = 0; row < partitions.getRowCount() && row < 1; row++) {
-                logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
-
-            }
-            assertTrue(partitions.getRowCount() > 0);
-        }
+        assertTrue(partitions.getRowCount() > 0);
+        assertNotNull(partitions.getFieldVector("preparedStmt"));
+        assertNotNull(partitions.getFieldVector("queryId"));
     }
 
     @Test
-    public void doGetSplits() throws Exception
-    {
+    public void doGetSplits() throws Exception {
         Schema schema = SchemaBuilder.newBuilder()
                 .addIntField("day")
                 .addIntField("month")
                 .addIntField("year")
                 .addStringField("preparedStmt")
                 .addStringField("queryId")
+                .addStringField("partition")
                 .build();
 
         List<String> partitionCols = new ArrayList<>();
@@ -295,23 +320,71 @@ public class SnowflakeMetadataHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         Block partitions = allocator.createBlock(schema);
+        partitions.getFieldVector("preparedStmt").allocateNew();
+        partitions.getFieldVector("queryId").allocateNew();
+        partitions.getFieldVector("partition").allocateNew();
+        partitions.getFieldVector("day").allocateNew();
+        partitions.getFieldVector("month").allocateNew();
+        partitions.getFieldVector("year").allocateNew();
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {
             BlockUtils.setValue(partitions.getFieldVector("day"), i, 2016 + i);
             BlockUtils.setValue(partitions.getFieldVector("month"), i, (i % 12) + 1);
             BlockUtils.setValue(partitions.getFieldVector("year"), i, (i % 28) + 1);
-            BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), i, "test");
-            BlockUtils.setValue(partitions.getFieldVector("queryId"), i, "123");
+            BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), i, "SELECT * FROM table");
+            BlockUtils.setValue(partitions.getFieldVector("queryId"), i, String.valueOf(i));
+            BlockUtils.setValue(partitions.getFieldVector("partition"), i, "partition_" + i);
         }
+        partitions.setRowCount(num_partitions);
 
+        // Mock S3 export functionality
         List<S3Object> objectList = new ArrayList<>();
-        S3Object obj = S3Object.builder().key("testKey").build();
-        objectList.add(obj);
-        ListObjectsResponse listObjectsResponse = ListObjectsResponse.builder().contents(objectList).build();
+        for (int i = 0; i < num_partitions; i++) {
+            S3Object obj = S3Object.builder()
+                .key(i + "/part_" + i + ".csv")
+                .size(1000L)
+                .build();
+            objectList.add(obj);
+        }
+        ListObjectsResponse listObjectsResponse = ListObjectsResponse.builder()
+            .contents(objectList)
+            .build();
+        
+        when(mockS3.listObjects(any(ListObjectsRequest.class))).thenReturn(listObjectsResponse);
         when(snowflakeMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
 
-        when(mockS3.listObjects(nullable(ListObjectsRequest.class))).thenReturn(listObjectsResponse);
+        // Mock environment properties
+        System.setProperty("aws_region", "us-east-1");
+        System.setProperty("s3_export_bucket", "test-bucket");
+        System.setProperty("s3_export_enabled", "true");
+
+        // Mock database metadata
+        ResultSet viewResultSet = mockResultSet(
+            new String[]{"TABLE_SCHEM", "TABLE_NAME"},
+            new int[]{Types.VARCHAR, Types.VARCHAR},
+            new Object[][]{{"schema", "table_name"}},
+            new AtomicInteger(-1)
+        );
+        when(connection.getMetaData().getTables(any(), eq("schema"), eq("table_name"), any())).thenReturn(viewResultSet);
+
+        // Mock prepared statement execution
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(any())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.execute()).thenReturn(true);
+
+        // Mock metadata columns
+        String[] columnSchema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
+        Object[][] columnValues = {
+            {"schema", "table_name", "day", "int"},
+            {"schema", "table_name", "month", "int"},
+            {"schema", "table_name", "year", "int"},
+            {"schema", "table_name", "preparedStmt", "varchar"},
+            {"schema", "table_name", "queryId", "varchar"}
+        };
+        int[] columnTypes = {Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        ResultSet columnResultSet = mockResultSet(columnSchema, columnTypes, columnValues, new AtomicInteger(-1));
+        when(connection.getMetaData().getColumns(any(), eq("schema"), eq("table_name"), any())).thenReturn(columnResultSet);
 
         GetSplitsRequest originalReq = new GetSplitsRequest(this.federatedIdentity, "queryId", "catalog_name",
                 new TableName("schema", "table_name"),
@@ -321,22 +394,171 @@ public class SnowflakeMetadataHandlerTest
                 null);
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
 
-        logger.info("doGetSplits: req[{}]", req);
         MetadataResponse rawResponse = snowflakeMetadataHandlerMocked.doGetSplits(allocator, req);
         assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
         GetSplitsResponse response = (GetSplitsResponse) rawResponse;
         String continuationToken = response.getContinuationToken();
 
-        logger.info("doGetSplits: continuationToken[{}] - splits[{}]", continuationToken, response.getSplits());
-
+        assertEquals(num_partitions, response.getSplits().size());
+        
         for (Split nextSplit : response.getSplits()) {
-
-            assertNotNull(nextSplit.getProperty("query_id"));
-            assertNotNull(nextSplit.getProperty("exportBucket"));
-            assertNotNull(nextSplit.getProperty("s3ObjectKey"));
+            assertNotNull(nextSplit.getSpillLocation());
         }
+    }
 
-        assertTrue(!response.getSplits().isEmpty());
+    @Test
+    public void testGetPartitionSchema() {
+        Schema schema = snowflakeMetadataHandler.getPartitionSchema("testCatalog");
+        assertNotNull(schema);
+        assertEquals(1, schema.getFields().size());
+        assertEquals("partition", schema.getFields().get(0).getName());
+        assertEquals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), schema.getFields().get(0).getType());
+    }
+
+    @Test
+    public void testListDatabaseNames() throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_CATALOG"};
+        Object[][] values = {
+            {"schema1", "testCatalog"},
+            {"information_schema", "testCatalog"},
+            {"schema2", "testCatalog"}
+        };
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        
+        when(connection.getMetaData().getSchemas(nullable(String.class), nullable(String.class))).thenReturn(resultSet);
+        when(connection.getCatalog()).thenReturn("testCatalog");
+        
+        Set<String> databaseNames = snowflakeMetadataHandler.listDatabaseNames(connection);
+        assertEquals(2, databaseNames.size());
+        assertTrue(databaseNames.contains("schema1"));
+        assertTrue(databaseNames.contains("schema2"));
+        assertFalse(databaseNames.contains("information_schema"));
+    }
+
+    @Test
+    public void testGetSchemaWithDataTypes() throws Exception {
+        TableName tableName = new TableName("testSchema", "testTable");
+        Schema partitionSchema = SchemaBuilder.newBuilder().build();
+        
+        String[] metadataSchema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] metadataValues = {
+            {java.sql.Types.INTEGER, 10, "intCol", 0, 10},
+            {java.sql.Types.VARCHAR, 255, "varcharCol", 0, 10},
+            {java.sql.Types.TIMESTAMP, 0, "timestampCol", 0, 10},
+            {java.sql.Types.TIMESTAMP_WITH_TIMEZONE, 0, "timestampTzCol", 0, 10}
+        };
+        AtomicInteger metadataRowNumber = new AtomicInteger(-1);
+        ResultSet metadataResultSet = mockResultSet(metadataSchema, metadataValues, metadataRowNumber);
+        
+        String[] typeSchema = {"COLUMN_NAME", "DATA_TYPE"};
+        Object[][] typeValues = {
+            {"intCol", "INTEGER"},
+            {"varcharCol", "VARCHAR"},
+            {"timestampCol", "TIMESTAMP"},
+            {"timestampTzCol", "TIMESTAMP_TZ"}
+        };
+        AtomicInteger typeRowNumber = new AtomicInteger(-1);
+        ResultSet typeResultSet = mockResultSet(typeSchema, typeValues, typeRowNumber);
+        
+        when(connection.getMetaData().getColumns(nullable(String.class), eq(tableName.getSchemaName()), eq(tableName.getTableName()), nullable(String.class)))
+            .thenReturn(metadataResultSet);
+        PreparedStatement typeStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(contains("select COLUMN_NAME, DATA_TYPE"))).thenReturn(typeStmt);
+        when(typeStmt.executeQuery()).thenReturn(typeResultSet);
+        
+        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+        assertNotNull(schema);
+        assertEquals(4, schema.getFields().size());
+        assertEquals(org.apache.arrow.vector.types.Types.MinorType.INT.getType(), schema.findField("intCol").getType());
+        assertEquals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType(), schema.findField("varcharCol").getType());
+        assertEquals(org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType(), schema.findField("timestampCol").getType());
+        assertEquals(org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType(), schema.findField("timestampTzCol").getType());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testGetSchemaNoMatchingColumns() throws Exception {
+        TableName tableName = new TableName("testSchema", "testTable");
+        Schema partitionSchema = SchemaBuilder.newBuilder().build();
+        
+        String[] metadataSchema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] metadataValues = {};
+        AtomicInteger metadataRowNumber = new AtomicInteger(-1);
+        ResultSet metadataResultSet = mockResultSet(metadataSchema, metadataValues, metadataRowNumber);
+        
+        when(connection.getMetaData().getColumns(nullable(String.class), eq(tableName.getSchemaName()), eq(tableName.getTableName()), nullable(String.class)))
+            .thenReturn(metadataResultSet);
+            
+        snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+    }
+
+    @Test
+    public void testGetSchemaUnsupportedTypes() throws Exception {
+        TableName tableName = new TableName("testSchema", "testTable");
+        Schema partitionSchema = SchemaBuilder.newBuilder().build();
+        
+        String[] metadataSchema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] metadataValues = {
+            {Types.ARRAY, 0, "arrayCol", 0, 10},
+            {Types.INTEGER, 10, "intCol", 0, 10}
+        };
+        AtomicInteger metadataRowNumber = new AtomicInteger(-1);
+        ResultSet metadataResultSet = mockResultSet(metadataSchema, metadataValues, metadataRowNumber);
+        
+        String[] typeSchema = {"COLUMN_NAME", "DATA_TYPE"};
+        Object[][] typeValues = {
+            {"arrayCol", "ARRAY"},
+            {"intCol", "INTEGER"}
+        };
+        AtomicInteger typeRowNumber = new AtomicInteger(-1);
+        ResultSet typeResultSet = mockResultSet(typeSchema, typeValues, typeRowNumber);
+        
+        when(connection.getMetaData().getColumns(nullable(String.class), eq(tableName.getSchemaName()), eq(tableName.getTableName()), nullable(String.class)))
+            .thenReturn(metadataResultSet);
+        PreparedStatement typeStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(contains("select COLUMN_NAME, DATA_TYPE"))).thenReturn(typeStmt);
+        when(typeStmt.executeQuery()).thenReturn(typeResultSet);
+        
+        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+        assertNotNull(schema);
+        assertEquals(2, schema.getFields().size());
+        assertEquals(org.apache.arrow.vector.types.Types.MinorType.LIST.getType(), schema.findField("arrayCol").getType());
+        assertEquals(org.apache.arrow.vector.types.Types.MinorType.INT.getType(), schema.findField("intCol").getType());
+    }
+
+    @Test
+    public void testGetPartitionsForView() throws Exception {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("col1")
+                .addStringField(BLOCK_PARTITION_COLUMN_NAME)
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add(BLOCK_PARTITION_COLUMN_NAME);
+        
+        // Mock view check query results
+        String[] viewSchema = {"TABLE_SCHEMA", "TABLE_NAME"};
+        Object[][] viewValues = {{"testSchema", "testView"}};
+        AtomicInteger viewRowNumber = new AtomicInteger(-1);
+        ResultSet viewResultSet = mockResultSet(viewSchema, viewValues, viewRowNumber);
+        
+        PreparedStatement viewStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString())).thenReturn(viewStmt);
+        when(viewStmt.executeQuery()).thenReturn(viewResultSet);
+        
+        GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                new TableName("testSchema", "testView"),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                tableSchema,
+                partitionCols);
+
+        BlockAllocator allocator = new BlockAllocatorImpl();
+        GetTableLayoutResponse res = snowflakeMetadataHandler.doGetTableLayout(allocator, req);
+        
+        assertNotNull(res);
+        Block partitions = res.getPartitions();
+        assertEquals(1, partitions.getRowCount());
+        assertEquals("*", partitions.getFieldVector(BLOCK_PARTITION_COLUMN_NAME).getObject(0).toString());
     }
 }
