@@ -19,10 +19,9 @@
  * limitations under the License.
  * #L%
  */
-
 package com.amazonaws.athena.connectors.snowflake;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 import java.io.IOException;
 import java.security.KeyStoreException;
@@ -34,15 +33,14 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeUtils.setupNati
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
- * Metadata and Data. In this case we just compose {@link SnowflakeMetadataHandler} and {@link SnowflakeRecordHandler}.
- *
+ * Metadata and Data. In this case we just compose {@link SnowflakeMuxMetadataHandler} and {@link SnowflakeMuxRecordHandler}.
  */
-public class SnowflakeCompositeHandler
-        extends CompositeHandler
+public class SnowflakeMuxCompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public SnowflakeCompositeHandler() throws CertificateEncodingException, IOException, NoSuchAlgorithmException, KeyStoreException
+    public SnowflakeMuxCompositeHandler() throws ReflectiveOperationException, CertificateEncodingException, IOException, NoSuchAlgorithmException, KeyStoreException
     {
-        super(new SnowflakeMetadataHandler(new SnowflakeEnvironmentProperties(System.getenv()).createEnvironment()), new SnowflakeRecordHandler(new SnowflakeEnvironmentProperties(System.getenv()).createEnvironment()));
+        super(SnowflakeMuxMetadataHandler.class, SnowflakeMuxRecordHandler.class, SnowflakeMetadataHandler.class, SnowflakeRecordHandler.class);
         installCaCertificate();
         setupNativeEnvironmentVariables();
     }
