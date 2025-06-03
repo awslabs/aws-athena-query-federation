@@ -41,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
@@ -65,6 +66,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * Handles metadata requests for the Athena HBase Connector.
@@ -190,7 +193,6 @@ public class HbaseMetadataHandler
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
-            throws IOException
     {
         List<com.amazonaws.athena.connector.lambda.domain.TableName> tableNames = new ArrayList<>();
         TableName[] tables = getOrCreateConn(request).listTableNamesByNamespace(request.getSchemaName());
@@ -199,7 +201,24 @@ public class HbaseMetadataHandler
             tableNames.add(new com.amazonaws.athena.connector.lambda.domain.TableName(request.getSchemaName(),
                     tableName.getNameAsString().replace(request.getSchemaName() + ":", "")));
         }
-        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
+
+        String token = request.getNextToken();
+        int pageSize = request.getPageSize();
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) {
+            logger.info("doListTables - NO pagination");
+            return new ListTablesResponse(request.getCatalogName(), tableNames, null);
+        }
+        logger.info("doListTables - pagination");
+        return listPaginatedTables(request, tableNames);
+    }
+
+    private ListTablesResponse listPaginatedTables(ListTablesRequest listTablesRequest, List<com.amazonaws.athena.connector.lambda.domain.TableName> allTableNames)
+    {
+        logger.debug("Request is asking for pagination, but true pagination has not been implemented.");
+        int pageSize = listTablesRequest.getPageSize();
+        String startToken = listTablesRequest.getNextToken();
+
+        return PaginationHelper.manualPagination(allTableNames, startToken, pageSize, listTablesRequest.getCatalogName());
     }
 
     /**
