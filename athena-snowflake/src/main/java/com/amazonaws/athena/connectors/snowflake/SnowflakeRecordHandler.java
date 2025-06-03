@@ -1,4 +1,3 @@
-
 /*-
  * #%L
  * athena-snowflake
@@ -40,13 +39,16 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecima
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -74,26 +76,32 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.utils.Validate;
 
-import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_NAME;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.JDBC_PROPERTIES;
 
-public class SnowflakeRecordHandler extends RecordHandler
+public class SnowflakeRecordHandler extends JdbcRecordHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeRecordHandler.class);
+    private final JdbcConnectionFactory jdbcConnectionFactory;
+    private static final int FETCH_SIZE = 1000;
+    private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -115,18 +123,20 @@ public class SnowflakeRecordHandler extends RecordHandler
     public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(),
-                jdbcConnectionFactory, new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER)), configOptions);
+                jdbcConnectionFactory, new SnowflakeQueryStringBuilder(SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER)), configOptions);
     }
 
     @VisibleForTesting
-    SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, final S3Client amazonS3, final SecretsManagerClient secretsManager,
-                           final AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
+    SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SNOWFLAKE_NAME, configOptions);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
+        this.jdbcConnectionFactory = jdbcConnectionFactory;
+        this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
 
     /**
-     * Used to read data from S3, converts to arrow, and also handles spillover logic..
+     * Used to handle data transfer between Snowflake and Athena, supporting both direct query and S3 export paths,
+     * converts to arrow format, and manages spillover logic.
      *
      * @param spiller            A BlockSpiller that should be used to write the row data associated with this Split.
      *                           The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
@@ -136,13 +146,27 @@ public class SnowflakeRecordHandler extends RecordHandler
      *                           3. The filtering predicate (if any)
      *                           4. The columns required for projection.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws IOException       Throws an IOException
+     * @throws Exception       Throws an Exception
      */
     @Override
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws IOException
+            throws Exception
     {
-        LOGGER.info("readWithConstraint: schema[{}] tableName[{}]", recordsRequest.getSchema(), recordsRequest.getTableName());
+        SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
+        
+        if (envProperties.isS3ExportEnabled()) {
+            // Use S3 export path for data transfer
+            handleS3ExportRead(spiller, recordsRequest, queryStatusChecker);
+        }
+        else {
+            // Use traditional direct query path
+            handleDirectRead(spiller, recordsRequest, queryStatusChecker);
+        }
+    }
+
+    private void handleS3ExportRead(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    {
+        LOGGER.info("handleS3ExportRead: schema[{}] tableName[{}]", recordsRequest.getSchema(), recordsRequest.getTableName());
 
         Schema schemaName = recordsRequest.getSchema();
         Split split = recordsRequest.getSplit();
@@ -191,9 +215,15 @@ public class SnowflakeRecordHandler extends RecordHandler
                 }
             }
             catch (Exception e) {
-                throw new RuntimeException("Error in object content for object : " + s3ObjectKey, e);
+                throw new AthenaConnectorException("Error in object content for object : " + s3ObjectKey + " " + e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             }
         }
+    }
+
+    private void handleDirectRead(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+            throws Exception
+    {
+      super.readWithConstraint(spiller, recordsRequest, queryStatusChecker);
     }
 
     /**
@@ -349,7 +379,7 @@ public class SnowflakeRecordHandler extends RecordHandler
                     }
                 };
             default:
-                throw new RuntimeException("Unhandled type " + fieldType);
+                throw new AthenaConnectorException("Unhandled type " + fieldType, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
@@ -393,5 +423,26 @@ public class SnowflakeRecordHandler extends RecordHandler
     private static String constructS3Uri(String bucket, String key)
     {
         return "s3://" + bucket + "/" + key;
+    }
+
+    @Override
+    public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableNameInput, Schema schema, Constraints constraints, Split split) throws SQLException
+    {
+        PreparedStatement preparedStatement;
+        try {
+            if (constraints.isQueryPassThrough()) {
+                preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
+            }
+            else {
+                preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableNameInput.getSchemaName(), tableNameInput.getTableName(), schema, constraints, split);
+            }
+
+            // Disable fetching all rows.
+            preparedStatement.setFetchSize(FETCH_SIZE);
+        }
+        catch (SQLException e) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+        }
+        return preparedStatement;
     }
 }

@@ -26,8 +26,14 @@ public final class SnowflakeConstants
     public static final String SNOWFLAKE_DRIVER_CLASS = "com.snowflake.client.jdbc.SnowflakeDriver";
     public static final int SNOWFLAKE_DEFAULT_PORT = 1025;
     /**
+     * This constant limits the number of partitions. The default set to 50. A large number may cause a timeout issue.
+     * We arrived at this number after performance testing with datasets of different size
+     */
+    public static final int MAX_PARTITION_COUNT = 50;
+    /**
      * This constant limits the number of records to be returned in a single split.
      */
+    public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
     public static final String SNOWFLAKE_QUOTE_CHARACTER = "\"";
     /**
      * A ssl file location constant to store the SSL certificate

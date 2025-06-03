@@ -42,6 +42,13 @@ Parameters:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Type: String
     Default: ""
+  EnableS3Export:
+    Description: '(Optional) Enable S3 export functionality for data transfer. Set to true to use S3 export path, false for direct query path.'
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
 
 Conditions:
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
@@ -59,6 +66,7 @@ Resources:
       Environment:
         Variables:
           glue_connection: !Ref GlueConnection
+          SNOWFLAKE_ENABLE_S3_EXPORT: !Ref EnableS3Export
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
@@ -87,7 +95,6 @@ Resources:
             Principal:
               Service:
                 - lambda.amazonaws.com
-              AWS: '*'
             Action:
               - "sts:AssumeRole"
 
