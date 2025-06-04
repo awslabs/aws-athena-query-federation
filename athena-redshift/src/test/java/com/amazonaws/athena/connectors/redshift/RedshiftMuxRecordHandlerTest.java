@@ -73,7 +73,6 @@ public class RedshiftMuxRecordHandlerTest {
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
                 "redshift://jdbc:redshift://hostname/${testSecret}", "testSecret");
         this.jdbcRecordHandler = new RedshiftMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
-
         this.factory = new RedshiftMuxRecordHandlerFactory();
         this.configOptions = new HashMap<>();
         this.mockConfig = new DatabaseConnectionConfig(
@@ -128,7 +127,7 @@ public class RedshiftMuxRecordHandlerTest {
         JdbcRecordHandler recordHandler = this.factory.createJdbcRecordHandler(this.mockConfig, this.configOptions);
 
         assertThat(recordHandler)
-                .isInstanceOf(RedshiftRecordHandler.class)
-                .as("Record handler should be an instance of RedshiftRecordHandler");
+                .as("Record handler should be an instance of RedshiftRecordHandler")
+                .isInstanceOf(RedshiftRecordHandler.class);
     }
 }

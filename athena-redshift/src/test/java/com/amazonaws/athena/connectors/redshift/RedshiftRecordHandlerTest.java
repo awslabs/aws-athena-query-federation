@@ -78,8 +78,8 @@ public class RedshiftRecordHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(RedshiftRecordHandlerTest.class);
     private MockedStatic<JDBCUtil> mockedJDBCUtil;
 
-    private String enable_case_sensitive = "SET enable_case_sensitive_identifier to TRUE;";
-    private String disable_case_sensitive = "SET enable_case_sensitive_identifier to FALSE;";
+    private static final String enable_case_sensitive = "SET enable_case_sensitive_identifier to TRUE;";
+    private static final String disable_case_sensitive = "SET enable_case_sensitive_identifier to FALSE;";
 
     private RedshiftRecordHandler redshiftRecordHandler;
     private Connection connection;

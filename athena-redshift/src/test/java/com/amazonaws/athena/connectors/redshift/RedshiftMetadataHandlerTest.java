@@ -82,32 +82,27 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 
 public class RedshiftMetadataHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedshiftMetadataHandlerTest.class);
 
-    private String FILTER_PUSHDOWN = DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.getOptimization();
-    private String LIMIT_PUSHDOWN = DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.getOptimization();
-    private String COMPLEX_EXPRESSION_PUSHDOWN = DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization();
-    private String TOP_N_PUSHDOWN = DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.getOptimization();
-    private String QUERY_PASSTHROUGH = "supports_query_passthrough";
-
-    private String SORTED_RANGE_SET = FilterPushdownSubType.SORTED_RANGE_SET.getSubType();
-    private String NULLABLE_COMPARISON = FilterPushdownSubType.NULLABLE_COMPARISON.getSubType();
-    private String INTEGER_CONSTANT = LimitPushdownSubType.INTEGER_CONSTANT.getSubType();
-    private String SUPPORTED_FUNCTIONS = ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES.getSubType();
-    private String SUPPORTS_ORDER_BY = TopNPushdownSubType.SUPPORTS_ORDER_BY.getSubType();
-
-    private String CATALOG_NAME = "testCatalog";
-    private int FILTER_PUSHDOWN_SIZE = 2;
-    private int LIMIT_PUSHDOWN_SIZE = 1;
-    private int COMPLEX_EXPRESSION_SIZE = 1;
-    private int TOP_N_PUSHDOWN_SIZE = 1;
+    private static final String FILTER_PUSHDOWN = DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.getOptimization();
+    private static final String LIMIT_PUSHDOWN = DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.getOptimization();
+    private static final String COMPLEX_EXPRESSION_PUSHDOWN = DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization();
+    private static final String TOP_N_PUSHDOWN = DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.getOptimization();
+    private static final String QUERY_PASSTHROUGH = "supports_query_passthrough";
+    private static final String SORTED_RANGE_SET = FilterPushdownSubType.SORTED_RANGE_SET.getSubType();
+    private static final String NULLABLE_COMPARISON = FilterPushdownSubType.NULLABLE_COMPARISON.getSubType();
+    private static final String INTEGER_CONSTANT = LimitPushdownSubType.INTEGER_CONSTANT.getSubType();
+    private static final String SUPPORTED_FUNCTIONS = ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES.getSubType();
+    private static final String SUPPORTS_ORDER_BY = TopNPushdownSubType.SUPPORTS_ORDER_BY.getSubType();
+    private static final String CATALOG_NAME = "testCatalog";
+    private static final int FILTER_PUSHDOWN_SIZE = 2;
+    private static final int LIMIT_PUSHDOWN_SIZE = 1;
+    private static final int COMPLEX_EXPRESSION_SIZE = 1;
+    private static final int TOP_N_PUSHDOWN_SIZE = 1;
 
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
             "redshift://jdbc:redshift://hostname/user=A&password=B");
@@ -446,7 +441,6 @@ public class RedshiftMetadataHandlerTest
 
     @Test
     public void doGetDataSourceCapabilitiesWithoutQueryPassthrough()
-            throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
@@ -461,7 +455,7 @@ public class RedshiftMetadataHandlerTest
 
         GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
 
-        verifyCommonCapabilities(response, true);
+        verifyCommonCapabilities(response);
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
 
         Assert.assertNull("Query passthrough should not be present when disabled.", capabilities.get(QUERY_PASSTHROUGH));
@@ -469,7 +463,6 @@ public class RedshiftMetadataHandlerTest
 
     @Test
     public void doGetDataSourceCapabilitiesWithQueryPassthrough()
-            throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
@@ -483,7 +476,7 @@ public class RedshiftMetadataHandlerTest
         );
 
         GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
-        verifyCommonCapabilities(response, true);
+        verifyCommonCapabilities(response);
 
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
 
@@ -492,7 +485,7 @@ public class RedshiftMetadataHandlerTest
         Assert.assertFalse("Query passthrough list should not be empty.", passthrough.isEmpty());
     }
 
-    private void verifyCommonCapabilities(GetDataSourceCapabilitiesResponse response, boolean expectNonEmptyComplexProperties)
+    private void verifyCommonCapabilities(GetDataSourceCapabilitiesResponse response)
     {
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
         logger.info("Capabilities: {}", capabilities);
@@ -518,7 +511,7 @@ public class RedshiftMetadataHandlerTest
         Assert.assertEquals(COMPLEX_EXPRESSION_SIZE, complexExpressionPushdown.size());
         Assert.assertTrue(complexExpressionPushdown.stream().anyMatch(subType ->
                 subType.getSubType().equals(SUPPORTED_FUNCTIONS) &&
-                        (expectNonEmptyComplexProperties ? subType.getProperties().size() > 0 : subType.getProperties().isEmpty())));
+                        (!subType.getProperties().isEmpty())));
 
         // Verify top N pushdown capabilities
         List<OptimizationSubType> topNPushdown = capabilities.get(TOP_N_PUSHDOWN);
