@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.redshift;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
@@ -76,8 +75,6 @@ public class RedshiftMuxMetadataHandlerTest {
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
                 "redshift://jdbc:redshift://hostname/${testSecret}", "testSecret");
         this.jdbcMetadataHandler = new RedshiftMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
-
-
         this.redshiftMetadataHandlerFactory = new RedshiftMetadataHandlerFactory();
         this.configOptions = new HashMap<>();
     }
@@ -94,8 +91,9 @@ public class RedshiftMuxMetadataHandlerTest {
         JdbcMetadataHandler actualCreateJdbcMetadataHandlerResult = this.redshiftMetadataHandlerFactory.createJdbcMetadataHandler(config, this.configOptions);
 
         assertThat(actualCreateJdbcMetadataHandlerResult)
-                .isInstanceOf(RedshiftMetadataHandler.class)
-                .as("Handler should be an instance of RedshiftMetadataHandler");
+                .as("Handler should be an instance of RedshiftMetadataHandler")
+                .isInstanceOf(RedshiftMetadataHandler.class);
+
 
         List<Field> fields = actualCreateJdbcMetadataHandlerResult.getPartitionSchema(catalogName).getFields();
         assertEquals(2, fields.size());
