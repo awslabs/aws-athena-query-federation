@@ -144,10 +144,10 @@ public class VerticaSchemaUtilsTest extends TestBase
         formatMethod.setAccessible(true);
         String result = (String) formatMethod.invoke(null, mockCertificate);
 
-        String expectedEncoded = Base64.getMimeEncoder(64, System.getProperty("line.separator").getBytes())
+        String expectedEncoded = Base64.getMimeEncoder(64, System.lineSeparator().getBytes())
                 .encodeToString("test-cert".getBytes());
-        String expected = "-----BEGIN CERTIFICATE-----" + System.getProperty("line.separator") +
-                expectedEncoded + System.getProperty("line.separator") + "-----END CERTIFICATE-----";
+        String expected = "-----BEGIN CERTIFICATE-----" + System.lineSeparator() +
+                expectedEncoded + System.lineSeparator() + "-----END CERTIFICATE-----";
         assertEquals(expected, result);
     }
 

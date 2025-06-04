@@ -58,7 +58,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
@@ -124,8 +123,6 @@ public class VerticaMetadataHandlerTest extends TestBase
     private BlockWriter blockWriter;
     private QueryStatusChecker queryStatusChecker;
     private VerticaMetadataHandler verticaMetadataHandlerMocked;
-    @Mock
-    private S3Client s3clientMock;
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", VERTICA_NAME,
             "vertica://jdbc:vertica:thin:username/password@//127.0.0.1:1521/vrt");
 
@@ -159,7 +156,6 @@ public class VerticaMetadataHandlerTest extends TestBase
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.verticaMetadataHandler = new VerticaMetadataHandler(databaseConnectionConfig, this.jdbcConnectionFactory,
                 com.google.common.collect.ImmutableMap.of(), amazonS3, verticaSchemaUtils);
-        verticaMetadataHandlerMocked = Mockito.spy(this.verticaMetadataHandler);
         this.allocator = new BlockAllocatorImpl();
         this.databaseMetaData = this.connection.getMetaData();
         verticaMetadataHandlerMocked = Mockito.spy(this.verticaMetadataHandler);
@@ -257,7 +253,6 @@ public class VerticaMetadataHandlerTest extends TestBase
     @Test
     public void enhancePartitionSchema()
     {
-        GetTableLayoutRequest req = null;
         Set<String> partitionCols = new HashSet<>();
         SchemaBuilder schemaBuilder = new SchemaBuilder();
 
@@ -285,7 +280,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 .addField("bigint_col", new ArrowType.Int(64, true)) // BIGINT
                 .addField("float_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE)) // FLOAT4
                 .addField("double_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE)) // FLOAT8
-                .addField("decimal_col", new ArrowType.Decimal(10, 2)) // DECIMAL
+                .addField("decimal_col", new ArrowType.Decimal(10, 2, 128)) // DECIMAL
                 .addStringField("varchar_col") // VARCHAR
                 .addStringField("preparedStmt")
                 .addStringField("queryId")
@@ -312,8 +307,8 @@ public class VerticaMetadataHandlerTest extends TestBase
                 ImmutableList.of(Range.equal(allocator, new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE), 3.14f)), false));
         constraintsMap.put("double_col", SortedRangeSet.copyOf(new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE),
                 ImmutableList.of(Range.equal(allocator, new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE), 3.14159)), false));
-        constraintsMap.put("decimal_col", SortedRangeSet.copyOf(new ArrowType.Decimal(10, 2),
-                ImmutableList.of(Range.equal(allocator, new ArrowType.Decimal(10, 2), new BigDecimal("123.45"))), false));
+        constraintsMap.put("decimal_col", SortedRangeSet.copyOf(new ArrowType.Decimal(10, 2, 128),
+                ImmutableList.of(Range.equal(allocator, new ArrowType.Decimal(10, 2, 128), new BigDecimal("123.45"))), false));
         constraintsMap.put("varchar_col", SortedRangeSet.copyOf(new ArrowType.Utf8(),
                 ImmutableList.of(Range.equal(allocator, new ArrowType.Utf8(), "test")), false));
 
@@ -359,7 +354,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         try (GetTableLayoutRequest req = new GetTableLayoutRequest(federatedIdentity, queryId, "default",
                 new TableName("schema1", "table1"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
                 tableSchema, partitionCols);
              GetTableLayoutResponse res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
             Block partitions = res.getPartitions();
@@ -388,7 +383,7 @@ public class VerticaMetadataHandlerTest extends TestBase
     }
 
     @Test
-    public void doGetSplits() throws Exception
+    public void doGetSplits()
     {
         Schema schema = SchemaBuilder.newBuilder()
                 .addIntField("day")
@@ -485,12 +480,11 @@ public class VerticaMetadataHandlerTest extends TestBase
         GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, "queryId", "catalog_name",
                 new TableName("schema", JdbcQueryPassthrough.SCHEMA_FUNCTION_NAME), partitions, partitionCols, queryConstraints, null);
 
-        MetadataResponse rawResponse = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
+        GetSplitsResponse rawResponse = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
         assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
-        assertEquals(1, response.getSplits().size());
-        Split split = response.getSplits().iterator().next();
+        assertEquals(1, rawResponse.getSplits().size());
+        Split split = rawResponse.getSplits().iterator().next();
         assertEquals("query123", split.getProperty("query_id"));
         assertEquals("s3:", split.getProperty("exportBucket"));
         assertEquals("query123/part1.parquet", split.getProperty("s3ObjectKey"));

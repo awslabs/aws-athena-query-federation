@@ -32,8 +32,8 @@ import static org.mockito.Mockito.spy;
 @RunWith(MockitoJUnitRunner.class)
 public class QueryFactoryTest {
 
-    private String assert_not_null = "Expected non-null VerticaExportQueryBuilder";
-    private String assert_rendered = "Rendered result should not be null";
+    private static final String assert_not_null = "Expected non-null VerticaExportQueryBuilder";
+    private static final String assert_rendered = "Rendered result should not be null";
     private QueryFactory queryFactory;
 
     @Before

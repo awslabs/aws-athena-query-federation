@@ -41,12 +41,12 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class VerticaExportQueryBuilderTest {
 
-    private String TEST_QUERY_ID = "query-123";
-    private String TEST_BUCKET = "s3://test-bucket";
-    private String PREPARED_SQL = "SELECT * FROM prepared_table";
-    private String TEMPLATE_NAME = "templateVerticaExportQuery";
-    private String QPT_TEMPLATE_NAME = "templateVerticaExportQPTQuery";
-    private String EXPECTED_SQL_TEMPLATE = "SELECT <colNames> FROM <table> TO <s3ExportBucket> QUERYID <queryID>";
+    private static final String TEST_QUERY_ID = "query-123";
+    private static final String TEST_BUCKET = "s3://test-bucket";
+    private static final String PREPARED_SQL = "SELECT * FROM prepared_table";
+    private static final String TEMPLATE_NAME = "templateVerticaExportQuery";
+    private static final String QPT_TEMPLATE_NAME = "templateVerticaExportQPTQuery";
+    private static final String EXPECTED_SQL_TEMPLATE = "SELECT <colNames> FROM <table> TO <s3ExportBucket> QUERYID <queryID>";
 
     @Mock private ST template;
     @Mock private ResultSet resultSet;

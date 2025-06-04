@@ -33,9 +33,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 import java.util.Collections;
@@ -55,9 +53,6 @@ public class PredicateBuilderTest {
     private HashMap<String, PredicateBuilder.TypeAndValue> accumulator;
     private BlockAllocator allocator;
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
-
     @Before
     public void setUp() {
         allocator = new BlockAllocatorImpl();
@@ -73,6 +68,7 @@ public class PredicateBuilderTest {
     public void tearDown() {
         allocator.close();
     }
+
     @Test
     public void quote_SimpleName_ReturnsQuotedString() {
         assertEquals("\"simpleName\"", PredicateBuilder.quote("simpleName"));
@@ -134,7 +130,7 @@ public class PredicateBuilderTest {
 
     @Test
     public void toConjuncts_NonExistentColumn_ReturnsEmptyList() {
-        Constraints constraints = createConstraints(ImmutableMap.of("non_existent_col", singleValue(col1Int.getType(), 10, false)));
+        Constraints constraints = createConstraints(ImmutableMap.of("non_existent_col", singleValue(col1Int.getType(), 10)));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertTrue(conjuncts.isEmpty());
         assertTrue(accumulator.isEmpty());
@@ -142,7 +138,7 @@ public class PredicateBuilderTest {
 
     @Test
     public void toConjuncts_SingleEqualValue_ReturnsEqualityPredicate() {
-        Constraints constraints = createConstraints(ImmutableMap.of("col1", singleValue(col1Int.getType(), 123, false)));
+        Constraints constraints = createConstraints(ImmutableMap.of("col1", singleValue(col1Int.getType(), 123)));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
         assertEquals("(\"col1\" = <col1> )", conjuncts.get(0));
@@ -173,7 +169,7 @@ public class PredicateBuilderTest {
 
     @Test
     public void toConjuncts_GreaterThanValue_ReturnsGreaterThanPredicate() {
-        Constraints constraints = createConstraints(ImmutableMap.of("col3", greaterThan(col3Double.getType(), 10.5, false)));
+        Constraints constraints = createConstraints(ImmutableMap.of("col3", greaterThan(col3Double.getType(), 10.5)));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
         assertEquals("((\"col3\" > <col3> ))", conjuncts.get(0));
@@ -183,7 +179,7 @@ public class PredicateBuilderTest {
 
     @Test
     public void toConjuncts_InclusiveRange_ReturnsRangePredicate() {
-        Constraints constraints = createConstraints(ImmutableMap.of("col1", betweenInclusive(col1Int.getType(), 10, 20, false)));
+        Constraints constraints = createConstraints(ImmutableMap.of("col1", betweenInclusive(col1Int.getType())));
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
         assertEquals(1, conjuncts.size());
         assertEquals("((\"col1\" >= <col1>  AND \"col1\" \\<= <col1> ))", conjuncts.get(0));
@@ -212,8 +208,8 @@ public class PredicateBuilderTest {
     @Test
     public void toConjuncts_MultipleColumns_ReturnsMultiplePredicates() {
         Map<String, ValueSet> summary = ImmutableMap.of(
-                "col1", greaterThan(col1Int.getType(), 10, false),
-                "col2", singleValue(col2Varchar.getType(), "ACTIVE", false)
+                "col1", greaterThan(col1Int.getType(), 10),
+                "col2", singleValue(col2Varchar.getType(), "ACTIVE")
         );
         Constraints constraints = createConstraints(summary);
         List<String> conjuncts = PredicateBuilder.toConjuncts(schema.getFields(), constraints, accumulator);
@@ -236,40 +232,26 @@ public class PredicateBuilderTest {
 
 
     private Constraints createConstraints(Map<String, ValueSet> summary) {
-        return new Constraints(summary, Collections.emptyList(), Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT);
+        return new Constraints(summary, Collections.emptyList(), Collections.emptyList(), Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap());
     }
 
-    private ValueSet singleValue(ArrowType type, Object value, boolean nullAllowed) {
+    private ValueSet singleValue(ArrowType type, Object value) {
         Range range = Range.equal(allocator, type, value);
-        return SortedRangeSet.newBuilder(type, nullAllowed)
+        return SortedRangeSet.newBuilder(type, false)
                 .add(range)
                 .build();
     }
 
-    private ValueSet greaterThan(ArrowType type, Object value, boolean nullAllowed) {
+    private ValueSet greaterThan(ArrowType type, Object value) {
         Range range = Range.greaterThan(allocator, type, value);
-        return SortedRangeSet.newBuilder(type, nullAllowed)
+        return SortedRangeSet.newBuilder(type, false)
                 .add(range)
                 .build();
     }
 
-    private ValueSet lessThanOrEqual(ArrowType type, Object value, boolean nullAllowed) {
-        Range range = Range.lessThanOrEqual(allocator, type, value);
-        return SortedRangeSet.newBuilder(type, nullAllowed)
-                .add(range)
-                .build();
-    }
-
-    private ValueSet between(ArrowType type, Object lower, Object upper, boolean nullAllowed) {
-        Range range = Range.range(allocator, type, lower, false, upper, false);
-        return SortedRangeSet.newBuilder(type, nullAllowed)
-                .add(range)
-                .build();
-    }
-
-    private ValueSet betweenInclusive(ArrowType type, Object lower, Object upper, boolean nullAllowed) {
-        Range range = Range.range(allocator, type, lower, true, upper, true);
-        return SortedRangeSet.newBuilder(type, nullAllowed)
+    private ValueSet betweenInclusive(ArrowType type) {
+        Range range = Range.range(allocator, type, 10, true, 20, true);
+        return SortedRangeSet.newBuilder(type, false)
                 .add(range)
                 .build();
     }
