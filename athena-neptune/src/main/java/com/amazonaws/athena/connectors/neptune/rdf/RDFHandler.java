@@ -26,7 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.neptune.Constants;
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
-import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
+import com.amazonaws.athena.connectors.neptune.qpt.NeptuneSparqlQueryPassthrough;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +59,7 @@ public class RDFHandler
      */
 
     private final NeptuneSparqlConnection neptuneConnection;
-    private final NeptuneQueryPassthrough queryPassthrough = new NeptuneQueryPassthrough();
+    private final NeptuneSparqlQueryPassthrough queryPassthrough = new NeptuneSparqlQueryPassthrough();
 
     // @VisibleForTesting
     public RDFHandler(NeptuneConnection neptuneConnection) throws Exception
@@ -103,7 +103,7 @@ public class RDFHandler
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
             queryPassthrough.verify(qptArguments);
-            sparql = new StringBuilder(qptArguments.get(NeptuneQueryPassthrough.QUERY));
+            sparql = new StringBuilder(qptArguments.get(NeptuneSparqlQueryPassthrough.QUERY));
         }
         else {
             // 1. Get the specified prefixes
