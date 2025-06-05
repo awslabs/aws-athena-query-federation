@@ -41,7 +41,8 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
-import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
+import com.amazonaws.athena.connectors.neptune.qpt.NeptuneGremlinQueryPassthrough;
+import com.amazonaws.athena.connectors.neptune.qpt.NeptuneSparqlQueryPassthrough;
 import com.amazonaws.athena.connectors.neptune.rdf.NeptuneSparqlConnection;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
@@ -66,6 +67,9 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import static com.amazonaws.athena.connectors.neptune.Constants.GREMLIN_QUERY_LIMIT;
+import static com.amazonaws.athena.connectors.neptune.Constants.RDF_COMPONENT_TYPE;
+import static com.amazonaws.athena.connectors.neptune.Constants.SPARQL_QUERY_LIMIT;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -93,7 +97,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     private final String glueDBName;
 
     private NeptuneConnection neptuneConnection = null;
-    private final NeptuneQueryPassthrough queryPassthrough = new NeptuneQueryPassthrough();
+    private final NeptuneGremlinQueryPassthrough gremlinQueryPassthrough = new NeptuneGremlinQueryPassthrough();
+    private final NeptuneSparqlQueryPassthrough sparqlQueryPassthrough = new NeptuneSparqlQueryPassthrough();
 
     public NeptuneMetadataHandler(java.util.Map<String, String> configOptions)
     {
@@ -126,7 +131,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
         ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
-        queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+        gremlinQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+        sparqlQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
@@ -274,11 +280,17 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     public GetTableResponse doGetQueryPassthroughSchema(BlockAllocator allocator, GetTableRequest request) throws Exception
     {
         Map<String, String> qptArguments = request.getQueryPassthroughArguments();
-        queryPassthrough.verify(qptArguments);
-        String schemaName = qptArguments.get(NeptuneQueryPassthrough.DATABASE);
-        String tableName = qptArguments.get(NeptuneQueryPassthrough.COLLECTION);
-        String componentTypeValue = qptArguments.get(NeptuneQueryPassthrough.COMPONENT_TYPE);
-        TableName tableNameObj = new TableName(schemaName, tableName);
+        if (qptArguments.containsKey(NeptuneGremlinQueryPassthrough.TRAVERSE)) {
+            gremlinQueryPassthrough.verify(qptArguments);
+        }
+        else {
+            sparqlQueryPassthrough.verify(qptArguments);
+        }
+
+        String schemaName;
+        String tableName;
+        String componentTypeValue;
+        TableName tableNameObj;
         Schema schema;
         Enums.GraphType graphType = Enums.GraphType.PROPERTYGRAPH;
 
@@ -288,10 +300,14 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
 
         switch (graphType){
             case PROPERTYGRAPH:
+                schemaName = qptArguments.get(NeptuneGremlinQueryPassthrough.DATABASE);
+                tableName = qptArguments.get(NeptuneGremlinQueryPassthrough.COLLECTION);
+                componentTypeValue = qptArguments.get(NeptuneGremlinQueryPassthrough.COMPONENT_TYPE);
+                tableNameObj = new TableName(schemaName, tableName);
                 Client client = neptuneConnection.getNeptuneClientConnection();
                 GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
-                String gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
-                gremlinQuery = gremlinQuery.concat(".limit(10)");
+                String gremlinQuery = qptArguments.get(NeptuneGremlinQueryPassthrough.TRAVERSE);
+                gremlinQuery = gremlinQuery.concat("." + GREMLIN_QUERY_LIMIT);
                 logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with limit: " + gremlinQuery);
                 Object object = new PropertyGraphHandler(neptuneConnection).getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
                 GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
@@ -314,14 +330,17 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 }
 
             case RDF:
-                String sparqlQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
-                sparqlQuery = sparqlQuery.contains("limit") ? sparqlQuery : sparqlQuery.concat("\nlimit 10");
+                schemaName = qptArguments.get(NeptuneSparqlQueryPassthrough.DATABASE);
+                tableName = qptArguments.get(NeptuneSparqlQueryPassthrough.COLLECTION);
+                tableNameObj = new TableName(schemaName, tableName);
+                String sparqlQuery = qptArguments.get(NeptuneSparqlQueryPassthrough.QUERY);
+                sparqlQuery = sparqlQuery.contains("limit") ? sparqlQuery : sparqlQuery.concat("\n" + SPARQL_QUERY_LIMIT);
                 logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema sparql query with limit: " + sparqlQuery);
                 NeptuneSparqlConnection neptuneSparqlConnection = (NeptuneSparqlConnection) neptuneConnection;
                 neptuneSparqlConnection.runQuery(sparqlQuery);
                 if (neptuneSparqlConnection.hasNext()) {
                     Map<String, Object> resultsMap = neptuneSparqlConnection.next();
-                    schema = NeptuneSchemaUtils.getSchemaFromResults(resultsMap, componentTypeValue, tableName);
+                    schema = NeptuneSchemaUtils.getSchemaFromResults(resultsMap, RDF_COMPONENT_TYPE, tableName);
                     return new GetTableResponse(request.getCatalogName(), tableNameObj, schema);
                 }
                 else {
