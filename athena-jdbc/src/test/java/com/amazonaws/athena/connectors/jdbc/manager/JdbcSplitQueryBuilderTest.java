@@ -32,6 +32,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -82,8 +83,6 @@ public class JdbcSplitQueryBuilderTest
     @Before
     public void setup() throws SQLException
     {
-
-
         allocator = new BlockAllocatorImpl();
         expressionParser = mock(FederationExpressionParser.class);
         when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(Collections.emptyList());
@@ -119,6 +118,11 @@ public class JdbcSplitQueryBuilderTest
         schema = new Schema(Collections.singletonList(field));
     }
 
+    @After
+    public void after() {
+        allocator.close();
+    }
+
     @Test
     public void testBuildSql_IntType() throws SQLException
     {
@@ -140,8 +144,6 @@ public class JdbcSplitQueryBuilderTest
     @Test
     public void testToPredicateWithSingleValueSet() throws SQLException
     {
-        List<TypeAndValue> acc = new ArrayList<>();
-
         ArrowType type = new ArrowType.Int(32, true);
         SortedRangeSet valueSet = SortedRangeSet.of(false, Range.all(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType()));
 
@@ -153,7 +155,7 @@ public class JdbcSplitQueryBuilderTest
     }
 
     @Test
-    public void testUnsupportedTypeThrowsException() throws SQLException
+    public void testUnsupportedTypeThrowsException()
     {
         // Unsupported ArrowType
         ArrowType unsupportedType = new ArrowType.Duration(TimeUnit.MILLISECOND);
@@ -221,7 +223,7 @@ public class JdbcSplitQueryBuilderTest
         when(constraints.getSummary()).thenReturn(valueSetMap);
 
         PreparedStatement stmt = builder.buildSql(mockConnection, "catalog", "schema", "table", schema, constraints, split);
-
+        assertNotNull("Generated statement should not be null", stmt);
         // Verify SQL contains all columns
         for (Field field : fields) {
             verify(mockConnection).prepareStatement(contains("\"" + field.getName() + "\""));
