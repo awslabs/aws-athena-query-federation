@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -96,7 +96,7 @@ loadScripts(document, 'script');</script>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
@@ -161,6 +161,19 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 <!--   -->
 </a>
 <h3>Field Summary</h3>
+<table class="memberSummary">
+<caption><span>Fields</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Field</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#LIST_PAGINATED_TABLES_QUERY">LIST_PAGINATED_TABLES_QUERY</a></span></code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</table>
 <ul class="blockList">
 <li class="blockList"><a id="fields.inherited.from.class.com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler">
 <!--   -->
@@ -257,6 +270,14 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 </td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPaginatedTables(java.sql.Connection,java.lang.String,int,int)">getPaginatedTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
+                  <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName,
+                  int&nbsp;offset,
+                  int&nbsp;limit)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a></span>&#8203;(<a href="../../connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../../connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;getTableLayoutRequest,
@@ -266,19 +287,27 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
  data will be fetched with single split.If it is a table with no partition, then data will be fetched with single split.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>org.apache.arrow.vector.types.pojo.Schema</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionSchema(java.lang.String)">getPartitionSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;catalogName)</code></th>
 <td class="colLast">
 <div class="block">Delegates creation of partition schema to database type implementation.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.Schema</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema)">getSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
          <a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName,
          org.apache.arrow.vector.types.pojo.Schema&nbsp;partitionSchema)</code></th>
 <td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code><a href="../../connector/lambda/metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
+                   <a href="../../connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;listTablesRequest)</code></th>
+<td class="colLast">
+<div class="block">This is default getAllTables without true pagination.</div>
+</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -286,7 +315,7 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connectors.jdbc.manager.<a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></h3>
-<code><a href="../jdbc/manager/JdbcMetadataHandler.html#convertDatasourceTypeToArrow(int,int,java.util.Map,java.sql.ResultSetMetaData)">convertDatasourceTypeToArrow</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#escapeNamePattern(java.lang.String,java.lang.String)">escapeNamePattern</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getArrayArrowTypeFromTypeName(java.lang.String,int,int)">getArrayArrowTypeFromTypeName</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getColumns(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.sql.DatabaseMetaData)">getColumns</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getCredentialProvider()">getCredentialProvider</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getJdbcConnectionFactory()">getJdbcConnectionFactory</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName)">getSplitClauses</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#listDatabaseNames(java.sql.Connection)">listDatabaseNames</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#setupQueryPassthroughSplit(com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">setupQueryPassthroughSplit</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#wrapNameWithEscapedCharacter(java.lang.String)">wrapNameWithEscapedCharacter</a></code></li>
+<code><a href="../jdbc/manager/JdbcMetadataHandler.html#convertDatasourceTypeToArrow(int,int,java.util.Map,java.sql.ResultSetMetaData)">convertDatasourceTypeToArrow</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doGetQueryPassthroughSchema(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetQueryPassthroughSchema</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">doGetTable</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doListSchemaNames(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest)">doListSchemaNames</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#escapeNamePattern(java.lang.String,java.lang.String)">escapeNamePattern</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getArrayArrowTypeFromTypeName(java.lang.String,int,int)">getArrayArrowTypeFromTypeName</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getColumns(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.sql.DatabaseMetaData)">getColumns</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getCredentialProvider()">getCredentialProvider</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getJdbcConnectionFactory()">getJdbcConnectionFactory</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#getSplitClauses(com.amazonaws.athena.connector.lambda.domain.TableName)">getSplitClauses</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#listDatabaseNames(java.sql.Connection)">listDatabaseNames</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#setupQueryPassthroughSplit(com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">setupQueryPassthroughSplit</a>, <a href="../jdbc/manager/JdbcMetadataHandler.html#wrapNameWithEscapedCharacter(java.lang.String)">wrapNameWithEscapedCharacter</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">
@@ -311,6 +340,29 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 <div class="details">
 <ul class="blockList">
 <li class="blockList">
+<!-- ============ FIELD DETAIL =========== -->
+<section>
+<ul class="blockList">
+<li class="blockList"><a id="field.detail">
+<!--   -->
+</a>
+<h3>Field Detail</h3>
+<a id="LIST_PAGINATED_TABLES_QUERY">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>LIST_PAGINATED_TABLES_QUERY</h4>
+<pre>public static final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a> LIST_PAGINATED_TABLES_QUERY</pre>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../constant-values.html#com.amazonaws.athena.connectors.saphana.SaphanaMetadataHandler.LIST_PAGINATED_TABLES_QUERY">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+</li>
+</ul>
+</section>
 <!-- ========= CONSTRUCTOR DETAIL ======== -->
 <section>
 <ul class="blockList">
@@ -441,6 +493,45 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 </dl>
 </li>
 </ul>
+<a id="listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>listPaginatedTables</h4>
+<pre class="methodSignature">public&nbsp;<a href="../../connector/lambda/metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a>&nbsp;listPaginatedTables&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
+                                              <a href="../../connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;listTablesRequest)
+                                       throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../jdbc/manager/JdbcMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">JdbcMetadataHandler</a></code></span></div>
+<div class="block">This is default getAllTables without true pagination.
+ Paginated list of tables will be returned by retrieving all tables first, then returning subset based off request.
+ Override this if you want to support true pagination behavior.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="../jdbc/manager/JdbcMetadataHandler.html#listPaginatedTables(java.sql.Connection,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">listPaginatedTables</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></code></dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a id="getPaginatedTables(java.sql.Connection,java.lang.String,int,int)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getPaginatedTables</h4>
+<pre class="methodSignature">protected&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="../../connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt;&nbsp;getPaginatedTables&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;connection,
+                                             <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;databaseName,
+                                             int&nbsp;offset,
+                                             int&nbsp;limit)
+                                      throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></pre>
+<dl>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code></dd>
+</dl>
+</li>
+</ul>
 <a id="doGetSplits(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest)">
 <!--   -->
 </a>
@@ -543,7 +634,7 @@ extends <a href="../jdbc/manager/JdbcMetadataHandler.html" title="class in com.a
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
