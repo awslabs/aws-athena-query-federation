@@ -25,10 +25,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
-public final class NeptuneQueryPassthrough implements QueryPassthroughSignature
+import static com.amazonaws.athena.connectors.neptune.qpt.NeptuneGremlinQueryPassthrough.TRAVERSE;
+
+/**
+ * A Singleton class that implements QPT signature interface to define
+ * the Neptune Sparql (RDF Type) Query Passthrough Function's signature that will be used
+ * to inform the engine how to define QPT Function for a Neptune connector
+ */
+public final class NeptuneSparqlQueryPassthrough implements QueryPassthroughSignature
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(NeptuneQueryPassthrough.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NeptuneSparqlQueryPassthrough.class);
 
     // Constant value representing the name of the query.
     public static final String NAME = "query";
@@ -63,5 +71,14 @@ public final class NeptuneQueryPassthrough implements QueryPassthroughSignature
     public Logger getLogger()
     {
         return LOGGER;
+    }
+
+    @Override
+    public void customConnectorVerifications(Map<String, String> engineQptArguments)
+    {
+        // Verify no mixed operations (SPARQL and Gremlin in same request)
+        if (engineQptArguments.containsKey(TRAVERSE)) {
+            throw new IllegalArgumentException("Mixed operations not supported: Cannot use both SPARQL query and Gremlin traverse in the same request");
+        }
     }
 }
