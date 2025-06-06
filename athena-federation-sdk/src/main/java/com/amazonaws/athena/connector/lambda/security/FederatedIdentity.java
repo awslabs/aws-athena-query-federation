@@ -23,6 +23,7 @@ package com.amazonaws.athena.connector.lambda.security;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,6 +38,7 @@ public class FederatedIdentity
     private final String account;
     private final Map<String, String> principalTags;
     private final List<String> iamGroups;
+    private final Map<String, String> configOptions;
 
     @JsonCreator
     public FederatedIdentity(@JsonProperty("arn") String arn,
@@ -48,6 +50,21 @@ public class FederatedIdentity
         this.account = account;
         this.principalTags = principalTags;
         this.iamGroups = iamGroups;
+        this.configOptions = new HashMap<>();
+    }
+
+    @JsonCreator
+    public FederatedIdentity(@JsonProperty("arn") String arn,
+                             @JsonProperty("account") String account,
+                             @JsonProperty("principalTags") Map<String, String> principalTags,
+                             @JsonProperty("iamGroups") List<String> iamGroups,
+                             @JsonProperty("configOptions") Map<String, String> configOptions)
+    {
+        this.arn = arn;
+        this.account = account;
+        this.principalTags = principalTags;
+        this.iamGroups = iamGroups;
+        this.configOptions = configOptions;
     }
 
     @JsonProperty("arn")
@@ -74,6 +91,12 @@ public class FederatedIdentity
         return iamGroups;
     }
 
+    @JsonProperty("configOptions")
+    public Map<String, String> getConfigOptions()
+    {
+        return configOptions;
+    }
+
     @Override
     public boolean equals(Object o)
     {
@@ -87,9 +110,10 @@ public class FederatedIdentity
 
         FederatedIdentity that = (FederatedIdentity) o;
         return arn.equals(that.arn) &&
-                       account.equals(that.account) &&
-                       principalTags.equals(that.principalTags) &&
-                       iamGroups.equals(that.iamGroups);
+                account.equals(that.account) &&
+                principalTags.equals(that.principalTags) &&
+                iamGroups.equals(that.iamGroups) &&
+                configOptions.equals(that.configOptions);
     }
 
     @Override

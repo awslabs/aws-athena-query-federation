@@ -113,7 +113,7 @@ public class TestBase
     {
         ddbClient = setupLocalDDB();
         ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, com.google.common.collect.ImmutableMap.of()).build();
-        schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, invoker, ddbClient);
+        schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, invoker, ddbClient, null);
     }
 
     @AfterClass

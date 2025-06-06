@@ -49,6 +49,7 @@ public class Constraints
     private final List<OrderByField> orderByClause;
     private long limit;
     private Map<String, String> queryPassthroughArguments;
+    private final QueryPlan queryPlan;
 
     @Deprecated
     public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
@@ -60,6 +61,29 @@ public class Constraints
         this.expression = expression;
         this.orderByClause = orderByClause;
         this.limit = limit;
+        this.queryPlan = null;
+    }
+
+    /**
+     *
+     * @param summary
+     * @param expression
+     * @param orderByClause
+     * @param limit
+     * @param queryPassthroughArguments
+     */
+    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
+                       @JsonProperty("expression") List<FederationExpression> expression,
+                       @JsonProperty("orderByClause") List<OrderByField> orderByClause,
+                       @JsonProperty("limit") long limit,
+                       @JsonProperty("queryPassthroughArguments") Map<String, String> queryPassthroughArguments)
+    {
+        this.summary = summary;
+        this.expression = expression;
+        this.orderByClause = orderByClause;
+        this.limit = limit;
+        this.queryPassthroughArguments = queryPassthroughArguments;
+        this.queryPlan = null;
     }
 
     /**
@@ -75,13 +99,15 @@ public class Constraints
                        @JsonProperty("expression") List<FederationExpression> expression,
                        @JsonProperty("orderByClause") List<OrderByField> orderByClause,
                        @JsonProperty("limit") long limit,
-                       @JsonProperty("queryPassthroughArguments") Map<String, String> queryPassthroughArguments)
+                       @JsonProperty("queryPassthroughArguments") Map<String, String> queryPassthroughArguments,
+                       @JsonProperty("queryPlan") QueryPlan queryPlan)
     {
         this.summary = summary;
         this.expression = expression;
         this.orderByClause = orderByClause;
         this.limit = limit;
         this.queryPassthroughArguments = queryPassthroughArguments;
+        this.queryPlan = queryPlan;
     }
 
     /**
@@ -124,6 +150,11 @@ public class Constraints
         return this.queryPassthroughArguments;
     }
 
+    public QueryPlan getQueryPlan()
+    {
+        return this.queryPlan;
+    }
+
     public boolean isQueryPassThrough()
     {
         return this.queryPassthroughArguments != null && !this.queryPassthroughArguments.isEmpty();
@@ -145,7 +176,8 @@ public class Constraints
                 Objects.equal(this.expression, that.expression) &&
                 Objects.equal(this.orderByClause, that.orderByClause) &&
                 Objects.equal(this.limit, that.limit) &&
-                Objects.equal(this.getQueryPassthroughArguments(), that.getQueryPassthroughArguments());
+                Objects.equal(this.getQueryPassthroughArguments(), that.getQueryPassthroughArguments()) &&
+                Objects.equal(this.queryPlan, that.queryPlan);
     }
 
     @Override
@@ -157,6 +189,7 @@ public class Constraints
                 "orderByClause=" + orderByClause +
                 "limit=" + limit +
                 "queryPassthroughArguments=" + queryPassthroughArguments +
+                "queryPlan=" + queryPlan +
                 '}';
     }
 
