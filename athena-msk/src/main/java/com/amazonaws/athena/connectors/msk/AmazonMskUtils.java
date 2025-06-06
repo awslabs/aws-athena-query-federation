@@ -19,7 +19,9 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
+import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.amazonaws.athena.connectors.msk.dto.Message;
+import com.amazonaws.athena.connectors.msk.dto.ProtobufTopicSchema;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.athena.connectors.msk.serde.MskCsvDeserializer;
@@ -63,6 +65,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AmazonMskUtils
 {
@@ -100,6 +104,10 @@ public class AmazonMskUtils
     private static final String KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG = "max.partition.fetch.bytes";
     private static final String KAFKA_KEY_DESERIALIZER_CLASS_CONFIG = "key.deserializer";
     private static final String KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG = "value.deserializer";
+    // Match the entire protobuf message schema block
+    private static final Pattern MESSAGE_PATTERN = Pattern.compile("message\\s+(\\w+)\\s*\\{([^}]*)\\}");
+    // Match Protobuf field type and name
+    private static final Pattern FIELD_PATTERN = Pattern.compile("\\s*(?:optional|required|repeated)?\\s*(\\w+(?:<[^>]+>)?)\\s+(\\w+)\\s*=\\s*\\d+\\s*;");
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -455,5 +463,36 @@ public class AmazonMskUtils
             default:
                 return Types.MinorType.VARCHAR.getType();
         }
+    }
+
+    public static ProtobufTopicSchema parseProtobufSchema(String schemaDefinition)
+    {
+        // Remove comments if any
+        String cleanedSchema = stripComments(schemaDefinition);
+        ProtobufTopicSchema topicSchema = new ProtobufTopicSchema();
+
+        Matcher messageMatcher = MESSAGE_PATTERN.matcher(cleanedSchema);
+        if (messageMatcher.find()) {
+            topicSchema.setName(messageMatcher.group(1));
+            String messageContent = messageMatcher.group(2);
+
+            Matcher fieldMatcher = FIELD_PATTERN.matcher(messageContent);
+            while (fieldMatcher.find()) {
+                String type = fieldMatcher.group(1);
+                String name = fieldMatcher.group(2);
+
+                topicSchema.getFields().add(new MSKField(name, type));
+            }
+        }
+
+        return topicSchema;
+    }
+
+    private static String stripComments(String schema)
+    {
+        // Remove multiline comments first
+        String noBlockComments = schema.replaceAll("/\\*.*?\\*/", "");
+        // Remove single-line comments
+        return noBlockComments.replaceAll("//.*", "");
     }
 }
