@@ -27,6 +27,8 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -35,6 +37,12 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -73,14 +81,28 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
-
 
 public class RedshiftMetadataHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedshiftMetadataHandlerTest.class);
+
+    private static final String FILTER_PUSHDOWN = DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.getOptimization();
+    private static final String LIMIT_PUSHDOWN = DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.getOptimization();
+    private static final String COMPLEX_EXPRESSION_PUSHDOWN = DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization();
+    private static final String TOP_N_PUSHDOWN = DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.getOptimization();
+    private static final String QUERY_PASSTHROUGH = "supports_query_passthrough";
+    private static final String SORTED_RANGE_SET = FilterPushdownSubType.SORTED_RANGE_SET.getSubType();
+    private static final String NULLABLE_COMPARISON = FilterPushdownSubType.NULLABLE_COMPARISON.getSubType();
+    private static final String INTEGER_CONSTANT = LimitPushdownSubType.INTEGER_CONSTANT.getSubType();
+    private static final String SUPPORTED_FUNCTIONS = ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES.getSubType();
+    private static final String SUPPORTS_ORDER_BY = TopNPushdownSubType.SUPPORTS_ORDER_BY.getSubType();
+    private static final String CATALOG_NAME = "testCatalog";
+    private static final int FILTER_PUSHDOWN_SIZE = 2;
+    private static final int LIMIT_PUSHDOWN_SIZE = 1;
+    private static final int COMPLEX_EXPRESSION_SIZE = 1;
+    private static final int TOP_N_PUSHDOWN_SIZE = 1;
 
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
             "redshift://jdbc:redshift://hostname/user=A&password=B");
@@ -100,6 +122,7 @@ public class RedshiftMetadataHandlerTest
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        this.athena = Mockito.mock(AthenaClient.class);
         this.redshiftMetadataHandler = new RedshiftMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
@@ -414,5 +437,86 @@ public class RedshiftMetadataHandlerTest
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
 
         logger.info("doGetTableWithArrayColumns - exit");
-   }
+    }
+
+    @Test
+    public void doGetDataSourceCapabilitiesWithoutQueryPassthrough()
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
+
+        RedshiftMetadataHandler handler = new RedshiftMetadataHandler(
+                databaseConnectionConfig,
+                secretsManager,
+                athena,
+                jdbcConnectionFactory,
+                ImmutableMap.of() // no passthrough config
+        );
+
+        GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
+
+        verifyCommonCapabilities(response);
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+        Assert.assertNull("Query passthrough should not be present when disabled.", capabilities.get(QUERY_PASSTHROUGH));
+    }
+
+    @Test
+    public void doGetDataSourceCapabilitiesWithQueryPassthrough()
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
+
+        RedshiftMetadataHandler handler = new RedshiftMetadataHandler(
+                databaseConnectionConfig,
+                secretsManager,
+                athena,
+                jdbcConnectionFactory,
+                ImmutableMap.of("enable_query_passthrough", "true")
+        );
+
+        GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
+        verifyCommonCapabilities(response);
+
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+        List<OptimizationSubType> passthrough = capabilities.get("SYSTEM.QUERY");
+        Assert.assertNotNull("Query passthrough should be present when enabled.", passthrough);
+        Assert.assertFalse("Query passthrough list should not be empty.", passthrough.isEmpty());
+    }
+
+    private void verifyCommonCapabilities(GetDataSourceCapabilitiesResponse response)
+    {
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+        logger.info("Capabilities: {}", capabilities);
+
+        Assert.assertEquals(CATALOG_NAME, response.getCatalogName());
+
+        // Verify filter pushdown capabilities
+        List<OptimizationSubType> filterPushdown = capabilities.get(FILTER_PUSHDOWN);
+        Assert.assertNotNull("Expected " + FILTER_PUSHDOWN + " capability to be present", filterPushdown);
+        Assert.assertEquals(FILTER_PUSHDOWN_SIZE, filterPushdown.size());
+        Assert.assertTrue(filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals(SORTED_RANGE_SET)));
+        Assert.assertTrue(filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals(NULLABLE_COMPARISON)));
+
+        // Verify limit pushdown capabilities
+        List<OptimizationSubType> limitPushdown = capabilities.get(LIMIT_PUSHDOWN);
+        Assert.assertNotNull("Expected " + LIMIT_PUSHDOWN + " capability to be present", limitPushdown);
+        Assert.assertEquals(LIMIT_PUSHDOWN_SIZE, limitPushdown.size());
+        Assert.assertTrue(limitPushdown.stream().anyMatch(subType -> subType.getSubType().equals(INTEGER_CONSTANT)));
+
+        // Verify complex expression pushdown capabilities
+        List<OptimizationSubType> complexExpressionPushdown = capabilities.get(COMPLEX_EXPRESSION_PUSHDOWN);
+        Assert.assertNotNull("Expected " + COMPLEX_EXPRESSION_PUSHDOWN + " capability to be present", complexExpressionPushdown);
+        Assert.assertEquals(COMPLEX_EXPRESSION_SIZE, complexExpressionPushdown.size());
+        Assert.assertTrue(complexExpressionPushdown.stream().anyMatch(subType ->
+                subType.getSubType().equals(SUPPORTED_FUNCTIONS) &&
+                        (!subType.getProperties().isEmpty())));
+
+        // Verify top N pushdown capabilities
+        List<OptimizationSubType> topNPushdown = capabilities.get(TOP_N_PUSHDOWN);
+        Assert.assertNotNull("Expected " + TOP_N_PUSHDOWN + " capability to be present", topNPushdown);
+        Assert.assertEquals(TOP_N_PUSHDOWN_SIZE, topNPushdown.size());
+        Assert.assertTrue(topNPushdown.stream().anyMatch(subType -> subType.getSubType().equals(SUPPORTS_ORDER_BY)));
+    }
 }
