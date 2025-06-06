@@ -40,7 +40,6 @@ public class FederatedIdentity
     private final List<String> iamGroups;
     private final Map<String, String> configOptions;
 
-    @JsonCreator
     public FederatedIdentity(@JsonProperty("arn") String arn,
                              @JsonProperty("account") String account,
                              @JsonProperty("principalTags") Map<String, String> principalTags,
