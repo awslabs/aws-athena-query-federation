@@ -69,6 +69,11 @@ public class DynamoDBTableResolver
         this.ddbClient = ddbClient;
     }
 
+    /**
+     * Fetches the list of tables from DynamoDB vis paginated ListTables calls
+     *
+     * @return the list of tables in DynamoDB
+     */
     public DynamoDBPaginatedTables listTables(String token, int pageSize,
                                               AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
             throws TimeoutException
