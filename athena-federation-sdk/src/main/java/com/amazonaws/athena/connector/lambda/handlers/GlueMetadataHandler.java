@@ -23,6 +23,7 @@ package com.amazonaws.athena.connector.lambda.handlers;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -46,8 +47,10 @@ import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
-import software.amazon.awssdk.services.glue.model.Column;
+import  software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
 import software.amazon.awssdk.services.glue.model.GetTablesRequest;
 import software.amazon.awssdk.services.glue.model.GetTablesResponse;
@@ -313,8 +316,10 @@ public abstract class GlueMetadataHandler
         Set<TableName> tables = new HashSet<>();
         String nextToken = request.getNextToken();
         int pageSize = request.getPageSize();
+
         FederatedIdentity federatedIdentity = request.getIdentity();
         AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
+        logger.info("Starting pagination at {} with page size {}", nextToken, pageSize);
         do {
             GetTablesRequest.Builder getTablesRequest = GetTablesRequest.builder()
                     .catalogId(getCatalog(request))
@@ -337,6 +342,7 @@ public abstract class GlueMetadataHandler
             }
 
             nextToken = response.nextToken();
+            logger.info("{} tables returned. Next token is {}", tables.size(), nextToken);
         }
         while (nextToken != null && (pageSize == UNLIMITED_PAGE_SIZE_VALUE || pageSize > 0));
 
@@ -404,7 +410,7 @@ public abstract class GlueMetadataHandler
         Table table = response.table();
 
         if (filter != null && !filter.filter(table)) {
-            throw new RuntimeException("No matching table found " + request.getTableName());
+            throw new AthenaConnectorException("No matching table found " + request.getTableName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -485,7 +491,7 @@ public abstract class GlueMetadataHandler
             return GlueFieldLexer.lex(name, glueType);
         }
         catch (RuntimeException ex) {
-            throw new RuntimeException("Error converting field[" + name + "] with type[" + glueType + "]", ex);
+            throw new AthenaConnectorException(ex, "Error converting field[" + name + "] with type[" + glueType + "]", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
         }
     }
 

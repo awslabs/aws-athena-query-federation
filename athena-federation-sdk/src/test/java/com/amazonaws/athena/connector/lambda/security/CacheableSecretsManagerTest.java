@@ -136,4 +136,48 @@ public class CacheableSecretsManagerTest
         }
         catch (RuntimeException ex) {}
     }
+
+    @Test
+    public void resolveWithDefaultCredentials()
+    {
+        when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
+                .thenAnswer((InvocationOnMock invocation) -> {
+                    GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
+                    String result = "{\"username\":\"testuser\", \"password\":\"testpassword\"}";
+                    if (request.secretId().equalsIgnoreCase("unknown")) {
+                        throw new RuntimeException("Unknown secret!");
+                    }
+                    return GetSecretValueResponse.builder().secretString(result).build();
+                });
+
+        String oneSecret = "${OneSecret}";
+        String oneExpected = "testuser:testpassword";
+        assertEquals(oneExpected, cachableSecretsManager.resolveWithDefaultCredentials(oneSecret));
+
+        String twoSecrets = "ThisIsMyStringWith${TwoSecret}SuperSecret${Secrets}";
+        String twoExpected = "ThisIsMyStringWithtestuser:testpasswordSuperSecrettestuser:testpassword";
+        assertEquals(twoExpected, cachableSecretsManager.resolveWithDefaultCredentials(twoSecrets));
+
+        String noSecrets = "ThisIsMyStringWithTwoSecretSuperSecretSecrets";
+        String noSecretsExpected = "ThisIsMyStringWithTwoSecretSuperSecretSecrets";
+        assertEquals(noSecretsExpected, cachableSecretsManager.resolveWithDefaultCredentials(noSecrets));
+
+        String commonErrors = "ThisIsM}yStringWi${thTwoSecretS{uperSecretSecrets";
+        String commonErrorsExpected = "ThisIsM}yStringWi${thTwoSecretS{uperSecretSecrets";
+        assertEquals(commonErrorsExpected, cachableSecretsManager.resolveWithDefaultCredentials(commonErrors));
+
+        String secretAllowedSpecialChars = "ThisIs${/My}StringW${ith_}All${Of+The}${@llowed=}${Special-Characters.}";
+        String secretAllowedSpecialCharsExpected = "ThisIstestuser:testpasswordStringWtestuser:testpasswordAlltestuser:testpasswordtestuser:testpasswordtestuser:testpassword";
+        assertEquals(secretAllowedSpecialCharsExpected, cachableSecretsManager.resolveWithDefaultCredentials(secretAllowedSpecialChars));
+
+        String unknownSecret = "This${Unknown}";
+        try {
+            cachableSecretsManager.resolveWithDefaultCredentials(unknownSecret);
+            fail("Should not see this!");
+        }
+        catch (RuntimeException ex) {}
+
+        String nullTest = null;
+        assertNull(cachableSecretsManager.resolveWithDefaultCredentials(nullTest));
+    }
 }

@@ -20,10 +20,10 @@
 
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,20 +54,22 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
     }
 
     @Override
-    public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
+    public Connection getConnection(final CredentialsProvider credentialsProvider)
     {
         try {
             final String derivedJdbcString;
             Properties properties = new Properties();
 
-            if (null != jdbcCredentialProvider) {
+            if (null != credentialsProvider) {
                 //checking for tcps (Secure Communication) protocol as part of the connection string.
                 if (databaseConnectionConfig.getJdbcConnectionString().toLowerCase().contains("@tcps://")) {
                     LOGGER.info("Establishing connection over SSL..");
                     properties.put("javax.net.ssl.trustStoreType", "JKS");
-                    properties.put("javax.net.ssl.trustStore", "rds-truststore.jks");
-                    properties.put("javax.net.ssl.trustStorePassword", "federationStorePass");
+                    properties.put("javax.net.ssl.trustStorePassword", "changeit");
                     properties.put("oracle.net.ssl_server_dn_match", "true");
+                    // By default; Oracle RDS uses SSL_RSA_WITH_AES_256_CBC_SHA
+                    // Adding the following cipher suits to support others listed in Doc
+                    // https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Appendix.Oracle.Options.SSL.html#Appendix.Oracle.Options.SSL.CipherSuites
                     if (System.getenv().getOrDefault(IS_FIPS_ENABLED, "false").equalsIgnoreCase("true") || System.getenv().getOrDefault(IS_FIPS_ENABLED_LEGACY, "false").equalsIgnoreCase("true")) {
                         properties.put("oracle.net.ssl_cipher_suites", "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)");
                     }
@@ -76,13 +78,15 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     LOGGER.info("Establishing normal connection..");
                 }
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                String password = jdbcCredentialProvider.getCredential().getPassword();
+                String password = credentialsProvider.getCredential().getPassword();
                 if (!password.contains("\"")) {
                     password = String.format("\"%s\"", password);
                 }
-                final String secretReplacement = String.format("%s/%s", jdbcCredentialProvider.getCredential().getUser(),
+                final String secretReplacement = String.format("%s/%s", credentialsProvider.getCredential().getUser(),
                         password);
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
+                // register driver
+                Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
                 return DriverManager.getConnection(derivedJdbcString, properties);
             }
             else {
@@ -91,6 +95,9 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
+        }
+        catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
+            throw new RuntimeException(ex);
         }
     }
 }

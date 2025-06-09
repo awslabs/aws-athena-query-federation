@@ -36,6 +36,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFact
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
+import com.amazonaws.athena.connectors.redshift.resolver.RedshiftJDBCCaseResolver;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
@@ -45,7 +46,6 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
@@ -76,31 +76,16 @@ public class RedshiftMetadataHandler
 
     public RedshiftMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT)), configOptions);
+        super(databaseConnectionConfig,
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT)),
+                configOptions,
+                new RedshiftJDBCCaseResolver(REDSHIFT_NAME));
     }
 
     @VisibleForTesting
     RedshiftMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
-    }
-
-    @Override
-    public String caseInsensitiveSchemaResolver(Connection connection, String databaseName) throws SQLException
-    {
-        String sql = "SELECT nspname FROM pg_namespace WHERE (nspname = ? or lower(nspname) = ?)";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, databaseName);
-        preparedStatement.setString(2, databaseName);
-
-        String resolvedSchemaName = null;
-        try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            if (resultSet.next()) {
-                resolvedSchemaName = resultSet.getString("nspname");
-                LOGGER.info("Resolved Schema from Case Insensitive look up : {}", resolvedSchemaName);
-            }
-        }
-        return resolvedSchemaName;
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, new RedshiftJDBCCaseResolver(REDSHIFT_NAME));
     }
 
     @Override
@@ -138,16 +123,5 @@ public class RedshiftMetadataHandler
         preparedStatement.setInt(4, token);
         LOGGER.debug("Prepared Statement for getting tables in schema {} : {}", databaseName, preparedStatement);
         return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
-    }
-
-    @Override
-    protected PreparedStatement getMaterializedViewOrExternalTable(Connection connection, String tableName, String databaseName) throws SQLException
-    {
-        String sql = "SELECT tablename as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" FROM svv_external_tables where schemaname = ? and lower(tablename) = ?";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setString(1, databaseName);
-        preparedStatement.setString(2, tableName);
-        LOGGER.debug("Prepared statement for getting name of External Table with Case Insensitive Look Up: {}", preparedStatement);
-        return preparedStatement;
     }
 }

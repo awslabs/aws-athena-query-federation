@@ -35,8 +35,6 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -48,13 +46,14 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.synapse.resolver.SynapseJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +64,6 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -76,8 +74,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME;
 
@@ -87,7 +85,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
 
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String ALL_PARTITIONS = "0";
-    static final String PARTITION_NUMBER = "PARTITION_NUMBER";
+    static final String PARTITION_NUMBER = "partition_number";
     static final String PARTITION_BOUNDARY_FROM = "PARTITION_BOUNDARY_FROM";
     static final String PARTITION_BOUNDARY_TO = "PARTITION_BOUNDARY_TO";
     static final String PARTITION_COLUMN = "PARTITION_COLUMN";
@@ -104,8 +102,10 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
      */
     public SynapseMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new SynapseJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
-                new DatabaseConnectionInfo(SynapseConstants.DRIVER_CLASS, SynapseConstants.DEFAULT_PORT)), configOptions);
+        super(databaseConnectionConfig,
+                new SynapseJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(SynapseConstants.DRIVER_CLASS, SynapseConstants.DEFAULT_PORT)),
+                configOptions,
+                new SynapseJDBCCaseResolver(SynapseConstants.NAME));
     }
 
     @VisibleForTesting
@@ -114,9 +114,10 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         SecretsManagerClient secretsManager,
         AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
-        java.util.Map<String, String> configOptions)
+        java.util.Map<String, String> configOptions,
+        JDBCCaseResolver caseResolver)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, caseResolver);
     }
 
     @Override
@@ -309,31 +310,14 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         return String.valueOf(partition);
     }
 
-    /**
-     * @param blockAllocator
-     * @param getTableRequest
-     * @return
-     */
     @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
-            return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-    }
-
-    @Override
-    protected ArrowType convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
+    protected Optional<ArrowType> convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
     {
         String dataType = metadata.getColumnTypeName(columnIndex);
         LOGGER.info("In convertDatasourceTypeToArrow: converting {}", dataType);
         if (dataType != null && SynapseDataType.isSupported(dataType)) {
             LOGGER.debug("Synapse  Datatype is support: {}", dataType);
-            return SynapseDataType.fromType(dataType); 
+            return Optional.of(SynapseDataType.fromType(dataType));
         }
         return super.convertDatasourceTypeToArrow(columnIndex, precision, configOptions, metadata);
     }
@@ -346,15 +330,16 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
      * @return
      * @throws Exception
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    @Override
+     protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
         LOGGER.info("Inside getSchema");
 
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE, " +
                 "C.PRECISION, C.SCALE " +
-                "FROM SYS.COLUMNS C " +
-                "JOIN SYS.TYPES T " +
+                "FROM sys.columns C " +
+                "JOIN sys.types T " +
                 "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
                 "WHERE C.OBJECT_ID=OBJECT_ID(?)";
 
@@ -458,7 +443,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
             boolean found = false;
             while (resultSet.next()) {
-                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
@@ -470,19 +455,19 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("dataType: " + dataType);
 
                 if (dataType != null && SynapseDataType.isSupported(dataType)) {
-                    columnType = SynapseDataType.fromType(dataType);
+                    columnType = Optional.of(SynapseDataType.fromType(dataType));
                 }
 
                 /**
                  * converting into VARCHAR for non supported data types.
                  */
-                if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
-                    columnType = Types.MinorType.VARCHAR.getType();
+                if (columnType.isEmpty() || !SupportedTypes.isSupported(columnType.get())) {
+                    columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
                 LOGGER.debug("columnType: " + columnType);
-                if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     found = true;
                 }
                 else {
@@ -494,16 +479,5 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             }
         }
         return schemaBuilder;
-    }
-
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(
-                catalogName,
-                escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape),
-                null);
     }
 }

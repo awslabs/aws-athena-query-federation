@@ -19,10 +19,10 @@
  */
 package com.amazonaws.athena.connectors.synapse;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import org.apache.commons.lang3.Validate;
 
 import java.sql.Connection;
@@ -55,27 +55,27 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
     }
 
     @Override
-    public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
+    public Connection getConnection(final CredentialsProvider credentialsProvider)
     {
         try {
             final String derivedJdbcString;
-            if (null != jdbcCredentialProvider) {
+            if (null != credentialsProvider) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement;
                 if (databaseConnectionConfig.getJdbcConnectionString().contains("authentication=ActiveDirectoryServicePrincipal")) {
                     // Set AADSecurePrincipal credentials
                     secretReplacement = String.format(
                         "%s;%s",
-                        "AADSecurePrincipalId=" + jdbcCredentialProvider.getCredential().getUser(),
-                        "AADSecurePrincipalSecret=" + jdbcCredentialProvider.getCredential().getPassword()
+                        "AADSecurePrincipalId=" + credentialsProvider.getCredential().getUser(),
+                        "AADSecurePrincipalSecret=" + credentialsProvider.getCredential().getPassword()
                     );
                 }
                 else {
                     // replace aws secret value with credentials and change username as user
                     secretReplacement = String.format(
                         "%s;%s",
-                        "user=" + jdbcCredentialProvider.getCredential().getUser(),
-                        "password=" + jdbcCredentialProvider.getCredential().getPassword()
+                        "user=" + credentialsProvider.getCredential().getUser(),
+                        "password=" + credentialsProvider.getCredential().getPassword()
                     );
                 }
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));

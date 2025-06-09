@@ -76,6 +76,8 @@ Resources:
       ImageUri: !Sub
         - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-clickhouse:2022.47.1'
         - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
+      ImageConfig:
+        Command: [ "com.amazonaws.athena.connectors.clickhouse.ClickHouseMuxCompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with ClickHouse using JDBC"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
@@ -89,7 +91,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:

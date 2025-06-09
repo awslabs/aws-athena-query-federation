@@ -23,6 +23,7 @@ package com.amazonaws.athena.connectors.snowflake;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -34,6 +35,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -81,8 +84,8 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableNameInput, Schema schema, Constraints constraints, Split split) throws SQLException
     {
         PreparedStatement preparedStatement;
-
-        if (constraints.isQueryPassThrough()) {
+        try {
+            if (constraints.isQueryPassThrough()) {
             preparedStatement = buildQueryPassthroughSql(jdbcConnection, constraints);
         }
         else {
@@ -91,6 +94,10 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
 
         // Disable fetching all rows.
         preparedStatement.setFetchSize(FETCH_SIZE);
+        }
+        catch (SQLException e) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+        }
         return preparedStatement;
     }
 }

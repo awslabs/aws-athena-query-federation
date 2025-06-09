@@ -1,24 +1,30 @@
 import sys
+import boto3
 from awsglue.utils import getResolvedOptions
-import pg
 
-args = getResolvedOptions(sys.argv,
-                          ['db_url',
-                           'username',
-                           'password'])
+args = getResolvedOptions(sys.argv, ['db_arn', 'secret_arn'])
 
-connection = pg.DB( host=args['db_url'], user=args['username'], passwd=args['password'], dbname='test')
+client = boto3.client('rds-data')
 
-connection.query('CREATE SCHEMA "camelCaseTest"')
-connection.query('CREATE TABLE "camelCaseTest"."camelCase" (ID int)')
-connection.query('INSERT INTO "camelCaseTest"."camelCase" VALUES (5)')
-connection.query('CREATE TABLE "camelCaseTest"."UPPERCASE" (ID int)')
-connection.query('INSERT INTO "camelCaseTest"."UPPERCASE" VALUES (7)')
+def execute_statement(sql):
+    response = client.execute_statement(
+        resourceArn=args['db_arn'],
+        secretArn=args['secret_arn'],
+        database='test',
+        sql=sql
+    )
+    return response
 
-connection.query('CREATE SCHEMA "UPPERCASETEST"')
-connection.query('CREATE TABLE "UPPERCASETEST"."camelCase" (ID int)')
-connection.query('INSERT INTO "UPPERCASETEST"."camelCase" VALUES (4)')
-connection.query('CREATE TABLE "UPPERCASETEST"."UPPERCASE" (ID int)')
-connection.query('INSERT INTO "UPPERCASETEST"."UPPERCASE" VALUES (6)')
+execute_statement('CREATE SCHEMA "camelCaseTest"')
+execute_statement('CREATE TABLE "camelCaseTest"."camelCase" (ID int)')
+execute_statement('INSERT INTO "camelCaseTest"."camelCase" VALUES (5)')
+execute_statement('CREATE TABLE "camelCaseTest"."UPPERCASE" (ID int)')
+execute_statement('INSERT INTO "camelCaseTest"."UPPERCASE" VALUES (7)')
 
-connection.query('CREATE MATERIALIZED VIEW "UPPERCASETEST"."camelCaseView" AS SELECT * FROM "camelCaseTest"."camelCase"')
+execute_statement('CREATE SCHEMA "UPPERCASETEST"')
+execute_statement('CREATE TABLE "UPPERCASETEST"."camelCase" (ID int)')
+execute_statement('INSERT INTO "UPPERCASETEST"."camelCase" VALUES (4)')
+execute_statement('CREATE TABLE "UPPERCASETEST"."UPPERCASE" (ID int)')
+execute_statement('INSERT INTO "UPPERCASETEST"."UPPERCASE" VALUES (6)')
+
+execute_statement('CREATE MATERIALIZED VIEW "UPPERCASETEST"."camelCaseView" AS SELECT * FROM "camelCaseTest"."camelCase"')

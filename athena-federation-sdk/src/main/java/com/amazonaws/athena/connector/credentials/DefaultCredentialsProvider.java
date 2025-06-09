@@ -17,11 +17,14 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.connection;
+package com.amazonaws.athena.connector.credentials;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -36,15 +39,15 @@ import java.util.Map;
  * }
  * </code>
  */
-public class RdsSecretsCredentialProvider
-        implements JdbcCredentialProvider
+public class DefaultCredentialsProvider
+        implements CredentialsProvider
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RdsSecretsCredentialProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCredentialsProvider.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private final JdbcCredential jdbcCredential;
+    private final DefaultCredentials defaultCredentials;
 
-    public RdsSecretsCredentialProvider(final String secretString)
+    public DefaultCredentialsProvider(final String secretString)
     {
         Map<String, String> rdsSecrets;
         try {
@@ -58,15 +61,16 @@ public class RdsSecretsCredentialProvider
             }
         }
         catch (IOException ioException) {
-            throw new RuntimeException("Could not deserialize RDS credentials into HashMap", ioException);
+            throw new AthenaConnectorException("Could not deserialize RDS credentials into HashMap: ",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(ioException.getMessage()).build());
         }
 
-        this.jdbcCredential = new JdbcCredential(rdsSecrets.get("username"), rdsSecrets.get("password"));
+        this.defaultCredentials = new DefaultCredentials(rdsSecrets.get("username"), rdsSecrets.get("password"));
     }
 
     @Override
-    public JdbcCredential getCredential()
+    public DefaultCredentials getCredential()
     {
-        return this.jdbcCredential;
+        return this.defaultCredentials;
     }
 }
