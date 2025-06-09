@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.domain.spill;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Objects;
 
@@ -169,7 +170,14 @@ public class S3SpillLocation
 
         public S3SpillLocation build()
         {
-            String key = prefix + SEPARATOR + queryId + SEPARATOR + splitId;
+            String bucketPrefix;
+            if (StringUtils.isBlank(queryId)) {
+                bucketPrefix = prefix;
+            }
+            else {
+                bucketPrefix = prefix + SEPARATOR + queryId;
+            }
+            String key = bucketPrefix + SEPARATOR + splitId;
             return new S3SpillLocation(bucket, key, true);
         }
     }

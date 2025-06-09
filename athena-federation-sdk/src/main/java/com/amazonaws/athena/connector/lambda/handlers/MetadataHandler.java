@@ -218,10 +218,11 @@ public abstract class MetadataHandler
      */
     protected SpillLocation makeSpillLocation(MetadataRequest request)
     {
+        String queryId = spillPrefix.contains(request.getQueryId()) ? "" : request.getQueryId();
         return S3SpillLocation.newBuilder()
                 .withBucket(spillBucket)
                 .withPrefix(spillPrefix)
-                .withQueryId(request.getQueryId())
+                .withQueryId(queryId)
                 .withSplitId(UUID.randomUUID().toString())
                 .build();
     }
