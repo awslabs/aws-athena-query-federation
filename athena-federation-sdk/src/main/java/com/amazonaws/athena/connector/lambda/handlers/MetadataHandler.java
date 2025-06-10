@@ -125,6 +125,7 @@ public abstract class MetadataHandler
     protected static final String DISABLE_SPILL_ENCRYPTION = "disable_spill_encryption";
     private final CachableSecretsManager secretsManager;
     private final AthenaClient athena;
+    private final S3Client s3Client;
     private final ThrottlingInvoker athenaInvoker;
     private final EncryptionKeyFactory encryptionKeyFactory;
     private final String spillBucket;
@@ -159,7 +160,8 @@ public abstract class MetadataHandler
 
         this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
         this.athena = AthenaClient.create();
-        this.verifier = new SpillLocationVerifier(S3Client.create());
+        this.s3Client = S3Client.create();
+        this.verifier = new SpillLocationVerifier(s3Client);
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
         this.kmsEncryptionProvider = new KmsEncryptionProvider(KmsClient.create());
     }
@@ -183,7 +185,8 @@ public abstract class MetadataHandler
         this.sourceType = sourceType;
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
-        this.verifier = new SpillLocationVerifier(S3Client.create());
+        this.s3Client = S3Client.create();
+        this.verifier = new SpillLocationVerifier(s3Client);
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
         this.kmsEncryptionProvider = new KmsEncryptionProvider(KmsClient.create());
     }
@@ -226,10 +229,12 @@ public abstract class MetadataHandler
      */
     protected SpillLocation makeSpillLocation(MetadataRequest request)
     {
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        Map<String, String> configOptions = federatedIdentity.getConfigOptions();
         String queryId = spillPrefix.contains(request.getQueryId()) ? "" : request.getQueryId();
         return S3SpillLocation.newBuilder()
-                .withBucket(spillBucket)
-                .withPrefix(spillPrefix)
+                .withBucket(configOptions.get(SPILL_BUCKET_ENV))
+                .withPrefix(configOptions.get(SPILL_PREFIX_ENV))
                 .withQueryId(queryId)
                 .withSplitId(UUID.randomUUID().toString())
                 .build();
@@ -305,8 +310,9 @@ public abstract class MetadataHandler
                 Map<String, String> connectorRequestOptions = federatedIdentity.getConfigOptions();
                 if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
                     AwsRequestOverrideConfiguration awsRequestOverrideConfiguration = getRequestOverrideConfig(connectorRequestOptions);
-                    verifier = new SpillLocationVerifier(getS3Client(awsRequestOverrideConfiguration));
+                    verifier = new SpillLocationVerifier(getS3Client(awsRequestOverrideConfiguration, s3Client));
                 }
+                verifier.checkBucketAuthZ(spillBucket);
                 try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
@@ -435,7 +441,7 @@ public abstract class MetadataHandler
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
                 constraintSchema.build(),
                 request.getConstraints());
-                QueryStatusChecker queryStatusChecker = new QueryStatusChecker(getAthenaClient(overrideConfig),
+                QueryStatusChecker queryStatusChecker = new QueryStatusChecker(getAthenaClient(overrideConfig, athena),
                         athenaInvoker, request.getQueryId())
         ) {
             Block partitions = allocator.createBlock(partitionSchemaBuilder.build());

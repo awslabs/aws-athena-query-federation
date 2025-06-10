@@ -120,7 +120,7 @@ public class FederationRequestHandlerTest {
                 .credentialsProvider(credentialsProvider)
                 .build();
 
-        S3Client result = handler.getS3Client(overrideConfig);
+        S3Client result = handler.getS3Client(overrideConfig, S3Client.create());
 
         assertNotNull(result);
     }
@@ -132,7 +132,7 @@ public class FederationRequestHandlerTest {
                 .credentialsProvider(credentialsProvider)
                 .build();
 
-        AthenaClient result = handler.getAthenaClient(overrideConfig);
+        AthenaClient result = handler.getAthenaClient(overrideConfig, AthenaClient.create());
 
         assertNotNull(result);
     }

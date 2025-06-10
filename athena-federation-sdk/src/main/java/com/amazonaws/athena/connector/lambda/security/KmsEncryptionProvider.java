@@ -60,7 +60,7 @@ public class KmsEncryptionProvider
     }
 
     @VisibleForTesting
-    public KmsEncryptionProvider(final KmsClient kmsClient,
+    protected KmsEncryptionProvider(final KmsClient kmsClient,
                                  final Cache<String, CryptoMaterialsManager> cache,
                                  final AwsCrypto awsCrypto)
     {

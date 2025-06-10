@@ -202,8 +202,8 @@ public abstract class RecordHandler
         FederatedIdentity federatedIdentity = request.getIdentity();
         AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         SpillConfig spillConfig = getSpillConfig(request);
-        AthenaClient athenaClient = getAthenaClient(overrideConfig);
-        S3Client s3Client = getS3Client(overrideConfig);
+        AthenaClient athenaClient = getAthenaClient(overrideConfig, athena);
+        S3Client s3Client = getS3Client(overrideConfig, amazonS3);
         try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator,
                 request.getSchema(),
                 request.getConstraints());

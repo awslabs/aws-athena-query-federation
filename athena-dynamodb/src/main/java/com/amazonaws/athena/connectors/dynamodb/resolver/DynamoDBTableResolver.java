@@ -70,7 +70,7 @@ public class DynamoDBTableResolver
     }
 
     /**
-     * Fetches the list of tables from DynamoDB vis paginated ListTables calls
+     * Fetches the list of tables from DynamoDB via paginated ListTables calls
      *
      * @return the list of tables in DynamoDB
      */

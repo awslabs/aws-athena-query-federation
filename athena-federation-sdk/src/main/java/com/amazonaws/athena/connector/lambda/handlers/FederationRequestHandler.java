@@ -58,7 +58,7 @@ public interface FederationRequestHandler extends RequestStreamHandler
         return overrideConfig;
     }
 
-    default S3Client getS3Client(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
+    default S3Client getS3Client(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration, S3Client defaultS3)
     {
         if (Objects.nonNull(awsRequestOverrideConfiguration) &&
                 awsRequestOverrideConfiguration.credentialsProvider().isPresent()) {
@@ -68,11 +68,11 @@ public interface FederationRequestHandler extends RequestStreamHandler
                     .build();
         }
         else {
-            return S3Client.create();
+            return defaultS3;
         }
     }
 
-    default AthenaClient getAthenaClient(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
+    default AthenaClient getAthenaClient(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration, AthenaClient defaultAthena)
     {
         if (Objects.nonNull(awsRequestOverrideConfiguration) &&
                 awsRequestOverrideConfiguration.credentialsProvider().isPresent()) {
@@ -82,7 +82,7 @@ public interface FederationRequestHandler extends RequestStreamHandler
                     .build();
         }
         else {
-            return AthenaClient.create();
+            return defaultAthena;
         }
     }
 }
