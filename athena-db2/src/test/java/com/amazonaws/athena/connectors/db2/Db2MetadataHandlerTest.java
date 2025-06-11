@@ -70,6 +70,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -338,7 +339,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     @Test
     public void doListTables() throws Exception {
         String schemaName = "TESTSCHEMA";
-        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 0);
+        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, UNLIMITED_PAGE_SIZE_VALUE);
 
         PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS)).thenReturn(stmt);
