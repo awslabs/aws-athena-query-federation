@@ -44,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -207,8 +208,10 @@ public class CompositeHandlerTest
     public void doGetSplits()
             throws Exception
     {
+        FederatedIdentity federatedIdentity = IdentityUtil.fakeIdentity();
         GetSplitsRequest req = mock(GetSplitsRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
+        when(req.getIdentity()).thenReturn(federatedIdentity);
         SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
         doNothing().when(mockVerifier).checkBucketAuthZ(nullable(String.class));
         FieldUtils.writeField(mockMetadataHandler, "verifier", mockVerifier, true);
