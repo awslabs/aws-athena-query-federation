@@ -23,6 +23,14 @@ package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
+import java.io.IOException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateEncodingException;
+
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeUtils.installCaCertificate;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeUtils.setupNativeEnvironmentVariables;
+
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link SnowflakeMuxMetadataHandler} and {@link SnowflakeMuxRecordHandler}.
@@ -30,8 +38,10 @@ import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 public class SnowflakeMuxCompositeHandler
         extends MultiplexingJdbcCompositeHandler
 {
-    public SnowflakeMuxCompositeHandler() throws java.lang.ReflectiveOperationException
+    public SnowflakeMuxCompositeHandler() throws ReflectiveOperationException, CertificateEncodingException, IOException, NoSuchAlgorithmException, KeyStoreException
     {
         super(SnowflakeMuxMetadataHandler.class, SnowflakeMuxRecordHandler.class, SnowflakeMetadataHandler.class, SnowflakeRecordHandler.class);
+        installCaCertificate();
+        setupNativeEnvironmentVariables();
     }
 }
