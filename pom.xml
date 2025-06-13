@@ -32,7 +32,7 @@
         <log4j2Version>2.24.2</log4j2Version>
         <apache.arrow.version>18.1.0</apache.arrow.version>
         <guava.version>33.4.0-jre</guava.version>
-        <protobuf3.version>3.25.3</protobuf3.version>
+        <protobuf3.version>3.25.5</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
