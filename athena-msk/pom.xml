@@ -46,7 +46,7 @@
             <dependency>
                 <groupId>com.squareup.wire</groupId>
                 <artifactId>wire-schema</artifactId>
-                <version>5.3.1</version>
+                <version>5.3.3</version>
             </dependency>
             <dependency>
                 <groupId>com.squareup.wire</groupId>
@@ -62,7 +62,7 @@
             <dependency>
                 <groupId>com.squareup.wire</groupId>
                 <artifactId>wire-compiler</artifactId>
-                <version>5.3.1</version>
+                <version>5.3.3</version>
                 <scope>runtime</scope>
             </dependency>
             <dependency>
