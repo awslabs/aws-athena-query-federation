@@ -20,6 +20,7 @@
 
 package com.amazonaws.athena.connectors.cloudera;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -30,13 +31,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import software.amazon.awssdk.services.athena.AthenaClient;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -45,20 +41,34 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QUOTE_CHARACTER;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
-
 
 public class ImpalaRecordHandlerTest
 {
+    private static final String TEST_CATALOG = "testCatalog";
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable";
+    private static final String TEST_SECRET = "testSecret";
+    private static final String TEST_PARTITION = "partition";
+    private static final String TEST_PARTITION_VALUE = "p0";
+    private static final String TEST_COL1 = "testCol1";
+
     private ImpalaRecordHandler impalaRecordHandler;
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
@@ -74,19 +84,21 @@ public class ImpalaRecordHandlerTest
         this.amazonS3 = Mockito.mock(S3Client.class);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId(TEST_SECRET).build())))
+                .thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER));
 
-        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ImpalaConstants.IMPALA_NAME,
-                "impala://jdbc:impala://54.89.6.2:10000/authena;{testSecret}","testSecret");
-
-        this.impalaRecordHandler = new ImpalaRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
+        this.impalaRecordHandler = new ImpalaRecordHandler(
+            new DatabaseConnectionConfig(TEST_CATALOG, ImpalaConstants.IMPALA_NAME,
+                "impala://jdbc:impala://localhost:10000/athena;{" + TEST_SECRET + "}", TEST_SECRET),
+            amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
-    private ValueSet getSingleValueSet(Object value) {
+    private ValueSet getSingleValueSet(Object value)
+    {
         Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range.isSingleValue()).thenReturn(true);
         Mockito.when(range.getLow().getValue()).thenReturn(value);
@@ -99,19 +111,19 @@ public class ImpalaRecordHandlerTest
     public void buildSplitSql()
             throws SQLException
     {
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, Types.MinorType.INT.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol2", Types.MinorType.DATEDAY.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol3", Types.MinorType.DATEMILLI.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol4", Types.MinorType.VARBINARY.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
+        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap(TEST_PARTITION, TEST_PARTITION_VALUE));
+        Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
 
         Range range1a = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range1a.isSingleValue()).thenReturn(true);
@@ -129,11 +141,53 @@ public class ImpalaRecordHandlerTest
                 .build());
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
-        PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
+        PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Date expectedDate = new Date(120, 0, 5);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
                 .setDate(1, expectedDate);
+    }
+
+    @Test
+    public void testBuildSplitSql_withQueryPassthrough()
+    {
+        try {
+            TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+            schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, Types.MinorType.INT.getType()).build());
+            schemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION, Types.MinorType.VARCHAR.getType()).build());
+            Schema schema = schemaBuilder.build();
+
+            Split split = Mockito.mock(Split.class);
+            Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap(TEST_PARTITION, TEST_PARTITION_VALUE));
+            Mockito.when(split.getProperty(Mockito.eq(TEST_PARTITION))).thenReturn(TEST_PARTITION_VALUE);
+
+            Constraints constraints = Mockito.mock(Constraints.class);
+            Mockito.when(constraints.isQueryPassThrough()).thenReturn(true);
+
+            String testQuery = String.format("SELECT * FROM %s.%s WHERE %s = 1", TEST_SCHEMA, TEST_TABLE, TEST_COL1);
+            Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
+                    .put(JdbcQueryPassthrough.QUERY, testQuery)
+                    .put("schemaFunctionName", "system.query")
+                    .put("enableQueryPassthrough", "true")
+                    .put("name", "query")
+                    .put("schema", "system")
+                    .build();
+
+            Mockito.when(constraints.getQueryPassthroughArguments()).thenReturn(queryPassthroughArgs);
+
+            PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+            Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+
+            PreparedStatement preparedStatement = this.impalaRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+            Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+            Mockito.verify(this.connection).prepareStatement(testQuery);
+        }
+        catch (Exception e) {
+            fail("Unexpected exception:" + e.getMessage());
+        }
     }
 }
