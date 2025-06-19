@@ -136,12 +136,12 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
-    
+
     /**
      * Since the entire Neptune cluster is considered as a single graph database,
      * just return the glue database name provided as a single database (schema)
      * name.
-     * 
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request   Provides details on who made the request and which Athena
      *                  catalog they are querying.
@@ -163,7 +163,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     /**
      * Used to get the list of tables that this data source contains. In this case,
      * fetch list of tables in the Glue database provided.
-     * 
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request   Provides details on who made the request and which Athena
      *                  catalog and database they are querying.
@@ -214,10 +214,10 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         Schema tableSchema = null;
         try {
             if (glue != null) {
-                tableSchema = super.doGetTable(blockAllocator, request).getSchema();        
+                tableSchema = super.doGetTable(blockAllocator, request).getSchema();
                 logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
             }
-        } 
+        }
         catch (RuntimeException ex) {
             logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
                     request.getTableName().getSchemaName(), request.getTableName().getTableName(), ex);
@@ -231,7 +231,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
      */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request,
-            QueryStatusChecker queryStatusChecker) throws Exception 
+            QueryStatusChecker queryStatusChecker) throws Exception
     {
         // No implemenation as connector doesn't support partitioning
     }
@@ -260,7 +260,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
      * the RecordHandler has easy access to it.
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request) 
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
     {
         // Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
@@ -271,7 +271,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
     }
 
     @Override
-    protected Field convertField(String name, String glueType) 
+    protected Field convertField(String name, String glueType)
     {
         return GlueFieldLexer.lex(name, glueType);
     }
@@ -313,7 +313,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
                 GraphTraversal graphTraversalForSchema = (GraphTraversal) object;
                 if (graphTraversalForSchema.hasNext()) {
                     Object responseObj = graphTraversalForSchema.next();
-                    if (responseObj instanceof Map && gremlinQuery.contains(Constants.GREMLIN_QUERY_SUPPORT_TYPE)) {
+                    if (responseObj instanceof Map) {
                         logger.info("NeptuneMetadataHandler doGetQueryPassthroughSchema gremlinQuery with valueMap");
                         Map graphTraversalObj = (Map) responseObj;
                         schema = NeptuneSchemaUtils.getSchemaFromResults(graphTraversalObj, componentTypeValue, tableName);
