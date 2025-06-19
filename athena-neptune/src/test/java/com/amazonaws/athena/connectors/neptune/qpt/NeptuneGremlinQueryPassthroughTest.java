@@ -140,4 +140,18 @@ public class NeptuneGremlinQueryPassthroughTest {
             assertEquals("Mixed operations not supported: Cannot use both SPARQL query and Gremlin traverse in the same request", e.getMessage());
         }
     }
-} 
+
+    @Test
+    public void testVerifyWithInvalidTraverseSyntax_ShouldThrowException() {
+        baseArguments.put(TRAVERSE, "g.V().hasLabel('airport')");
+
+        try {
+            queryPassthrough.verify(baseArguments);
+            fail("Expected IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            assertEquals("Unsupported gremlin query format: We are currently supporting only valueMap gremlin queries. " +
+                    "Please make sure you are using valueMap gremlin query. " +
+                    "Example for valueMap query is g.V().hasLabel(\\\"airport\\\").valueMap().limit(5)", e.getMessage());
+        }
+    }
+}
