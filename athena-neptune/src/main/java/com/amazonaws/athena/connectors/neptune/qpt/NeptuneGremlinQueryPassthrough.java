@@ -19,10 +19,13 @@
  */
 package com.amazonaws.athena.connectors.neptune.qpt;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import com.amazonaws.athena.connectors.neptune.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Arrays;
 import java.util.List;
@@ -80,12 +83,12 @@ public final class NeptuneGremlinQueryPassthrough implements QueryPassthroughSig
     {
         // Verify no mixed operations (SPARQL and Gremlin in same request)
         if (engineQptArguments.containsKey(QUERY)) {
-            throw new IllegalArgumentException("Mixed operations not supported: Cannot use both SPARQL query and Gremlin traverse in the same request");
+            throw new AthenaConnectorException("Mixed operations not supported: Cannot use both SPARQL query and Gremlin traverse in the same request", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         else if (!engineQptArguments.get(TRAVERSE).contains(Constants.GREMLIN_QUERY_SUPPORT_TYPE)) {
-            throw new IllegalArgumentException("Unsupported gremlin query format: We are currently supporting only valueMap gremlin queries. " +
+            throw new AthenaConnectorException("Unsupported gremlin query format: We are currently supporting only valueMap gremlin queries. " +
                     "Please make sure you are using valueMap gremlin query. " +
-                    "Example for valueMap query is g.V().hasLabel(\\\"airport\\\").valueMap().limit(5)");
+                    "Example for valueMap query is g.V().hasLabel(\\\"airport\\\").valueMap().limit(5)", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 }

@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.neptune.qpt;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -72,8 +73,8 @@ public class NeptuneSparqlQueryPassthroughTest {
     public void testVerifyWithEmptyArguments() {
         try {
             queryPassthrough.verify(new HashMap<>());
-            fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+            fail("Expected AthenaConnectorException");
+        } catch (AthenaConnectorException e) {
             assertEquals("Function Signature doesn't match implementation's", e.getMessage());
         }
     }
@@ -84,8 +85,8 @@ public class NeptuneSparqlQueryPassthroughTest {
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+            fail("Expected AthenaConnectorException");
+        } catch (AthenaConnectorException e) {
             assertEquals("Missing Query Passthrough Argument: " + DATABASE, e.getMessage());
         }
     }
@@ -96,8 +97,8 @@ public class NeptuneSparqlQueryPassthroughTest {
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+            fail("Expected AthenaConnectorException");
+        } catch (AthenaConnectorException e) {
             assertEquals("Missing Query Passthrough Argument: " + COLLECTION, e.getMessage());
         }
     }
@@ -108,8 +109,8 @@ public class NeptuneSparqlQueryPassthroughTest {
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+            fail("Expected AthenaConnectorException");
+        } catch (AthenaConnectorException e) {
             assertEquals("Missing Query Passthrough Argument: " + QUERY, e.getMessage());
         }
     }
@@ -120,8 +121,8 @@ public class NeptuneSparqlQueryPassthroughTest {
 
         try {
             queryPassthrough.verify(baseArguments);
-            fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+            fail("Expected AthenaConnectorException");
+        } catch (AthenaConnectorException e) {
             assertEquals("Mixed operations not supported: Cannot use both SPARQL query and Gremlin traverse in the same request", e.getMessage());
         }
     }
