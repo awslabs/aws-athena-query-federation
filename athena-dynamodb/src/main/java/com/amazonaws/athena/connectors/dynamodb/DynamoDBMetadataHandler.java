@@ -45,6 +45,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.athena.connectors.dynamodb.credentials.CrossAccountCredentialsProviderV2;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
@@ -66,6 +67,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -243,7 +245,10 @@ public class DynamoDBMetadataHandler
         // future invocations will paginate on default ddb schema
         // add tables that may not be in Glue (if listing the default schema)
         if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
-            DynamoDBPaginatedTables ddbPaginatedResponse = tableResolver.listTables(request.getNextToken(), request.getPageSize());
+            FederatedIdentity federatedIdentity = request.getIdentity();
+            AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
+            DynamoDBPaginatedTables ddbPaginatedResponse = tableResolver.listTables(request.getNextToken(),
+                    request.getPageSize(), overrideConfig);
             List<TableName> tableNames = ddbPaginatedResponse.getTables().stream()
                     .map(table -> table.toLowerCase(Locale.ENGLISH)) // lowercase for compatibility
                     .map(table -> new TableName(DEFAULT_SCHEMA, table))
@@ -263,10 +268,13 @@ public class DynamoDBMetadataHandler
 
         queryPassthrough.verify(request.getQueryPassthroughArguments());
         String partiQLStatement = request.getQueryPassthroughArguments().get(DDBQueryPassthrough.QUERY);
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         ExecuteStatementRequest executeStatementRequest =
                 ExecuteStatementRequest.builder()
                         .statement(partiQLStatement)
                         .limit(SCHEMA_INFERENCE_NUM_RECORDS)
+                        .overrideConfiguration(overrideConfig)
                         .build();
         //PartiQL on DynamoDB Doesn't allow a dry run; therefore, we look "Peek" over the first few records
         ExecuteStatementResponse response = ddbClient.executeStatement(executeStatementRequest);
@@ -297,9 +305,10 @@ public class DynamoDBMetadataHandler
                         request.getTableName().getTableName(), request.getTableName().getSchemaName(), e);
             }
         }
-
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         // ignore database/schema name since there are no databases/schemas in DDB
-        Schema schema = tableResolver.getTableSchema(request.getTableName().getTableName());
+        Schema schema = tableResolver.getTableSchema(request.getTableName().getTableName(), overrideConfig);
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
     }
 
@@ -317,6 +326,8 @@ public class DynamoDBMetadataHandler
             //Query passthrough does not support partition
             return;
         }
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         // use the source table name from the schema if available (in case Glue table name != actual table name)
         String tableName = getSourceTableName(request.getSchema());
         if (tableName == null) {
@@ -324,7 +335,7 @@ public class DynamoDBMetadataHandler
         }
         DynamoDBTable table = null;
         try {
-            table = tableResolver.getTableMetadata(tableName);
+            table = tableResolver.getTableMetadata(tableName, overrideConfig);
         }
         catch (TimeoutException e) {
             throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString()).errorMessage(e.getMessage()).build());
@@ -390,13 +401,15 @@ public class DynamoDBMetadataHandler
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         // TODO consider caching this repeated work in #enhancePartitionSchema
         // use the source table name from the schema if available (in case Glue table name != actual table name)
         String tableName = getSourceTableName(request.getSchema());
         if (tableName == null) {
             tableName = request.getTableName().getTableName();
         }
-        DynamoDBTable table = tableResolver.getTableMetadata(tableName);
+        DynamoDBTable table = tableResolver.getTableMetadata(tableName, overrideConfig);
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
         List<String> requestedCols = request.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toList());
         DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);

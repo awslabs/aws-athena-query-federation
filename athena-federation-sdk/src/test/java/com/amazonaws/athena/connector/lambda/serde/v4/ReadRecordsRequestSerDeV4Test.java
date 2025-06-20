@@ -56,6 +56,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -111,7 +112,7 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
             new OrderByField("col2", OrderByField.Direction.DESC_NULLS_FIRST)
         );
 
-        Constraints constraints = new Constraints(constraintsMap, ImmutableList.of(federationExpression), orderByClause, DEFAULT_NO_LIMIT);
+        Constraints constraints = new Constraints(constraintsMap, ImmutableList.of(federationExpression), orderByClause, DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {

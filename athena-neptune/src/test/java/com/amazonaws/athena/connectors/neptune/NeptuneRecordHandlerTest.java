@@ -276,7 +276,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
                 ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
                 schemaPGVertexForRead, Split.newBuilder(splitLoc, keyFactory.create()).build(),
-                                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), 1_500_000L, // ~1.5MB so we should see some spill
+                                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), 1_500_000L, // ~1.5MB so we should see some spill
                                 0L);
 
                 RecordResponse rawResponse = handler.doReadRecords(allocator, request);

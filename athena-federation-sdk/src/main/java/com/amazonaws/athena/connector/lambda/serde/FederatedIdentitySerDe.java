@@ -43,6 +43,7 @@ public final class FederatedIdentitySerDe
     private static final String ARN_FIELD = "arn";
     private static final String TAGS_FIELD = "tags";
     private static final String GROUPS_FIELD = "groups";
+    private static final String CONFIG_OPTIONS_FIELD = "configOptions";
     // new fields should only be appended to the end for forwards compatibility
 
     private FederatedIdentitySerDe() {}
@@ -64,6 +65,7 @@ public final class FederatedIdentitySerDe
             jgen.writeStringField(ARN_FIELD, federatedIdentity.getArn());
             writeStringMap(jgen, TAGS_FIELD, federatedIdentity.getPrincipalTags());
             writeStringArray(jgen, GROUPS_FIELD, federatedIdentity.getIamGroups());
+            writeStringMap(jgen, CONFIG_OPTIONS_FIELD, federatedIdentity.getConfigOptions());
             // new fields should only be appended to the end for backwards and forwards compatibility
         }
     }
@@ -82,9 +84,6 @@ public final class FederatedIdentitySerDe
             if (jparser.nextToken() != JsonToken.VALUE_NULL) {
                 validateObjectStart(jparser.getCurrentToken());
                 FederatedIdentity federatedIdentity = doDeserialize(jparser, ctxt);
-
-                // consume unknown tokens to allow forwards compatibility
-                ignoreRestOfObject(jparser);
                 return federatedIdentity;
             }
 
@@ -103,8 +102,14 @@ public final class FederatedIdentitySerDe
             String arn = getNextStringField(jparser, ARN_FIELD);
             Map<String, String> principalTags = getNextStringMap(jparser, TAGS_FIELD);
             List<String> groups = getNextStringArray(jparser, GROUPS_FIELD);
+            Map<String, String> configOptions = getNextStringMap(jparser, CONFIG_OPTIONS_FIELD);
 
-            return new FederatedIdentity(arn, account, principalTags, groups);
+            // Consume the END_OBJECT token for the identity object
+            if (jparser.nextToken() != JsonToken.END_OBJECT) {
+                throw new IllegalStateException("Expected END_OBJECT after configOptions field");
+            }
+
+            return new FederatedIdentity(arn, account, principalTags, groups, configOptions);
         }
     }
 }

@@ -42,7 +42,7 @@ public abstract class TypedSerDeTest<T>
     protected ObjectMapper mapper;
     protected ObjectMapper mapperV4;
     protected ObjectMapper mapperV5;
-    protected FederatedIdentity federatedIdentity = new FederatedIdentity("testArn", "0123456789", Collections.emptyMap(), Collections.emptyList());
+    protected FederatedIdentity federatedIdentity = new FederatedIdentity("testArn", "0123456789", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     protected String expectedSerDeText;
     protected T expected;
 

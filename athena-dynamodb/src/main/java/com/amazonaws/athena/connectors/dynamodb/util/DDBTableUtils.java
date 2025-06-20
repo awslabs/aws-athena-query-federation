@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -73,10 +74,15 @@ public final class DDBTableUtils
      * @param ddbClient the DDB client to use
      * @return the table metadata
      */
-    public static DynamoDBTable getTable(String tableName, ThrottlingInvoker invoker, DynamoDbClient ddbClient)
-            throws TimeoutException
+    public static DynamoDBTable getTable(String tableName,
+                                         ThrottlingInvoker invoker,
+                                         DynamoDbClient ddbClient,
+                                         AwsRequestOverrideConfiguration awsRequestOverrideConfiguration) throws TimeoutException
     {
-        DescribeTableRequest request = DescribeTableRequest.builder().tableName(tableName).build();
+        DescribeTableRequest request = DescribeTableRequest.builder()
+                .tableName(tableName)
+                .overrideConfiguration(awsRequestOverrideConfiguration)
+                .build();
 
         TableDescription table = invoker.invoke(() -> ddbClient.describeTable(request).table());
 
@@ -139,12 +145,14 @@ public final class DDBTableUtils
      * @param ddbClient the DDB client to use
      * @return the table's derived schema
      */
-    public static Schema peekTableForSchema(String tableName, ThrottlingInvoker invoker, DynamoDbClient ddbClient)
+    public static Schema peekTableForSchema(String tableName, ThrottlingInvoker invoker,
+                                            DynamoDbClient ddbClient, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws TimeoutException
     {
         ScanRequest scanRequest = ScanRequest.builder()
                 .tableName(tableName)
                 .limit(SCHEMA_INFERENCE_NUM_RECORDS)
+                .overrideConfiguration(requestOverrideConfiguration)
                 .build();
         SchemaBuilder schemaBuilder = new SchemaBuilder();
 
@@ -156,7 +164,7 @@ public final class DDBTableUtils
             }
             else {
                 // there's no items, so use any attributes defined in the table metadata
-                DynamoDBTable table = getTable(tableName, invoker, ddbClient);
+                DynamoDBTable table = getTable(tableName, invoker, ddbClient, requestOverrideConfiguration);
                 for (AttributeDefinition attributeDefinition : table.getKnownAttributeDefinitions()) {
                     schemaBuilder.addField(DDBTypeUtils.getArrowFieldFromDDBType(attributeDefinition.attributeName(), attributeDefinition.attributeType().toString()));
                 }

@@ -264,7 +264,7 @@ public class BigQueryRecordHandlerTest
                                 .withIsDirectory(true)
                                 .build(),
                         keyFactory.create()).build(),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 0,          //This is ignored when directly calling readWithConstraints.
                 0)) {
 

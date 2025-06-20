@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v5;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
@@ -48,6 +49,7 @@ public final class ConstraintsSerDeV5
     private static final String ORDER_BY_CLAUSE = "orderByClause";
     private static final String LIMIT_FIELD = "limit";
     private static final String QUERY_PASSTHROUGH_ARGUMENTS = "queryPassthroughArguments";
+    private static final String QUERY_PLAN = "queryPlan";
 
     private ConstraintsSerDeV5() {}
 
@@ -92,6 +94,13 @@ public final class ConstraintsSerDeV5
             jgen.writeNumberField(LIMIT_FIELD, constraints.getLimit());
 
             writeStringMap(jgen, QUERY_PASSTHROUGH_ARGUMENTS, constraints.getQueryPassthroughArguments());
+
+            if (constraints.getQueryPlan() != null) {
+                jgen.writeObjectField(QUERY_PLAN, constraints.getQueryPlan());
+            }
+            else {
+                jgen.writeNullField(QUERY_PLAN);
+            }
         }
     }
 
@@ -150,7 +159,13 @@ public final class ConstraintsSerDeV5
                 queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
             }
 
-            Constraints constraints = new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit, queryPassthroughArguments);
+            QueryPlan queryPlan = null;
+            assertFieldName(jparser, QUERY_PLAN);
+            if (jparser.nextToken() != JsonToken.VALUE_NULL) {
+                queryPlan = jparser.readValueAs(QueryPlan.class);
+            }
+
+            Constraints constraints = new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit, queryPassthroughArguments, queryPlan);
             return constraints;
         }
     }
