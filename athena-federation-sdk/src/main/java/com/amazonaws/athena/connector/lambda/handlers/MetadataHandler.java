@@ -81,6 +81,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
@@ -231,7 +232,10 @@ public abstract class MetadataHandler
     {
         FederatedIdentity federatedIdentity = request.getIdentity();
         Map<String, String> configOptions = federatedIdentity.getConfigOptions();
-        String queryId = spillPrefix.contains(request.getQueryId()) ? "" : request.getQueryId();
+        String queryId = request.getQueryId();
+        if (Objects.nonNull(spillPrefix) && spillPrefix.contains(request.getQueryId())) {
+            queryId = "";
+        }
         return S3SpillLocation.newBuilder()
                 .withBucket(configOptions.get(SPILL_BUCKET_ENV))
                 .withPrefix(configOptions.get(SPILL_PREFIX_ENV))

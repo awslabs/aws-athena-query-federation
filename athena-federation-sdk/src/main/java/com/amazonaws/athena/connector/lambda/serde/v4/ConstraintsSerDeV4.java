@@ -36,6 +36,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
@@ -46,6 +47,7 @@ public final class ConstraintsSerDeV4
     private static final String EXPRESSION_FIELD = "expression";
     private static final String ORDER_BY_CLAUSE = "orderByClause";
     private static final String LIMIT_FIELD = "limit";
+    private static final String QUERY_PLAN = "queryPlan";
 
     private ConstraintsSerDeV4() {}
 
@@ -140,7 +142,7 @@ public final class ConstraintsSerDeV4
 
             long limit = getNextLongField(jparser, LIMIT_FIELD);
 
-            return new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit);
+            return new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit, Collections.emptyMap(), null);
         }
     }
 }

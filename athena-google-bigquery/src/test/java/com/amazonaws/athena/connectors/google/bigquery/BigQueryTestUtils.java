@@ -43,7 +43,7 @@ import static org.mockito.Mockito.when;
 
 public class BigQueryTestUtils
 {
-    //public static final FederatedIdentity FEDERATED_IDENTITY = new FederatedIdentity("id",  "account", "principal",null);
+    //public static final FederatedIdentity FEDERATED_IDENTITY = new FederatedIdentity("id", "account", "principal", null, Collections.emptyMap());
     public static final String BOOL_FIELD_NAME_1 = "bool1";
     public static final String INTEGER_FIELD_NAME_1 = "int1";
     public static final String STRING_FIELD_NAME_1 = "string1";

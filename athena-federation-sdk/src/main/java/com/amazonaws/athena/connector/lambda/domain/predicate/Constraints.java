@@ -54,41 +54,6 @@ public class Constraints
     private Map<String, String> queryPassthroughArguments;
     private final QueryPlan queryPlan;
 
-    @Deprecated
-    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
-                       @JsonProperty("expression") List<FederationExpression> expression,
-                       @JsonProperty("orderByClause") List<OrderByField> orderByClause,
-                       @JsonProperty("limit") long limit)
-    {
-        this.summary = summary;
-        this.expression = expression;
-        this.orderByClause = orderByClause;
-        this.limit = limit;
-        this.queryPlan = null;
-    }
-
-    /**
-     *
-     * @param summary
-     * @param expression
-     * @param orderByClause
-     * @param limit
-     * @param queryPassthroughArguments
-     */
-    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
-                       @JsonProperty("expression") List<FederationExpression> expression,
-                       @JsonProperty("orderByClause") List<OrderByField> orderByClause,
-                       @JsonProperty("limit") long limit,
-                       @JsonProperty("queryPassthroughArguments") Map<String, String> queryPassthroughArguments)
-    {
-        this.summary = summary;
-        this.expression = expression;
-        this.orderByClause = orderByClause;
-        this.limit = limit;
-        this.queryPassthroughArguments = queryPassthroughArguments;
-        this.queryPlan = null;
-    }
-
     /**
      *
      * @param summary
