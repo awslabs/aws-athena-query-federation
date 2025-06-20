@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.db2;
 
+import com.amazonaws.athena.connectors.db2.resolver.Db2JDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -58,6 +59,6 @@ public class Db2MuxMetadataHandler
     protected Db2MuxMetadataHandler(SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
                                          Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions, new Db2JDBCCaseResolver(Db2Constants.NAME));
     }
 }
