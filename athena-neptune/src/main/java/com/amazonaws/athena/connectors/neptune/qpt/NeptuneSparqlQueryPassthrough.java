@@ -19,9 +19,12 @@
  */
 package com.amazonaws.athena.connectors.neptune.qpt;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.Arrays;
 import java.util.List;
@@ -78,7 +81,7 @@ public final class NeptuneSparqlQueryPassthrough implements QueryPassthroughSign
     {
         // Verify no mixed operations (SPARQL and Gremlin in same request)
         if (engineQptArguments.containsKey(TRAVERSE)) {
-            throw new IllegalArgumentException("Mixed operations not supported: Cannot use both SPARQL query and Gremlin traverse in the same request");
+            throw new AthenaConnectorException("Mixed operations not supported: Cannot use both SPARQL query and Gremlin traverse in the same request", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 }
