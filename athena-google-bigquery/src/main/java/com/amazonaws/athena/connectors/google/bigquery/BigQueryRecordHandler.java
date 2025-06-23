@@ -86,6 +86,7 @@ public class BigQueryRecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
     private final ThrottlingInvoker invoker;
+    private SecretsManagerClient secretsManager;
     BufferAllocator allocator;
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
@@ -95,6 +96,7 @@ public class BigQueryRecordHandler
         this(S3Client.create(),
                 SecretsManagerClient.create(),
                 AthenaClient.create(), configOptions, allocator);
+        this.secretsManager = SecretsManagerClient.create();
     }
 
     @VisibleForTesting
@@ -104,6 +106,7 @@ public class BigQueryRecordHandler
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.allocator = allocator;
         LoadBalancerRegistry.getDefaultRegistry().register(new PickFirstLoadBalancerProvider());
+        this.secretsManager = secretsManager;
     }
 
     @Override
@@ -111,7 +114,7 @@ public class BigQueryRecordHandler
     {
         List<QueryParameterValue> parameterValues = new ArrayList<>();
         invoker.setBlockSpiller(spiller);
-        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions);
+        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions, secretsManager);
 
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             handleQueryPassthrough(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient);

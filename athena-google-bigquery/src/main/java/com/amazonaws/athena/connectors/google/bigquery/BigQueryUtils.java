@@ -89,6 +89,17 @@ public class BigQueryUtils
                         "https://www.googleapis.com/auth/drive"));
     }
 
+    public static Credentials getCredentialsFromSecretsManager(java.util.Map<String, String> configOptions, SecretsManagerClient secretsManager)
+            throws IOException
+    {
+        GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder().secretId(getEnvBigQueryCredsSmId(configOptions)).build();
+        GetSecretValueResponse response = secretsManager.getSecretValue(getSecretValueRequest);
+        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.secretString().getBytes())).createScoped(
+                ImmutableSet.of(
+                        "https://www.googleapis.com/auth/bigquery",
+                        "https://www.googleapis.com/auth/drive"));
+    }
+
     public static BigQuery getBigQueryClient(java.util.Map<String, String> configOptions) throws IOException
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
@@ -98,6 +109,18 @@ public class BigQueryUtils
         }
         bigqueryBuilder.setProjectId(configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase());
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager(configOptions));
+        return bigqueryBuilder.build().getService();
+    }
+
+    public static BigQuery getBigQueryClient(java.util.Map<String, String> configOptions, SecretsManagerClient secretsManager) throws IOException
+    {
+        BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
+        String endpoint = configOptions.get(BigQueryConstants.BIG_QUERY_ENDPOINT);
+        if (StringUtils.isNotEmpty(endpoint)) {
+            bigqueryBuilder.setHost(endpoint);
+        }
+        bigqueryBuilder.setProjectId(configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase());
+        bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager(configOptions, secretsManager));
         return bigqueryBuilder.build().getService();
     }
 
