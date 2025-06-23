@@ -58,6 +58,7 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
     public static final String FETCHED_AT = "fetched_at";
     public static final String REFRESH_TOKEN = "refresh_token";
     public static final String EXPIRES_IN = "expires_in";
+    public static final String USERNAME = "username";
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final Properties jdbcProperties;
@@ -69,16 +70,7 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
                                                Map<String, String> properties,
                                                DatabaseConnectionInfo databaseConnectionInfo, Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, properties, databaseConnectionInfo);
-        this.databaseConnectionInfo = Validate.notNull(databaseConnectionInfo, "databaseConnectionInfo must not be null");
-        this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
-        this.configOptions = configOptions;
-        this.jdbcProperties = new Properties();
-        if (properties != null) {
-            this.jdbcProperties.putAll(properties);
-        }
-        this.secretsClient = SecretsManagerClient.create();
-        this.oauthSecretName = Validate.notNull(databaseConnectionConfig.getSecret(), "Missing required property: secret name");
+        this(databaseConnectionConfig, properties, databaseConnectionInfo, configOptions, SecretsManagerClient.create());
     }
 
     @VisibleForTesting
@@ -111,21 +103,19 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
             GetSecretValueResponse secretValue = this.secretsClient.getSecretValue(getSecretValueRequest);
             Map<String, String> oauthConfig = new ObjectMapper().readValue(secretValue.secretString(), Map.class);
             if (oauthConfig.containsKey(AUTH_CODE) && !oauthConfig.get(AUTH_CODE).isEmpty()) {
-                if (credentialsProvider != null) {
-                    Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                    derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
+                Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
+                derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
 
-                    jdbcProperties.put("user", credentialsProvider.getCredential().getUser());
-                    // Get access token from OAuth provider using secret manager
-                    String accessToken = fetchAccessTokenFromSecret(oauthConfig);
-                    // Use the token in the connection properties
-                    jdbcProperties.put("password", accessToken);
-                    jdbcProperties.put("authenticator", "oauth");
+                jdbcProperties.put("user", oauthConfig.get(USERNAME));
+                // Get access token from OAuth provider using secret manager
+                String accessToken = fetchAccessTokenFromSecret(oauthConfig);
+                // Use the token in the connection properties
+                jdbcProperties.put("password", accessToken);
+                jdbcProperties.put("authenticator", "oauth");
 
-                    Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
+                Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
 
-                    return DriverManager.getConnection(derivedJdbcString, jdbcProperties);
-                }
+                return DriverManager.getConnection(derivedJdbcString, jdbcProperties);
             }
             else {
                     return super.getConnection(credentialsProvider);
@@ -134,7 +124,6 @@ public class SnowflakeOAuthJdbcConnectionFactory extends GenericJdbcConnectionFa
         catch (Exception ex) {
             throw new RuntimeException("Error creating Snowflake connection: " + ex.getMessage(), ex);
         }
-        return null;
     }
 
     private String loadTokenFromSecretsManager(Map<String, String> oauthConfig)

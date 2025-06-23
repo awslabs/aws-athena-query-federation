@@ -71,9 +71,6 @@ public class SnowflakeOAuthJdbcConnectionFactoryTest
         when(mockInfo.getDriverClassName()).thenReturn("com.snowflake.client.jdbc.SnowflakeDriver");
 
         mockCredentialsProvider = mock(CredentialsProvider.class);
-        mockCredential = mock(DefaultCredentials.class);
-        when(mockCredentialsProvider.getCredential()).thenReturn(mockCredential);
-        when(mockCredential.getUser()).thenReturn("testuser");
 
         mockSecretsClient = mock(SecretsManagerClient.class);
         secretsMock = mockStatic(SecretsManagerClient.class);
@@ -116,7 +113,7 @@ public class SnowflakeOAuthJdbcConnectionFactoryTest
     public void testGetConnection() throws Exception
     {
         String secretJson = "{\"client_id\":\"cid\",\"client_secret\":\"cs\",\"token_url\":\"http://localhost/token\","
-                + "\"redirect_uri\":\"http://localhost/callback\",\"auth_code\":\"auth\"}";
+                + "\"redirect_uri\":\"http://localhost/callback\",\"auth_code\":\"auth\",\"username\":\"test\"}";
 
         // Mock HTTP
         httpMock = mockStatic(SnowflakeOAuthJdbcConnectionFactory.class);
@@ -142,7 +139,7 @@ public class SnowflakeOAuthJdbcConnectionFactoryTest
         String secretJson = "{\"client_id\":\"cid\",\"client_secret\":\"cs\",\"token_url\":\"http://localhost/token\","
                 + "\"redirect_uri\":\"http://localhost/callback\",\"auth_code\":\"auth\","
                 + "\"access_token\":\"token_from_secret\",\"expires_in\":\"3600\","
-                + "\"refresh_token\":\"refresh_token_secret\",\"fetched_at\":\"" + (System.currentTimeMillis() / 1000 - 1000) + "\"}";
+                + "\"refresh_token\":\"refresh_token_secret\",\"username\":\"test\",\"fetched_at\":\"" + (System.currentTimeMillis() / 1000 - 1000) + "\"}";
 
         mockSecretsManager(secretJson);
         driverManagerMock = mockStatic(DriverManager.class);
@@ -158,7 +155,7 @@ public class SnowflakeOAuthJdbcConnectionFactoryTest
         String secretJson = "{\"client_id\":\"cid\",\"client_secret\":\"cs\",\"token_url\":\"http://localhost/token\","
                 + "\"redirect_uri\":\"http://localhost/callback\",\"auth_code\":\"auth\","
                 + "\"access_token\":\"expired_token\",\"expires_in\":\"3600\","
-                + "\"refresh_token\":\"refresh_token_expired\",\"fetched_at\":\"" + (System.currentTimeMillis() / 1000 - 4000) + "\"}";
+                + "\"refresh_token\":\"refresh_token_expired\",\"username\":\"test\",\"fetched_at\":\"" + (System.currentTimeMillis() / 1000 - 4000) + "\"}";
 
         mockSecretsManager(secretJson);
 
