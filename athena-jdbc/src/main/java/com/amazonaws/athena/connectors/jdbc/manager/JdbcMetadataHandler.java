@@ -167,6 +167,11 @@ public abstract class JdbcMetadataHandler
         return jdbcConnectionFactory;
     }
 
+    protected DatabaseConnectionConfig getDatabaseConnectionConfig()
+    {
+        return databaseConnectionConfig;
+    }
+
     protected CredentialsProvider getCredentialProvider()
     {
         final String secretName = databaseConnectionConfig.getSecret();
