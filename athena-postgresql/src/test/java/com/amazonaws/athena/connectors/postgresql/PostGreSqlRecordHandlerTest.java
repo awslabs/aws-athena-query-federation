@@ -32,6 +32,7 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -57,6 +58,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_NAME;
 import static org.mockito.ArgumentMatchers.any;
@@ -117,7 +120,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol6", Types.MinorType.TINYINT.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol7", Types.MinorType.FLOAT8.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol8", Types.MinorType.BIT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol9", new ArrowType.Decimal(8, 2)).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("testCol9", new ArrowType.Decimal(8, 2,128)).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("testCol10", new ArrowType.Utf8()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_schema_name", Types.MinorType.VARCHAR.getType()).build());
         schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
@@ -248,5 +251,22 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
+    }
+
+    @Test
+    public void testConfigOptionsConstructor() {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("default_database", "test_db");
+        configOptions.put("postgres_jdbc_connection_string", "jdbc:postgresql://hostname:5432/test_db");
+
+        try (MockedStatic<JDBCUtil> jdbcUtilMock = Mockito.mockStatic(JDBCUtil.class)) {
+            DatabaseConnectionConfig mockConfig = new DatabaseConnectionConfig("default", POSTGRES_NAME,
+                    "jdbc:postgresql://hostname:5432/test_db");
+            jdbcUtilMock.when(() -> JDBCUtil.getSingleDatabaseConfigFromEnv(POSTGRES_NAME, configOptions))
+                    .thenReturn(mockConfig);
+
+            PostGreSqlRecordHandler handler = new PostGreSqlRecordHandler(configOptions);
+            Assert.assertNotNull(handler);
+        }
     }
 }
