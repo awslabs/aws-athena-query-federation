@@ -73,6 +73,7 @@ export class RedshiftStack extends cdk.Stack {
     // Original L2 Construct
     const cluster = new redshift.Cluster(this, 'redshift_cluster', {
         numberOfNodes: 2,
+        nodeType: redshift.NodeType.RA3_LARGE,
         port: 5439,
         vpc: vpc,
         vpcSubnets: {
