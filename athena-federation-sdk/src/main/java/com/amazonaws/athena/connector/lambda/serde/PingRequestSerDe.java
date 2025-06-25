@@ -85,6 +85,7 @@ public final class PingRequestSerDe
         {
             validateObjectStart(jparser.getCurrentToken());
             return doDeserialize(jparser, ctxt);
+            // do not validate object end to allow forwards compatibility
         }
 
         @Override
