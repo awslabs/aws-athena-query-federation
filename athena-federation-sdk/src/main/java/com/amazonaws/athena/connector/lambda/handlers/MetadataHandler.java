@@ -75,11 +75,13 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.utils.CollectionUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -235,6 +237,9 @@ public abstract class MetadataHandler
         String queryId = request.getQueryId();
         if (Objects.nonNull(spillPrefix) && spillPrefix.contains(request.getQueryId())) {
             queryId = "";
+        }
+        if (CollectionUtils.isNullOrEmpty(configOptions)) {
+            configOptions = new HashMap<>(this.configOptions);
         }
         return S3SpillLocation.newBuilder()
                 .withBucket(configOptions.get(SPILL_BUCKET_ENV))

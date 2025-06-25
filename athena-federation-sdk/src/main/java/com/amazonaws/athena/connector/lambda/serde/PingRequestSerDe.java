@@ -84,10 +84,7 @@ public final class PingRequestSerDe
                 throws IOException
         {
             validateObjectStart(jparser.getCurrentToken());
-            FederationRequest result = doDeserialize(jparser, ctxt);
-            // consume any remaining fields for forwards compatibility
-            ignoreRestOfObject(jparser);
-            return result;
+            return doDeserialize(jparser, ctxt);
         }
 
         @Override

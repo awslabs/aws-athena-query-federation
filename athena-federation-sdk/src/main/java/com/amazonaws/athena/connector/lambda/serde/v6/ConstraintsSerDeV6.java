@@ -17,10 +17,11 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v4;
+package com.amazonaws.athena.connector.lambda.serde.v6;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
@@ -36,33 +37,39 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public final class ConstraintsSerDeV4
+public final class ConstraintsSerDeV6
 {
     private static final String SUMMARY_FIELD = "summary";
     private static final String EXPRESSION_FIELD = "expression";
     private static final String ORDER_BY_CLAUSE = "orderByClause";
     private static final String LIMIT_FIELD = "limit";
+    private static final String QUERY_PASSTHROUGH_ARGUMENTS = "queryPassthroughArguments";
+    private static final String QUERY_PLAN = "queryPlan";
 
-    private ConstraintsSerDeV4() {}
+    private ConstraintsSerDeV6() {}
 
     public static final class Serializer extends BaseSerializer<Constraints> implements VersionedSerDe.Serializer<Constraints>
     {
         private final ValueSetSerDe.Serializer valueSetSerializer;
         private final VersionedSerDe.Serializer<FederationExpression> federationExpressionSerializer;
         private final VersionedSerDe.Serializer<OrderByField> orderByFieldSerializer;
+        private final QueryPlanSerDe.Serializer queryPlanSerializer;
+        
         public Serializer(ValueSetSerDe.Serializer valueSetSerializer,
                           VersionedSerDe.Serializer<FederationExpression> federationExpressionSerializer,
-                          VersionedSerDe.Serializer<OrderByField> orderByFieldSerializer)
+                          VersionedSerDe.Serializer<OrderByField> orderByFieldSerializer,
+                          QueryPlanSerDe.Serializer queryPlanSerializer)
         {
             super(Constraints.class);
             this.valueSetSerializer = requireNonNull(valueSetSerializer, "valueSetSerDe is null");
             this.federationExpressionSerializer = requireNonNull(federationExpressionSerializer, "federationExpressionSerDe is null");
             this.orderByFieldSerializer = requireNonNull(orderByFieldSerializer, "orderByFieldSerDe is null");
+            this.queryPlanSerializer = requireNonNull(queryPlanSerializer, "queryPlanSerializer is null");
         }
 
         @Override
@@ -89,6 +96,16 @@ public final class ConstraintsSerDeV4
             jgen.writeEndArray();
 
             jgen.writeNumberField(LIMIT_FIELD, constraints.getLimit());
+
+            writeStringMap(jgen, QUERY_PASSTHROUGH_ARGUMENTS, constraints.getQueryPassthroughArguments());
+
+            if (constraints.getQueryPlan() != null) {
+                jgen.writeFieldName(QUERY_PLAN);
+                queryPlanSerializer.serialize(constraints.getQueryPlan(), jgen, provider);
+            }
+            else {
+                jgen.writeNullField(QUERY_PLAN);
+            }
         }
     }
 
@@ -97,15 +114,18 @@ public final class ConstraintsSerDeV4
         private final ValueSetSerDe.Deserializer valueSetDeserializer;
         private final VersionedSerDe.Deserializer<FederationExpression> federationExpressionDeserializer;
         private final VersionedSerDe.Deserializer<OrderByField> orderByFieldDeserializer;
+        private final QueryPlanSerDe.Deserializer queryPlanDeserializer;
 
         public Deserializer(ValueSetSerDe.Deserializer valueSetDeserializer,
                             VersionedSerDe.Deserializer<FederationExpression> federationExpressionDeserializer,
-                            VersionedSerDe.Deserializer<OrderByField> orderByFieldDeserializer)
+                            VersionedSerDe.Deserializer<OrderByField> orderByFieldDeserializer,
+                            QueryPlanSerDe.Deserializer queryPlanDeserializer)
         {
             super(Constraints.class);
             this.valueSetDeserializer = requireNonNull(valueSetDeserializer, "valueSetSerDe is null");
             this.federationExpressionDeserializer = requireNonNull(federationExpressionDeserializer, "federationExpressionSerDe is null");
             this.orderByFieldDeserializer = requireNonNull(orderByFieldDeserializer, "orderByFieldSerDe is null");
+            this.queryPlanDeserializer = requireNonNull(queryPlanDeserializer, "queryPlanDeserializer is null");
         }
 
         @Override
@@ -137,11 +157,25 @@ public final class ConstraintsSerDeV4
                 orderByClauseBuilder.add(orderByFieldDeserializer.doDeserialize(jparser, ctxt));
                 validateObjectEnd(jparser);
             }
-            
 
             long limit = getNextLongField(jparser, LIMIT_FIELD);
 
-            return new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit, Collections.emptyMap(), null);
+            Map<String, String> queryPassthroughArguments = new HashMap<>();
+            assertFieldName(jparser, QUERY_PASSTHROUGH_ARGUMENTS);
+            validateObjectStart(jparser.nextToken());
+            while (jparser.nextToken() != JsonToken.END_OBJECT) {
+                queryPassthroughArguments.put(jparser.getCurrentName(), jparser.getValueAsString());
+            }
+
+            QueryPlan queryPlan = null;
+            assertFieldName(jparser, QUERY_PLAN);
+            if (jparser.nextToken() != JsonToken.VALUE_NULL) {
+                validateObjectStart(jparser.getCurrentToken());
+                queryPlan = queryPlanDeserializer.doDeserialize(jparser, ctxt);
+                validateObjectEnd(jparser);
+            }
+
+            return new Constraints(summaryMap.build(), federationExpression.build(), orderByClauseBuilder.build(), limit, queryPassthroughArguments, queryPlan);
         }
     }
 }

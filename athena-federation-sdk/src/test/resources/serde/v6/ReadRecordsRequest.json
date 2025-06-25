@@ -139,6 +139,11 @@
     "limit" : -1,
     "queryPassthroughArguments" : {
       "query" : "SELECT * FROM DUMMY_TABLE;"
+    },
+    "queryPlan" : {
+      "substraitVersion" : "1.0.0",
+      "substraitPlan" : "TestPlan",
+      "sqlConformance" : "TestConformance"
     }
   },
   "maxBlockSize" : "100000000000",

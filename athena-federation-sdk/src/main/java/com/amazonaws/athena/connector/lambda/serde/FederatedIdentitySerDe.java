@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -102,11 +103,23 @@ public final class FederatedIdentitySerDe
             String arn = getNextStringField(jparser, ARN_FIELD);
             Map<String, String> principalTags = getNextStringMap(jparser, TAGS_FIELD);
             List<String> groups = getNextStringArray(jparser, GROUPS_FIELD);
-            Map<String, String> configOptions = getNextStringMap(jparser, CONFIG_OPTIONS_FIELD);
 
-            // Consume the END_OBJECT token for the identity object
-            if (jparser.nextToken() != JsonToken.END_OBJECT) {
-                throw new IllegalStateException("Expected END_OBJECT after configOptions field");
+            // Handle configOptions field for backwards compatibility
+            Map<String, String> configOptions = new HashMap<>();
+            JsonToken nextToken = jparser.nextToken();
+            if (nextToken == JsonToken.FIELD_NAME && CONFIG_OPTIONS_FIELD.equals(jparser.currentName())) {
+                // configOptions field exists, read it manually
+                validateObjectStart(jparser);
+                while (jparser.nextToken() != JsonToken.END_OBJECT) {
+                    configOptions.put(jparser.currentName(), jparser.getValueAsString());
+                }
+                // Consume END_OBJECT for identity object
+                if (jparser.nextToken() != JsonToken.END_OBJECT) {
+                    throw new IllegalStateException("Expected END_OBJECT after configOptions field");
+                }
+            }
+            else if (nextToken != JsonToken.END_OBJECT) {
+                throw new IllegalStateException("Expected END_OBJECT or configOptions field, got: " + nextToken);
             }
 
             return new FederatedIdentity(arn, account, principalTags, groups, configOptions);
