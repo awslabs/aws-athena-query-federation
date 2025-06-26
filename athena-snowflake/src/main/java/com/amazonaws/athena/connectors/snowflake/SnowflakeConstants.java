@@ -35,6 +35,11 @@ public final class SnowflakeConstants
      */
     public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
     public static final String SNOWFLAKE_QUOTE_CHARACTER = "\"";
+    public static final String AUTH_CODE = "auth_code";
+    public static final String CLIENT_ID = "client_id";
+    public static final String TOKEN_URL = "token_url";
+    public static final String REDIRECT_URI = "redirect_uri";
+    public static final String CLIENT_SECRET = "client_secret";
 
     private SnowflakeConstants() {}
 }
