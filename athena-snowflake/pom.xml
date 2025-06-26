@@ -32,6 +32,12 @@
             <artifactId>snowflake-jdbc</artifactId>
             <version>3.24.2</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.json/json -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20250107</version>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/rds -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>

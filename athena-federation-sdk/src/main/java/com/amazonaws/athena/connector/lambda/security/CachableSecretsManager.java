@@ -62,6 +62,16 @@ public class CachableSecretsManager
     }
 
     /**
+     * Gets the underlying SecretsManagerClient instance.
+     *
+     * @return The SecretsManagerClient instance.
+     */
+    public SecretsManagerClient getSecretsManager()
+    {
+        return secretsManager;
+    }
+
+    /**
      * Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
      * repalced by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
      * the function throws.
