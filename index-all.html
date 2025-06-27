@@ -1466,6 +1466,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/db2/package-summary.html">com.amazonaws.athena.connectors.db2</a> - package com.amazonaws.athena.connectors.db2</dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/db2/resolver/package-summary.html">com.amazonaws.athena.connectors.db2.resolver</a> - package com.amazonaws.athena.connectors.db2.resolver</dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/db2as400/package-summary.html">com.amazonaws.athena.connectors.db2as400</a> - package com.amazonaws.athena.connectors.db2as400</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/docdb/package-summary.html">com.amazonaws.athena.connectors.docdb</a> - package com.amazonaws.athena.connectors.docdb</dt>
@@ -2350,6 +2352,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2FederationExpressionParser.html#%3Cinit%3E(java.lang.String)">Db2FederationExpressionParser(String)</a></span> - Constructor for class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2FederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.db2">Db2FederationExpressionParser</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.db2.resolver"><span class="typeNameLink">Db2JDBCCaseResolver</span></a> - Class in <a href="com/amazonaws/athena/connectors/db2/resolver/package-summary.html">com.amazonaws.athena.connectors.db2.resolver</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html#%3Cinit%3E(java.lang.String)">Db2JDBCCaseResolver(String)</a></span> - Constructor for class com.amazonaws.athena.connectors.db2.resolver.<a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.db2.resolver">Db2JDBCCaseResolver</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2"><span class="typeNameLink">Db2MetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/db2/package-summary.html">com.amazonaws.athena.connectors.db2</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">Db2MetadataHandler(DatabaseConnectionConfig, JdbcConnectionFactory, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2">Db2MetadataHandler</a></dt>
@@ -2360,7 +2366,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">TO be used by Mux.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map)">Db2MetadataHandler(DatabaseConnectionConfig, SecretsManagerClient, AthenaClient, JdbcConnectionFactory, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2">Db2MetadataHandler</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory,java.util.Map,com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver)">Db2MetadataHandler(DatabaseConnectionConfig, SecretsManagerClient, AthenaClient, JdbcConnectionFactory, Map&lt;String, String&gt;, JDBCCaseResolver)</a></span> - Constructor for class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2">Db2MetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html#%3Cinit%3E(java.util.Map)">Db2MetadataHandler(Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2">Db2MetadataHandler</a></dt>
 <dd>
@@ -3305,10 +3311,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricsMetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricsMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricsMetadataHandler</a></dt>
 <dd>
 <div class="block">Supports a set of static tables defined by: TABLES</div>
-</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2">Db2MetadataHandler</a></dt>
-<dd>
-<div class="block">Overridden this method to fetch table(s) for selected schema in Athena Data window.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2as400/Db2As400MetadataHandler.html#doListTables(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest)">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connectors.db2as400.<a href="com/amazonaws/athena/connectors/db2as400/Db2As400MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2as400">Db2As400MetadataHandler</a></dt>
 <dd>
@@ -4573,6 +4575,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/resolver/DataLakeGen2CaseResolver.html#getCaseInsensitivelySchemaNameColumnKey()">getCaseInsensitivelySchemaNameColumnKey()</a></span> - Method in class com.amazonaws.athena.connectors.datalakegen2.resolver.<a href="com/amazonaws/athena/connectors/datalakegen2/resolver/DataLakeGen2CaseResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2.resolver">DataLakeGen2CaseResolver</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html#getCaseInsensitivelySchemaNameColumnKey()">getCaseInsensitivelySchemaNameColumnKey()</a></span> - Method in class com.amazonaws.athena.connectors.db2.resolver.<a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.db2.resolver">Db2JDBCCaseResolver</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/resolver/JDBCCaseResolver.html#getCaseInsensitivelySchemaNameColumnKey()">getCaseInsensitivelySchemaNameColumnKey()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.resolver.<a href="com/amazonaws/athena/connectors/jdbc/resolver/JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.jdbc.resolver">JDBCCaseResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/resolver/MySqlJDBCCaseResolver.html#getCaseInsensitivelySchemaNameColumnKey()">getCaseInsensitivelySchemaNameColumnKey()</a></span> - Method in class com.amazonaws.athena.connectors.mysql.resolver.<a href="com/amazonaws/athena/connectors/mysql/resolver/MySqlJDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.mysql.resolver">MySqlJDBCCaseResolver</a></dt>
@@ -4594,6 +4598,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/resolver/ClickhouseJDBCCaseResolver.html#getCaseInsensitivelySchemaNameQueryTemplate()">getCaseInsensitivelySchemaNameQueryTemplate()</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.resolver.<a href="com/amazonaws/athena/connectors/clickhouse/resolver/ClickhouseJDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.clickhouse.resolver">ClickhouseJDBCCaseResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/resolver/DataLakeGen2CaseResolver.html#getCaseInsensitivelySchemaNameQueryTemplate()">getCaseInsensitivelySchemaNameQueryTemplate()</a></span> - Method in class com.amazonaws.athena.connectors.datalakegen2.resolver.<a href="com/amazonaws/athena/connectors/datalakegen2/resolver/DataLakeGen2CaseResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2.resolver">DataLakeGen2CaseResolver</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html#getCaseInsensitivelySchemaNameQueryTemplate()">getCaseInsensitivelySchemaNameQueryTemplate()</a></span> - Method in class com.amazonaws.athena.connectors.db2.resolver.<a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.db2.resolver">Db2JDBCCaseResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/resolver/JDBCCaseResolver.html#getCaseInsensitivelySchemaNameQueryTemplate()">getCaseInsensitivelySchemaNameQueryTemplate()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.resolver.<a href="com/amazonaws/athena/connectors/jdbc/resolver/JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.jdbc.resolver">JDBCCaseResolver</a></dt>
 <dd>&nbsp;</dd>
@@ -4617,6 +4623,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/resolver/DataLakeGen2CaseResolver.html#getCaseInsensitivelyTableNameColumnKey()">getCaseInsensitivelyTableNameColumnKey()</a></span> - Method in class com.amazonaws.athena.connectors.datalakegen2.resolver.<a href="com/amazonaws/athena/connectors/datalakegen2/resolver/DataLakeGen2CaseResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2.resolver">DataLakeGen2CaseResolver</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html#getCaseInsensitivelyTableNameColumnKey()">getCaseInsensitivelyTableNameColumnKey()</a></span> - Method in class com.amazonaws.athena.connectors.db2.resolver.<a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.db2.resolver">Db2JDBCCaseResolver</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/resolver/JDBCCaseResolver.html#getCaseInsensitivelyTableNameColumnKey()">getCaseInsensitivelyTableNameColumnKey()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.resolver.<a href="com/amazonaws/athena/connectors/jdbc/resolver/JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.jdbc.resolver">JDBCCaseResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/resolver/MySqlJDBCCaseResolver.html#getCaseInsensitivelyTableNameColumnKey()">getCaseInsensitivelyTableNameColumnKey()</a></span> - Method in class com.amazonaws.athena.connectors.mysql.resolver.<a href="com/amazonaws/athena/connectors/mysql/resolver/MySqlJDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.mysql.resolver">MySqlJDBCCaseResolver</a></dt>
@@ -4638,6 +4646,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/resolver/ClickhouseJDBCCaseResolver.html#getCaseInsensitivelyTableNameQueryTemplate()">getCaseInsensitivelyTableNameQueryTemplate()</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.resolver.<a href="com/amazonaws/athena/connectors/clickhouse/resolver/ClickhouseJDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.clickhouse.resolver">ClickhouseJDBCCaseResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/resolver/DataLakeGen2CaseResolver.html#getCaseInsensitivelyTableNameQueryTemplate()">getCaseInsensitivelyTableNameQueryTemplate()</a></span> - Method in class com.amazonaws.athena.connectors.datalakegen2.resolver.<a href="com/amazonaws/athena/connectors/datalakegen2/resolver/DataLakeGen2CaseResolver.html" title="class in com.amazonaws.athena.connectors.datalakegen2.resolver">DataLakeGen2CaseResolver</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html#getCaseInsensitivelyTableNameQueryTemplate()">getCaseInsensitivelyTableNameQueryTemplate()</a></span> - Method in class com.amazonaws.athena.connectors.db2.resolver.<a href="com/amazonaws/athena/connectors/db2/resolver/Db2JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.db2.resolver">Db2JDBCCaseResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/resolver/JDBCCaseResolver.html#getCaseInsensitivelyTableNameQueryTemplate()">getCaseInsensitivelyTableNameQueryTemplate()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.resolver.<a href="com/amazonaws/athena/connectors/jdbc/resolver/JDBCCaseResolver.html" title="class in com.amazonaws.athena.connectors.jdbc.resolver">JDBCCaseResolver</a></dt>
 <dd>&nbsp;</dd>
@@ -8000,6 +8010,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables(Connection, String)</a></span> - Method in class com.amazonaws.athena.connectors.clickhouse.<a href="com/amazonaws/athena/connectors/clickhouse/ClickHouseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.clickhouse">ClickHouseMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables(Connection, String)</a></span> - Method in class com.amazonaws.athena.connectors.db2.<a href="com/amazonaws/athena/connectors/db2/Db2MetadataHandler.html" title="class in com.amazonaws.athena.connectors.db2">Db2MetadataHandler</a></dt>
+<dd>
+<div class="block">Overridden the base class method to provide DB2-specific table listing functionality.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables(Connection, String)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html#listTables(java.sql.Connection,java.lang.String)">listTables(Connection, String)</a></span> - Method in class com.amazonaws.athena.connectors.mysql.<a href="com/amazonaws/athena/connectors/mysql/MySqlMetadataHandler.html" title="class in com.amazonaws.athena.connectors.mysql">MySqlMetadataHandler</a></dt>
