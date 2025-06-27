@@ -55,7 +55,7 @@ public class GlueRegistryReader
     }
 
     /**
-     * Parse protobuf schema definition from Glue Schema Registry using protoc compiler via Maven plugin
+     * Parse protobuf schema definition from Glue Schema Registry using protoc compiler
      * @param glueRegistryName Registry name
      * @param glueSchemaName Schema name
      * @return List of MSKField objects containing field information
@@ -75,7 +75,7 @@ public class GlueRegistryReader
         Files.writeString(protoFile, schemaDef);
 
         try {
-            // Compile using protoc-jar directly
+            // Compile using protoc-jar
             int exitCode = Protoc.runProtoc(new String[]{
                     "--descriptor_set_out=" + descFile.toAbsolutePath(),
                     "--proto_path=" + protoDir.toAbsolutePath(),
@@ -165,11 +165,5 @@ public class GlueRegistryReader
     {
         GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
         return result.dataFormatAsString();
-    }
-
-    public String getSchemaDef(String glueRegistryName, String glueSchemaName)
-    {
-        GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
-        return result.schemaDefinition();
     }
 }
