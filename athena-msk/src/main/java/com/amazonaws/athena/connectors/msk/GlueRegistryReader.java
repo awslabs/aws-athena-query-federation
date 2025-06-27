@@ -19,8 +19,13 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
+import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.os72.protocjar.Protoc;
+import com.google.protobuf.DescriptorProtos.DescriptorProto;
+import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
+import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.GetSchemaRequest;
 import software.amazon.awssdk.services.glue.model.GetSchemaResponse;
@@ -29,14 +34,91 @@ import software.amazon.awssdk.services.glue.model.GetSchemaVersionResponse;
 import software.amazon.awssdk.services.glue.model.SchemaId;
 import software.amazon.awssdk.services.glue.model.SchemaVersionNumber;
 
+import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
 public class GlueRegistryReader
 {
     private static final ObjectMapper objectMapper;
+    private static final String PROTO_DIR = "src/main/resources/proto";
+    private static final String PROTO_FILE = "schema.proto";
+    private static final String DESC_FILE = "schema.desc";
 
     static {
         objectMapper = new ObjectMapper();
         objectMapper.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    }
+
+    /**
+     * Parse protobuf schema definition from Glue Schema Registry using protoc compiler via Maven plugin
+     * @param glueRegistryName Registry name
+     * @param glueSchemaName Schema name
+     * @return List of MSKField objects containing field information
+     * @throws Exception if schema parsing fails
+     */
+    public List<MSKField> getProtobufFields(String glueRegistryName, String glueSchemaName) throws Exception
+    {
+        // Get schema from Glue
+        GetSchemaVersionResponse schemaVersionResponse = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        String schemaDef = schemaVersionResponse.schemaDefinition();
+
+        Path protoDir = Paths.get(PROTO_DIR);
+        Files.createDirectories(protoDir);
+        Path protoFile = protoDir.resolve(PROTO_FILE);
+        Path descFile = protoDir.resolve(DESC_FILE);
+
+        Files.writeString(protoFile, schemaDef);
+
+        try {
+            // Compile using protoc-jar directly
+            int exitCode = Protoc.runProtoc(new String[]{
+                    "--descriptor_set_out=" + descFile.toAbsolutePath(),
+                    "--proto_path=" + protoDir.toAbsolutePath(),
+                    protoFile.getFileName().toString()
+            });
+
+            if (exitCode != 0 || !Files.exists(descFile)) {
+                throw new RuntimeException("Failed to generate descriptor set with protoc");
+            }
+
+            // Parse descriptor set
+            List<MSKField> fields = new ArrayList<>();
+            try (FileInputStream fis = new FileInputStream(descFile.toFile())) {
+                FileDescriptorSet descriptorSet = FileDescriptorSet.parseFrom(fis);
+
+                if (!descriptorSet.getFileList().isEmpty() &&
+                        !descriptorSet.getFile(0).getMessageTypeList().isEmpty()) {
+                    DescriptorProto messageType = descriptorSet.getFile(0).getMessageType(0);
+                    for (FieldDescriptorProto field : messageType.getFieldList()) {
+                        String fieldType = getFieldTypeString(field);
+                        fields.add(new MSKField(field.getName(), fieldType));
+                    }
+                }
+                else {
+                    throw new RuntimeException("No message types found in compiled schema");
+                }
+            }
+
+            return fields;
+        }
+        finally {
+            Files.deleteIfExists(protoFile);
+            Files.deleteIfExists(descFile);
+        }
+    }
+    /**
+     * Convert protobuf field type to string representation
+     */
+    private String getFieldTypeString(FieldDescriptorProto field)
+    {
+        String baseType = field.getType().toString().toLowerCase().replace("type_", "");
+        return field.getLabel() == FieldDescriptorProto.Label.LABEL_REPEATED ? 
+               "repeated " + baseType : baseType;
     }
 
     /**
@@ -62,6 +144,7 @@ public class GlueRegistryReader
                 .build()
         );
     }
+
     /**
      * fetch schema file content from glue schema.
      *
@@ -77,11 +160,13 @@ public class GlueRegistryReader
         GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
         return objectMapper.readValue(result.schemaDefinition(), clazz);
     }
+
     public String getGlueSchemaType(String glueRegistryName, String glueSchemaName)
     {
         GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
         return result.dataFormatAsString();
     }
+
     public String getSchemaDef(String glueRegistryName, String glueSchemaName)
     {
         GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);

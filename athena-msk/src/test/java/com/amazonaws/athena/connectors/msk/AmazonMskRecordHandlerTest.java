@@ -38,13 +38,16 @@ import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.msk.dto.AvroTopicSchema;
 import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.amazonaws.athena.connectors.msk.dto.Message;
-import com.amazonaws.athena.connectors.msk.dto.ProtobufTopicSchema;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.os72.protocjar.Protoc;
 import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.DescriptorProtos.DescriptorProto;
+import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
+import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -74,6 +77,10 @@ import software.amazon.awssdk.services.glue.model.GetSchemaVersionResponse;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
@@ -252,7 +259,7 @@ public class AmazonMskRecordHandlerTest
         protobufConsumer.updateEndOffsets(offsets);
 
         SplitParameters splitParameters = new SplitParameters("protobuftest", 0, 0, 1);
-        Schema schema = createProtobufSchema(createProtobufTopicSchema());
+        Schema schema = createProtobufSchema(createProtobufSchemaDefinition());
 
         mockedMskUtils.when(() -> AmazonMskUtils.getProtobufKafkaConsumer(com.google.common.collect.ImmutableMap.of())).thenReturn(protobufConsumer);
         mockedMskUtils.when(() -> AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
@@ -508,16 +515,59 @@ public class AmazonMskRecordHandlerTest
     private Schema createProtobufSchema(String protobufSchema) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        ProtobufTopicSchema topicSchema = AmazonMskUtils.parseProtobufSchema(protobufSchema);
-        for (MSKField mskField : topicSchema.getFields()) {
-            FieldType fieldType = new FieldType(
-                    true,
-                    AmazonMskUtils.toArrowType(mskField.getType()),
-                    null
-            );
-            Field field = new Field(mskField.getName(), fieldType, null);
-            schemaBuilder.addField(field);
+        
+        // Create a temporary directory and files
+        Path protoDir = Paths.get("src/test/resources/proto");
+        Files.createDirectories(protoDir);
+        Path protoFile = protoDir.resolve("test.proto");
+        Path descFile = protoDir.resolve("test.desc");
+        
+        try {
+            // Write schema to file
+            Files.writeString(protoFile, protobufSchema);
+            
+            // Compile using protoc-jar
+            int exitCode = Protoc.runProtoc(new String[]{
+                "--descriptor_set_out=" + descFile.toAbsolutePath(),
+                "--proto_path=" + protoDir.toAbsolutePath(),
+                protoFile.getFileName().toString()
+            });
+            
+            if (exitCode != 0 || !Files.exists(descFile)) {
+                throw new RuntimeException("Failed to generate descriptor set with protoc");
+            }
+            
+            // Parse descriptor set
+            try (FileInputStream fis = new FileInputStream(descFile.toFile())) {
+                FileDescriptorSet descriptorSet = FileDescriptorSet.parseFrom(fis);
+                
+                if (!descriptorSet.getFileList().isEmpty() &&
+                    !descriptorSet.getFile(0).getMessageTypeList().isEmpty()) {
+                    DescriptorProto messageType = descriptorSet.getFile(0).getMessageType(0);
+                    for (FieldDescriptorProto field : messageType.getFieldList()) {
+                        String baseType = field.getType().toString().toLowerCase().replace("type_", "");
+                        String fieldType = field.getLabel() == FieldDescriptorProto.Label.LABEL_REPEATED ? 
+                            "repeated " + baseType : baseType;
+                            
+                        FieldType arrowFieldType = new FieldType(
+                            true,
+                            AmazonMskUtils.toArrowType(fieldType),
+                            null
+                        );
+                        Field arrowField = new Field(field.getName(), arrowFieldType, null);
+                        schemaBuilder.addField(arrowField);
+                    }
+                } else {
+                    throw new RuntimeException("No message types found in compiled schema");
+                }
+            }
+        } finally {
+            // Clean up
+            Files.deleteIfExists(protoFile);
+            Files.deleteIfExists(descFile);
+            Files.deleteIfExists(protoDir);
         }
+        
         schemaBuilder.addMetadata("dataFormat", PROTOBUF_DATA_FORMAT);
         return schemaBuilder.build();
     }
@@ -543,7 +593,7 @@ public class AmazonMskRecordHandlerTest
         return objectMapper.readValue(avro, AvroTopicSchema.class);
     }
 
-    private String createProtobufTopicSchema()
+    private String createProtobufSchemaDefinition()
     {
         return "syntax = \"proto3\";\n" +
                 "message protobuftest {\n" +
@@ -597,12 +647,7 @@ public class AmazonMskRecordHandlerTest
                 .schemaArn(arn)
                 .schemaVersionId(schemaVersionId)
                 .dataFormat("protobuf")
-                .schemaDefinition("syntax = \"proto3\";\n" +
-                        "message protobuftest {\n" +
-                        "string name = 1;\n" +
-                        "int32 calories = 2;\n" +
-                        "string colour = 3; \n" +
-                        "}")
+                .schemaDefinition(createProtobufSchemaDefinition())
                 .build();
     }
 }

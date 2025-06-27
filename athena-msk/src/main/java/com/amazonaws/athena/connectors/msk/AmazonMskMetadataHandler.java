@@ -39,7 +39,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.util.PaginatedRequestIterator;
 import com.amazonaws.athena.connectors.msk.dto.AvroTopicSchema;
 import com.amazonaws.athena.connectors.msk.dto.MSKField;
-import com.amazonaws.athena.connectors.msk.dto.ProtobufTopicSchema;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicPartitionPiece;
 import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
@@ -460,15 +459,18 @@ public class AmazonMskMetadataHandler extends MetadataHandler
             schemaBuilder.addMetadata("dataFormat", AVRO_DATA_FORMAT);
         }
         else if (dataFormat.equalsIgnoreCase(PROTOBUF_DATA_FORMAT)) {
-            // Get protobuf topic schema from Glue registry
-            String glueSchema = registryReader.getSchemaDef(glueRegistryName, glueSchemaName);
-            ProtobufTopicSchema protoSchema = AmazonMskUtils.parseProtobufSchema(glueSchema);
+            // Get protobuf topic schema from Glue registry using protoc compiler
+            List<MSKField> fields = registryReader.getProtobufFields(glueRegistryName, glueSchemaName);
             // Creating ArrowType for each field in the protobuf topic schema
-            for (MSKField field : protoSchema.getFields()) {
+            for (MSKField field : fields) {
                 FieldType fieldType = new FieldType(
                         true,
                         AmazonMskUtils.toArrowType(field.getType()),
-                        null
+                        null,
+                        com.google.common.collect.ImmutableMap.of(
+                                "name", field.getName(),
+                                "type", field.getType()
+                        )
                 );
                 Field arrowField = new Field(field.getName(), fieldType, null);
                 schemaBuilder.addField(arrowField);
