@@ -99,7 +99,7 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.bool(true),
                 QueryParameterValue.int64(10), QueryParameterValue.int64(1000000));
 
-        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT)) {
+        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null)) {
             List<QueryParameterValue> parameterValues = new ArrayList<>();
             String sql = BigQuerySqlUtils.buildSql(tableName, makeSchema(constraintMap), constraints, parameterValues);
             assertEquals(expectedParameterValues, parameterValues);

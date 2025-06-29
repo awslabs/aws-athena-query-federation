@@ -71,7 +71,7 @@ public class TPCDSMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TPCDSMetadataHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private TPCDSMetadataHandler handler;
     private BlockAllocator allocator;
 
@@ -160,7 +160,7 @@ public class TPCDSMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName("tpcds1", "customer"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 schema,
                 Collections.EMPTY_SET);
 
@@ -192,7 +192,7 @@ public class TPCDSMetadataHandlerTest
                 new TableName("tpcds1", "customer"),
                 partitions,
                 Collections.EMPTY_LIST,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 continuationToken);
 
         int numContinuations = 0;

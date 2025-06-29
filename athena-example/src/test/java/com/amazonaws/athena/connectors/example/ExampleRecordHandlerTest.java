@@ -152,7 +152,7 @@ public class ExampleRecordHandlerTest
                             .add("month", "11")
                             .add("day", "1")
                             .build(),
-                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
             );
@@ -188,7 +188,7 @@ public class ExampleRecordHandlerTest
 
     private static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     }
 
     private SpillLocation makeSpillLocation()

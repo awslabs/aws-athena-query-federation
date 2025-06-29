@@ -89,7 +89,7 @@ public class TimestreamMetadataHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(TimestreamMetadataHandlerTest.class);
 
     private final String defaultSchema = "default";
-    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private TimestreamMetadataHandler handler;
     private BlockAllocator allocator;
 
@@ -408,7 +408,7 @@ public class TimestreamMetadataHandlerTest
                 "query-id",
                 defaultSchema,
                 new TableName("database1", "table1"),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 schema,
                 Collections.EMPTY_SET);
 
@@ -441,7 +441,7 @@ public class TimestreamMetadataHandlerTest
                 new TableName("database1", "table1"),
                 partitions,
                 partitionCols,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);

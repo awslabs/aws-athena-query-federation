@@ -94,7 +94,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);
@@ -125,7 +125,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);
@@ -160,7 +160,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);
