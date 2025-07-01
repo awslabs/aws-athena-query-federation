@@ -83,4 +83,4 @@ public enum SnowflakeAuthType
     {
         return value;
     }
-} 
+}

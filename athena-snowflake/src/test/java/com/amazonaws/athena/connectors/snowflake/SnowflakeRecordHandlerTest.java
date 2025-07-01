@@ -67,24 +67,17 @@ public class SnowflakeRecordHandlerTest
     public void setup()
             throws Exception
     {
-        this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
-        this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
+        this.amazonS3 = Mockito.mock(S3Client.class);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
-        this.amazonS3 = Mockito.mock(S3Client.class);
+        this.connection = Mockito.mock(Connection.class);
+        this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
-            "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
-        this.snowflakeRecordHandler = new TestSnowflakeRecordHandler(
-                databaseConnectionConfig,
-                this.amazonS3,
-                this.secretsManager,
-                this.athena,
-                this.jdbcConnectionFactory,
-                jdbcSplitQueryBuilder,
-                com.google.common.collect.ImmutableMap.of("secret", "testSecret")
-        );
+                "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
+
+        this.snowflakeRecordHandler = new SnowflakeRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test

@@ -188,4 +188,4 @@ public class SnowflakeAuthUtils
         LOGGER.debug("getCredentialProviderWithDefault called - this should be overridden by the actual implementation");
         return null;
     }
-} 
+}
