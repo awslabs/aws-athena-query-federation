@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
+import com.amazonaws.athena.connectors.snowflake.SnowflakeConstants;
 import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthType;
 import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils;
 import org.apache.commons.lang3.Validate;
@@ -101,9 +102,10 @@ public class SnowflakeConnectionFactory extends GenericJdbcConnectionFactory
         try {
             String username = credentialMap.get(USER);
             String privateKeyPem = credentialMap.get(PRIVATE_KEY);
+            String passphrase =  credentialMap.get(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE);
             
             // Create private key object
-            java.security.PrivateKey privateKey = SnowflakeAuthUtils.createPrivateKey(privateKeyPem);
+            java.security.PrivateKey privateKey = SnowflakeAuthUtils.createPrivateKey(privateKeyPem, passphrase);
             
             // Build connection string
             String connectionString = buildConnectionString();

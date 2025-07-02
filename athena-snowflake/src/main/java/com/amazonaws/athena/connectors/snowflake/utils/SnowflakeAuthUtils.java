@@ -21,13 +21,19 @@ package com.amazonaws.athena.connectors.snowflake.utils;
 
 import com.amazonaws.athena.connectors.snowflake.SnowflakeConstants;
 import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
+import org.bouncycastle.operator.InputDecryptorProvider;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.security.KeyFactory;
+import java.io.StringReader;
 import java.security.PrivateKey;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Base64;
+import java.security.Security;
 import java.util.Map;
 
 /**
@@ -75,31 +81,34 @@ public class SnowflakeAuthUtils
 
     /**
      * Creates a PrivateKey object from the PEM-formatted private key string.
+     * Supports both encrypted and unencrypted private keys using Java standard libraries.
      * 
      * @param privateKeyPem The PEM-formatted private key string
+     * @param passphrase The passphrase for encrypted private keys (can be null for unencrypted keys)
      * @return PrivateKey object
      * @throws Exception if the private key cannot be parsed
      */
-    public static PrivateKey createPrivateKey(String privateKeyPem) throws Exception
+    public static PrivateKey createPrivateKey(String privateKeyPem, String passphrase) throws Exception
     {
         try {
-            // Remove PEM headers and footers
-            String privateKeyContent = privateKeyPem
-                    .replace("-----BEGIN PRIVATE KEY-----", "")
-                    .replace("-----END PRIVATE KEY-----", "")
-                    .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-                    .replace("-----END RSA PRIVATE KEY-----", "")
-                    .replaceAll("\\s", "");
-
-            // Decode the base64 encoded key
-            byte[] keyBytes = Base64.getDecoder().decode(privateKeyContent);
-
-            // Create PKCS8 key spec
-            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
-
-            // Get key factory and generate private key
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            return keyFactory.generatePrivate(keySpec);
+            PrivateKeyInfo privateKeyInfo = null;
+            Security.addProvider(new BouncyCastleProvider());
+            // Read an object from the private key file.
+            PEMParser pemParser = new PEMParser(new StringReader(privateKeyPem));
+            Object pemObject = pemParser.readObject();
+            if (pemObject instanceof PKCS8EncryptedPrivateKeyInfo) {
+                // Handle the case where the private key is encrypted.
+                PKCS8EncryptedPrivateKeyInfo encryptedPrivateKeyInfo = (PKCS8EncryptedPrivateKeyInfo) pemObject;
+                InputDecryptorProvider pkcs8Prov = new JceOpenSSLPKCS8DecryptorProviderBuilder().build(passphrase.toCharArray());
+                privateKeyInfo = encryptedPrivateKeyInfo.decryptPrivateKeyInfo(pkcs8Prov);
+            }
+            else if (pemObject instanceof PrivateKeyInfo) {
+                // Handle the case where the private key is unencrypted.
+                privateKeyInfo = (PrivateKeyInfo) pemObject;
+            }
+            pemParser.close();
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider(BouncyCastleProvider.PROVIDER_NAME);
+            return converter.getPrivateKey(privateKeyInfo);
         }
         catch (Exception e) {
             LOGGER.error("Failed to create private key from PEM string: ", e);
@@ -146,6 +155,7 @@ public class SnowflakeAuthUtils
                 if (StringUtils.isBlank(credentials.get(SnowflakeConstants.PRIVATE_KEY))) {
                     throw new IllegalArgumentException("Private key is required for key-pair authentication");
                 }
+                // Note: Passphrase is optional - only required if the private key is encrypted
                 break;
             case OAUTH:
                 if (StringUtils.isBlank(credentials.get(SnowflakeConstants.AUTH_CODE))) {

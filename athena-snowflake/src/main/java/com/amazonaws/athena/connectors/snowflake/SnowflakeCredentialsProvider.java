@@ -125,6 +125,7 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
         String username = getUsername(oauthConfig);
         credentialMap.put(USER, username);
         credentialMap.put(SnowflakeConstants.PRIVATE_KEY, oauthConfig.get(SnowflakeConstants.PRIVATE_KEY));
+        credentialMap.put(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE, oauthConfig.get(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE));
         LOGGER.debug("Using key-pair authentication for user: {}", username);
         return credentialMap;
     }
