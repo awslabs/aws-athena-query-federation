@@ -38,30 +38,6 @@ public class SnowflakeAuthUtilsTest
     private static final String VALID_PRIVATE_KEY_PEM = 
         "-----BEGIN PRIVATE KEY-----\n" +
         "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCgjDO7+xGLs5bw\n" +
-        "HCjQ2xe8qy2axzLKm98l5KkjNx1YR7C2yyEpFJvgca1Yzr2WxJcAahe1gnazcx9a\n" +
-        "ceViTjjikftrurNzmFtQmIWoLjZg3JlHBeZmEIBD3B/sGCj5uPGvkVNaDAu1AreN\n" +
-        "GwafUlm8PaOnsmBh7QR/UI5OcRCIIfdHoaN7IVOPEsPqpE5Qvo1CB25L6oV+CyWJ\n" +
-        "OjfiJiBdEKnhOHrxhdXxC8a/VfF9i5v3lEJin5/qgqpBdz0Zm5ryHlgwXpyG5wRY\n" +
-        "1JMPHJDdFdohbr2l1Rj0wzemmo7Fq/Gw5Tz5yMKwD1D0ZBR0uTry4ZytLlzC6zkY\n" +
-        "4LXNI0zNAgMBAAECggEAPi0uF/4rFGSP7xuovwIq1jmhJtFAnXDyYfWFf4rnxXm2\n" +
-        "OYS/qe4+VBUSYlNm303xgQqVdgk5uVO7b8auZH0Q0MZijZ03xGvb6YG4OaL0El08\n" +
-        "y2HAkgSP+Df28POGYvg6OZlZo4UIv6h2t6Ig1XEKKbnheJ+/bg1h8YCcLErjcSS+\n" +
-        "0H5Dbhm1gQ3nn9+0+dS9BnC+32tCXtIeWduYxoGwYFvVwwzGR5TWTNsXrXR67tO2\n" +
-        "EaoDAhbCMxnkAapaYPUcs66m2U4V7oQDBZrOnEv2HvVbjiAx1zR2H+9vuTqSKFmC\n" +
-        "jnzQCnOKsbLE7AZXxkydLWAUwhyzFn+xDQDh0rv1jQKBgQDytELaa347Tu+gEsK/\n" +
-        "ge/bNqAMgqmebT8pUnfmuS5h8VdVwPU+zxUYaX2u8IywbbuOBnEgAWdpxDGwnUYQ\n" +
-        "mvPcPML/tOvetOcBsOGtay/QwFtmvt7V/zRw5HXdVtAkgLMlM2c2GGuWqFw7ZRHL\n" +
-        "tQXqYjsAgdHsir30OfoztdR4swKBgQCpV8JwTFCVM6qfSqO104VEzusvt1bFlA4H\n" +
-        "SfQqym80/A55zz6C3bYVsmM1+GaLvM5hlW6Sq1sq7NBAvnvAWLITpaizu7f7P/OC\n" +
-        "D04BGBpbPXatAMnHw5zM2r0C6tqww2WPZckqFCw7W9rWjYsnFZyLj1EbdNMxN+/e\n" +
-        "Rq3Lc9TkfwKBgAi1z3BnSzB1tMPZ6INW9nS3kSbhyZSV9x5Uh1kQbEm3j5rUQfjv\n" +
-        "FaK6pngQyfvK9GA0evrbEgsJr37XJhyScw4EYDstEwn7FA9Lec3vetfTD3SwhO7J\n" +
-        "KeijSleXNgEZXVSIc7vNRI8zm5vGFM1qwbuXquZpwk7q68ZIDmKss+NhAoGACrM1\n" +
-        "4Pyhdtv94vTHZVzJJfDhIXG3NOLHBCTjHbUO0809aOr0azZxI+vSov1gFWJHtBjK\n" +
-        "FNBpAUxXWE/w59Vy4xTrlPe+h0yiKUyoRB9uwuceUY4kMdAlXzhPCxkl2lduWmI3\n" +
-        "FMaTiOij6jylV0HhU1wp5s857Pk42dWjc6CNCicCgYBgjc/gq1VHkNGW4gMq9hSh\n" +
-        "r8fnrcvQFp10Em+Yv7MipMQ/wb5evT+2Gb4u5hCSre8S7NV9nrBEjqeBODFxZR42\n" +
-        "DxkVrv9m2jFYrEqoCVXlJhZuJ8AUeje2NPqZjZgaQLLNsizjlM8dwIFTn7zYus8C\n" +
         "0/EKcWRPSoI9PsbgwvFIyQ==\n" +
         "-----END PRIVATE KEY-----";
     public static final String TESTUSER = "testuser";
@@ -256,16 +232,6 @@ public class SnowflakeAuthUtilsTest
         assertThrows(IllegalArgumentException.class, () -> {
             SnowflakeAuthUtils.validateCredentials(credentials, SnowflakeAuthType.OAUTH);
         });
-    }
-
-    @Test
-    public void testGetCredentialProviderWithDefault()
-    {
-        // This method is for backward compatibility and should return null
-        com.amazonaws.athena.connector.credentials.CredentialsProvider provider = 
-            SnowflakeAuthUtils.getCredentialProviderWithDefault();
-        
-        assertNull(provider);
     }
 
     @Test

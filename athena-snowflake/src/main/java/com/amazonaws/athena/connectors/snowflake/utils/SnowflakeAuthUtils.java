@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.snowflake.utils;
 
 import com.amazonaws.athena.connectors.snowflake.SnowflakeConstants;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,15 +54,11 @@ public class SnowflakeAuthUtils
         }
 
         SnowflakeAuthType authType;
-        if (credentials.containsKey(SnowflakeConstants.PRIVATE_KEY) && 
-            credentials.get(SnowflakeConstants.PRIVATE_KEY) != null && 
-            !credentials.get(SnowflakeConstants.PRIVATE_KEY).trim().isEmpty()) {
+        if (StringUtils.isNotBlank(credentials.get(SnowflakeConstants.PRIVATE_KEY))) {
             LOGGER.debug("Key-pair authentication detected");
             authType = SnowflakeAuthType.SNOWFLAKE_JWT;
         }
-        else if (credentials.containsKey(SnowflakeConstants.AUTH_CODE) && 
-                 credentials.get(SnowflakeConstants.AUTH_CODE) != null && 
-                 !credentials.get(SnowflakeConstants.AUTH_CODE).trim().isEmpty()) {
+        else if (StringUtils.isNotBlank(credentials.get(SnowflakeConstants.AUTH_CODE))) {
             LOGGER.debug("OAuth authentication detected");
             authType = SnowflakeAuthType.OAUTH;
         }
@@ -120,11 +117,11 @@ public class SnowflakeAuthUtils
     public static String getUsername(Map<String, String> credentials)
     {
         String username = credentials.get(SnowflakeConstants.USERNAME);
-        if (username == null || username.trim().isEmpty()) {
+        if (StringUtils.isBlank(username)) {
             username = credentials.get(SnowflakeConstants.USER);
         }
-        if (username == null || username.trim().isEmpty()) {
-            throw new IllegalArgumentException("Username is required");
+        if (StringUtils.isBlank(username)) {
+            throw new IllegalArgumentException("username is required");
         }
         return username;
     }
@@ -141,51 +138,27 @@ public class SnowflakeAuthUtils
         if (credentials == null || credentials.isEmpty()) {
             throw new IllegalArgumentException("Credentials cannot be null or empty");
         }
+        // Check for username (either "username" or "user" field)
+        getUsername(credentials);
 
         switch (authType) {
             case SNOWFLAKE_JWT:
-                // Check for username (either "username" or "user" field)
-                getUsername(credentials);
-                if (!credentials.containsKey(SnowflakeConstants.PRIVATE_KEY) || 
-                    credentials.get(SnowflakeConstants.PRIVATE_KEY) == null || 
-                    credentials.get(SnowflakeConstants.PRIVATE_KEY).trim().isEmpty()) {
+                if (StringUtils.isBlank(credentials.get(SnowflakeConstants.PRIVATE_KEY))) {
                     throw new IllegalArgumentException("Private key is required for key-pair authentication");
                 }
                 break;
             case OAUTH:
-                // Check for username (either "username" or "user" field)
-                getUsername(credentials);
-                if (!credentials.containsKey(SnowflakeConstants.AUTH_CODE) || 
-                    credentials.get(SnowflakeConstants.AUTH_CODE) == null || 
-                    credentials.get(SnowflakeConstants.AUTH_CODE).trim().isEmpty()) {
+                if (StringUtils.isBlank(credentials.get(SnowflakeConstants.AUTH_CODE))) {
                     throw new IllegalArgumentException("Auth code is required for OAuth authentication");
                 }
                 break;
             case SNOWFLAKE:
-                // Check for username (either "username" or "user" field)
-                getUsername(credentials);
-                if (!credentials.containsKey(SnowflakeConstants.PASSWORD) ||
-                    credentials.get(SnowflakeConstants.PASSWORD) == null ||
-                    credentials.get(SnowflakeConstants.PASSWORD).trim().isEmpty()) {
+                if (StringUtils.isBlank(credentials.get(SnowflakeConstants.PASSWORD))) {
                     throw new IllegalArgumentException("Password is required for password authentication");
                 }
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported authentication type: " + authType);
         }
-    }
-
-    /**
-     * Gets the default credential provider for Snowflake.
-     * This method provides backward compatibility by returning the main SnowflakeCredentialsProvider.
-     * 
-     * @return The default credential provider
-     */
-    public static com.amazonaws.athena.connector.credentials.CredentialsProvider getCredentialProviderWithDefault()
-    {
-        // This method is used for backward compatibility
-        // The actual credential provider should be injected by the calling code
-        LOGGER.debug("getCredentialProviderWithDefault called - this should be overridden by the actual implementation");
-        return null;
     }
 }
