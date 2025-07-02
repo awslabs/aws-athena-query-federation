@@ -72,7 +72,6 @@ import com.amazonaws.athena.connector.lambda.serde.v4.OptimizationSubTypeSerDeV4
 import com.amazonaws.athena.connector.lambda.serde.v4.OrderByFieldSerDeV4;
 import com.amazonaws.athena.connector.lambda.serde.v4.SchemaSerDeV4;
 import com.amazonaws.athena.connector.lambda.serde.v4.VariableExpressionSerDeV4;
-import com.amazonaws.athena.connector.lambda.serde.v5.FederationRequestSerDeV5;
 import com.amazonaws.athena.connector.lambda.serde.v5.GetTableRequestSerDeV5;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -215,7 +214,7 @@ public class ObjectMapperFactoryV6
         return new StrictObjectMapper(allocator);
     }
 
-    private static FederationRequestSerDeV5.Serializer createRequestSerializer()
+    private static FederationRequestSerDeV6.Serializer createRequestSerializer()
     {
         FederatedIdentitySerDe.Serializer identity = new FederatedIdentitySerDe.Serializer();
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
@@ -250,7 +249,7 @@ public class ObjectMapperFactoryV6
         ReadRecordsRequestSerDe.Serializer readRecords = new ReadRecordsRequestSerDe.Serializer(identity, tableName, constraints, schema, split);
         UserDefinedFunctionRequestSerDe.Serializer userDefinedFunction = new UserDefinedFunctionRequestSerDe.Serializer(identity, block, schema);
         GetDataSourceCapabilitiesRequestSerDeV4.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesRequestSerDeV4.Serializer(identity);
-        return new FederationRequestSerDeV5.Serializer(
+        return new FederationRequestSerDeV6.Serializer(
                 ping,
                 listSchemas,
                 listTables,
@@ -262,7 +261,7 @@ public class ObjectMapperFactoryV6
                 getDataSourceCapabilities);
     }
 
-    private static FederationRequestSerDeV5.Deserializer createRequestDeserializer(BlockAllocator allocator)
+    private static FederationRequestSerDeV6.Deserializer createRequestDeserializer(BlockAllocator allocator)
     {
         FederatedIdentitySerDe.Deserializer identity = new FederatedIdentitySerDe.Deserializer();
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
@@ -301,7 +300,7 @@ public class ObjectMapperFactoryV6
         UserDefinedFunctionRequestSerDe.Deserializer userDefinedFunction = new UserDefinedFunctionRequestSerDe.Deserializer(identity, block, schema);
         GetDataSourceCapabilitiesRequestSerDeV4.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesRequestSerDeV4.Deserializer(identity);
 
-        return new FederationRequestSerDeV5.Deserializer(
+        return new FederationRequestSerDeV6.Deserializer(
                 ping,
                 listSchemas,
                 listTables,
