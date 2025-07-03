@@ -191,10 +191,12 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSchemaDef(java.lang.String,java.lang.String)">getSchemaDef</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueRegistryName,
-            <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueSchemaName)</code></th>
-<td class="colLast">&nbsp;</td>
+<td class="colFirst"><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="dto/MSKField.html" title="class in com.amazonaws.athena.connectors.msk.dto">MSKField</a>&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getProtobufFields(java.lang.String,java.lang.String)">getProtobufFields</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueRegistryName,
+                 <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueSchemaName)</code></th>
+<td class="colLast">
+<div class="block">Parse protobuf schema definition from Glue Schema Registry using protoc compiler</div>
+</td>
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code>software.amazon.awssdk.services.glue.model.GetSchemaVersionResponse</code></td>
@@ -247,6 +249,26 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Method Detail</h3>
+<a id="getProtobufFields(java.lang.String,java.lang.String)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getProtobufFields</h4>
+<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html?is-external=true" title="class or interface in java.util" class="externalLink">List</a>&lt;<a href="dto/MSKField.html" title="class in com.amazonaws.athena.connectors.msk.dto">MSKField</a>&gt;&nbsp;getProtobufFields&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueRegistryName,
+                                        <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueSchemaName)</pre>
+<div class="block">Parse protobuf schema definition from Glue Schema Registry using protoc compiler</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>glueRegistryName</code> - Registry name</dd>
+<dd><code>glueSchemaName</code> - Schema name</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>List of MSKField objects containing field information</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../connector/lambda/exceptions/AthenaConnectorException.html" title="class in com.amazonaws.athena.connector.lambda.exceptions">AthenaConnectorException</a></code> - if schema parsing fails</dd>
+</dl>
+</li>
+</ul>
 <a id="getSchemaVersionResult(java.lang.String,java.lang.String)">
 <!--   -->
 </a>
@@ -291,21 +313,11 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <a id="getGlueSchemaType(java.lang.String,java.lang.String)">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>getGlueSchemaType</h4>
 <pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getGlueSchemaType&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueRegistryName,
                                 <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueSchemaName)</pre>
-</li>
-</ul>
-<a id="getSchemaDef(java.lang.String,java.lang.String)">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>getSchemaDef</h4>
-<pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;getSchemaDef&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueRegistryName,
-                           <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;glueSchemaName)</pre>
 </li>
 </ul>
 </li>
