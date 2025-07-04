@@ -25,7 +25,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.testng.Assert;
 
-import java.util.Arrays;
+import java.util.List;
 
 import static com.amazonaws.athena.connectors.db2.Db2Constants.QUOTE_CHARACTER;
 
@@ -34,7 +34,7 @@ public class Db2QueryStringBuilderTest {
     Split split;
 
     @Test
-    public void testQueryBuilder()
+    public void getFromClauseWithSplit_whenCalled_returnsFromClause()
     {
         Split split = Mockito.mock(Split.class);
         Db2QueryStringBuilder builder = new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
@@ -43,12 +43,12 @@ public class Db2QueryStringBuilderTest {
     }
 
     @Test
-    public void testGetPartitionWhereClauses()
+    public void getPartitionWhereClauses_whenCalled_returnsPartitionWhereClauses()
     {
         Db2QueryStringBuilder builder =  new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperty(Mockito.eq("partition_number"))).thenReturn("0");
         Mockito.when(split.getProperty(Mockito.eq("PARTITIONING_COLUMN"))).thenReturn("PC");
-        Assert.assertEquals(Arrays.asList(" DATAPARTITIONNUM(PC) = 0"), builder.getPartitionWhereClauses(split));
+        Assert.assertEquals(List.of(" DATAPARTITIONNUM(PC) = 0"), builder.getPartitionWhereClauses(split));
     }
 }
