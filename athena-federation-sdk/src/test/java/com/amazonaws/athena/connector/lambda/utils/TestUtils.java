@@ -40,6 +40,7 @@ public class TestUtils
     public final static int SERDE_VERSION_THREE = 3;
     public final static int SERDE_VERSION_FOUR = 4;
     public final static int SERDE_VERSION_FIVE = 5;
+    public final static int SERDE_VERSION_SIX = 6;
 
     /**
      * Helper to retrieve resources from the class path and enforce they are found

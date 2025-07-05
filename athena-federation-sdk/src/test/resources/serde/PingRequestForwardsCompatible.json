@@ -7,7 +7,7 @@
     "arn" : "testArn",
     "tags" : { },
     "groups" : [ ],
-    "newIdField" : "newIdFieldValue"
+    "configOptions": {}
   },
   "catalogName" : "test-catalog",
   "queryId" : "test-query-id",

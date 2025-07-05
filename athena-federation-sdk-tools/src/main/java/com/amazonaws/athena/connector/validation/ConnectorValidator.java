@@ -413,7 +413,8 @@ public class ConnectorValidator
       this.identity = new FederatedIdentity("VALIDATION_ARN",
                                             "VALIDATION_ACCOUNT",
                                             Collections.emptyMap(),
-                                            Collections.emptyList());
+                                            Collections.emptyList(),
+                                            Collections.emptyMap());
     }
 
     public FederatedIdentity getIdentity()

@@ -117,7 +117,7 @@ public class BlockTest
 
         ValueSet col1Constraint = EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(), true, false)
                 .add(10).build();
-        Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
+        Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, constraints)) {
             block.constrain(constraintEvaluator);
             assertTrue(block.setValue("col1", 0, 10));

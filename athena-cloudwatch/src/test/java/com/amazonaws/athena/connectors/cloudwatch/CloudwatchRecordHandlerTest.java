@@ -86,7 +86,7 @@ public class CloudwatchRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudwatchRecordHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
     private CloudwatchRecordHandler handler;
     private S3BlockSpillReader spillReader;
@@ -210,7 +210,7 @@ public class CloudwatchRecordHandlerTest
                                 .withIsDirectory(true)
                                 .build(),
                         keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );
@@ -250,7 +250,7 @@ public class CloudwatchRecordHandlerTest
                                 .withIsDirectory(true)
                                 .build(),
                         keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 1_500_000L, //~1.5MB so we should see some spill
                 0
         );

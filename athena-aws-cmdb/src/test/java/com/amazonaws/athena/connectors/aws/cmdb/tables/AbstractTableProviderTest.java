@@ -86,7 +86,7 @@ public abstract class AbstractTableProviderTest
 
     private BlockAllocator allocator;
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private String idField = getIdField();
     private String idValue = getIdValue();
     private String expectedQuery = "queryId";
@@ -189,7 +189,7 @@ public abstract class AbstractTableProviderTest
                 EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
                         .add(idValue).build());
 
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
         ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, response.getSchema(), constraints);
 
