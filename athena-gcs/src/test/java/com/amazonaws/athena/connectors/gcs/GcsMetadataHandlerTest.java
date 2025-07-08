@@ -323,7 +323,7 @@ public class GcsMetadataHandlerTest
         Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName(DATABASE_NAME, TABLE_1));
         Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
         Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), 2000) ,
-                Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap());
+                Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
         Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(constraints);
         BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
         gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, null);
@@ -336,7 +336,7 @@ public class GcsMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.VARCHAR.getType(), 2000, 2001);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("year"), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), null);
+                partitions, ImmutableList.of("year"), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         StorageDescriptor storageDescriptor = StorageDescriptor.builder().location(LOCATION).build();
         Table table = Table.builder()
@@ -371,7 +371,7 @@ public class GcsMetadataHandlerTest
         partitions.setRowCount(num_partitions);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("yearCol", "monthCol"), new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), null);
+                partitions, ImmutableList.of("yearCol", "monthCol"), new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         StorageDescriptor storageDescriptor = StorageDescriptor.builder()
                 .location(LOCATION)
@@ -396,7 +396,7 @@ public class GcsMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(blockAllocator, "gcs_file_format", Types.MinorType.VARCHAR.getType(), 2000, 2001);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, ImmutableList.of("gcs_file_format"), new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), null);
+                partitions, ImmutableList.of("gcs_file_format"), new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         StorageDescriptor storageDescriptor = StorageDescriptor.builder()
                 .location(LOCATION)

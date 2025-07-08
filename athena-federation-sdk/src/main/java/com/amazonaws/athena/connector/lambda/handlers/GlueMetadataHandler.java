@@ -33,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -42,6 +43,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
@@ -263,8 +265,11 @@ public abstract class GlueMetadataHandler
     protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request, DatabaseFilter filter)
             throws Exception
     {
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         GetDatabasesRequest getDatabasesRequest = GetDatabasesRequest.builder()
                 .catalogId(getCatalog(request))
+                .overrideConfiguration(overrideConfig)
                 .build();
 
         List<String> schemas = new ArrayList<>();
@@ -311,11 +316,15 @@ public abstract class GlueMetadataHandler
         Set<TableName> tables = new HashSet<>();
         String nextToken = request.getNextToken();
         int pageSize = request.getPageSize();
+
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         logger.info("Starting pagination at {} with page size {}", nextToken, pageSize);
         do {
             GetTablesRequest.Builder getTablesRequest = GetTablesRequest.builder()
                     .catalogId(getCatalog(request))
                     .databaseName(request.getSchemaName())
+                    .overrideConfiguration(overrideConfig)
                     .nextToken(nextToken);
             if (pageSize != UNLIMITED_PAGE_SIZE_VALUE) {
                 // Paginated requests will include the maxResults argument determined by the minimum value between the
@@ -387,11 +396,14 @@ public abstract class GlueMetadataHandler
             throws Exception
     {
         TableName tableName = request.getTableName();
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         //Full class name required due to name overlap with athena
         software.amazon.awssdk.services.glue.model.GetTableRequest getTableRequest = software.amazon.awssdk.services.glue.model.GetTableRequest.builder()
                 .catalogId(getCatalog(request))
                 .databaseName(tableName.getSchemaName())
                 .name(tableName.getTableName())
+                .overrideConfiguration(overrideConfig)
                 .build();
 
         software.amazon.awssdk.services.glue.model.GetTableResponse response = awsGlue.getTable(getTableRequest);

@@ -84,7 +84,7 @@ import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExcept
 
 public class TestBase
 {
-    protected FederatedIdentity TEST_IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    protected FederatedIdentity TEST_IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     protected static final String TEST_QUERY_ID = "queryId";
     protected static final String TEST_CATALOG_NAME = "default";
     protected static final String TEST_TABLE = "test_table";
@@ -113,7 +113,7 @@ public class TestBase
     {
         ddbClient = setupLocalDDB();
         ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, com.google.common.collect.ImmutableMap.of()).build();
-        schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, invoker, ddbClient);
+        schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, invoker, ddbClient, null);
     }
 
     @AfterClass

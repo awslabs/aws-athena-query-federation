@@ -107,7 +107,7 @@ public class MetricsRecordHandlerTest
     private static final TableName METRICS_TABLE_NAME = new TableName("default", METRIC_TABLE.getName());
     private static final TableName METRIC_SAMPLES_TABLE_NAME = new TableName("default", METRIC_DATA_TABLE.getName());
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
     private MetricsRecordHandler handler;
     private S3BlockSpillReader spillReader;
@@ -221,7 +221,7 @@ public class MetricsRecordHandlerTest
                 METRICS_TABLE_NAME,
                 METRIC_TABLE.getSchema(),
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );
@@ -299,7 +299,7 @@ public class MetricsRecordHandlerTest
                 METRIC_SAMPLES_TABLE_NAME,
                 METRIC_DATA_TABLE.getSchema(),
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );

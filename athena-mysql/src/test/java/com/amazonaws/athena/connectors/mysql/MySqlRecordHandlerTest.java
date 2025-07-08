@@ -136,7 +136,8 @@ public class MySqlRecordHandlerTest
                 new OrderByField("testCol1", Direction.ASC_NULLS_FIRST),
                 new OrderByField("testCol3", Direction.DESC_NULLS_FIRST)
             ),
-            100L
+            100L,
+                Collections.emptyMap(), null
         );
 
         String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8` FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) ORDER BY `testCol1` ASC, ISNULL(`testCol3`) DESC, `testCol3` DESC LIMIT 100";

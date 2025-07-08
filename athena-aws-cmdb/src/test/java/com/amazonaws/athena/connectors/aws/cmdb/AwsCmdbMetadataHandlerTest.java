@@ -72,7 +72,7 @@ public class AwsCmdbMetadataHandlerTest
     private String bucket = "bucket";
     private String prefix = "prefix";
     private String queryId = "queryId";
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
 
     @Mock
     private S3Client mockS3;
@@ -198,7 +198,7 @@ public class AwsCmdbMetadataHandlerTest
                 new TableName("schema1", "table1"),
                 mockBlock,
                 Collections.emptyList(),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
 
         GetSplitsResponse response = handler.doGetSplits(blockAllocator, request);
