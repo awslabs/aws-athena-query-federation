@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-saphana
+ * athena-db2
  * %%
  * Copyright (C) 2019 - 2025 Amazon Web Services
  * %%
@@ -17,34 +17,24 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.saphana.resolver;
+package com.amazonaws.athena.connectors.db2.resolver;
 
 import com.amazonaws.athena.connectors.jdbc.resolver.DefaultJDBCCaseResolver;
-import com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-public class SaphanaJDBCCaseResolver
+public class Db2JDBCCaseResolver
         extends DefaultJDBCCaseResolver
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SaphanaJDBCCaseResolver.class);
-    private static final String SCHEMA_NAME_QUERY_TEMPLATE = "select * from SYS.SCHEMAS where lower(SCHEMA_NAME) = ?";
-    private static final String TABLE_NAME_QUERY_TEMPLATE = "select * from SYS.TABLES where SCHEMA_NAME = ? and lower(TABLE_NAME) = ?";
-    private static final String TABLE_NAME_QUERY_VIEW =  "SELECT VIEW_NAME AS \"TABLE_NAME\" FROM SYS.VIEWS WHERE SCHEMA_NAME = ? AND lower(VIEW_NAME) = ?";
-    private static final String SCHEMA_NAME_COLUMN_KEY = "SCHEMA_NAME";
-    private static final String TABLE_NAME_COLUMN_KEY = "TABLE_NAME";
+    private static final String TABLE_NAME_QUERY_TEMPLATE = "SELECT TABNAME FROM SYSCAT.TABLES WHERE TABSCHEMA = ? AND LOWER(TABNAME) = ?";
+    private static final String SCHEMA_NAME_QUERY_TEMPLATE = "SELECT SCHEMANAME FROM SYSCAT.SCHEMATA WHERE LOWER(SCHEMANAME) = ?";
 
-    public SaphanaJDBCCaseResolver(String sourceType)
-    {
-        super(sourceType, FederationSDKCasingMode.ANNOTATION, FederationSDKCasingMode.NONE);
-    }
+    private static final String SCHEMA_NAME_COLUMN_KEY = "SCHEMANAME";
+    private static final String TABLE_NAME_COLUMN_KEY = "TABNAME";
 
-    @VisibleForTesting
-    public SaphanaJDBCCaseResolver(String sourceType, FederationSDKCasingMode casingMode)
+    public Db2JDBCCaseResolver(String sourceType)
     {
-        super(sourceType, casingMode, casingMode);
+        super(sourceType, FederationSDKCasingMode.UPPER, FederationSDKCasingMode.LOWER);
     }
 
     @Override
@@ -62,7 +52,7 @@ public class SaphanaJDBCCaseResolver
     @Override
     protected List<String> getCaseInsensitivelyTableNameQueryTemplate()
     {
-        return List.of(TABLE_NAME_QUERY_TEMPLATE, TABLE_NAME_QUERY_VIEW);
+        return List.of(TABLE_NAME_QUERY_TEMPLATE);
     }
 
     @Override

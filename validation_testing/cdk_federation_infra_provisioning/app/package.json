@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@aws-cdk/aws-glue-alpha": "2.130.0-alpha.0",
-    "@aws-cdk/aws-redshift-alpha": "2.130.0-alpha.0",
+    "@aws-cdk/aws-redshift-alpha": "2.173.0-alpha.0",
     "aws-cdk-lib": "2.177.0",
     "dotenv": "^16.0.3",
     "source-map-support": "^0.5.21",
