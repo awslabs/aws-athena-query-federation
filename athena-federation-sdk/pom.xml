@@ -54,6 +54,12 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>com.github.stefanbirkner</groupId>
+            <artifactId>system-lambda</artifactId>
+            <version>1.2.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>kms</artifactId>
             <version>${aws-sdk-v2.version}</version>
@@ -217,7 +223,7 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.78</version>
+            <version>1.81</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
