@@ -154,7 +154,7 @@ public class ElasticsearchMetadataHandler
     }
 
     @VisibleForTesting
-    protected ElasticsearchMetadataHandler(
+    public ElasticsearchMetadataHandler(
         GlueClient awsGlue,
         EncryptionKeyFactory keyFactory,
         SecretsManagerClient awsSecretsManager,

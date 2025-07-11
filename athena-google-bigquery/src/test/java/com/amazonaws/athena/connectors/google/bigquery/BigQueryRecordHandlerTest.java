@@ -197,7 +197,7 @@ public class BigQueryRecordHandlerTest
         System.setProperty("aws.region", "us-east-1");
         logger.info("Starting init.");
         mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
-        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
+        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class), any(SecretsManagerClient.class))).thenReturn(bigQuery);
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         allocator = new BlockAllocatorImpl();
         amazonS3 = mock(S3Client.class);
