@@ -102,7 +102,7 @@ public class ElasticsearchRecordHandler
     }
 
     @VisibleForTesting
-    protected ElasticsearchRecordHandler(
+    public ElasticsearchRecordHandler(
         S3Client amazonS3,
         SecretsManagerClient secretsManager,
         AthenaClient amazonAthena,
