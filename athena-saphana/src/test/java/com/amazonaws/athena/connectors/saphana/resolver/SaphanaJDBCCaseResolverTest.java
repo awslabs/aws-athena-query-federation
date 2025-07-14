@@ -57,7 +57,7 @@ public class SaphanaJDBCCaseResolverTest extends TestBase
     }
 
     @Test
-    public void testAnnotationOverrideCase() {
+    public void getAdjustedTableNameObject_withAnnotationCasingMode_returnsUnchangedOrCaseAdjustedByAnnotation() {
         // unsupported case
         String schemaName = "oRaNgE";
         String tableName = "ApPlE";
@@ -77,7 +77,7 @@ public class SaphanaJDBCCaseResolverTest extends TestBase
     }
 
     @Test
-    public void testCaseInsensitiveCaseOnName()
+    public void getAdjustedSchemaAndTableNameString_withCaseInsensitiveSearch_returnsLowercaseSchemaAndUppercaseTableName()
             throws SQLException
     {
         // unsupported case
@@ -105,7 +105,7 @@ public class SaphanaJDBCCaseResolverTest extends TestBase
     }
 
     @Test
-    public void testCaseInsensitiveCaseOnObject()
+    public void getAdjustedTableNameObject_withCaseInsensitiveSearch_returnsTableNameWithSchemaLowercaseAndTableUppercase()
             throws SQLException
     {
         // unsupported case
@@ -126,5 +126,46 @@ public class SaphanaJDBCCaseResolverTest extends TestBase
         when(preparedStatement.executeQuery()).thenReturn(resultSet).thenReturn(resultSet1);
         TableName adjustedTableNameObject = saphana.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableName), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()));
         assertEquals(new TableName(schemaName.toLowerCase(), tableName.toUpperCase()), adjustedTableNameObject);
+    }
+
+    @Test
+    public void getAdjustedSchemaNameString_whenExecuteQueryThrowsSqlException_throwsRuntimeException()
+            throws SQLException
+    {
+        DefaultJDBCCaseResolver saphana = new SaphanaJDBCCaseResolver(SAPHANA_NAME);
+        when(preparedStatement.executeQuery()).thenThrow(new SQLException("Connection closed"));
+
+        assertThrows(RuntimeException.class, () ->
+                saphana.getAdjustedSchemaNameString(mockConnection, "testSchema", Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
+    }
+
+    @Test
+    public void getAdjustedSchemaNameString_whenNoRowsReturned_throwsAthenaConnectorException()
+            throws SQLException
+    {
+        DefaultJDBCCaseResolver saphana = new SaphanaJDBCCaseResolver(SAPHANA_NAME);
+        String[] columns = {"SCHEMA_NAME"};
+        int[] types = {Types.VARCHAR};
+        Object[][] values = {};
+        ResultSet emptyResultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
+        when(preparedStatement.executeQuery()).thenReturn(emptyResultSet);
+
+        assertThrows(com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException.class, () ->
+                saphana.getAdjustedSchemaNameString(mockConnection, "nonexistent", Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
+    }
+
+    @Test
+    public void getAdjustedTableNameString_whenExecuteQueryThrowsSqlException_throwsRuntimeException()
+            throws SQLException
+    {
+        DefaultJDBCCaseResolver saphana = new SaphanaJDBCCaseResolver(SAPHANA_NAME);
+        String[] schemaColumns = {"SCHEMA_NAME"};
+        int[] schemaTypes = {Types.VARCHAR};
+        Object[][] schemaValues = {{"testschema"}};
+        ResultSet schemaResultSet = mockResultSet(schemaColumns, schemaTypes, schemaValues, new AtomicInteger(-1));
+        when(preparedStatement.executeQuery()).thenReturn(schemaResultSet).thenThrow(new SQLException("Table query failed"));
+
+        assertThrows(RuntimeException.class, () ->
+                saphana.getAdjustedTableNameString(mockConnection, "testschema", "testtable", Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
     }
 }
