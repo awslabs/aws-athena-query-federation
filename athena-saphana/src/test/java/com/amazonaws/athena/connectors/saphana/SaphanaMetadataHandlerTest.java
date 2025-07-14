@@ -27,8 +27,10 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.*;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.resolver.CaseResolver;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -58,6 +60,7 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.saphana.SaphanaConstants.SAPHANA_NAME;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class SaphanaMetadataHandlerTest
@@ -73,7 +76,8 @@ public class SaphanaMetadataHandlerTest
     private AthenaClient athena;
     private BlockAllocator blockAllocator;
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
-
+    private static final String QUERY_ID = "queryId";
+    private static final String CATALOG_NAME = "testCatalogName";
 
     @Before
     public void setup()
@@ -91,15 +95,15 @@ public class SaphanaMetadataHandlerTest
     }
 
     @Test
-    public void getPartitionSchema()
+    public void getPartitionSchema_withCatalogName_returnsSchemaWithPartitionColumn()
     {
-        Assert.assertEquals(SchemaBuilder.newBuilder()
+        assertEquals(SchemaBuilder.newBuilder()
                         .addField(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
                 this.saphanaMetadataHandler.getPartitionSchema("testCatalogName"));
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_withPartitions_returnsLayoutWithPartitionList()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -127,20 +131,20 @@ public class SaphanaMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Arrays.asList("[part_id : p0]", "[part_id : p1]"));
+        assertEquals(expectedValues, Arrays.asList("[part_id : p0]", "[part_id : p1]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
-        Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
-        Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
+        assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
+        assertEquals(tableName, getTableLayoutResponse.getTableName());
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getSchemaName());
     }
 
     @Test
-    public void doGetTableLayoutWithNoPartitions()
+    public void doGetTableLayout_withNoPartitions_returnsLayoutWithDefaultPartition()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -163,23 +167,23 @@ public class SaphanaMetadataHandlerTest
 
         GetTableLayoutResponse getTableLayoutResponse = this.saphanaMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
-        Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
+        assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
 
         List<String> expectedValues = new ArrayList<>();
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues, Collections.singletonList("[part_id : 0]"));
+        assertEquals(expectedValues, Collections.singletonList("[part_id : 0]"));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder(BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
-        Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
+        assertEquals(tableName, getTableLayoutResponse.getTableName());
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
     }
 
     @Test(expected = RuntimeException.class)
-    public void doGetTableLayoutWithSQLException()
+    public void doGetTableLayout_whenSqlException_throwsRuntimeException()
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -198,7 +202,7 @@ public class SaphanaMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_withTableLayout_returnsListOfSplitsPerPartition()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -230,13 +234,13 @@ public class SaphanaMetadataHandlerTest
         Set<Map<String, String>> expectedSplits = new HashSet<>();
         expectedSplits.add(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "p0"));
         expectedSplits.add(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "p1"));
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
+        assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
-        Assert.assertEquals(expectedSplits, actualSplits);
+        assertEquals(expectedSplits, actualSplits);
     }
 
     @Test
-    public void doListPaginatedTables()
+    public void doListTables_withPagination_returnsListOfTablesWithNextToken()
             throws Exception
     {
         SaphanaMetadataHandler metadataHandler = new SaphanaMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new SaphanaJDBCCaseResolver(SAPHANA_NAME, CaseResolver.FederationSDKCasingMode.NONE));
@@ -255,7 +259,7 @@ public class SaphanaMetadataHandlerTest
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", null, 1));
 
-        Assert.assertEquals("1", listTablesResponse.getNextToken());
+        assertEquals("1", listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
         // Test 2: Testing next table returned of page size 1 and nextToken 1
@@ -268,7 +272,7 @@ public class SaphanaMetadataHandlerTest
         listTablesResponse = metadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "1", 1));
-        Assert.assertEquals("2", listTablesResponse.getNextToken());
+        assertEquals("2", listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
         // Test 3: Testing single table returned when requesting pageSize 2 signifying end of pagination where nextToken is null
@@ -281,7 +285,7 @@ public class SaphanaMetadataHandlerTest
 
         listTablesResponse = metadataHandler.doListTables(blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                 "testCatalog", "testSchema", "2", 2));
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
         // Test 4: nextToken is 2 and pageSize is UNLIMITED. Return all tables starting from index 2.
@@ -295,7 +299,7 @@ public class SaphanaMetadataHandlerTest
         listTablesResponse = metadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "2", ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE));
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
         // Test 5: AthenaConnectorException with negative nextToken value
@@ -309,7 +313,7 @@ public class SaphanaMetadataHandlerTest
         Assert.assertThrows(AthenaConnectorException.class, () -> this.saphanaMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "-1", 3)));
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
         // Test 6: AthenaConnectorException with negative pageSize value
@@ -323,13 +327,13 @@ public class SaphanaMetadataHandlerTest
         Assert.assertThrows(AthenaConnectorException.class, () -> this.saphanaMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                         "testCatalog", "testSchema", "0", -3)));
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
     }
 
     @Test
-    public void doGetSplitsContinuation()
+    public void doGetSplits_withContinuationToken_returnsListOfRemainingSplits()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -358,13 +362,13 @@ public class SaphanaMetadataHandlerTest
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
         expectedSplits.add(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "p1"));
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
+        assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
-        Assert.assertEquals(expectedSplits, actualSplits);
+        assertEquals(expectedSplits, actualSplits);
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_withTableName_returnsTableMetadata()
             throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
@@ -381,7 +385,7 @@ public class SaphanaMetadataHandlerTest
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
-        
+
         // Mock schema case resolution queries - return single schema match
         String[] schemaQuerySchema = {"SCHEMA_NAME"};
         Object[][] schemaQueryValues = {{"TESTSCHEMA"}};
@@ -391,13 +395,13 @@ public class SaphanaMetadataHandlerTest
         PreparedStatement schemaStmt = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement("select * from SYS.SCHEMAS where lower(SCHEMA_NAME) = ?")).thenReturn(schemaStmt);
         Mockito.when(schemaStmt.executeQuery()).thenReturn(schemaResultSet);
-        
+
         // Mock table case resolution queries - return single table match
         String[] tableQuerySchema = {"TABLE_NAME"};
         Object[][] tableQueryValues = {{"TESTTABLE"}};
         AtomicInteger tableRowNumber = new AtomicInteger(-1);
         ResultSet tableResultSet = mockResultSet(tableQuerySchema, tableQueryValues, tableRowNumber);
-        
+
         PreparedStatement tableStmt = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement("select * from SYS.TABLES where SCHEMA_NAME = ? and lower(TABLE_NAME) = ?")).thenReturn(tableStmt);
         Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
@@ -405,13 +409,13 @@ public class SaphanaMetadataHandlerTest
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
         GetTableResponse getTableResponse = this.saphanaMetadataHandler.doGetTable(
                 this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
-        Assert.assertEquals(expected, getTableResponse.getSchema());
-        Assert.assertEquals(inputTableName, getTableResponse.getTableName());
-        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+        assertEquals(expected, getTableResponse.getSchema());
+        assertEquals(inputTableName, getTableResponse.getTableName());
+        assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 
     @Test
-    public void doGetSplitsForView()
+    public void doGetSplits_forView_returnsSingleSplitWithDefaultPartition()
             throws Exception
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
@@ -436,14 +440,14 @@ public class SaphanaMetadataHandlerTest
         Set<Map<String, String>> expectedSplits = new HashSet<>();
         expectedSplits.add(Collections.singletonMap(BLOCK_PARTITION_COLUMN_NAME, "0"));
 
-        Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
+        assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
 
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
-        Assert.assertEquals(expectedSplits, actualSplits);
+        assertEquals(expectedSplits, actualSplits);
     }
 
     @Test(expected = SQLException.class)
-    public void doGetTableSQLException()
+    public void doGetTable_whenGetColumnsThrowsSqlException_throwsSqlException()
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
@@ -452,15 +456,15 @@ public class SaphanaMetadataHandlerTest
         this.saphanaMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 
-    @Test (expected = RuntimeException.class)
-    public void doGetTableNoColumns() throws Exception
+    @Test(expected = RuntimeException.class)
+    public void doGetTable_whenNoColumns_throwsRuntimeException() throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
         this.saphanaMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
     }
 
     @Test
-    public void doGetTableWithAnnotation()
+    public void doGetTable_withAnnotationCasing_returnsTableMetadataWithAdjustedCase()
             throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
@@ -482,8 +486,8 @@ public class SaphanaMetadataHandlerTest
         TableName inputTableName = new TableName(schemaName, tableName + "@schemaCase=upper&tableCase=lower");
 
         SaphanaMetadataHandler saphanaMetadataHandlerWithAnnotation = new SaphanaMetadataHandler(databaseConnectionConfig,
-            this.secretsManager, this.athena, this.jdbcConnectionFactory, 
-            com.google.common.collect.ImmutableMap.of(), 
+            this.secretsManager, this.athena, this.jdbcConnectionFactory,
+            com.google.common.collect.ImmutableMap.of(),
             new SaphanaJDBCCaseResolver(SAPHANA_NAME, CaseResolver.FederationSDKCasingMode.ANNOTATION));
         Mockito.when(connection.getMetaData().getColumns("testCatalog", schemaName.toUpperCase(), tableName.toLowerCase(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
@@ -491,13 +495,13 @@ public class SaphanaMetadataHandlerTest
         GetTableResponse getTableResponse = saphanaMetadataHandlerWithAnnotation.doGetTable(
                 this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
 
-        Assert.assertEquals(expected, getTableResponse.getSchema());
-        Assert.assertEquals(new TableName(schemaName.toUpperCase(), tableName.toLowerCase()), getTableResponse.getTableName());
-        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+        assertEquals(expected, getTableResponse.getSchema());
+        assertEquals(new TableName(schemaName.toUpperCase(), tableName.toLowerCase()), getTableResponse.getTableName());
+        assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 
     @Test
-    public void doGetTableNotFoundWithAnnotation()
+    public void doGetTable_withAnnotationAndNoMatch_throwsException()
             throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
@@ -526,7 +530,7 @@ public class SaphanaMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableWithNoneCasing()
+    public void doGetTable_withNoneCasing_returnsTableMetadataWithOriginalCase()
             throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
@@ -561,5 +565,96 @@ public class SaphanaMetadataHandlerTest
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(new TableName(schemaName, tableName), getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void doGetDataSourceCapabilities_withDefaultRequest_returnsDataSourceCapabilities()
+    {
+        try (BlockAllocator allocator = new BlockAllocatorImpl()) {
+            GetDataSourceCapabilitiesRequest request =
+                    new GetDataSourceCapabilitiesRequest(federatedIdentity, QUERY_ID, CATALOG_NAME);
+
+            GetDataSourceCapabilitiesResponse response =
+                    saphanaMetadataHandler.doGetDataSourceCapabilities(allocator, request);
+
+            Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+            assertEquals(CATALOG_NAME, response.getCatalogName());
+
+            // Filter pushdown
+            List<OptimizationSubType> filterPushdown = capabilities.get("supports_filter_pushdown");
+            assertNotNull("Expected supports_filter_pushdown capability to be present", filterPushdown);
+            assertEquals(2, filterPushdown.size());
+            assertTrue("Filter pushdown should include sorted_range_set subtype",
+                    filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals("sorted_range_set")));
+            assertTrue("Filter pushdown should include nullable_comparison subtype",
+                    filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals("nullable_comparison")));
+
+            // Complex expression pushdown
+            List<OptimizationSubType> complexPushdown = capabilities.get("supports_complex_expression_pushdown");
+            assertNotNull("Expected supports_complex_expression_pushdown capability to be present", complexPushdown);
+            assertEquals(1, complexPushdown.size());
+            assertTrue("Complex expression pushdown should include supported_function_expression_types with non-empty properties",
+                    complexPushdown.stream().anyMatch(subType ->
+                            subType.getSubType().equals("supported_function_expression_types") &&
+                                    !subType.getProperties().isEmpty()));
+
+            // Top-N pushdown
+            List<OptimizationSubType> topNPushdown = capabilities.get("supports_top_n_pushdown");
+            assertNotNull("Expected supports_top_n_pushdown capability to be present", topNPushdown);
+            assertEquals(1, topNPushdown.size());
+        }
+    }
+
+    @Test
+    public void doGetSplits_withQueryPassthrough_returnsSingleSplitWithPassthroughArguments()
+    {
+        TableName tableName = new TableName("testSchema", "testTable");
+
+        Constraints constraints = Mockito.mock(Constraints.class);
+        Mockito.when(constraints.isQueryPassThrough()).thenReturn(true);
+        Map<String, String> passthroughArgs = new HashMap<>();
+        passthroughArgs.put("arg1", "val1");
+        passthroughArgs.put("arg2", "val2");
+        Mockito.when(constraints.getQueryPassthroughArguments()).thenReturn(passthroughArgs);
+
+        Block partitions = Mockito.mock(Block.class);
+
+        GetSplitsRequest request = new GetSplitsRequest(
+                federatedIdentity,
+                QUERY_ID,
+                CATALOG_NAME,
+                tableName,
+                partitions,
+                Collections.emptyList(),
+                constraints,
+                null
+        );
+
+        GetSplitsResponse response = saphanaMetadataHandler.doGetSplits(this.blockAllocator, request);
+
+        // Assertions
+        assertEquals(CATALOG_NAME, response.getCatalogName());
+        assertEquals(1, response.getSplits().size());
+
+        Map<String, String> actualProps = response.getSplits().iterator().next().getProperties();
+        assertEquals(passthroughArgs, actualProps);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTableLayout_whenPrepareStatementThrowsSqlException_throwsRuntimeException()
+            throws Exception
+    {
+        try (BlockAllocator blockAllocator = new BlockAllocatorImpl()) {
+            Constraints constraints = Mockito.mock(Constraints.class);
+            TableName tableName = new TableName("testSchema", "testTable");
+            Schema partitionSchema = this.saphanaMetadataHandler.getPartitionSchema("testCatalogName");
+            Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+            GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+
+            Mockito.when(this.connection.prepareStatement(SaphanaConstants.GET_PARTITIONS_QUERY)).thenThrow(new SQLException("Connection lost"));
+
+            this.saphanaMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+        }
     }
 }
