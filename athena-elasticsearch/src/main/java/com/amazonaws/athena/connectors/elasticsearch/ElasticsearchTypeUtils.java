@@ -113,7 +113,8 @@ class ElasticsearchTypeUtils
 
     /**
      * Create a VARCHAR field extractor to extract a string value from a Document. The Document value can be returned
-     * as a String or a List. For the latter, extract the first element only.
+     * as a String, List, or Map. For Maps with json="true" metadata, converts to JSON string. For other Lists and Maps,
+     * uses toString() representation.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -126,15 +127,6 @@ class ElasticsearchTypeUtils
             if (fieldValue instanceof String) {
                 dst.value = (String) fieldValue;
             }
-            else if (fieldValue instanceof List) {
-                Object value = ((List) fieldValue).get(0);
-                if (value instanceof String) {
-                    dst.value = (String) value;
-                }
-                else {
-                    dst.isSet = 0;
-                }
-            }
             else if (fieldValue instanceof Map && "true".equals(field.getMetadata().get("json"))) {
                 try {
                     dst.value = OBJECT_MAPPER.writeValueAsString(fieldValue);
@@ -143,6 +135,9 @@ class ElasticsearchTypeUtils
                     logger.warn("Error serializing object to JSON for field {}: {}", field.getName(), e.getMessage());
                     dst.isSet = 0;
                 }
+            }
+            else if (fieldValue instanceof List || fieldValue instanceof Map) {
+                dst.value = fieldValue.toString();
             }
             else {
                 dst.isSet = 0;
