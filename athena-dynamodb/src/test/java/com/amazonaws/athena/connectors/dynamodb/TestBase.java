@@ -104,6 +104,7 @@ public class TestBase
     protected static final TableName TEST_TABLE_6_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE6);
     protected static final TableName TEST_TABLE_7_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE7);
     protected static final TableName TEST_TABLE_8_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
+    protected static final String TEST_FIELD = "col1";
 
     protected static DynamoDbClient ddbClient;
     protected static Schema schema;
