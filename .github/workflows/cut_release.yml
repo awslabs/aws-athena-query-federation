@@ -13,11 +13,11 @@ jobs:
           sudo apt-get install -y libxml2-utils python3
           pip3 install lxml beautifulsoup4
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'corretto'
-          java-version: '11'
+          java-version: '17'
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,22 +62,22 @@ jobs:
           git log --format='  - %s' $PREVIOUS_RELEASE_TAG..HEAD >> /tmp/RELEASE_MESSAGE
           git commit -a -F /tmp/RELEASE_MESSAGE
 
-      - name: Build Java 11 jars
+      - name: Build Java 17 jars
         run: |
           mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
 
           # Copy over the sdk jars
-          mkdir -p /tmp/java11_sdk_jars/
-          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}.jar /tmp/java11_sdk_jars/
-          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-withdep.jar /tmp/java11_sdk_jars/
+          mkdir -p /tmp/java17_sdk_jars/
+          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}.jar /tmp/java17_sdk_jars/
+          cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}-withdep.jar /tmp/java17_sdk_jars/
 
           # Copy over the connector jars
-          mkdir -p /tmp/java11_connector_jars/
-          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | grep -v "athena-jdbc" | xargs -I{} cp {} /tmp/java11_connector_jars/
+          mkdir -p /tmp/java17_connector_jars/
+          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | grep -v "athena-jdbc" | xargs -I{} cp {} /tmp/java17_connector_jars/
 
           # Copy over the connector zips
-          mkdir -p /tmp/java11_connector_zips/
-          find athena-*/target/ -name "*.zip" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java11_connector_zips/
+          mkdir -p /tmp/java17_connector_zips/
+          find athena-*/target/ -name "*.zip" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java17_connector_zips/
 
       - name: Push the release branch
         run: |
@@ -107,17 +107,17 @@ jobs:
           Athena Federation SDK jars
           |CheckSum|File|
           |----------|----|
-          $(cd /tmp/java11_sdk_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+          $(cd /tmp/java17_sdk_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
 
           Athena Federation Connector Lambda jars
           |CheckSum|File|
           |----------|----|
-          $(cd /tmp/java11_connector_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+          $(cd /tmp/java17_connector_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
 
           Athena Federation Connector Lambda zips
           |CheckSum|File|
           |----------|----|
-          $(cd /tmp/java11_connector_zips && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+          $(cd /tmp/java17_connector_zips && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
 
           ## What's Changed
           $(git log --format='- %s' v$PREVIOUS_RELEASE_VERSION..HEAD~1)
@@ -133,7 +133,7 @@ jobs:
             --notes-file /tmp/RELEASE_NOTES
           # Upload the jar attachments
           gh release upload "v$NEW_RELEASE_VERSION" \
-            $(find /tmp/java11_sdk_jars -type f) \
-            $(find /tmp/java11_connector_jars -type f) \
-            $(find /tmp/java11_connector_zips -type f) \
+            $(find /tmp/java17_sdk_jars -type f) \
+            $(find /tmp/java17_connector_jars -type f) \
+            $(find /tmp/java17_connector_zips -type f) \
             --clobber
