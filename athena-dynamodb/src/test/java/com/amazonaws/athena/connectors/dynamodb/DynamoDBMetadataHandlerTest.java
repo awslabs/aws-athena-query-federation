@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
@@ -31,13 +32,14 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
@@ -45,22 +47,20 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.dynamodb.qpt.DDBQueryPassthrough;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -120,8 +120,16 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -150,6 +158,16 @@ public class DynamoDBMetadataHandlerTest
 
     private BlockAllocator allocator;
 
+    private static final String SCHEMA_FUNCTION_NAME = "system.query";
+    private static final String COL_0 = "col_0";
+    private static final String COL_1 = "col_1";
+    private static final String SELECT_COL_0_COL_1_QUERY = "SELECT col_0, col_1 FROM " + TEST_TABLE + " WHERE col_0 = 'test_str_0'";
+    private static final String SELECT_ALL_QUERY = "SELECT * FROM " + TEST_TABLE;
+    private static final String ENABLE_QUERY_PASSTHROUGH = "enable_query_passthrough";
+    private static final String SYSTEM_QUERY = "SYSTEM.QUERY";
+    private static final String SUPPORTS_LIMIT_PUSHDOWN = "supports_limit_pushdown";
+    private static final String SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN = "supports_complex_expression_pushdown";
+
     @Before
     public void setup()
     {
@@ -168,7 +186,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNamesGlueError()
+    public void doListSchemaNames_withGlueError_fallsBackToDefaultSchema()
             throws Exception
     {
         when(glueClient.getDatabasesPaginator(any(GetDatabasesRequest.class))).thenThrow(new AmazonServiceException(""));
@@ -182,7 +200,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNamesGlue()
+    public void doListSchemaNames_withGlueDatabases_filtersDynamoDBSchemas()
             throws Exception
     {
         GetDatabasesResponse response = GetDatabasesResponse.builder()
@@ -207,7 +225,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doListTablesGlueAndDynamo()
+    public void doListTables_withGlueAndDynamo_combinesAllTables()
             throws Exception
     {
         List<String> tableNames = new ArrayList<>();
@@ -268,7 +286,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doListPaginatedTables()
+    public void doListTables_withPagination_paginatesResults()
             throws Exception
     {
         ListTablesRequest req = new ListTablesRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, DEFAULT_SCHEMA,
@@ -279,7 +297,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_withExistingTable_createsTableSchema()
             throws Exception
     {
         when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
@@ -295,7 +313,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doGetEmptyTable()
+    public void doGetTable_withEmptyTable_createsMinimalSchema()
             throws Exception
     {
         when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
@@ -310,21 +328,63 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void testCaseInsensitiveResolve()
+    public void doGetTable_withCaseInsensitiveTableName_resolvesToExistingTable()
             throws Exception
     {
-        when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
+        lenient().when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
 
-        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME, Collections.emptyMap());
+        // Test case-insensitive resolution with different case variations
+        TableName lowercaseTable = new TableName(DEFAULT_SCHEMA, "test_table2");
+        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, lowercaseTable, Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
 
-        logger.info("doGetTable - {}", res.getSchema());
-
-        assertThat(res.getTableName(), equalTo(TEST_TABLE_2_NAME));
+        assertThat(res.getTableName().getTableName(), equalTo("test_table2"));
+        assertThat(res.getSchema().getFields().size(), equalTo(2));
     }
 
     @Test
-    public void doGetTableLayoutScan()
+    public void doGetTable_withNonExistentTable_throwsAthenaConnectorException()
+            throws Exception
+    {
+        try {
+            lenient().when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
+
+            // Request a table that doesn't exist in our test setup
+            TableName nonExistentTable = new TableName(DEFAULT_SCHEMA, "NonExistentTable");
+            GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, nonExistentTable, Collections.emptyMap());
+            
+            handler.doGetTable(allocator, req);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should not be null or empty",
+                    ex.getMessage() != null && !ex.getMessage().isEmpty());
+        }
+    }
+
+    @Test
+    public void doGetTableLayout_withCaseInsensitiveTableName_resolvesToSourceTableMetadata()
+            throws Exception
+    {
+        lenient().when(glueClient.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenThrow(new AmazonServiceException(""));
+
+        // Test the getTableMetadata path through getTableLayout with case-insensitive resolution
+        GetTableLayoutRequest req = new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                new TableName(DEFAULT_SCHEMA, "test_table2"), // Different case from Test_table2
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                SchemaBuilder.newBuilder().build(),
+                Collections.emptySet());
+
+        GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
+
+        // Should successfully resolve and contain the correct table metadata
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(TABLE_METADATA), equalTo(TEST_TABLE2));
+    }
+
+    @Test
+    public void doGetTableLayout_withScanPartition_createsScanPartitionType()
             throws Exception
     {
         Map<String, ValueSet> constraintsMap = new HashMap<>();
@@ -358,7 +418,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayoutScanForSubstrait()
+    public void doGetTableLayout_withSubstraitPlan_createsScanPartitionType()
             throws Exception
     {
         // query plan for SELECT * FROM test_table  where col_5 >= "" and col_5 <= ""
@@ -392,7 +452,7 @@ public class DynamoDBMetadataHandlerTest
 
 
     @Test
-    public void doGetTableLayoutQueryIndexForSubstraitPlan() throws Exception {
+    public void doGetTableLayout_withSubstraitPlanAndIndex_createsQueryPartitionType() throws Exception {
         // query plan for SELECT * FROM test_table  where col_4 = "" and col_5 >= "" and col_5 <= ""
         QueryPlan queryPlan = getQueryPlan("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb" +
                 "24ueWFtbBIOGgwIARoIYW5kOmJvb2wSFRoTCAIQARoNZXF1YWw6YW55X2FueRITGhEIAhACGgtndGU6YW55X2FueRITGhEIAhADG" +
@@ -428,7 +488,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayoutQueryIndex()
+    public void doGetTableLayout_withQueryIndex_createsQueryPartitionType()
             throws Exception
     {
         Map<String, ValueSet> constraintsMap = new HashMap<>();
@@ -599,7 +659,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplitsScan()
+    public void doGetSplits_withScanPartition_createsScanSplits()
             throws Exception
     {
         GetTableLayoutResponse layoutResponse = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
@@ -637,7 +697,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplitsQuery()
+    public void doGetSplits_withQueryPartition_createsQuerySplits()
             throws Exception
     {
         Map<String, ValueSet> constraintsMap = new HashMap<>();
@@ -685,7 +745,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void validateSourceTableNamePropagation()
+    public void doGetTable_withGlueTable_propagatesSourceTableName()
             throws Exception
     {
         List<Column> columns = new ArrayList<>();
@@ -727,7 +787,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayoutScanWithTypeOverride()
+    public void doGetTableLayout_withTypeOverride_createsScanPartitionWithOverride()
             throws Exception
     {
         List<Column> columns = new ArrayList<>();
@@ -792,7 +852,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetDataSourceCapabilities()
+    public void doGetDataSourceCapabilities_withDefaultConfig_providesCapabilities()
     {
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(
                 TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
@@ -802,12 +862,224 @@ public class DynamoDBMetadataHandlerTest
         assertThat(response.getCatalogName(), equalTo(TEST_CATALOG_NAME));
         
         Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
-        assertThat(capabilities.containsKey("supports_limit_pushdown"), is(true));
-        List<OptimizationSubType> limitSubTypes = capabilities.get("supports_limit_pushdown");
+        assertThat(capabilities.containsKey(SUPPORTS_LIMIT_PUSHDOWN), is(true));
+        List<OptimizationSubType> limitSubTypes = capabilities.get(SUPPORTS_LIMIT_PUSHDOWN);
         assertThat(limitSubTypes.size(), equalTo(1));
         
-        assertThat(capabilities.containsKey("supports_complex_expression_pushdown"), is(true));
-        List<OptimizationSubType> expressionSubTypes = capabilities.get("supports_complex_expression_pushdown");
+        assertThat(capabilities.containsKey(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN), is(true));
+        List<OptimizationSubType> expressionSubTypes = capabilities.get(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN);
         assertThat(expressionSubTypes.size(), equalTo(1));
     }
+
+    @Test
+    public void doGetQueryPassthroughSchema_withValidQuery_createsSchemaWithFields()
+            throws Exception
+    {
+        Map<String, String> queryPassthroughArguments = new HashMap<>();
+        queryPassthroughArguments.put("schemaFunctionName", SCHEMA_FUNCTION_NAME);
+        queryPassthroughArguments.put(DDBQueryPassthrough.QUERY, SELECT_COL_0_COL_1_QUERY);
+
+        GetTableRequest request = new GetTableRequest(
+                TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                queryPassthroughArguments
+        );
+
+        // Execute test
+        GetTableResponse response = handler.doGetQueryPassthroughSchema(allocator, request);
+
+        // Verify response
+        assertNotNull("Response should not be null", response);
+        assertEquals("Catalog name should match", TEST_CATALOG_NAME, response.getCatalogName());
+        assertEquals("Table name should match", TEST_TABLE_NAME, response.getTableName());
+
+        Schema schema = response.getSchema();
+        assertNotNull("Schema should not be null", schema);
+
+        // Verify schema fields exist
+        Field col0Field = schema.findField(COL_0);
+        assertNotNull("col_0 field should exist", col0Field);
+        assertEquals("col_0 field type should be VARCHAR", Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(col0Field.getType()));
+
+        Field col1Field = schema.findField(COL_1);
+        assertNotNull("col_1 field should exist", col1Field);
+        assertEquals("col_1 field type should be DECIMAL", Types.MinorType.DECIMAL, Types.getMinorTypeForArrowType(col1Field.getType()));
+    }
+
+    @Test
+    public void doGetQueryPassthroughSchema_withoutPassthrough_throwsAthenaConnectorException()
+            throws Exception
+    {
+        try {
+            // Setup request parameters without query passthrough
+            Map<String, String> queryPassthroughArguments = new HashMap<>();
+            GetTableRequest request = new GetTableRequest(
+                    TEST_IDENTITY,
+                    TEST_QUERY_ID,
+                    TEST_CATALOG_NAME,
+                    TEST_TABLE_NAME,
+                    queryPassthroughArguments
+            );
+
+            // This should throw an AthenaConnectorException
+            handler.doGetQueryPassthroughSchema(allocator, request);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain error about missing passthrough",
+                    ex.getMessage() != null && ex.getMessage().contains("No Query passed through"));
+        }
+    }
+
+    @Test
+    public void doGetSplits_withQueryPassthrough_createsSingleSplitContainingQuery()
+    {
+        // Setup QPT arguments
+        Map<String, String> qptArgs = new HashMap<>();
+        qptArgs.put(DDBQueryPassthrough.QUERY, SELECT_ALL_QUERY);
+
+        // Create schema for request
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField(COL_0, Types.MinorType.VARCHAR.getType())
+                .build();
+
+        // Create constraints with QPT arguments
+        Constraints constraints = new Constraints(
+            new HashMap<>(),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            DEFAULT_NO_LIMIT,
+            qptArgs, // queryPassthroughArguments
+            null
+        );
+
+        // Create GetSplitsRequest
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                allocator.createBlock(schema),
+                Collections.emptyList(),
+                constraints,
+                null);
+
+        // Get splits response
+        GetSplitsResponse response = handler.doGetSplits(allocator, getSplitsRequest);
+
+        // Verify we get exactly one split for QPT
+        assertNotNull("Response should not be null", response);
+        assertEquals("Should return exactly one split for query passthrough", 1, response.getSplits().size());
+
+        // Verify the split has our QPT query
+        Split split = response.getSplits().iterator().next();
+        assertEquals("Split should contain the query passthrough query", SELECT_ALL_QUERY, split.getProperties().get(DDBQueryPassthrough.QUERY));
+    }
+
+    @Test
+    public void doGetDataSourceCapabilities_withQueryPassthroughEnabled_providesCapabilitiesWithSystemQuery()
+    {
+        DynamoDBMetadataHandler handlerWithQpt = new DynamoDBMetadataHandler(
+                new LocalKeyFactory(),
+                secretsManager,
+                athena,
+                "spillBucket",
+                "spillPrefix",
+                ddbClient,
+                glueClient,
+                ImmutableMap.of(ENABLE_QUERY_PASSTHROUGH, "true"));
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
+        GetDataSourceCapabilitiesResponse response = handlerWithQpt.doGetDataSourceCapabilities(allocator, request);
+
+        // Verify that capabilities map contains query passthrough capability
+        assertNotNull("Capabilities map should not be null", response.getCapabilities());
+        assertTrue("Capabilities map should contain SYSTEM.QUERY",
+            response.getCapabilities().containsKey(SYSTEM_QUERY));
+    }
+
+    @Test
+    public void doGetDataSourceCapabilities_withQueryPassthroughDisabled_providesCapabilitiesWithoutSystemQuery()
+    {
+        // Create handler with query passthrough disabled
+        DynamoDBMetadataHandler handlerWithoutQpt = new DynamoDBMetadataHandler(
+                new LocalKeyFactory(),
+                secretsManager,
+                athena,
+                "spillBucket",
+                "spillPrefix",
+                ddbClient,
+                glueClient,
+                ImmutableMap.of(ENABLE_QUERY_PASSTHROUGH, "false"));
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
+        GetDataSourceCapabilitiesResponse response = handlerWithoutQpt.doGetDataSourceCapabilities(allocator, request);
+
+        assertFalse("Capabilities map should not contain SYSTEM.QUERY",
+            response.getCapabilities().containsKey(SYSTEM_QUERY));
+    }
+
+    @Test
+    public void doGetSplits_withMissingPartitionTypeMetadata_throwsAthenaConnectorException()
+    {
+        try {
+            // Create a schema without partition type metadata
+            Schema schema = SchemaBuilder.newBuilder()
+                    .addField(TEST_FIELD, Types.MinorType.VARCHAR.getType())
+                    .build();
+
+            Block partitions = allocator.createBlock(schema);
+            partitions.setRowCount(1);
+
+            GetSplitsRequest request = new GetSplitsRequest(TEST_IDENTITY,
+                    TEST_QUERY_ID,
+                    TEST_CATALOG_NAME,
+                    TEST_TABLE_NAME,
+                    partitions,
+                    ImmutableList.of(),
+                    new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                    null);
+
+            // This should throw AthenaConnectorException
+            handler.doGetSplits(allocator, request);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain error about missing partition type metadata",
+                    ex.getMessage() != null && ex.getMessage().contains(PARTITION_TYPE_METADATA));
+        }
+    }
+
+    @Test
+    public void doGetSplits_withInvalidPartitionType_throwsAthenaConnectorException()
+    {
+        try {
+            // Create a schema with invalid partition type
+            Schema schema = SchemaBuilder.newBuilder()
+                    .addField(TEST_FIELD, Types.MinorType.VARCHAR.getType())
+                    .addMetadata(PARTITION_TYPE_METADATA, "INVALID_TYPE")
+                    .build();
+
+            Block partitions = allocator.createBlock(schema);
+            partitions.setRowCount(1);
+
+            GetSplitsRequest request = new GetSplitsRequest(TEST_IDENTITY,
+                    TEST_QUERY_ID,
+                    TEST_CATALOG_NAME,
+                    TEST_TABLE_NAME,
+                    partitions,
+                    ImmutableList.of(),
+                    new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                    null);
+
+            // This should throw AthenaConnectorException
+            handler.doGetSplits(allocator, request);
+            fail("Expected AthenaConnectorException was not thrown");
+        }
+        catch (AthenaConnectorException ex) {
+            assertTrue("Exception message should contain error about invalid partition type",
+                    ex.getMessage() != null && (ex.getMessage().contains("INVALID_TYPE") || 
+                                                 ex.getMessage().contains("partition")));
+        }
+    }
+
 }
