@@ -245,10 +245,6 @@ public class BigQueryMetadataHandlerTest
                 FieldList.of(testSchemaFields));
         List<FieldValueList> tableRows = Arrays.asList(fieldValueList);
 
-        Page<FieldValueList> pageNoSchema = new BigQueryPage<>(tableRows);
-        TableResult result = new TableResult(tableSchema, tableRows.size(), pageNoSchema);
-//        when(job.getQueryResults()).thenReturn(result);
-
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
         assertEquals(1, response.getSplits().size());

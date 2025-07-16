@@ -1,4 +1,3 @@
-
 /*-
  * #%L
  * athena-snowflake
@@ -21,6 +20,7 @@
 
 package com.amazonaws.athena.connectors.snowflake;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -66,6 +66,7 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -526,5 +527,16 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
             return schemaNames.build();
         }
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        final String secretName = getDatabaseConnectionConfig().getSecret();
+        if (StringUtils.isNotBlank(secretName)) {
+            return new SnowflakeCredentialsProvider(secretName);
+        }
+
+        return null;
     }
 }

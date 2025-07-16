@@ -42,6 +42,7 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
+import com.mongodb.DBRef;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -51,6 +52,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -437,6 +439,74 @@ public class DocDBRecordHandlerTest
                 "{[SomeSubStruct : someSubStruct1],[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]}}]," +
                 "[SimpleSubStruct : {[SomeSimpleSubStruct : someSimpleSubStruct]}]," +
                 "[SimpleSubStructNullList : {[SomeNullList : null]}]}], [SimpleStruct : {[SomeSimpleStruct : someSimpleStruct]}]";
+        assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void dbRefTest()
+            throws Exception
+    {
+        ObjectId id = ObjectId.get();
+
+        List<Document> documents = new ArrayList<>();
+        Document result = new Document();
+        documents.add(result);
+        result.put("DbRef", new DBRef("otherDb", "otherColl", id));
+
+        Document simpleStruct = new Document();
+        simpleStruct.put("SomeSimpleStruct", "someSimpleStruct");
+        result.put("SimpleStruct", simpleStruct);
+
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME,Collections.emptyMap());
+        GetTableResponse res = mdHandler.doGetTable(allocator, req);
+        logger.info("doGetTable - {}", res);
+
+        when(mockCollection.find(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
+            return mockIterable;
+        });
+        when(mockIterable.projection(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            logger.info("doReadRecordsNoSpill: projection[{}]", invocationOnMock.getArguments()[0]);
+            return mockIterable;
+        });
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                "queryId-" + System.currentTimeMillis(),
+                TABLE_NAME,
+                res.getSchema(),
+                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
+                new Constraints(constraintsMap,Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                100_000_000_000L, //100GB don't expect this to spill
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertTrue(response.getRecordCount() == 1);
+        String expectedString = "[DbRef : {[_db : otherDb],[_ref : otherColl],[_id : " + id.toHexString() + "]}], [SimpleStruct : {[SomeSimpleStruct : someSimpleStruct]}]";
         assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
     }
 
