@@ -61,6 +61,7 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.ST
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.TIMESTAMP_FIELD;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
+import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
 
 public class MetricUtilsTest
 {
@@ -135,6 +136,27 @@ public class MetricUtilsTest
         assertEquals("match2", request.metricName());
         assertEquals(1, request.dimensions().size());
         assertEquals(DimensionFilter.builder().name("match4").value("match5").build(), request.dimensions().get(0));
+    }
+
+    @Test
+    public void pushDownPredicateWithLinkedAccounts() throws Exception {
+        withEnvironmentVariable("include_linked_accounts", "true")
+                .execute(() -> {
+                    ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
+                    MetricUtils.pushDownPredicate(new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), requestBuilder);
+                    ListMetricsRequest request = requestBuilder.build();
+
+                    assertTrue(request.includeLinkedAccounts());
+                });
+
+        withEnvironmentVariable("include_linked_accounts", "false")
+                .execute(() -> {
+                    ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
+                    MetricUtils.pushDownPredicate(new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), requestBuilder);
+                    ListMetricsRequest request = requestBuilder.build();
+
+                    assertFalse(request.includeLinkedAccounts());
+                });
     }
 
     @Test
