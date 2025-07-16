@@ -19,9 +19,8 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.TimeMicroVector;
 import org.apache.arrow.vector.TimeNanoVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
@@ -34,20 +33,41 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.SSL_CERT_FILE_LOCATION_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.coerce;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class GcsUtilsTest
 {
@@ -68,21 +88,126 @@ public class GcsUtilsTest
     }
 
     @Test
-    public void testCreateUri()
+    public void createUri_withBucketAndPath_returnsGsUri()
     {
         String uri = GcsUtil.createUri("bucket", "test");
         assertEquals("gs://bucket/test", uri);
     }
 
     @Test
-    public void testCreateUriPath()
+    public void createUri_withFullPath_returnsGsUri()
     {
         String uri = GcsUtil.createUri("bucket/test");
         assertEquals("gs://bucket/test", uri);
     }
 
     @Test
-    public void testCoercing()
+    public void installCaCertificate_whenCalled_writesCertificateToTempFile() throws Exception
+    {
+        final String algorithm = "PKIX";
+        File certFile = new File(SSL_CERT_FILE_LOCATION_VALUE);
+        if (certFile.getParentFile() != null) {
+            certFile.getParentFile().mkdirs();
+        }
+
+        X509Certificate mockCertificate = mock(X509Certificate.class);
+        X509TrustManager mockTrustManager = mock(X509TrustManager.class);
+        TrustManagerFactory mockTrustManagerFactory = mock(TrustManagerFactory.class);
+        when(mockCertificate.getEncoded()).thenReturn("test-certificate-data".getBytes(StandardCharsets.UTF_8));
+        when(mockTrustManager.getAcceptedIssuers()).thenReturn(new X509Certificate[]{mockCertificate});
+        when(mockTrustManagerFactory.getTrustManagers()).thenReturn(new TrustManager[]{mockTrustManager});
+
+        try (MockedStatic<TrustManagerFactory> trustManagerFactoryStatic = mockStatic(TrustManagerFactory.class)) {
+            trustManagerFactoryStatic.when(TrustManagerFactory::getDefaultAlgorithm).thenReturn(algorithm);
+            trustManagerFactoryStatic.when(() -> TrustManagerFactory.getInstance(algorithm))
+                    .thenReturn(mockTrustManagerFactory);
+
+            GcsUtil.installCaCertificate();
+
+            trustManagerFactoryStatic.verify(TrustManagerFactory::getDefaultAlgorithm);
+            trustManagerFactoryStatic.verify(() -> TrustManagerFactory.getInstance(algorithm));
+            verify(mockTrustManagerFactory).init((KeyStore) isNull());
+            verify(mockTrustManager).getAcceptedIssuers();
+            verify(mockCertificate).getEncoded();
+
+            assertTrue(certFile.exists());
+            String written = new String(Files.readAllBytes(certFile.toPath()), StandardCharsets.UTF_8);
+            assertTrue(written.contains("-----BEGIN CERTIFICATE-----"));
+            assertTrue(written.contains("-----END CERTIFICATE-----"));
+        }
+        finally {
+            if (certFile.exists()) {
+                certFile.delete();
+            }
+        }
+    }
+
+    @Test
+    public void installGoogleCredentialsJsonFile_withExistingOrMissingFile_writesOrSkipsAsExpected()
+    {
+        // Test when file doesn't exist - should create file and write content
+        testInstallGoogleCredentialsJsonFileScenario(false, true, 1);
+
+        // Test when file already exists - should return early without writing
+        testInstallGoogleCredentialsJsonFileScenario(true, false, 0);
+    }
+
+    private void testInstallGoogleCredentialsJsonFileScenario(boolean fileExists, boolean mkdirsResult, int expectedFileOutputStreamConstructions)
+    {
+        final String secretKey = "test-secret-key";
+        final String expectedCredentialsContent = "{\"type\": \"service_account\", \"project_id\": \"test-project\"}";
+        final String existingFileContent = "{\"existing\": true}";
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put(GCS_SECRET_KEY_ENV_VAR, secretKey);
+
+        File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
+        if (destination.getParentFile() != null) {
+            destination.getParentFile().mkdirs();
+        }
+
+        try {
+            if (fileExists) {
+                Files.write(destination.toPath(), existingFileContent.getBytes(StandardCharsets.UTF_8));
+            }
+            else if (destination.exists()) {
+                destination.delete();
+            }
+
+            try (MockedStatic<SecretsManagerClient> secretsManagerClientStatic = mockStatic(SecretsManagerClient.class);
+                 MockedConstruction<CachableSecretsManager> secretsManagerConstruction = mockConstruction(
+                         CachableSecretsManager.class,
+                         (mock, context) -> when(mock.getSecret(secretKey)).thenReturn(expectedCredentialsContent))) {
+                secretsManagerClientStatic.when(SecretsManagerClient::create)
+                        .thenReturn(mock(SecretsManagerClient.class));
+
+                GcsUtil.installGoogleCredentialsJsonFile(configOptions);
+
+                secretsManagerClientStatic.verify(SecretsManagerClient::create);
+                assertEquals(1, secretsManagerConstruction.constructed().size());
+                verify(secretsManagerConstruction.constructed().get(0)).getSecret(secretKey);
+
+                assertTrue(destination.exists());
+                String actual = new String(Files.readAllBytes(destination.toPath()), StandardCharsets.UTF_8);
+                if (expectedFileOutputStreamConstructions > 0) {
+                    assertEquals(expectedCredentialsContent, actual);
+                }
+                else {
+                    assertEquals(existingFileContent, actual);
+                }
+            }
+        }
+        catch (Exception e) {
+            fail("Unexpected exception in test: " + e.getMessage());
+        }
+        finally {
+            if (destination.exists()) {
+                destination.delete();
+            }
+        }
+    }
+
+    @Test
+    public void coerce_withTimestampAndTimeVectors_returnsExpectedDateTimeValues()
     {
         Instant instant = Instant.now();
         long seconds = instant.getEpochSecond();
