@@ -9,9 +9,9 @@ ARG JAVA_TOOL_OPTIONS=""
 ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
 
 # Copy function code and runtime dependencies from Maven layout
-COPY target/athena-datalakegen2-2022.47.1.jar ${LAMBDA_TASK_ROOT}
+COPY target/athena-datalakegen2-2025.28.1.jar ${LAMBDA_TASK_ROOT}
 # Unpack the jar
-RUN jar xf athena-datalakegen2-2022.47.1.jar
+RUN jar xf athena-datalakegen2-2025.28.1.jar
 
 # Command can be overwritten by providing a different command in the template directly.
 # No need to specify here (already defined in .yaml file because legacy and connections use different)
