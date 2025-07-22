@@ -44,7 +44,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        slug: awslabs/aws-athena-query-federation
         uses: codecov/test-results-action@v1
         with:
+          slug: awslabs/aws-athena-query-federation
           token: ${{ secrets.CODECOV_TOKEN }}
