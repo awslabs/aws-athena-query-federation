@@ -36,6 +36,7 @@ import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
+import com.amazonaws.athena.connectors.dynamodb.util.MemoryOptimizationUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -257,6 +258,13 @@ public class DynamoDBRecordHandler
         GeneratedRowWriter rowWriter = rowWriterBuilder.build();
         long numRows = 0;
         boolean canApplyLimit = canApplyLimit(recordsRequest.getConstraints());
+        
+        // Process items in smaller batches to reduce memory pressure
+        final int batchSize = MemoryOptimizationUtils.getOptimalBatchSize(configOptions);
+        int batchCount = 0;
+        
+        MemoryOptimizationUtils.logMemoryUsage("Start processing items");
+        
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated
@@ -269,8 +277,21 @@ public class DynamoDBRecordHandler
                 // had not made any DDB calls yet and there may be zero items returned when it does
                 continue;
             }
+            
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
+            batchCount++;
+            
+            // Force garbage collection periodically to manage memory
+            if (batchCount >= batchSize) {
+                if (MemoryOptimizationUtils.shouldTriggerGC(configOptions)) {
+                    MemoryOptimizationUtils.logMemoryUsage("Before GC");
+                    System.gc();
+                    MemoryOptimizationUtils.logMemoryUsage("After GC");
+                }
+                batchCount = 0;
+            }
+            
             if (canApplyLimit && numRows >= recordsRequest.getConstraints().getLimit()) {
                 return;
             }
@@ -437,6 +458,9 @@ public class DynamoDBRecordHandler
         return new Iterator<Map<String, AttributeValue>>() {
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
             AtomicReference<Iterator<Map<String, AttributeValue>>> currentPageIterator = new AtomicReference<>();
+            
+            // Reduce page size to limit memory usage per request
+            private final int pageSize = MemoryOptimizationUtils.getOptimalPageSize(configOptions);
 
             @Override
             public boolean hasNext()
@@ -455,14 +479,16 @@ public class DynamoDBRecordHandler
                 Iterator<Map<String, AttributeValue>> iterator;
                 try {
                     if (isQueryRequest(split)) {
-                        QueryRequest request = buildQueryRequest(split, tableName, schema, constraints, disableProjectionAndCasing, lastKeyEvaluated.get());
+                        QueryRequest request = buildQueryRequest(split, tableName, schema, constraints, disableProjectionAndCasing, lastKeyEvaluated.get())
+                                .toBuilder().limit(pageSize).build();
                         logger.info("Invoking DDB with Query request: {}", request);
                         QueryResponse response = invokerCache.get(tableName).invoke(() -> ddbClient.query(request));
                         lastKeyEvaluated.set(response.lastEvaluatedKey());
                         iterator = response.items().iterator();
                     }
                     else {
-                        ScanRequest request = buildScanRequest(split, tableName, schema, constraints, disableProjectionAndCasing, lastKeyEvaluated.get());
+                        ScanRequest request = buildScanRequest(split, tableName, schema, constraints, disableProjectionAndCasing, lastKeyEvaluated.get())
+                                .toBuilder().limit(pageSize).build();
                         logger.info("Invoking DDB with Scan request: {}", request);
                         ScanResponse response = invokerCache.get(tableName).invoke(() -> ddbClient.scan(request));
                         lastKeyEvaluated.set(response.lastEvaluatedKey());

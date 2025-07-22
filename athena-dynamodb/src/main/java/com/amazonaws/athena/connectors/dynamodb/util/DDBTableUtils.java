@@ -58,8 +58,8 @@ public final class DDBTableUtils
     // for scan segmentation calculation
     private static final long PSUEDO_CAPACITY_FOR_ON_DEMAND = 40_000;
     private static final int MAX_SCAN_SEGMENTS = 1000000;
-    private static final int MIN_SCAN_SEGMENTS = 1;
-    private static final long MAX_BYTES_PER_SEGMENT = 1024L * 1024L * 1024L;
+    private static final int MIN_SCAN_SEGMENTS = 20;
+    private static final long MAX_BYTES_PER_SEGMENT = 1024L * 1024L * 102L;
     private static final double MIN_IO_PER_SEGMENT = 100.0;
     public static final int SCHEMA_INFERENCE_NUM_RECORDS = 4;
 

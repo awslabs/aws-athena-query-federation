@@ -83,22 +83,28 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints
 public class GeneratedRowWriter
 {
     private static final Logger logger = LoggerFactory.getLogger(GeneratedRowWriter.class);
-    private final LinkedHashMap<String, Extractor> extractors = new LinkedHashMap<>();
-    private final LinkedHashMap<String, FieldWriterFactory> fieldWriterFactories = new LinkedHashMap<>();
-    private List<FieldWriter> fieldWriters = new ArrayList<>();
-    private LinkedHashMap<String, ConstraintProjector> constraints = new LinkedHashMap<>();
+    private final Map<String, Extractor> extractors;
+    private final Map<String, FieldWriterFactory> fieldWriterFactories;
+    private List<FieldWriter> fieldWriters;
+    private final Map<String, ConstraintProjector> constraints;
 
     //holds the last block that was used to generate our FieldWriters
     private Block block;
 
     private GeneratedRowWriter(RowWriterBuilder builder)
     {
-        this.extractors.putAll(builder.extractors);
-        this.fieldWriterFactories.putAll(builder.fieldWriterFactories);
-        if (builder.constraints != null && builder.constraints.getSummary() != null) {
+        this.extractors = builder.extractors.isEmpty() ? Collections.emptyMap() : ImmutableMap.copyOf(builder.extractors);
+        this.fieldWriterFactories = builder.fieldWriterFactories.isEmpty() ? Collections.emptyMap() : ImmutableMap.copyOf(builder.fieldWriterFactories);
+        
+        if (builder.constraints != null && builder.constraints.getSummary() != null && !builder.constraints.getSummary().isEmpty()) {
+            Map<String, ConstraintProjector> constraintMap = new LinkedHashMap<>(builder.constraints.getSummary().size());
             for (Map.Entry<String, ValueSet> next : builder.constraints.getSummary().entrySet()) {
-                constraints.put(next.getKey(), makeConstraintProjector(next.getValue()));
+                constraintMap.put(next.getKey(), makeConstraintProjector(next.getValue()));
             }
+            this.constraints = ImmutableMap.copyOf(constraintMap);
+        }
+        else {
+            this.constraints = Collections.emptyMap();
         }
     }
 
@@ -134,8 +140,17 @@ public class GeneratedRowWriter
         if (this.block != block) {
             logger.info("recompile: Detected a new block, rebuilding field writers so they point to the correct Arrow vectors.");
             this.block = block;
-            fieldWriters.clear();
-            for (FieldVector vector : block.getFieldVectors()) {
+            
+            // Clear and resize list to exact size needed
+            List<FieldVector> vectors = block.getFieldVectors();
+            if (fieldWriters == null) {
+                fieldWriters = new ArrayList<>(vectors.size());
+            }
+            else {
+                fieldWriters.clear();
+            }
+            
+            for (FieldVector vector : vectors) {
                 fieldWriters.add(makeFieldWriter(vector));
             }
         }
@@ -191,10 +206,10 @@ public class GeneratedRowWriter
     public static class RowWriterBuilder
     {
         private final Constraints constraints;
-        //some consumers may care about ordering
-        private final LinkedHashMap<String, Extractor> extractors = new LinkedHashMap<>();
-        //some consumers may care about ordering
-        private final LinkedHashMap<String, FieldWriterFactory> fieldWriterFactories = new LinkedHashMap<>();
+        //some consumers may care about ordering - use HashMap for better memory efficiency when order doesn't matter
+        private final Map<String, Extractor> extractors = new LinkedHashMap<>();
+        //some consumers may care about ordering - use HashMap for better memory efficiency when order doesn't matter  
+        private final Map<String, FieldWriterFactory> fieldWriterFactories = new LinkedHashMap<>();
 
         private RowWriterBuilder(Constraints constraints)
         {
@@ -225,7 +240,11 @@ public class GeneratedRowWriter
 
         public GeneratedRowWriter build()
         {
-            return new GeneratedRowWriter(this);
+            GeneratedRowWriter writer = new GeneratedRowWriter(this);
+            // Clear builder maps to free memory after building
+            extractors.clear();
+            fieldWriterFactories.clear();
+            return writer;
         }
     }
 }

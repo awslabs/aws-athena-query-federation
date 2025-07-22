@@ -63,13 +63,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 /**
  * Provides utility methods relating to type handling.
@@ -170,12 +170,16 @@ public final class DDBTypeUtils
                                 Collections.singletonList(child));
         }
         else if (enhancedAttributeValue.isMap()) {
-            List<Field> children = new ArrayList<>();
-            // keys are always Strings in DDB's case
             Map<String, AttributeValue> doc = value.m();
-            for (String childKey : doc.keySet()) {
-                AttributeValue childVal = doc.get(childKey);
-                Field child = inferArrowField(childKey, childVal);
+            if (doc.isEmpty()) {
+                logger.warn("Automatic schema inference encountered empty Map {}. Unable to determine element types. Falling back to VARCHAR representation", key);
+                return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+            }
+            
+            // Pre-size ArrayList
+            List<Field> children = new ArrayList<>(doc.size());
+            for (Map.Entry<String, AttributeValue> entry : doc.entrySet()) {
+                Field child = inferArrowField(entry.getKey(), entry.getValue());
                 if (child != null) {
                     children.add(child);
                 }
@@ -183,7 +187,6 @@ public final class DDBTypeUtils
 
             // Athena requires Structs to have child types and not be empty
             if (children.isEmpty()) {
-                logger.warn("Automatic schema inference encountered empty Map {}. Unable to determine element types. Falling back to VARCHAR representation", key);
                 return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
             }
 
@@ -390,15 +393,23 @@ public final class DDBTypeUtils
             return Collections.singletonList(coerceValueToExpectedType(value, childField, fieldType, recordMetadata));
         }
 
-        List<Object> coercedList = new ArrayList<>();
+        Collection<?> collection = (Collection<?>) value;
+        if (collection.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        // Pre-size ArrayList and avoid forEach overhead
+        List<Object> coercedList = new ArrayList<>(collection.size());
         if (fieldType == Types.MinorType.LIST) {
             // Nested lists: array<array<...>, array<...>, ...>
-            ((Collection<?>) value).forEach(list -> coercedList
-                    .add(coerceListToExpectedType(list, childField, recordMetadata)));
+            for (Object list : collection) {
+                coercedList.add(coerceListToExpectedType(list, childField, recordMetadata));
+            }
         }
         else {
-            ((Collection<?>) value).forEach(item -> coercedList
-                    .add(coerceValueToExpectedType(item, childField, fieldType, recordMetadata)));
+            for (Object item : collection) {
+                coercedList.add(coerceValueToExpectedType(item, childField, fieldType, recordMetadata));
+            }
         }
         return coercedList;
     }
@@ -548,10 +559,30 @@ public final class DDBTypeUtils
                 result = (T) enhancedAttributeValue.asSetOfStrings();
                 break;
             case NS:
-                result = (T) value.ns().stream().map(BigDecimal::new).collect(Collectors.toList());
+                List<String> numberStrings = value.ns();
+                if (numberStrings.isEmpty()) {
+                    result = (T) Collections.emptyList();
+                }
+                else {
+                    List<BigDecimal> numbers = new ArrayList<>(numberStrings.size());
+                    for (String numStr : numberStrings) {
+                        numbers.add(new BigDecimal(numStr));
+                    }
+                    result = (T) numbers;
+                }
                 break;
             case BS:
-                result = (T) value.bs().stream().map(sdkBytes -> sdkBytes.asByteArray()).collect(Collectors.toList());
+                List<SdkBytes> bytesList = value.bs();
+                if (bytesList.isEmpty()) {
+                    result = (T) Collections.emptyList();
+                }
+                else {
+                    List<byte[]> byteArrays = new ArrayList<>(bytesList.size());
+                    for (SdkBytes sdkBytes : bytesList) {
+                        byteArrays.add(sdkBytes.asByteArray());
+                    }
+                    result = (T) byteArrays;
+                }
                 break;
             case L:
                 result = handleListAttribute(enhancedAttributeValue);
@@ -569,19 +600,25 @@ public final class DDBTypeUtils
         if (valueMap.isEmpty()) {
             return (T) Collections.emptyMap();
         }
+        // Pre-size HashMap to avoid resizing
         Map<String, Object> result = new HashMap<>(valueMap.size());
         for (Map.Entry<String, AttributeValue> entry : valueMap.entrySet()) {
-            String key = entry.getKey();
-            AttributeValue attributeValue = entry.getValue();
-            result.put(key, toSimpleValue(attributeValue));
+            result.put(entry.getKey(), toSimpleValue(entry.getValue()));
         }
         return (T) result;
     }
 
     private static <T> T handleListAttribute(EnhancedAttributeValue enhancedAttributeValue)
     {
-        List<Object> result =
-                enhancedAttributeValue.asListOfAttributeValues().stream().map(attributeValue -> toSimpleValue(attributeValue)).collect(Collectors.toList());
+        List<AttributeValue> attributeValues = enhancedAttributeValue.asListOfAttributeValues();
+        if (attributeValues.isEmpty()) {
+            return (T) Collections.emptyList();
+        }
+        // Pre-size ArrayList and avoid stream overhead
+        List<Object> result = new ArrayList<>(attributeValues.size());
+        for (AttributeValue attributeValue : attributeValues) {
+            result.add(toSimpleValue(attributeValue));
+        }
         return (T) result;
     }
 
@@ -642,20 +679,24 @@ public final class DDBTypeUtils
 
     private static AttributeValue handleSetType(Set<?> value)
     {
+        if (value.isEmpty()) {
+            throw new AthenaConnectorException("Empty sets are not supported by DynamoDB", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+        
         // Check the type of the first element as a sample
         Object firstElement = value.iterator().next();
         if (firstElement instanceof String) {
-            // Handle String Set
-            Set<String> stringSet = value.stream().map(e -> (String) e).collect(Collectors.toSet());
-            return AttributeValue.builder().ss(stringSet).build();
+            // Handle String Set - avoid stream overhead
+            return AttributeValue.builder().ss((Set<String>) value).build();
         }
         else if (firstElement instanceof Number) {
-            // Handle Number Set
-            Set<String> numberSet = value.stream()
-                    .map(e -> String.valueOf(((Number) e).doubleValue())) // Convert numbers to strings
-                    .collect(Collectors.toSet());
+            // Handle Number Set - avoid stream overhead
+            Set<String> numberSet = new HashSet<>(value.size());
+            for (Object e : value) {
+                numberSet.add(String.valueOf(((Number) e).doubleValue()));
+            }
             return AttributeValue.builder().ns(numberSet).build();
-        } // Add other types if needed
+        }
 
         // Fallback for unsupported set types
         throw new AthenaConnectorException("Unsupported Set element type: " + firstElement.getClass(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
@@ -663,7 +704,11 @@ public final class DDBTypeUtils
 
     private static AttributeValue handleListType(List<?> value)
     {
-        List<AttributeValue> attributeList = new ArrayList<>();
+        if (value.isEmpty()) {
+            return AttributeValue.builder().l(Collections.emptyList()).build();
+        }
+        // Pre-size ArrayList
+        List<AttributeValue> attributeList = new ArrayList<>(value.size());
         for (Object element : value) {
             attributeList.add(toAttributeValue(element));
         }
@@ -672,9 +717,12 @@ public final class DDBTypeUtils
 
     private static AttributeValue handleMapType(Map<String, Object> value)
     {
-        Map<String, AttributeValue> attributeMap = new HashMap<>();
+        if (value.isEmpty()) {
+            return AttributeValue.builder().m(Collections.emptyMap()).build();
+        }
+        // Pre-size HashMap
+        Map<String, AttributeValue> attributeMap = new HashMap<>(value.size());
         for (Map.Entry<String, Object> entry : value.entrySet()) {
-            // Convert each value in the map to an AttributeValue
             attributeMap.put(entry.getKey(), toAttributeValue(entry.getValue()));
         }
         return AttributeValue.builder().m(attributeMap).build();
