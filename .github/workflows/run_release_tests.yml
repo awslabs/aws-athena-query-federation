@@ -52,6 +52,7 @@ jobs:
           S3_DATA_PATH: ${{ secrets.S3_DATA_PATH }}
           SPILL_BUCKET: ${{ secrets.SPILL_BUCKET }}
       - name: Upload coverage reports to Codecov
+        slug: awslabs/aws-athena-query-federation
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
