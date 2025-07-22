@@ -38,10 +38,10 @@ jobs:
         run: >
           ! (git status | grep "modified: " )
       - name: Upload coverage reports to Codecov
-        slug: awslabs/aws-athena-query-federation
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          slug: awslabs/aws-athena-query-federation
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1
