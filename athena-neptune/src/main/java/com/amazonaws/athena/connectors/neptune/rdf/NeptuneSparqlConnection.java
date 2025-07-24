@@ -96,61 +96,66 @@ public class NeptuneSparqlConnection extends NeptuneConnection
         return false;
     }
 
-    public Map<String, Object> next(boolean trimURI) 
+    public Map<String, Object> next()
     {
         Map<String, Object> ret = new HashMap<String, Object>();
         BindingSet bindingSet = this.queryResult.next();
 
         for (String varName : bindingSet.getBindingNames()) {
             Value val = bindingSet.getValue(varName);
-            String sval = val.stringValue();
-            Object oval = sval;
-            if (this.trimURI && val instanceof IRI) {
-                oval = ((IRI) val).getLocalName();
-                logger.debug("IRI " + varName + "=" + oval);
-            } 
-            else if (val instanceof Literal) {
-                Literal lit = (Literal) val;
-                IRI type = lit.getDatatype();
-                logger.debug("Type of " + varName + " is " + type);
-                if (type.equals(XMLSchema.BOOLEAN)) {
-                    oval = lit.booleanValue();
-                    logger.debug("Boolean " + varName + "=" + oval);
-                } 
-                else if (type.equals(XMLSchema.DATE)) {
-                    oval = lit.calendarValue();
-                    logger.debug("Date " + varName + "=" + oval);
-                } 
-                else if (type.equals(XMLSchema.DATETIME)) {
-                    oval = lit.calendarValue();
-                    logger.debug("Datetime " + varName + "=" + oval);
-                } 
-                else if (type.equals(XMLSchema.DECIMAL)) {
-                    oval = lit.decimalValue();
-                    logger.debug("Decimal " + varName + "=" + oval);
-                } 
-                else if (type.equals(XMLSchema.DOUBLE)) {
-                    oval = lit.doubleValue();
-                    logger.debug("Double " + varName + "=" + oval);
-                } 
-                else if (type.equals(XMLSchema.FLOAT)) {
-                    oval = lit.floatValue();
-                    logger.debug("Float " + varName + "=" + oval);
-                } 
-                else if (type.equals(XMLSchema.INT)) {
-                    oval = lit.intValue();
-                    logger.debug("Int" + varName + "=" + oval);
-                } 
-                else if (type.equals(XMLSchema.INTEGER)) {
-                    oval = lit.integerValue();
-                    logger.debug("Integer " + varName + "=" + oval);
-                } 
-                else if (type.equals(XMLSchema.LONG)) {
-                    oval = lit.longValue();
-                    logger.debug("Long " + varName + "=" + oval);
+            if (val != null) {
+                String sval = val.stringValue();
+                Object oval = sval;
+                if (this.trimURI && val instanceof IRI) {
+                    oval = ((IRI) val).getLocalName();
+                    logger.debug("IRI " + varName + "=" + oval);
                 }
+                else if (val instanceof Literal) {
+                    Literal lit = (Literal) val;
+                    IRI type = lit.getDatatype();
+                    logger.debug("Type of " + varName + " is " + type);
+                    if (type.equals(XMLSchema.BOOLEAN)) {
+                        oval = lit.booleanValue();
+                        logger.debug("Boolean " + varName + "=" + oval);
+                    }
+                    else if (type.equals(XMLSchema.DATE)) {
+                        oval = lit.calendarValue();
+                        logger.debug("Date " + varName + "=" + oval);
+                    }
+                    else if (type.equals(XMLSchema.DATETIME)) {
+                        oval = lit.calendarValue();
+                        logger.debug("Datetime " + varName + "=" + oval);
+                    }
+                    else if (type.equals(XMLSchema.DECIMAL)) {
+                        oval = lit.decimalValue();
+                        logger.debug("Decimal " + varName + "=" + oval);
+                    }
+                    else if (type.equals(XMLSchema.DOUBLE)) {
+                        oval = lit.doubleValue();
+                        logger.debug("Double " + varName + "=" + oval);
+                    }
+                    else if (type.equals(XMLSchema.FLOAT)) {
+                        oval = lit.floatValue();
+                        logger.debug("Float " + varName + "=" + oval);
+                    }
+                    else if (type.equals(XMLSchema.INT)) {
+                        oval = lit.intValue();
+                        logger.debug("Int" + varName + "=" + oval);
+                    }
+                    else if (type.equals(XMLSchema.INTEGER)) {
+                        oval = lit.integerValue();
+                        logger.debug("Integer " + varName + "=" + oval);
+                    }
+                    else if (type.equals(XMLSchema.LONG)) {
+                        oval = lit.longValue();
+                        logger.debug("Long " + varName + "=" + oval);
+                    }
+                }
+                ret.put(varName, oval);
             }
-            ret.put(varName, oval);
+            else {
+                ret.put(varName, val);
+            }
         }
 
         logger.debug("Record map " + ret);
