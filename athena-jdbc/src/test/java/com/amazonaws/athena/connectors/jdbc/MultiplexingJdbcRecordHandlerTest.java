@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -39,7 +40,12 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 public class MultiplexingJdbcRecordHandlerTest
 {
@@ -51,6 +57,7 @@ public class MultiplexingJdbcRecordHandlerTest
     private AthenaClient athena;
     private QueryStatusChecker queryStatusChecker;
     private JdbcConnectionFactory jdbcConnectionFactory;
+    private DatabaseConnectionConfig databaseConnectionConfig;
 
     @Before
     public void setup()
@@ -62,7 +69,7 @@ public class MultiplexingJdbcRecordHandlerTest
         this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
+        databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
         this.jdbcRecordHandler = new MultiplexingJdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
@@ -73,7 +80,7 @@ public class MultiplexingJdbcRecordHandlerTest
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
+        when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
         this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
         Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest), Mockito.eq(queryStatusChecker));
     }
@@ -84,7 +91,7 @@ public class MultiplexingJdbcRecordHandlerTest
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        when(readRecordsRequest.getCatalogName()).thenReturn("unsupportedCatalog");
         this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
     }
 
@@ -93,7 +100,7 @@ public class MultiplexingJdbcRecordHandlerTest
             throws SQLException
     {
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
+        when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
         Connection jdbcConnection = Mockito.mock(Connection.class);
         TableName tableName = new TableName("testSchema", "tableName");
         Schema schema = Mockito.mock(Schema.class);
@@ -101,5 +108,59 @@ public class MultiplexingJdbcRecordHandlerTest
         Split split = Mockito.mock(Split.class);
         this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "fakedatabase", tableName, schema, constraints, split);
         Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq("fakedatabase"), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
+    }
+
+    @Test
+    public void testConstructor_withTooManyHandlers_shouldThrowException() {
+        recordHandlerMap = new HashMap<>();
+        for (int i = 0; i < 101; i++) {
+            recordHandlerMap.put("catalog" + i, fakeJdbcRecordHandler);
+        }
+
+        AthenaConnectorException exception = assertThrows(AthenaConnectorException.class, () ->
+                new MultiplexingJdbcRecordHandler(
+                        amazonS3,
+                        secretsManager,
+                        athena,
+                        jdbcConnectionFactory,
+                        databaseConnectionConfig,
+                        recordHandlerMap,
+                        com.google.common.collect.ImmutableMap.of()
+                )
+        );
+        assertTrue(exception.getMessage().contains("Max 100 catalogs supported in multiplexer"));
+    }
+
+    @Test
+    public void testConstructor_withEmptyHandlerMap_shouldThrowException() {
+        recordHandlerMap = new HashMap<>();
+        Exception exception = assertThrows(IllegalArgumentException.class, () ->
+                new MultiplexingJdbcRecordHandler(
+                        amazonS3,
+                        secretsManager,
+                        athena,
+                        jdbcConnectionFactory,
+                        databaseConnectionConfig,
+                        recordHandlerMap,
+                        com.google.common.collect.ImmutableMap.of()
+                )
+        );
+        assertTrue(exception.getMessage().contains("recordHandlerMap must not be empty"));
+    }
+
+    @Test
+    public void testConstructor_withNullHandlerMap_shouldThrowException() {
+        Exception exception = assertThrows(NullPointerException.class, () ->
+                new MultiplexingJdbcRecordHandler(
+                        amazonS3,
+                        secretsManager,
+                        athena,
+                        jdbcConnectionFactory,
+                        databaseConnectionConfig,
+                        null,
+                        com.google.common.collect.ImmutableMap.of()
+                )
+        );
+        assertTrue(exception.getMessage().contains("recordHandlerMap must not be empty"));
     }
 }
