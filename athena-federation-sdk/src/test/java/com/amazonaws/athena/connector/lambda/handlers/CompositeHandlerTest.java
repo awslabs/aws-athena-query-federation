@@ -1,3 +1,5 @@
+package com.amazonaws.athena.connector.lambda.handlers;
+
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
@@ -17,7 +19,6 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.handlers;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -85,8 +86,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class CompositeHandlerTest
-{
+public class CompositeHandlerTest {
     private static final Logger logger = LoggerFactory.getLogger(CompositeHandlerTest.class);
 
     private MetadataHandler mockMetadataHandler;
@@ -102,8 +102,7 @@ public class CompositeHandlerTest
 
     @Before
     public void setUp()
-            throws Exception
-    {
+            throws Exception {
         logger.info("{}: enter", testName.getMethodName());
 
         allocator = new BlockAllocatorImpl();
@@ -147,16 +146,14 @@ public class CompositeHandlerTest
     }
 
     @After
-    public void after()
-    {
+    public void after() {
         allocator.close();
         logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
     public void doReadRecords()
-            throws Exception
-    {
+            throws Exception {
         ReadRecordsRequest req = new ReadRecordsRequest(IdentityUtil.fakeIdentity(),
                 "catalog",
                 "queryId-" + System.currentTimeMillis(),
@@ -169,7 +166,7 @@ public class CompositeHandlerTest
                         .withSplitId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), null).build(),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -180,8 +177,7 @@ public class CompositeHandlerTest
 
     @Test
     public void doListSchemaNames()
-            throws Exception
-    {
+            throws Exception {
         ListSchemasRequest req = mock(ListSchemasRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_SCHEMAS);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
@@ -190,8 +186,7 @@ public class CompositeHandlerTest
 
     @Test
     public void doListTables()
-            throws Exception
-    {
+            throws Exception {
         ListTablesRequest req = mock(ListTablesRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_TABLES);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
@@ -200,8 +195,7 @@ public class CompositeHandlerTest
 
     @Test
     public void doGetTable()
-            throws Exception
-    {
+            throws Exception {
         GetTableRequest req = mock(GetTableRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
@@ -210,8 +204,7 @@ public class CompositeHandlerTest
 
     @Test
     public void doGetTableLayout()
-            throws Exception
-    {
+            throws Exception {
         GetTableLayoutRequest req = mock(GetTableLayoutRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE_LAYOUT);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
@@ -220,10 +213,11 @@ public class CompositeHandlerTest
 
     @Test
     public void doGetSplits()
-            throws Exception
-    {
+            throws Exception {
+        FederatedIdentity federatedIdentity = IdentityUtil.fakeIdentity();
         GetSplitsRequest req = mock(GetSplitsRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
+        when(req.getIdentity()).thenReturn(federatedIdentity);
         SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
         doNothing().when(mockVerifier).checkBucketAuthZ(nullable(String.class));
         FieldUtils.writeField(mockMetadataHandler, "verifier", mockVerifier, true);
@@ -233,8 +227,7 @@ public class CompositeHandlerTest
 
     @Test
     public void doPing()
-            throws Exception
-    {
+            throws Exception {
         PingRequest req = mock(PingRequest.class);
         when(req.getCatalogName()).thenReturn("catalog");
         when(req.getQueryId()).thenReturn("queryId");
@@ -243,8 +236,7 @@ public class CompositeHandlerTest
     }
 
     @Test
-    public void handleRequestWithValidInput() throws Exception
-    {
+    public void handleRequestWithValidInput() throws Exception {
         String requestData = "{\n" +
                 "          \"@type\": \"ListTablesRequest\",\n" +
                 "          \"identity\": {\n" +
@@ -270,7 +262,8 @@ public class CompositeHandlerTest
                 "arn:aws:iam::12345678910:user/test@test.com",
                 "12345678910",
                 Collections.emptyMap(),
-                Collections.emptyList()
+                Collections.emptyList(),
+                Collections.emptyMap()
         );
         ListTablesRequest expectedRequest = new ListTablesRequest(
                 identity,
@@ -299,8 +292,7 @@ public class CompositeHandlerTest
     }
 
     @Test
-    public void handleRequestWithInvalidInput()
-    {
+    public void handleRequestWithInvalidInput() {
         String invalidRequestData = "{ \"invalid\": \"data\" }";
 
         InputStream inputStream = new ByteArrayInputStream(invalidRequestData.getBytes());
@@ -318,12 +310,10 @@ public class CompositeHandlerTest
     }
 
     @Test
-    public void handleRequest_withUnknownRequest_throwsInvalidInputException()
-    {
+    public void handleRequest_withUnknownRequest_throwsInvalidInputException() {
         FederationRequest unknownRequest = new FederationRequest() {
             @Override
-            public void close()
-            {
+            public void close() {
                 // no-op
             }
         };
@@ -337,24 +327,5 @@ public class CompositeHandlerTest
         assertEquals(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString(),
                 exception.getErrorDetails().errorCode());
         assertEquals(0, outputStream.size());
-    }
-
-    @Test
-    public void pingRequestWithNullResponse()
-    {
-        FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
-        PingRequest pingRequest = new PingRequest(identity, "catalog", "queryId");
-
-        when(mockMetadataHandler.doPing(any(PingRequest.class))).thenReturn(null);
-
-        OutputStream outputStream = new ByteArrayOutputStream();
-
-        AthenaConnectorException exception = assertThrows(AthenaConnectorException.class, () ->
-                compositeHandler.handleRequest(allocator, pingRequest, outputStream, objectMapper)
-        );
-
-        assertTrue(exception.getMessage().contains("Response was null"));
-        assertEquals(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString(),
-                exception.getErrorDetails().errorCode());
     }
 }

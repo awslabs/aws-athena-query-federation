@@ -81,7 +81,7 @@ public class MetadataHandlerTest
 {
     private MetadataHandler metadataHandler;
     private BlockAllocator blockAllocator;
-    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private static final String CATALOG = "catalog";
     private static final String QUERY_ID = "queryId";
     private static final String SCHEMA_NAME = "testSchema";

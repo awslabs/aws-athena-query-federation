@@ -71,7 +71,7 @@ public class MySqlQueryStringBuilderTest
     public void generateSqlIsNotNull() throws Exception
     {
         Map<String, ValueSet> constraintsMap = ImmutableMap.of("testCol2", SortedRangeSet.of(false, Range.all(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType())));
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
         String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(p0)  WHERE (`testCol2` IS NOT NULL)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
@@ -87,7 +87,7 @@ public class MySqlQueryStringBuilderTest
     public void generateSqlIsNotEqual() throws Exception
     {
         Map<String, ValueSet> constraintsMap = ImmutableMap.of("testCol2", SortedRangeSet.of(false, Range.lessThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 138), Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 138)));
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
         String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(p0)  WHERE ((`testCol2` < ?) OR (`testCol2` > ?))";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
@@ -108,7 +108,7 @@ public class MySqlQueryStringBuilderTest
                         Range.greaterThan(allocator, Types.MinorType.DATEDAY.getType(), 10440)));
 
         String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `dateCol` FROM `testCatalog`.`testTable`.`testSchema` PARTITION(p0)  WHERE ((`dateCol` < ?) OR (`dateCol` > ?))";
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);

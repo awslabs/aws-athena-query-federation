@@ -247,7 +247,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -346,7 +346,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -460,7 +460,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

@@ -163,7 +163,7 @@ public class GcsRecordHandlerTest extends GenericGcsTest
                 new TableName("dataset1", "table1"), // dummy table
                 GcsTestUtils.getDatatypeTestSchema(),
                 split,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 0, //This is ignored when directly calling readWithConstraints.
                 0)) {  //This is ignored when directly calling readWithConstraints.
 

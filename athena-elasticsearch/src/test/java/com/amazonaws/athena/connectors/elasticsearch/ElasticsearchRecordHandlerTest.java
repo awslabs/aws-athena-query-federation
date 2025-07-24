@@ -350,7 +350,7 @@ public class ElasticsearchRecordHandlerTest
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -416,7 +416,7 @@ public class ElasticsearchRecordHandlerTest
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 10_000L, //10KB Expect this to spill
                 0L
         );
@@ -467,7 +467,8 @@ public class ElasticsearchRecordHandlerTest
         return new FederatedIdentity("access_key_id",
             "principle",
             Collections.emptyMap(),
-            Collections.emptyList());
+            Collections.emptyList(),
+            Collections.emptyMap());
     }
 
     private SpillLocation makeSpillLocation()
