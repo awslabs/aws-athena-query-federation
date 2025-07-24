@@ -38,7 +38,7 @@ RUN echo "Trust store content is: " && \
     done
 
 # Set the connector version to use
-ARG VERSION=2025.55.1
+ARG VERSION=2025.55.3
 
 # Copy all jar files from their respective target directories into the Lambda task root.
 # Notice how we substitute the version using ${VERSION}.

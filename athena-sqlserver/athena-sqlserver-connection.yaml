@@ -12,7 +12,7 @@ Metadata:
       - athena-federation
       - jdbc
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2025.55.1
+    SemanticVersion: 2025.55.3
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -62,7 +62,7 @@ Resources:
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
-        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-sqlserver:2025.55.1'
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-sqlserver:2025.55.3'
         - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       ImageConfig:
         Command: [ "com.amazonaws.athena.connectors.sqlserver.SqlServerCompositeHandler" ]

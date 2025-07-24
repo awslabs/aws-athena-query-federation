@@ -55,6 +55,13 @@ public interface FederationRequestHandler extends RequestStreamHandler
                     .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
                     .build();
         }
+        else if (Objects.nonNull(configOptions) && configOptions.containsKey(FAS_TOKEN)
+                && !configOptions.containsKey(SERVICE_KMS)) {
+            AwsCredentials awsCredentials = kmsEncryptionProvider.getFasCredentials(configOptions.get(FAS_TOKEN));
+            overrideConfig = AwsRequestOverrideConfiguration.builder()
+                    .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
+                    .build();
+        }
         return overrideConfig;
     }
 

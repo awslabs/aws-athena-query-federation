@@ -87,6 +87,22 @@ public class KmsEncryptionProvider
         }
     }
 
+    public AwsCredentials getFasCredentials(final String fasToken)
+    {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            FASToken credentials = objectMapper.readValue(fasToken, FASToken.class);
+            return AwsSessionCredentials.builder()
+                    .accessKeyId(credentials.getAccessToken())
+                    .secretAccessKey(credentials.getSecretToken())
+                    .sessionToken(credentials.getSecurityToken())
+                    .build();
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      * @param kmsKeyId the KMS key
      * @param data     The encrypted data
