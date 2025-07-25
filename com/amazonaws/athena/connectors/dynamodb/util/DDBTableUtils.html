@@ -196,18 +196,20 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>static <a href="../model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTable(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient)">getTable</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTable(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getTable</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
         <a href="../../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-        software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient)</code></th>
+        software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient,
+        software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Fetches metadata for a DynamoDB table</div>
 </td>
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient)">peekTableForSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">peekTableForSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
                   <a href="../../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-                  software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient)</code></th>
+                  software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient,
+                  software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Derives an Arrow <code>Schema</code> for the given table by performing a small table scan and mapping the returned
  attribute values' types to Arrow types.</div>
@@ -260,7 +262,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="getTable(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient)">
+<a id="getTable(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -268,7 +270,8 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <h4>getTable</h4>
 <pre class="methodSignature">public static&nbsp;<a href="../model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&nbsp;getTable&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
                                      <a href="../../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-                                     software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient)
+                                     software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient,
+                                     software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)
                               throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></pre>
 <div class="block">Fetches metadata for a DynamoDB table</div>
 <dl>
@@ -283,7 +286,7 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </dl>
 </li>
 </ul>
-<a id="peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient)">
+<a id="peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -291,7 +294,8 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <h4>peekTableForSchema</h4>
 <pre class="methodSignature">public static&nbsp;org.apache.arrow.vector.types.pojo.Schema&nbsp;peekTableForSchema&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
                                                                            <a href="../../../connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
-                                                                           software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient)
+                                                                           software.amazon.awssdk.services.dynamodb.DynamoDbClient&nbsp;ddbClient,
+                                                                           software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)
                                                                     throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></pre>
 <div class="block">Derives an Arrow <code>Schema</code> for the given table by performing a small table scan and mapping the returned
  attribute values' types to Arrow types. If the table is empty, only attributes found in the table's metadata

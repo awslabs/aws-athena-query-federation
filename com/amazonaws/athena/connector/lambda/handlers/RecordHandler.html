@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":6,"i7":10,"i8":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":6,"i8":10,"i9":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -133,7 +133,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <li class="blockList">
 <dl>
 <dt>All Implemented Interfaces:</dt>
-<dd><code>com.amazonaws.services.lambda.runtime.RequestStreamHandler</code></dd>
+<dd><code><a href="FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></code>, <code>com.amazonaws.services.lambda.runtime.RequestStreamHandler</code></dd>
 </dl>
 <dl>
 <dt>Direct Known Subclasses:</dt>
@@ -142,7 +142,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <hr>
 <pre>public abstract class <span class="typeNameLabel">RecordHandler</span>
 extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a>
-implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
+implements <a href="FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></pre>
 <div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
  source. Athena will call readWithConstraint(...) on this class for each 'Split' we generated in MetadataHandler.</div>
 </li>
@@ -235,28 +235,33 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 </td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code>software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getRequestOverrideConfig(java.util.Map)">getRequestOverrideConfig</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSecret(java.lang.String)">getSecret</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;secretName)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>protected <a href="../data/SpillConfig.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSpillConfig(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest)">getSpillConfig</a></span>&#8203;(<a href="../records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;request)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/InputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">InputStream</a>&nbsp;inputStream,
              <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/OutputStream.html?is-external=true" title="class or interface in java.io" class="externalLink">OutputStream</a>&nbsp;outputStream,
              com.amazonaws.services.lambda.runtime.Context&nbsp;context)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#onPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">onPing</a></span>&#8203;(<a href="../request/PingRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">PingRequest</a>&nbsp;request)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>protected abstract void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></span>&#8203;(<a href="../data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
                   <a href="../records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;recordsRequest,
@@ -265,7 +270,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <div class="block">A more stream lined option for reading the row data associated with the provided Split.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resolveSecrets(java.lang.String)">resolveSecrets</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;rawString)</code></th>
 <td class="colLast">
@@ -273,7 +278,7 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
  by the corresponding value of the secret in AWS Secrets Manager with that name.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;rawString)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -285,6 +290,13 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 </a>
 <h3>Methods inherited from class&nbsp;java.lang.<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true" title="class or interface in java.lang" class="externalLink">Object</a></h3>
 <code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#clone()" title="class or interface in java.lang" class="externalLink">clone</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#equals(java.lang.Object)" title="class or interface in java.lang" class="externalLink">equals</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#finalize()" title="class or interface in java.lang" class="externalLink">finalize</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#getClass()" title="class or interface in java.lang" class="externalLink">getClass</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#hashCode()" title="class or interface in java.lang" class="externalLink">hashCode</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#notify()" title="class or interface in java.lang" class="externalLink">notify</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#notifyAll()" title="class or interface in java.lang" class="externalLink">notifyAll</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#toString()" title="class or interface in java.lang" class="externalLink">toString</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#wait()" title="class or interface in java.lang" class="externalLink">wait</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#wait(long)" title="class or interface in java.lang" class="externalLink">wait</a>, <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Object.html?is-external=true#wait(long,int)" title="class or interface in java.lang" class="externalLink">wait</a></code></li>
+</ul>
+<ul class="blockList">
+<li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.FederationRequestHandler">
+<!--   -->
+</a>
+<h3>Methods inherited from interface&nbsp;com.amazonaws.athena.connector.lambda.handlers.<a href="FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></h3>
+<code><a href="FederationRequestHandler.html#getAthenaClient(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.athena.AthenaClient)">getAthenaClient</a>, <a href="FederationRequestHandler.html#getRequestOverrideConfig(java.util.Map,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getRequestOverrideConfig</a>, <a href="FederationRequestHandler.html#getS3Client(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.s3.S3Client)">getS3Client</a>, <a href="FederationRequestHandler.html#getSessionCredentials(java.lang.String,java.lang.String,com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider)">getSessionCredentials</a></code></li>
 </ul>
 </li>
 </ul>
@@ -458,6 +470,15 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
 </dl>
+</li>
+</ul>
+<a id="getRequestOverrideConfig(java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getRequestOverrideConfig</h4>
+<pre class="methodSignature">public&nbsp;software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;getRequestOverrideConfig&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
 </li>
 </ul>
 <a id="readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">

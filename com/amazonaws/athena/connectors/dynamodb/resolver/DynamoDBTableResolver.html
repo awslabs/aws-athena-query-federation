@@ -185,7 +185,8 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="../model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTableMetadata(java.lang.String)">getTableMetadata</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTableMetadata(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getTableMetadata</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
+                software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Fetches table metadata by first doing a DescribeTable on the given table table, falling back to case
  insensitive resolution if the table isn't found.</div>
@@ -193,7 +194,8 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>org.apache.arrow.vector.types.pojo.Schema</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTableSchema(java.lang.String)">getTableSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTableSchema(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">getTableSchema</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
+              software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Fetches table schema by first doing a Scan on the given table name, falling back to case insensitive
  resolution if the table isn't found.</div>
@@ -201,8 +203,9 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code><a href="../model/DynamoDBPaginatedTables.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBPaginatedTables</a></code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listTables(java.lang.String,int)">listTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;token,
-          int&nbsp;pageSize)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listTables(java.lang.String,int,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">listTables</a></span>&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;token,
+          int&nbsp;pageSize,
+          software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)</code></th>
 <td class="colLast">
 <div class="block">Fetches the list of tables from DynamoDB via paginated ListTables calls</div>
 </td>
@@ -251,14 +254,15 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="listTables(java.lang.String,int)">
+<a id="listTables(java.lang.String,int,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>listTables</h4>
 <pre class="methodSignature">public&nbsp;<a href="../model/DynamoDBPaginatedTables.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBPaginatedTables</a>&nbsp;listTables&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;token,
-                                          int&nbsp;pageSize)
+                                          int&nbsp;pageSize,
+                                          software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)
                                    throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></pre>
 <div class="block">Fetches the list of tables from DynamoDB via paginated ListTables calls</div>
 <dl>
@@ -269,16 +273,17 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </dl>
 </li>
 </ul>
-<a id="getTableSchema(java.lang.String)">
+<a id="getTableSchema(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getTableSchema</h4>
-<pre class="methodSignature">public&nbsp;org.apache.arrow.vector.types.pojo.Schema&nbsp;getTableSchema&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName)
+<pre class="methodSignature">public&nbsp;org.apache.arrow.vector.types.pojo.Schema&nbsp;getTableSchema&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
+                                                                software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;requestOverrideConfiguration)
                                                          throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></pre>
 <div class="block">Fetches table schema by first doing a Scan on the given table name, falling back to case insensitive
- resolution if the table isn't found.  Delegates actual schema derivation to <a href="../util/DDBTableUtils.html#peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient)"><code>DDBTableUtils.peekTableForSchema(java.lang.String, com.amazonaws.athena.connector.lambda.ThrottlingInvoker, software.amazon.awssdk.services.dynamodb.DynamoDbClient)</code></a>.</div>
+ resolution if the table isn't found.  Delegates actual schema derivation to <a href="../util/DDBTableUtils.html#peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)"><code>DDBTableUtils.peekTableForSchema(java.lang.String, com.amazonaws.athena.connector.lambda.ThrottlingInvoker, software.amazon.awssdk.services.dynamodb.DynamoDbClient, software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)</code></a>.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>tableName</code> - the case insensitive table name</dd>
@@ -289,13 +294,14 @@ extends <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/ja
 </dl>
 </li>
 </ul>
-<a id="getTableMetadata(java.lang.String)">
+<a id="getTableMetadata(java.lang.String,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getTableMetadata</h4>
-<pre class="methodSignature">public&nbsp;<a href="../model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&nbsp;getTableMetadata&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName)
+<pre class="methodSignature">public&nbsp;<a href="../model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&nbsp;getTableMetadata&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;tableName,
+                                      software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)
                                throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeoutException.html?is-external=true" title="class or interface in java.util.concurrent" class="externalLink">TimeoutException</a></pre>
 <div class="block">Fetches table metadata by first doing a DescribeTable on the given table table, falling back to case
  insensitive resolution if the table isn't found.</div>
