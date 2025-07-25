@@ -6,7 +6,8 @@
     "account" : "0123456789",
     "arn" : "testArn",
     "tags" : { },
-    "groups" : [ ]
+    "groups" : [ ],
+    "configOptions" : { }
   },
   "queryId" : "test-catalog",
   "catalogName" : "test-query-id",

@@ -99,7 +99,7 @@ public class BigQueryStorageApiUtilsTest
                 QueryParameterValue.bool(true),
                 QueryParameterValue.int64(10), QueryParameterValue.int64(1000000));
 
-        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT)) {
+        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null)) {
             List<String> fields = new ArrayList<>();
             for (Field field : makeSchema(constraintMap).getFields()) {
                 fields.add(field.getName());
