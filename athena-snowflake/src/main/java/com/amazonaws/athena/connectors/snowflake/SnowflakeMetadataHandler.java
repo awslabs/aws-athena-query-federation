@@ -49,13 +49,13 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Top
 import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
-import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
 import com.amazonaws.athena.connectors.snowflake.resolver.SnowflakeJDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -154,7 +154,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public SnowflakeMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig,
-                new GenericJdbcConnectionFactory(databaseConnectionConfig, SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
+                new SnowflakeConnectionFactory(databaseConnectionConfig, SnowflakeEnvironmentProperties.getSnowFlakeParameter(JDBC_PROPERTIES, configOptions),
                 new DatabaseConnectionInfo(SnowflakeConstants.SNOWFLAKE_DRIVER_CLASS, SnowflakeConstants.SNOWFLAKE_DEFAULT_PORT)),
                 configOptions);
     }
