@@ -59,7 +59,21 @@ public class MetricUtils
     //this is a format required by Cloudwatch Metrics
     private static final String METRIC_ID = "m1";
 
+    // Environment variable to control cross-account metrics inclusion
+    private static final String INCLUDE_LINKED_ACCOUNTS_ENV_VAR = "include_linked_accounts";
+
     private MetricUtils() {}
+
+    /**
+     * Checks if cross-account metrics should be included based on environment variable
+     *
+     * @return True if cross-account metrics should be included, false otherwise
+     */
+    private static boolean shouldIncludeLinkedAccounts()
+    {
+        String includeLinkedAccounts = System.getenv(INCLUDE_LINKED_ACCOUNTS_ENV_VAR);
+        return Boolean.parseBoolean(includeLinkedAccounts);
+    }
 
     /**
      * Filters metrics who have at least 1 metric dimension that matches DIMENSION_NAME_FIELD and DIMENSION_VALUE_FIELD filters.
@@ -103,6 +117,8 @@ public class MetricUtils
     protected static void pushDownPredicate(Constraints constraints, ListMetricsRequest.Builder listMetricsRequest)
     {
         Map<String, ValueSet> summary = constraints.getSummary();
+
+        listMetricsRequest.includeLinkedAccounts(shouldIncludeLinkedAccounts());
 
         ValueSet namespaceConstraint = summary.get(NAMESPACE_FIELD);
         if (namespaceConstraint != null && namespaceConstraint.isSingleValue()) {

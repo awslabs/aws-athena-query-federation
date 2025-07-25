@@ -40,6 +40,10 @@ Parameters:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
+  IncludeLinkedAccounts:
+    Description: "If set to 'true', metrics from linked accounts will be included in the results."
+    Default: 'false'
+    Type: String
 Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 Resources:
@@ -51,6 +55,7 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
+          include_linked_accounts: !Ref IncludeLinkedAccounts
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsCompositeHandler"
       CodeUri: "./target/athena-cloudwatch-metrics-2022.47.1.jar"
