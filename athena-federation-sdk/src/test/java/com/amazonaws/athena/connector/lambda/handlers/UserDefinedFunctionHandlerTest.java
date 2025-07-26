@@ -554,7 +554,7 @@ public class UserDefinedFunctionHandlerTest
     @Test
     public void pingHandleRequest() throws IOException
     {
-        FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+        FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
         String catalog = "catalog";
         String queryId = "queryId";
         FederationRequest pingRequest = new PingRequest(identity, catalog, queryId);

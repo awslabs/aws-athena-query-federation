@@ -27,7 +27,7 @@ import java.util.Collections;
  * This class is a Base class for other Test classes
  */
 public class TestBase {
-    protected static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    protected static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     protected static final String QUERY_ID = "query_id-" + System.currentTimeMillis();
     protected static final String PARTITION_ID = "partition_id";
     protected static final String DEFAULT_CATALOG = "default";

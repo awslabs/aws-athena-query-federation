@@ -81,7 +81,7 @@ public class RecordHandlerTest
 {
     private RecordHandler recordHandler;
     private BlockAllocator blockAllocator;
-    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private static final String CATALOG = "catalog";
     private static final String QUERY_ID = "queryId";
     private S3BlockSpillReader spillReader;
@@ -176,7 +176,7 @@ public class RecordHandlerTest
                         .add("totalNumberSplits", "10000")
                         .add("scaleFactor", "1")
                         .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 1_500_000L, //~1.5MB so we should see some spill
                 0
         );

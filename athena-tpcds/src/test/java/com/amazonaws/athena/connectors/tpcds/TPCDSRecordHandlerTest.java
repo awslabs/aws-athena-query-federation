@@ -90,7 +90,7 @@ public class TPCDSRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TPCDSRecordHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
     private TPCDSRecordHandler handler;
     private S3BlockSpillReader spillReader;
@@ -189,7 +189,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L,
                 100_000_000_000L //100GB don't expect this to spill
         );
@@ -233,7 +233,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "10000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 1_500_000L, //~1.5MB so we should see some spill
                 0
         );
@@ -294,7 +294,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L,
                 100_000_000_000L
         );

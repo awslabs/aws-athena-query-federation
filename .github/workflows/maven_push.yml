@@ -1,6 +1,6 @@
 name: Java CI Push
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   # This is from: https://github.com/fkirc/skip-duplicate-actions#example-1-skip-entire-jobs
@@ -40,8 +40,8 @@ jobs:
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           slug: awslabs/aws-athena-query-federation
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1

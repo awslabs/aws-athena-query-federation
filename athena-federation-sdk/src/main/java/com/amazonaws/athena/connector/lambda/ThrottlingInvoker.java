@@ -48,13 +48,13 @@ public class ThrottlingInvoker
     private static final Logger logger = LoggerFactory.getLogger(ThrottlingInvoker.class);
 
     //Controls the delay applied between calls at the initial occurrence of Congestion.
-    private static final String THROTTLE_INITIAL_DELAY_MS = "throttle_initial_delay_ms";
+    public static final String THROTTLE_INITIAL_DELAY_MS = "throttle_initial_delay_ms";
     //The max milliseconds to wait between calls in periods of high congestion.
-    private static final String THROTTLE_MAX_DELAY_MS = "throttle_max_delay_ms";
+    public static final String THROTTLE_MAX_DELAY_MS = "throttle_max_delay_ms";
     //The multiplicative factor by which we should decrease our call rate (e.g. increase delay) when congestion occurs.
-    private static final String THROTTLE_DECREASE_FACTOR = "throttle_decrease_factor";
+    public static final String THROTTLE_DECREASE_FACTOR = "throttle_decrease_factor";
     //The additive factor by which we should increase our call rate (e.g. decrease delay) when we seem free of congestion.
-    private static final String THROTTLE_INCREASE_MS = "throttle_increase_ms";
+    public static final String THROTTLE_INCREASE_MS = "throttle_increase_ms";
 
     //10ms is our initial delay, this takes us from unlimited TPS to 100 TPS as a first step.
     private static final long DEFAULT_INITIAL_DELAY_MS = 10;
@@ -143,7 +143,7 @@ public class ThrottlingInvoker
         long maxDelayMs = (configOptions.get(THROTTLE_MAX_DELAY_MS) != null) ?
                 Long.parseLong(configOptions.get(THROTTLE_MAX_DELAY_MS)) : DEFAULT_MAX_DELAY_MS;
         double decreaseFactor = (configOptions.get(THROTTLE_DECREASE_FACTOR) != null) ?
-                Long.parseLong(configOptions.get(THROTTLE_DECREASE_FACTOR)) : DEFAULT_DECREASE_FACTOR;
+                Double.parseDouble(configOptions.get(THROTTLE_DECREASE_FACTOR)) : DEFAULT_DECREASE_FACTOR;
         long increase = (configOptions.get(THROTTLE_INCREASE_MS) != null) ?
                 Long.parseLong(configOptions.get(THROTTLE_INCREASE_MS)) : DEFAULT_INCREASE_MS;
 
@@ -225,6 +225,26 @@ public class ThrottlingInvoker
     long getDelay()
     {
         return delay.get();
+    }
+
+    public double getDecrease()
+    {
+        return decrease;
+    }
+
+    public long getDefaultInitialDelayMs()
+    {
+        return initialDelayMs;
+    }
+
+    public long getMaxDelayMs()
+    {
+        return maxDelayMs;
+    }
+
+    public long getIncrease()
+    {
+        return increase;
     }
 
     @Override

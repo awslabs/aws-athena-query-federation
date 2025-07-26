@@ -64,7 +64,7 @@ import static org.junit.Assert.*;
 
 public class MetricUtilsTest
 {
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private String catalog = "default";
     private BlockAllocator allocator;
 
@@ -98,7 +98,7 @@ public class MetricUtilsTest
         constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, "match4"));
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, "match5"));
 
-        ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
+        ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         Metric metric = Metric.builder()
                 .namespace("match1")
@@ -128,7 +128,7 @@ public class MetricUtilsTest
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, "match5"));
 
         ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
-        MetricUtils.pushDownPredicate(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), requestBuilder);
+        MetricUtils.pushDownPredicate(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), requestBuilder);
         ListMetricsRequest request = requestBuilder.build();
 
         assertEquals("match1", request.namespace());
@@ -183,7 +183,7 @@ public class MetricUtilsTest
                 new TableName(schema, table),
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

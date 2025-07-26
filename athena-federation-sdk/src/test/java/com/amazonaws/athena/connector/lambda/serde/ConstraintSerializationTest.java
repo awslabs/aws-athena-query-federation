@@ -87,7 +87,7 @@ public class ConstraintSerializationTest
                         "queryId",
                         "default",
                         new TableName("schema1", "table1"),
-                        new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                        new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                         SchemaBuilder.newBuilder().build(),
                         new HashSet<>())
         ) {

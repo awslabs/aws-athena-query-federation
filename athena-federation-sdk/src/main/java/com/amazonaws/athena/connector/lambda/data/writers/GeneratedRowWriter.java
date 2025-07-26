@@ -109,7 +109,7 @@ public class GeneratedRowWriter
 
     public static RowWriterBuilder newBuilder()
     {
-        return new RowWriterBuilder(new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
+        return new RowWriterBuilder(new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
     }
 
     public boolean writeRow(Block block, int rowNum, Object context)
