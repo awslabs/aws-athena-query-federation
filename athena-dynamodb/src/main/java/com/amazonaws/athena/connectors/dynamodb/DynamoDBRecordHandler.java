@@ -253,7 +253,7 @@ public class DynamoDBRecordHandler
             DDBRecordMetadata recordMetadata,
             Iterator<Map<String, AttributeValue>> itemIterator,
             boolean disableProjectionAndCasing,
-            Pair<Boolean, Integer> plan)
+            Pair<Boolean, Integer> limitPair)
     {
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
 
@@ -290,7 +290,7 @@ public class DynamoDBRecordHandler
             }
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
-            if (plan.getLeft() && numRows >= plan.getRight()) {
+            if (limitPair.getLeft() && numRows >= limitPair.getRight()) {
                 return;
             }
         }
