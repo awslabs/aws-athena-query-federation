@@ -121,8 +121,10 @@ public class GetTableLayoutRequest
     public void close()
             throws Exception
     {
-        for (ValueSet next : constraints.getSummary().values()) {
-            next.close();
+        if (constraints.getSummary() != null) {
+            for (ValueSet next : constraints.getSummary().values()) {
+                next.close();
+            }
         }
         constraints.close();
     }
