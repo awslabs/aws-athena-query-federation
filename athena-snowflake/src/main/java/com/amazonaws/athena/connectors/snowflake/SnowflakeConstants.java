@@ -41,10 +41,12 @@ public final class SnowflakeConstants
     public static final String REDIRECT_URI = "redirect_uri";
     public static final String CLIENT_SECRET = "client_secret";
     public static final String PRIVATE_KEY = "privateKey";
-    public static final String PRIVATE_KEY_PASSPHRASE = "privateKeyPassphrase";
+    public static final String PEM_PRIVATE_KEY = "pem_private_key";
+    public static final String PEM_PRIVATE_KEY_PASSPHRASE = "pem_private_key_passphrase";
     public static final String AUTHENTICATOR = "authenticator";
     public static final String USERNAME = "username";
     public static final String PASSWORD = "password";
+    public static final String SF_USER = "sfUser";
     public static final String USER = "user";
 
     private SnowflakeConstants() {}

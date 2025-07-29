@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -61,8 +60,8 @@ public class SnowflakeAuthUtilsTest
     public void testDetermineAuthTypeWithKeyPairAuth()
     {
         Map<String, String> credentials = new HashMap<>();
-        credentials.put(SnowflakeConstants.USERNAME, TESTUSER);
-        credentials.put(SnowflakeConstants.PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
+        credentials.put(SnowflakeConstants.SF_USER, TESTUSER);
+        credentials.put(SnowflakeConstants.PEM_PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
 
         SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(credentials);
 
@@ -137,8 +136,8 @@ public class SnowflakeAuthUtilsTest
     public void testValidateCredentialsWithKeyPairAuth()
     {
         Map<String, String> credentials = new HashMap<>();
-        credentials.put(SnowflakeConstants.USERNAME, TESTUSER);
-        credentials.put(SnowflakeConstants.PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
+        credentials.put(SnowflakeConstants.SF_USER, TESTUSER);
+        credentials.put(SnowflakeConstants.PEM_PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
 
         // Should not throw exception
         SnowflakeAuthUtils.validateCredentials(credentials, SnowflakeAuthType.SNOWFLAKE_JWT);
@@ -287,9 +286,9 @@ public class SnowflakeAuthUtilsTest
     public void testDetermineAuthTypeWithEncryptedKeyPairAuth()
     {
         Map<String, String> credentials = new HashMap<>();
-        credentials.put(SnowflakeConstants.USERNAME, TESTUSER);
-        credentials.put(SnowflakeConstants.PRIVATE_KEY, ENCRYPTED_PRIVATE_KEY_PEM);
-        credentials.put(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE, "test-passphrase");
+        credentials.put(SnowflakeConstants.SF_USER, TESTUSER);
+        credentials.put(SnowflakeConstants.PEM_PRIVATE_KEY, ENCRYPTED_PRIVATE_KEY_PEM);
+        credentials.put(SnowflakeConstants.PEM_PRIVATE_KEY_PASSPHRASE, "test-passphrase");
 
         SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(credentials);
 
@@ -300,8 +299,8 @@ public class SnowflakeAuthUtilsTest
     public void testDetermineAuthTypeWithEncryptedKeyPairAuthMissingPassphrase()
     {
         Map<String, String> credentials = new HashMap<>();
-        credentials.put(SnowflakeConstants.USERNAME, TESTUSER);
-        credentials.put(SnowflakeConstants.PRIVATE_KEY, ENCRYPTED_PRIVATE_KEY_PEM);
+        credentials.put(SnowflakeConstants.SF_USER, TESTUSER);
+        credentials.put(SnowflakeConstants.PEM_PRIVATE_KEY, ENCRYPTED_PRIVATE_KEY_PEM);
         // Missing passphrase - should still detect as JWT auth type
 
         SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(credentials);
@@ -313,9 +312,9 @@ public class SnowflakeAuthUtilsTest
     public void testValidateCredentialsWithEncryptedKeyPairAuth()
     {
         Map<String, String> credentials = new HashMap<>();
-        credentials.put(SnowflakeConstants.USERNAME, TESTUSER);
-        credentials.put(SnowflakeConstants.PRIVATE_KEY, ENCRYPTED_PRIVATE_KEY_PEM);
-        credentials.put(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE, "test-passphrase");
+        credentials.put(SnowflakeConstants.SF_USER, TESTUSER);
+        credentials.put(SnowflakeConstants.PEM_PRIVATE_KEY, ENCRYPTED_PRIVATE_KEY_PEM);
+        credentials.put(SnowflakeConstants.PEM_PRIVATE_KEY_PASSPHRASE, "test-passphrase");
 
         // Should not throw exception
         SnowflakeAuthUtils.validateCredentials(credentials, SnowflakeAuthType.SNOWFLAKE_JWT);

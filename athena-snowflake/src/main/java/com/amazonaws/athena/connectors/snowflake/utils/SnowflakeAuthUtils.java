@@ -60,7 +60,7 @@ public class SnowflakeAuthUtils
         }
 
         SnowflakeAuthType authType;
-        if (StringUtils.isNotBlank(credentials.get(SnowflakeConstants.PRIVATE_KEY))) {
+        if (StringUtils.isNotBlank(credentials.get(SnowflakeConstants.PEM_PRIVATE_KEY))) {
             LOGGER.debug("Key-pair authentication detected");
             authType = SnowflakeAuthType.SNOWFLAKE_JWT;
         }
@@ -72,10 +72,6 @@ public class SnowflakeAuthUtils
             LOGGER.debug("Password authentication detected");
             authType = SnowflakeAuthType.SNOWFLAKE;
         }
-
-        // Validate credentials once after determining auth type
-        validateCredentials(credentials, authType);
-        
         return authType;
     }
 
@@ -125,12 +121,14 @@ public class SnowflakeAuthUtils
      */
     public static String getUsername(Map<String, String> credentials)
     {
-        String username = credentials.get(SnowflakeConstants.USERNAME);
+        String username = credentials.get(SnowflakeConstants.SF_USER);
         if (StringUtils.isBlank(username)) {
-            username = credentials.get(SnowflakeConstants.USER);
+            //for oauth and password auth type
+            //this can be removed once changes to sfUser instead of username
+            username = credentials.get(SnowflakeConstants.USERNAME);
         }
         if (StringUtils.isBlank(username)) {
-            throw new IllegalArgumentException("username is required");
+            throw new IllegalArgumentException("Missing required parameter: username/sfUser");
         }
         return username;
     }
@@ -147,13 +145,13 @@ public class SnowflakeAuthUtils
         if (credentials == null || credentials.isEmpty()) {
             throw new IllegalArgumentException("Credentials cannot be null or empty");
         }
-        // Check for username (either "username" or "user" field)
+        // Check for sfUser (or "username" field)
         getUsername(credentials);
 
         switch (authType) {
             case SNOWFLAKE_JWT:
-                if (StringUtils.isBlank(credentials.get(SnowflakeConstants.PRIVATE_KEY))) {
-                    throw new IllegalArgumentException("Private key is required for key-pair authentication");
+                if (StringUtils.isBlank(credentials.get(SnowflakeConstants.PEM_PRIVATE_KEY))) {
+                    throw new IllegalArgumentException("pem_private_key is required for key-pair authentication");
                 }
                 // Note: Passphrase is optional - only required if the private key is encrypted
                 break;
@@ -164,7 +162,7 @@ public class SnowflakeAuthUtils
                 break;
             case SNOWFLAKE:
                 if (StringUtils.isBlank(credentials.get(SnowflakeConstants.PASSWORD))) {
-                    throw new IllegalArgumentException("Password is required for password authentication");
+                    throw new IllegalArgumentException("password is required for password authentication");
                 }
                 break;
             default:

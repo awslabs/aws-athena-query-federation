@@ -93,7 +93,7 @@ public class SnowflakeConnectionFactoryTest
         CredentialsProvider mockCredentialsProvider = mock(CredentialsProvider.class);
         Map<String, String> credentialMap = new HashMap<>();
         credentialMap.put(SnowflakeConstants.USER, TESTUSER);
-        credentialMap.put(SnowflakeConstants.PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
+        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
 
         when(mockCredentialsProvider.getCredentialMap()).thenReturn(credentialMap);
 
@@ -123,7 +123,7 @@ public class SnowflakeConnectionFactoryTest
         CredentialsProvider mockCredentialsProvider = mock(CredentialsProvider.class);
         Map<String, String> credentialMap = new HashMap<>();
         credentialMap.put(SnowflakeConstants.USER, TESTUSER);
-        credentialMap.put(SnowflakeConstants.PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
+        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
 
         when(mockCredentialsProvider.getCredentialMap()).thenReturn(credentialMap);
         Connection mockConnection = mock(Connection.class);
@@ -250,7 +250,7 @@ public class SnowflakeConnectionFactoryTest
         CredentialsProvider mockCredentialsProvider = mock(CredentialsProvider.class);
         Map<String, String> credentialMap = new HashMap<>();
         credentialMap.put(SnowflakeConstants.USER, TESTUSER);
-        credentialMap.put(SnowflakeConstants.PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
+        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY, VALID_PRIVATE_KEY_PEM);
 
         when(mockCredentialsProvider.getCredentialMap()).thenReturn(credentialMap);
 
@@ -319,8 +319,8 @@ public class SnowflakeConnectionFactoryTest
         CredentialsProvider mockCredentialsProvider = mock(CredentialsProvider.class);
         Map<String, String> credentialMap = new HashMap<>();
         credentialMap.put(SnowflakeConstants.USER, TESTUSER);
-        credentialMap.put(SnowflakeConstants.PRIVATE_KEY, "-----BEGIN ENCRYPTED PRIVATE KEY-----\nencrypted-content\n-----END ENCRYPTED PRIVATE KEY-----");
-        credentialMap.put(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE, "test-passphrase");
+        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY, "-----BEGIN ENCRYPTED PRIVATE KEY-----\nencrypted-content\n-----END ENCRYPTED PRIVATE KEY-----");
+        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY_PASSPHRASE, "test-passphrase");
 
         when(mockCredentialsProvider.getCredentialMap()).thenReturn(credentialMap);
 

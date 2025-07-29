@@ -101,8 +101,8 @@ public class SnowflakeConnectionFactory extends GenericJdbcConnectionFactory
     {
         try {
             String username = credentialMap.get(USER);
-            String privateKeyPem = credentialMap.get(PRIVATE_KEY);
-            String passphrase =  credentialMap.get(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE);
+            String privateKeyPem = credentialMap.get(SnowflakeConstants.PEM_PRIVATE_KEY);
+            String passphrase =  credentialMap.get(SnowflakeConstants.PEM_PRIVATE_KEY_PASSPHRASE);
             
             // Create private key object
             java.security.PrivateKey privateKey = SnowflakeAuthUtils.createPrivateKey(privateKeyPem, passphrase);

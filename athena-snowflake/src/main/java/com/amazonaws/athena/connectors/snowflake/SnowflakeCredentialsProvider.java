@@ -47,6 +47,7 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthType.OAUTH;
 import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils.getUsername;
+import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils.validateCredentials;
 
 /**
  * Snowflake credentials provider that manages multiple authentication methods.
@@ -97,7 +98,8 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
             
             // Determine authentication type based on secret contents
             SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(oauthConfig);
-            
+            // Validate credentials once after determining auth type
+            validateCredentials(oauthConfig, authType);
             switch (authType) {
                 case SNOWFLAKE_JWT:
                     // Key-pair authentication
@@ -124,8 +126,8 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
         Map<String, String> credentialMap = new HashMap<>();
         String username = getUsername(oauthConfig);
         credentialMap.put(USER, username);
-        credentialMap.put(SnowflakeConstants.PRIVATE_KEY, oauthConfig.get(SnowflakeConstants.PRIVATE_KEY));
-        credentialMap.put(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE, oauthConfig.get(SnowflakeConstants.PRIVATE_KEY_PASSPHRASE));
+        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY, oauthConfig.get(SnowflakeConstants.PEM_PRIVATE_KEY));
+        credentialMap.put(SnowflakeConstants.PEM_PRIVATE_KEY_PASSPHRASE, oauthConfig.get(SnowflakeConstants.PEM_PRIVATE_KEY_PASSPHRASE));
         LOGGER.debug("Using key-pair authentication for user: {}", username);
         return credentialMap;
     }
