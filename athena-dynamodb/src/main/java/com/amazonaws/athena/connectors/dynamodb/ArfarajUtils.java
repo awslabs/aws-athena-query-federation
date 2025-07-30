@@ -89,7 +89,7 @@ public final class ArfarajUtils
     private static final String LIST = "L";
     private static final String MAP = "M";
 
-    private DDBTypeUtils() {}
+    private ArfarajUtils() {}
 
     /**
      * Infers an Arrow field from an object.  This has limitations when it comes to complex types such as Lists and Maps
