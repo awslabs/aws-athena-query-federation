@@ -29,6 +29,7 @@ import java.util.Collection;
  */
 public class CollectionsUtils
 {
+    //Just testing Security Reviewer. 
     private CollectionsUtils() {}
 
     public static boolean equals(Collection lhs, Collection rhs)
