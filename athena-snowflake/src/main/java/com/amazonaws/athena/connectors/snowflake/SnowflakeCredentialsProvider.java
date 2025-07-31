@@ -94,23 +94,23 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     {
         try {
             String secretString = secretsManager.getSecret(oauthSecretName);
-            Map<String, String> oauthConfig = objectMapper.readValue(secretString, Map.class);
+            Map<String, String> secretMap = objectMapper.readValue(secretString, Map.class);
             
             // Determine authentication type based on secret contents
-            SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(oauthConfig);
+            SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(secretMap);
             // Validate credentials once after determining auth type
-            validateCredentials(oauthConfig, authType);
+            validateCredentials(secretMap, authType);
             switch (authType) {
                 case SNOWFLAKE_JWT:
                     // Key-pair authentication
-                    return handleKeyPairAuthentication(oauthConfig);
+                    return handleKeyPairAuthentication(secretMap);
                 case OAUTH:
                     // OAuth flow
-                    return handleOAuthAuthentication(oauthConfig);
+                    return handleOAuthAuthentication(secretMap);
                 case SNOWFLAKE:
                 default:
                     // Password authentication (backward compatible)
-                    return handlePasswordAuthentication(oauthConfig);
+                    return handlePasswordAuthentication(secretMap);
             }
         }
         catch (Exception ex) {
