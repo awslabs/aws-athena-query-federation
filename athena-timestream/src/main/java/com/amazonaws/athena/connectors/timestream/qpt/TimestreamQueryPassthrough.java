@@ -76,18 +76,8 @@ public class TimestreamQueryPassthrough implements QueryPassthroughSignature
         String upperCaseStatement = customerPassedQuery.trim().toUpperCase(Locale.ENGLISH);
 
         // Immediately check if the statement starts with "SELECT"
-        if (!upperCaseStatement.startsWith("SELECT")) {
-            throw new UnsupportedOperationException("Statement does not start with SELECT.");
-        }
-
-        // List of disallowed keywords
-        Set<String> disallowedKeywords = ImmutableSet.of("INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER");
-
-        // Check if the statement contains any disallowed keywords
-        for (String keyword : disallowedKeywords) {
-            if (upperCaseStatement.contains(keyword)) {
-                throw new UnsupportedOperationException("Unaccepted operation; only SELECT statements are allowed. Found: " + keyword);
-            }
+        if (!upperCaseStatement.startsWith("SELECT") && !upperCaseStatement.startsWith("WITH")) {
+            throw new UnsupportedOperationException("Statement does not start with SELECT or WITH.");
         }
     }
 }
