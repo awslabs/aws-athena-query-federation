@@ -111,7 +111,7 @@ public class SnowflakeRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(SnowflakeRecordHandlerTest.class);
     private SnowflakeRecordHandler handler;
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private Connection connection;
     private static final BufferAllocator bufferAllocator = new RootAllocator();
@@ -202,7 +202,7 @@ public class SnowflakeRecordHandlerTest
                     TABLE_NAME,
                     schemaRoot.getSchema(),
                     splitBuilder.build(),
-                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                     100_000_000_000L,
                     100_000_000_000L//100GB don't expect this to spill
             );
@@ -263,7 +263,7 @@ public class SnowflakeRecordHandlerTest
                     TABLE_NAME,
                     schemaRoot.getSchema(),
                     splitBuilder.build(),
-                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                     1_500_000L, //~1.5MB so we should see some spill
                     0L
             );

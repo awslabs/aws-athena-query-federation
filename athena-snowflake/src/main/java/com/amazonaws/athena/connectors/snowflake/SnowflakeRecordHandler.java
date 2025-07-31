@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.snowflake;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -80,6 +81,7 @@ import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.utils.StringUtils;
 import software.amazon.awssdk.utils.Validate;
 
 import java.math.BigDecimal;
@@ -444,5 +446,16 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
             throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         return preparedStatement;
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        final String secretName = getDatabaseConnectionConfig().getSecret();
+        if (StringUtils.isNotBlank(secretName)) {
+            return new SnowflakeCredentialsProvider(secretName);
+        }
+
+        return null;
     }
 }
