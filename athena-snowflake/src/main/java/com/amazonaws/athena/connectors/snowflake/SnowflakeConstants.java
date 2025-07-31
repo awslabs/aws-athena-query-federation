@@ -45,6 +45,11 @@ public final class SnowflakeConstants
     public static final String SNOWFLAKE_SPLIT_QUERY_ID = "query_id";
     public static final String SNOWFLAKE_SPLIT_EXPORT_BUCKET = "exportBucket";
     public static final String SNOWFLAKE_SPLIT_OBJECT_KEY = "s3ObjectKey";
+    public static final String AUTH_CODE = "auth_code";
+    public static final String CLIENT_ID = "client_id";
+    public static final String TOKEN_URL = "token_url";
+    public static final String REDIRECT_URI = "redirect_uri";
+    public static final String CLIENT_SECRET = "client_secret";
 
     /** Configuration key for specifying the authentication method */
     public static final String AUTHENTICATOR = "authenticator";

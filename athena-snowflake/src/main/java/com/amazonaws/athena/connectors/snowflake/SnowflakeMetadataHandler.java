@@ -20,6 +20,7 @@
 
 package com.amazonaws.athena.connectors.snowflake;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -775,5 +776,16 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         catch (Exception e) {
             throw new RuntimeException("Error fetching IAM role ARN: " + e.getMessage());
         }
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        final String secretName = getDatabaseConnectionConfig().getSecret();
+        if (StringUtils.isNotBlank(secretName)) {
+            return new SnowflakeCredentialsProvider(secretName);
+        }
+
+        return null;
     }
 }
