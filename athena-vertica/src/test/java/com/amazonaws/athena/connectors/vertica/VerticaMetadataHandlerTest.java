@@ -279,7 +279,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
         try (GetTableLayoutRequest req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
                 new TableName("schema1", "table1"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 tableSchema,
                 partitionCols);
 
@@ -350,7 +350,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 new TableName("schema", "table_name"),
                 partitions,
                 partitionCols,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
 

@@ -42,7 +42,7 @@ public class FilterExpressionBuilderTest
         Map<String, java.util.Optional<java.util.Set<String>>> result = FilterExpressionBuilder.getConstraintsForPartitionedColumns(
             com.google.common.collect.ImmutableList.of(Column.builder().name("year").build()),
                 new Constraints(GcsTestUtils.createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), "1"),
-                        Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()));
+                        Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
         assertEquals(result.size(), 1);
         assertEquals(result.get("year").get(), com.google.common.collect.ImmutableSet.of("1"));
         assertEquals(result.get("yeAr").get(), com.google.common.collect.ImmutableSet.of("1"));

@@ -432,7 +432,7 @@ public class ElasticsearchMetadataHandlerTest
                 new TableName("movies", index),
                 partitions,
                 partitionCols,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
@@ -493,7 +493,8 @@ public class ElasticsearchMetadataHandlerTest
         return new FederatedIdentity("access_key_id",
             "principle",
             Collections.emptyMap(),
-            Collections.emptyList());
+            Collections.emptyList(),
+            Collections.emptyMap());
     }
 
     @Test

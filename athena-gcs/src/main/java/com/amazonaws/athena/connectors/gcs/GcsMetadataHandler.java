@@ -62,7 +62,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
@@ -140,10 +139,7 @@ public class GcsMetadataHandler
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request) throws Exception
     {
-        return super.doListTables(allocator,
-                new ListTablesRequest(request.getIdentity(), request.getQueryId(),
-                        request.getCatalogName(), request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
-                TABLE_FILTER);
+        return super.doListTables(allocator, request, TABLE_FILTER);
     }
 
     /**

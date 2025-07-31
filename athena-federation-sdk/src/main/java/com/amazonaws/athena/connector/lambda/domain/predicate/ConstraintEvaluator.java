@@ -84,7 +84,7 @@ public class ConstraintEvaluator
      */
     public static ConstraintEvaluator emptyEvaluator()
     {
-        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
+        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
     }
 
     /**

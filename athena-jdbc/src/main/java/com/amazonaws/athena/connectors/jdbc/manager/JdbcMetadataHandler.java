@@ -41,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
@@ -167,6 +168,11 @@ public abstract class JdbcMetadataHandler
         return jdbcConnectionFactory;
     }
 
+    protected DatabaseConnectionConfig getDatabaseConnectionConfig()
+    {
+        return databaseConnectionConfig;
+    }
+
     protected CredentialsProvider getCredentialProvider()
     {
         final String secretName = databaseConnectionConfig.getSecret();
@@ -230,8 +236,9 @@ public abstract class JdbcMetadataHandler
     }
 
     /**
-     * This is default getAllTables no pagination.
-     * Override this if you want to support the behavior.
+     * This is default getAllTables without true pagination.
+     * Paginated list of tables will be returned by retrieving all tables first, then returning subset based off request.
+     * Override this if you want to support true pagination behavior.
      * @param connection
      * @param listTablesRequest
      * @return
@@ -239,12 +246,17 @@ public abstract class JdbcMetadataHandler
      */
     protected ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
     {
-        // no-op is call listTables
-        // override this function to implement pagination
         String adjustedSchemaName = caseResolver.getAdjustedSchemaNameString(connection, listTablesRequest.getSchemaName(), configOptions);
-        LOGGER.debug("Request is asking for pagination, but pagination has not been implemented");
-        return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                listTables(connection, adjustedSchemaName), null);
+        LOGGER.debug("Request is asking for pagination, but true pagination has not been implemented.");
+
+        // Validate nextToken and pageSize
+        int pageSize = listTablesRequest.getPageSize();
+        String startToken = listTablesRequest.getNextToken();
+
+        // Retrieve all tables
+        List<TableName> allTables = listTables(connection, adjustedSchemaName);
+
+        return PaginationHelper.manualPagination(allTables, startToken, pageSize, listTablesRequest.getCatalogName());
     }
 
     protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
