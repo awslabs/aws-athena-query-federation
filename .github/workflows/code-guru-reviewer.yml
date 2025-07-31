@@ -1,45 +1,34 @@
 name: CodeGuru Security Workflow
 on:
-  pull-request:
+  push:
     branches:
       - 'master'
 
 permissions:
   id-token: write
-  # for writing security events.
   security-events: write
   pull-requests: write
-  # only required for workflows in private repositories
-  actions: read
-  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Respository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Configure aws credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::686407537119:role/CodeGuruSecurityGitHubAccessRole
+          role-to-assume: arn:aws:iam::686407537119:role/CodeGuruReviewerGitHubAccessRole
           aws-region: us-east-1
           role-session-name: GitHubActionScript
-
-      - name: CodeGuru Security
-        uses: aws-actions/codeguru-security@v1
+			- name: Amazon CodeGuru Reviewer Scanner
+        if: ${{ always() }}
+        uses: aws-actions/codeguru-reviewer@v1.1
         with:
-          source_path: .
-          aws_region: us-east-1
-          fail_on_severity: Critical
-      - name: Print findings
-        run: |
-          ls -l
-          cat codeguru-security-results.sarif.json
-
+          build_path: target 
+          s3_bucket: codeguru-reviewer-837696540207-us-east-1
       # If you want content in security scanning, you’ll need to enable codescanning by going into github.
       # https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning-for-a-repository
       - name: Upload result
