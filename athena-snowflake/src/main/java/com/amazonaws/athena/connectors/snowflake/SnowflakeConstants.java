@@ -35,11 +35,36 @@ public final class SnowflakeConstants
      */
     public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
     public static final String SNOWFLAKE_QUOTE_CHARACTER = "\"";
+
+    /** Configuration key for specifying the authentication method */
+    public static final String AUTHENTICATOR = "authenticator";
+
+    /**
+     * OAuth 2.0 Authentication Constants
+     * These constants are used for configuring OAuth-based authentication with Snowflake.
+     */
     public static final String AUTH_CODE = "auth_code";
     public static final String CLIENT_ID = "client_id";
     public static final String TOKEN_URL = "token_url";
     public static final String REDIRECT_URI = "redirect_uri";
     public static final String CLIENT_SECRET = "client_secret";
+
+    /**
+     * Key-Pair Authentication Constants
+     * These constants are used for configuring public/private key pair authentication with Snowflake.
+     */
+    public static final String SF_USER = "sfUser";
+    public static final String PEM_PRIVATE_KEY = "pem_private_key";
+    public static final String PEM_PRIVATE_KEY_PASSPHRASE = "pem_private_key_passphrase";
+    public static final String PRIVATE_KEY = "privateKey";
+    
+    /**
+     * Password Authentication Constants
+     * These constants are used for traditional username/password authentication with Snowflake.
+     */
+    public static final String USERNAME = "username";
+    public static final String PASSWORD = "password";
+    public static final String USER = "user";
 
     private SnowflakeConstants() {}
 }
