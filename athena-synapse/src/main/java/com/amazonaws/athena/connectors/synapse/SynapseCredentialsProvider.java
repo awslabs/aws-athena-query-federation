@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.DefaultCredentials;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -30,7 +31,10 @@ import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.PutSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -42,14 +46,17 @@ import java.util.Map;
 
 public class SynapseCredentialsProvider implements CredentialsProvider
 {
+    // Constants for OAuth token response fields
     private static final String ACCESS_TOKEN = "access_token";
     private static final String FETCHED_AT = "fetched_at";
     private static final String EXPIRES_IN = "expires_in";
 
+    // Constants for OAuth configuration fields
     private static final String CLIENT_ID = "client_id";
     private static final String CLIENT_SECRET = "client_secret";
     private static final String TENANT_ID = "tenant_id";
 
+    // Constants for basic authentication fields
     private static final String USER = "user";
     private static final String PASSWORD = "password";
     private static final String USERNAME = "username";
@@ -96,9 +103,25 @@ public class SynapseCredentialsProvider implements CredentialsProvider
 
             return credentialMap;
         }
-        catch (Exception e) {
+        catch (JsonProcessingException e) {
             throw new AthenaConnectorException(
-                "Failed to retrieve Synapse credentials",
+                "Failed to parse Synapse credentials JSON",
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (ResourceNotFoundException e) {
+            throw new AthenaConnectorException(
+                "Secret not found: " + secretName,
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (SecretsManagerException e) {
+            throw new AthenaConnectorException(
+                "Failed to retrieve Synapse credentials from Secrets Manager",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
                     .build()
@@ -117,11 +140,44 @@ public class SynapseCredentialsProvider implements CredentialsProvider
             }
             return null;
         }
-        catch (Exception e) {
+        catch (JsonProcessingException e) {
             throw new AthenaConnectorException(
-                "Failed to get OAuth access token",
+                "Failed to parse OAuth configuration JSON",
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (ResourceNotFoundException e) {
+            throw new AthenaConnectorException(
+                "Secret not found: " + secretName,
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (SecretsManagerException e) {
+            throw new AthenaConnectorException(
+                "Failed to retrieve OAuth configuration from Secrets Manager",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (IOException e) {
+            throw new AthenaConnectorException(
+                "Failed to communicate with OAuth endpoint",
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AthenaConnectorException(
+                "OAuth token fetch interrupted",
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString())
                     .build()
             );
         }
@@ -137,7 +193,7 @@ public class SynapseCredentialsProvider implements CredentialsProvider
                 !oauthConfig.get(TENANT_ID).isEmpty();
     }
 
-    private String fetchAccessToken(Map<String, String> oauthConfig) throws Exception
+    private String fetchAccessToken(Map<String, String> oauthConfig) throws IOException, InterruptedException
     {
         String accessToken = oauthConfig.get(ACCESS_TOKEN);
 
@@ -156,7 +212,7 @@ public class SynapseCredentialsProvider implements CredentialsProvider
         return fetchAndStoreNewToken(oauthConfig);
     }
 
-    private String fetchAndStoreNewToken(Map<String, String> oauthConfig) throws Exception
+    private String fetchAndStoreNewToken(Map<String, String> oauthConfig) throws IOException, InterruptedException
     {
         String clientId = oauthConfig.get(CLIENT_ID);
         String clientSecret = oauthConfig.get(CLIENT_SECRET);
@@ -179,33 +235,78 @@ public class SynapseCredentialsProvider implements CredentialsProvider
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
+            String errorMessage = String.format("Failed to fetch access token. Status code: %d", response.statusCode());
+            if (response.statusCode() == 401 || response.statusCode() == 403) {
+                throw new AthenaConnectorException(
+                    errorMessage,
+                    ErrorDetails.builder()
+                        .errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString())
+                        .build()
+                );
+            }
+            if (response.statusCode() == 429) {
+                throw new AthenaConnectorException(
+                    errorMessage,
+                    ErrorDetails.builder()
+                        .errorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString())
+                        .build()
+                );
+            }
             throw new AthenaConnectorException(
-                "Failed to fetch access token",
+                errorMessage,
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
                     .build()
             );
         }
 
-        JsonNode tokenResponse = objectMapper.readTree(response.body());
-        String accessToken = tokenResponse.get(ACCESS_TOKEN).asText();
-        long expiresIn = tokenResponse.get(EXPIRES_IN).asLong();
-        long fetchedAt = Instant.now().getEpochSecond();
+        try {
+            JsonNode tokenResponse = objectMapper.readTree(response.body());
+            String accessToken = tokenResponse.get(ACCESS_TOKEN).asText();
+            long expiresIn = tokenResponse.get(EXPIRES_IN).asLong();
+            long fetchedAt = Instant.now().getEpochSecond();
 
-        oauthConfig.put(ACCESS_TOKEN, accessToken);
-        oauthConfig.put(EXPIRES_IN, String.valueOf(expiresIn));
-        oauthConfig.put(FETCHED_AT, String.valueOf(fetchedAt));
+            oauthConfig.put(ACCESS_TOKEN, accessToken);
+            oauthConfig.put(EXPIRES_IN, String.valueOf(expiresIn));
+            oauthConfig.put(FETCHED_AT, String.valueOf(fetchedAt));
 
-        ObjectNode updatedSecretJson = objectMapper.createObjectNode();
-        for (Map.Entry<String, String> entry : oauthConfig.entrySet()) {
-            updatedSecretJson.put(entry.getKey(), entry.getValue());
+            ObjectNode updatedSecretJson = objectMapper.createObjectNode();
+            for (Map.Entry<String, String> entry : oauthConfig.entrySet()) {
+                updatedSecretJson.put(entry.getKey(), entry.getValue());
+            }
+
+            try {
+                secretsManager.getSecretsManager().putSecretValue(PutSecretValueRequest.builder()
+                        .secretId(secretName)
+                        .secretString(updatedSecretJson.toString())
+                        .build());
+            }
+            catch (ResourceNotFoundException e) {
+                throw new AthenaConnectorException(
+                    "Secret not found: " + secretName,
+                    ErrorDetails.builder()
+                        .errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString())
+                        .build()
+                );
+            }
+            catch (SecretsManagerException e) {
+                throw new AthenaConnectorException(
+                    "Failed to update access token in Secrets Manager",
+                    ErrorDetails.builder()
+                        .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                        .build()
+                );
+            }
+
+            return accessToken;
         }
-
-        secretsManager.getSecretsManager().putSecretValue(PutSecretValueRequest.builder()
-                .secretId(secretName)
-                .secretString(updatedSecretJson.toString())
-                .build());
-
-        return accessToken;
+        catch (JsonProcessingException e) {
+            throw new AthenaConnectorException(
+                "Failed to parse OAuth token response",
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
+                    .build()
+            );
+        }
     }
 }

@@ -32,6 +32,7 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+import software.amazon.awssdk.services.secretsmanager.model.ResourceNotFoundException;
 
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -194,7 +195,7 @@ public class SynapseCredentialsProviderTest
             fail("Expected AthenaConnectorException");
         }
         catch (AthenaConnectorException e) {
-            assertEquals(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString(), 
+            assertEquals(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString(),
                 e.getErrorDetails().errorCode());
         }
     }
@@ -204,12 +205,12 @@ public class SynapseCredentialsProviderTest
     {
         try {
             when(mockSecretsClient.getSecretValue(any(GetSecretValueRequest.class)))
-                .thenThrow(new RuntimeException("Secret not found"));
+                .thenThrow(ResourceNotFoundException.builder().message("Secret not found").build());
             credentialsProvider.getCredentialMap();
             fail("Expected AthenaConnectorException");
         }
         catch (AthenaConnectorException e) {
-            assertEquals(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString(), 
+            assertEquals(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString(), 
                 e.getErrorDetails().errorCode());
         }
     }
