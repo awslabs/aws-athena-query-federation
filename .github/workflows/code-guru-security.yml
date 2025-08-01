@@ -1,13 +1,12 @@
-name: CodeGuru Security Workflow
-on:
-  push:
-    branches:
-      - 'master'
+name: CodeGuru Security 
+
+on: [pull_request, workflow_dispatch] 
 
 permissions:
   id-token: write
   # for writing security events.
   security-events: write
+  pull-requests: write
   # only required for workflows in private repositories
   actions: read
   contents: read
