@@ -24,17 +24,26 @@ package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
+import java.io.IOException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateEncodingException;
+
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeUtils.installCaCertificate;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeUtils.setupNativeEnvironmentVariables;
+
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link SnowflakeMetadataHandler} and {@link SnowflakeRecordHandler}.
  *
- * Recommend using {@link SnowflakeMuxCompositeHandler} instead.
  */
 public class SnowflakeCompositeHandler
         extends CompositeHandler
 {
-    public SnowflakeCompositeHandler()
+    public SnowflakeCompositeHandler() throws CertificateEncodingException, IOException, NoSuchAlgorithmException, KeyStoreException
     {
-        super(new SnowflakeMetadataHandler(new SnowflakeEnvironmentProperties().createEnvironment()), new SnowflakeRecordHandler(new SnowflakeEnvironmentProperties().createEnvironment()));
+        super(new SnowflakeMetadataHandler(new SnowflakeEnvironmentProperties(System.getenv()).createEnvironment()), new SnowflakeRecordHandler(new SnowflakeEnvironmentProperties(System.getenv()).createEnvironment()));
+        installCaCertificate();
+        setupNativeEnvironmentVariables();
     }
 }

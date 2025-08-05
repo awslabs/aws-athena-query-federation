@@ -43,6 +43,14 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
     private static final String DB_PROPERTY_KEY = "db";
     private static final String SCHEMA_PROPERTY_KEY = "schema";
     private static final String SNOWFLAKE_ESCAPE_CHARACTER = "\"";
+    public static final String ENABLE_S3_EXPORT = "SNOWFLAKE_ENABLE_S3_EXPORT";
+
+    private final boolean enableS3Export;
+
+    public SnowflakeEnvironmentProperties(Map<String, String> properties)
+    {
+        this.enableS3Export = Boolean.parseBoolean(properties.getOrDefault(ENABLE_S3_EXPORT, "false"));
+    }
 
     @Override
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
@@ -133,5 +141,10 @@ public class SnowflakeEnvironmentProperties extends JdbcEnvironmentProperties
         }
 
         return parameters;
+    }
+
+    public boolean isS3ExportEnabled()
+    {
+        return enableS3Export;
     }
 }
