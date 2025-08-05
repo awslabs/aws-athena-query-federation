@@ -341,21 +341,45 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         String s3ExportBucket = getS3ExportBucket();
         String randomStr = UUID.randomUUID().toString();
-        String integrationName = catalog.concat(s3ExportBucket).concat("_integration").replaceAll("-", "_").replaceAll(":", "");
+        // Sanitize and validate integration name to follow Snowflake naming rules
+        String integrationName = catalog.concat(s3ExportBucket)
+                .concat("_integration")
+                .replaceAll("[^A-Za-z0-9_]", "_") // Replace any non-alphanumeric characters with underscore
+                .replaceAll("_+", "_") // Replace multiple underscores with a single one
+                .toUpperCase(); // Snowflake identifiers are case-insensitive and stored as uppercase
+
+        // Validate integration name length and format
+        if (integrationName.length() > 255) { // Snowflake's maximum identifier length
+            throw new IllegalArgumentException("Integration name exceeds maximum length of 255 characters: " + integrationName);
+        }
+        if (!integrationName.matches("^[A-Z][A-Z0-9_]*$")) { // Must start with a letter
+            throw new IllegalArgumentException("Invalid integration name format. Must start with a letter and contain only letters, numbers, and underscores: " + integrationName);
+        }
         LOGGER.debug("Integration Name {}", integrationName);
 
         Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
 
         // Check and create S3 integration if needed
         if (!checkIntegration(connection, integrationName)) {
-            String createIntegrationQuery = "CREATE STORAGE INTEGRATION " + integrationName + " " +
+            // Build the integration creation query with proper quoting and escaping
+            String roleArn = getRoleArn(request.getContext());
+            if (roleArn == null || roleArn.trim().isEmpty()) {
+                throw new IllegalArgumentException("Role ARN cannot be null or empty");
+            }
+            
+            String createIntegrationQuery = String.format(
+                    "CREATE STORAGE INTEGRATION %s " +
                     "TYPE = EXTERNAL_STAGE " +
                     "STORAGE_PROVIDER = 'S3' " +
                     "ENABLED = TRUE " +
-                    "STORAGE_AWS_ROLE_ARN = '" + getRoleArn(request.getContext()) + "' " +
-                    "STORAGE_ALLOWED_LOCATIONS = ('s3://" + s3ExportBucket + "/');";
+                    "STORAGE_AWS_ROLE_ARN = %s " +
+                    "STORAGE_ALLOWED_LOCATIONS = (%s);",
+                    snowflakeQueryStringBuilder.quote(integrationName),
+                    snowflakeQueryStringBuilder.singleQuote(roleArn),
+                    snowflakeQueryStringBuilder.singleQuote("s3://" + s3ExportBucket.replace("'", "''") + "/"));
+            
             try (Statement stmt = connection.createStatement()) {
-                LOGGER.debug("Create Integration {}", createIntegrationQuery);
+                LOGGER.debug("Create Integration query: {}", createIntegrationQuery);
                 stmt.execute(createIntegrationQuery);
             }
             catch (SQLException e) {
@@ -373,11 +397,23 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     tableName.getTableName(), schemaName, constraints, null);
         }
 
-        String snowflakeExportQuery = "COPY INTO 's3://" + s3ExportBucket + SEPARATOR + queryID + SEPARATOR + randomStr + "/' " +
-                "FROM (" + generatedSql + ") " +
-                "STORAGE_INTEGRATION = " + integrationName + " " +
-                "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') " +
-                "MAX_FILE_SIZE = 16777216";
+        // Escape special characters in path components
+        String escapedBucket = s3ExportBucket.replace("'", "''");
+        String escapedQueryID = queryID.replace("'", "''");
+        String escapedRandomStr = randomStr.replace("'", "''");
+        String escapedIntegration = integrationName.replace("\"", "\"\"");
+        
+        // Build the COPY INTO query with proper escaping and quoting
+        String s3Path = String.format("s3://%s/%s/%s/",
+                escapedBucket.replace("'", "''"),
+                escapedQueryID.replace("'", "''"),
+                escapedRandomStr.replace("'", "''"));
+                
+        String snowflakeExportQuery = String.format("COPY INTO '%s' FROM (%s) STORAGE_INTEGRATION = %s " +
+                "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 16777216",
+                s3Path,
+                generatedSql,
+                snowflakeQueryStringBuilder.quote(escapedIntegration));
 
         LOGGER.info("Snowflake Copy Statement: {} for queryId: {}", snowflakeExportQuery, queryID);
 
@@ -403,14 +439,21 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             rs = stmt.executeQuery(checkIntegrationQuery);
             while (rs.next()) {
                 String existingIntegration = rs.getString("name");
-                LOGGER.debug("Integration {}", existingIntegration);
-                // check integration name ignoring case-sensitivity
-                if (existingIntegration.equalsIgnoreCase(integrationName)) {
-                    return true;
+                if (existingIntegration != null) {
+                    LOGGER.debug("Found integration: {}", existingIntegration);
+                    // Normalize both names to uppercase for comparison
+                    if (existingIntegration.trim().equalsIgnoreCase(integrationName.trim())) {
+                        return true;
+                    }
                 }
             }
+            LOGGER.debug("Integration {} not found", integrationName);
+            return false;
         }
-        return false;
+        catch (SQLException e) {
+            LOGGER.error("Error checking for integration {}: {}", integrationName, e.getMessage());
+            throw new SQLException("Failed to check for integration existence: " + e.getMessage(), e);
+        }
     }
 
     @Override
@@ -570,7 +613,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     .build());
         }
         catch (SdkClientException e) {
-            throw new RuntimeException("Exception listing the exported objects : " + e.getMessage(), e);
+            String errorMsg = String.format("Failed to list objects in bucket %s with prefix %s", s3ExportBucket, queryId);
+            LOGGER.error("{}: {}", errorMsg, e.getMessage());
+            throw new RuntimeException(errorMsg, e);
         }
         return listObjectsResponse.contents();
     }
@@ -774,7 +819,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             return response.configuration().role();
         }
         catch (Exception e) {
-            throw new RuntimeException("Error fetching IAM role ARN: " + e.getMessage());
+            throw new RuntimeException("Error fetching IAM role ARN: " + e.getMessage(), e);
         }
     }
 
