@@ -273,14 +273,14 @@ public class SnowflakeQueryStringBuilder
             case Utf8:
                 return value.toString();
             case Date:
-                val = value.toString();
-                if (val.contains("-") && val.length() == 16) {
-                    LocalDateTime dateTime = LocalDateTime.parse(val);
+                String dateStr = value.toString();
+                if (dateStr.contains("-") && dateStr.length() == 16) {
+                    LocalDateTime dateTime = LocalDateTime.parse(dateStr);
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
                     return dateTime.format(formatter);
                 }
                 else {
-                    long days = Long.parseLong(val);
+                    long days = Long.parseLong(dateStr);
                     long milliseconds = TimeUnit.DAYS.toMillis(days);
                     return new SimpleDateFormat("yyyy-MM-dd").format(new Date(milliseconds));
                 }
