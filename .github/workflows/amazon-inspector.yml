@@ -1,0 +1,96 @@
+name: Amazon Inspector Scan 
+
+on: [pull_request, workflow_dispatch] 
+
+permissions:
+  id-token: write
+  # for writing security events.
+  security-events: write
+  pull-requests: write
+  # only required for workflows in private repositories
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Respository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::686407537119:role/CodeGuruSecurityGitHubAccessRole
+          aws-region: us-east-1
+
+      - name: Inspector Scan
+        id: inspector
+        uses: aws-actions/vulnerability-scan-github-action-for-amazon-inspector@v1
+        with:
+          # change artifact_type to either 'repository', 'container', 'binary', or 'archive'.
+          artifact_type: 'repository'
+
+          # change artifact_path to the file path or container image you would like to scan.
+          # File paths should be relative to your root project directory.
+          # For containers, this action accepts 'docker pull'-style references to containers,
+          # such as 'alpine:latest' or a file path to an image exported as TAR using docker save.
+          artifact_path: './'
+
+          # If enabled, this setting will display Inspector's vulnerability scan findings
+          # as a GitHub actions step summary. See here for an example step summary:
+          # https://github.com/aws-actions/vulnerability-scan-github-action-for-amazon-inspector/actions/runs/8800085041
+          display_vulnerability_findings: "enabled"
+
+          # Set vulnerability thresholds; if the number of vulnerabilities is
+          # equal to or greater than any of the specified thresholds, this
+          # action will set the 'vulnerability_threshold_exceeded'
+          # output flag to 1.
+          critical_threshold: 1
+          high_threshold: 1
+          medium_threshold: 1
+          low_threshold: 1
+          other_threshold: 1
+
+          # Additional input arguments are available to control scan behavior.
+          # See 'action.yml' for additional input/output options.
+
+
+      # The following steps illustrate how to
+      # display scan results in the GitHub Actions job terminal.
+      - name: Display CycloneDX SBOM (JSON)
+        run: cat ${{ steps.inspector.outputs.artifact_sbom }}
+
+      - name: Display Inspector vulnerability scan results (JSON)
+        run: cat ${{ steps.inspector.outputs.inspector_scan_results }}
+
+      - name: Display Inspector vulnerability scan results (CSV)
+        run: cat ${{ steps.inspector.outputs.inspector_scan_results_csv }}
+
+      - name: Display Inspector vulnerability scan results (Markdown)
+        run: cat ${{ steps.inspector.outputs.inspector_scan_results_markdown }}
+
+
+      # The following steps illustrate how to
+      # upload scan results as a GitHub actions job artifact
+      - name: Upload Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Inspector Vulnerability Scan Artifacts
+          path: |
+            ${{ steps.inspector.outputs.inspector_scan_results }}
+            ${{ steps.inspector.outputs.inspector_scan_results_csv }}
+            ${{ steps.inspector.outputs.artifact_sbom }}
+            ${{ steps.inspector.outputs.inspector_scan_results_markdown }}
+
+
+        # This step illustrates how to add custom logic if
+        # the vulnerability threshold is exceeded. This example
+        # simply prints the 'vulnerability_threshold_exceeded' value
+        # to the GitHub actions job terminal.
+        # Replace 'echo' with 'exit' if you want to fail the job.
+      - name: On vulnerability threshold exceeded
+        run: echo ${{ steps.inspector.outputs.vulnerability_threshold_exceeded }}
+
