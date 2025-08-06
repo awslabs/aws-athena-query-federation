@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -53,6 +54,7 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -282,5 +284,16 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             return schemaBuilder.build();
         }
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        final String secretName = getDatabaseConnectionConfig().getSecret();
+        if (StringUtils.isNotBlank(secretName)) {
+            return new DataLakeGen2CredentialsProvider(secretName);
+        }
+
+        return null;
     }
 }

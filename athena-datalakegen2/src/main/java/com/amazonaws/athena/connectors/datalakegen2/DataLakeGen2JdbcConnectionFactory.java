@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.datalakegen2;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.DefaultCredentials;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -31,6 +32,8 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
+
+import static com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2Constants.ACCESS_TOKEN_PROPERTY;
 
 public class DataLakeGen2JdbcConnectionFactory extends GenericJdbcConnectionFactory
 {
@@ -59,17 +62,38 @@ public class DataLakeGen2JdbcConnectionFactory extends GenericJdbcConnectionFact
     {
         try {
             final String derivedJdbcString;
-            if (null != credentialsProvider) {
+            final Properties connectionProps = new Properties();
+            connectionProps.putAll(this.jdbcProperties);
+
+            if (credentialsProvider != null) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                // replace aws secret value with credentials and changing username as user
-                final String secretReplacement = String.format("%s;%s", "user=" + credentialsProvider.getCredential().getUser(), "password=" + credentialsProvider.getCredential().getPassword());
+                final String secretReplacement;
+
+                Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
+                String accessToken = credentialMap.get(ACCESS_TOKEN_PROPERTY);
+
+                if (accessToken != null) {
+                    // OAuth token
+                    connectionProps.setProperty(ACCESS_TOKEN_PROPERTY, accessToken);
+                    secretReplacement = "";
+                }
+                else {
+                    // Fallback to username/password
+                    DefaultCredentials credentials = credentialsProvider.getCredential();
+                    secretReplacement = String.format(
+                            "%s;%s",
+                            "user=" + credentials.getUser(),
+                            "password=" + credentials.getPassword()
+                    );
+                }
+
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {
                 derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
             }
             Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
-            return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+            return DriverManager.getConnection(derivedJdbcString, connectionProps);
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
