@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.DefaultCredentials;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -32,20 +33,24 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.EncryptionFailureException;
+import software.amazon.awssdk.services.secretsmanager.model.InternalServiceErrorException;
+import software.amazon.awssdk.services.secretsmanager.model.InvalidParameterException;
+import software.amazon.awssdk.services.secretsmanager.model.InvalidRequestException;
+import software.amazon.awssdk.services.secretsmanager.model.LimitExceededException;
+import software.amazon.awssdk.services.secretsmanager.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
 import software.amazon.awssdk.utils.Validate;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * SAP HANA OAuth credentials provider that manages OAuth token lifecycle.
@@ -60,9 +65,17 @@ public class SaphanaCredentialsProvider implements CredentialsProvider
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SaphanaCredentialsProvider.class);
     
+    // Constants for OAuth configuration fields
+    private static final String CLIENT_ID = "client_id";
+    private static final String CLIENT_SECRET = "client_secret";
+    private static final String TOKEN_URL = "token_url";
+
+    // Constants for OAuth token response fields
     private static final String ACCESS_TOKEN = "access_token";
     private static final String FETCHED_AT = "fetched_at";
     private static final String EXPIRES_IN = "expires_in";
+
+    // Constants for basic authentication fields
     private static final String USERNAME = "username";
     private static final String PASSWORD = "password";
     private static final String USER = "user";
@@ -70,18 +83,20 @@ public class SaphanaCredentialsProvider implements CredentialsProvider
     private final String oauthSecretName;
     private final CachableSecretsManager secretsManager;
     private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
 
     public SaphanaCredentialsProvider(String oauthSecretName)
     {
-        this(oauthSecretName, SecretsManagerClient.create());
+        this(oauthSecretName, SecretsManagerClient.create(), HttpClient.newHttpClient());
     }
 
     @VisibleForTesting
-    public SaphanaCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient)
+    public SaphanaCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient, HttpClient httpClient)
     {
         this.oauthSecretName = Validate.notNull(oauthSecretName, "oauthSecretName must not be null");
         this.secretsManager = new CachableSecretsManager(secretsClient);
         this.objectMapper = new ObjectMapper();
+        this.httpClient = httpClient;
     }
 
     @Override
@@ -132,12 +147,12 @@ public class SaphanaCredentialsProvider implements CredentialsProvider
 
     private boolean isOAuthConfigured(Map<String, String> oauthConfig)
     {
-        return oauthConfig.containsKey(SaphanaConstants.CLIENT_ID) && 
-               !oauthConfig.get(SaphanaConstants.CLIENT_ID).isEmpty() &&
-               oauthConfig.containsKey(SaphanaConstants.CLIENT_SECRET) && 
-               !oauthConfig.get(SaphanaConstants.CLIENT_SECRET).isEmpty() &&
-               oauthConfig.containsKey(SaphanaConstants.TOKEN_URL) && 
-               !oauthConfig.get(SaphanaConstants.TOKEN_URL).isEmpty();
+        return oauthConfig.containsKey(CLIENT_ID) && 
+               !oauthConfig.get(CLIENT_ID).isEmpty() &&
+               oauthConfig.containsKey(CLIENT_SECRET) && 
+               !oauthConfig.get(CLIENT_SECRET).isEmpty() &&
+               oauthConfig.containsKey(TOKEN_URL) && 
+               !oauthConfig.get(TOKEN_URL).isEmpty();
     }
 
     private String loadTokenFromSecretsManager(Map<String, String> oauthConfig)
@@ -148,31 +163,32 @@ public class SaphanaCredentialsProvider implements CredentialsProvider
         return null;
     }
 
-    private String fetchAndStoreNewToken(Map<String, String> oauthConfig) throws Exception
+    private String fetchAndStoreNewToken(Map<String, String> oauthConfig) throws IOException, InterruptedException
     {
-        String clientId = oauthConfig.get(SaphanaConstants.CLIENT_ID);
-        String clientSecret = oauthConfig.get(SaphanaConstants.CLIENT_SECRET);
-        String tokenEndpoint = oauthConfig.get(SaphanaConstants.TOKEN_URL);
+        String clientId = oauthConfig.get(CLIENT_ID);
+        String clientSecret = oauthConfig.get(CLIENT_SECRET);
+        String tokenEndpoint = oauthConfig.get(TOKEN_URL);
 
-        HttpURLConnection conn = getHttpURLConnection(tokenEndpoint, clientId, clientSecret);
-        try (OutputStream os = conn.getOutputStream()) {
-            byte[] input = "grant_type=client_credentials".getBytes(StandardCharsets.UTF_8);
-            os.write(input, 0, input.length);
-        }
+        String auth = clientId + ":" + clientSecret;
+        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
 
-        int responseCode = conn.getResponseCode();
-        InputStream responseStream = (responseCode >= 200 && responseCode < 300) ?
-                conn.getInputStream() : conn.getErrorStream();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(tokenEndpoint))
+                .header("Authorization", "Basic " + encodedAuth)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials"))
+                .build();
 
-        String responseBody = new BufferedReader(new InputStreamReader(responseStream))
-                .lines()
-                .collect(Collectors.joining("\n"));
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        int responseCode = response.statusCode();
+        String responseBody = response.body();
 
         if (responseCode != 200) {
             throw new AthenaConnectorException(
-                "Failed to obtain access token: " + responseCode + " - " + responseBody,
+                "Failed to obtain access token",
+                "HTTP " + responseCode + " - " + responseBody,
                 ErrorDetails.builder()
-                    .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
                     .build()
             );
         }
@@ -181,14 +197,15 @@ public class SaphanaCredentialsProvider implements CredentialsProvider
         try {
             tokenResponse = objectMapper.readTree(responseBody);
         }
-        catch (Exception e) {
+        catch (JsonProcessingException e) {
             throw new AthenaConnectorException(
-                "Failed to parse token response JSON",
+                "Failed to parse OAuth token response",
                 ErrorDetails.builder()
-                    .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
                     .build()
             );
         }
+
         String accessToken = tokenResponse.get(ACCESS_TOKEN).asText();
         long expiresIn = tokenResponse.get(EXPIRES_IN).asLong();
         long fetchedAt = System.currentTimeMillis() / 1000;
@@ -206,25 +223,70 @@ public class SaphanaCredentialsProvider implements CredentialsProvider
         try {
             secretString = objectMapper.writeValueAsString(updatedSecretJson);
         }
-        catch (Exception e) {
+        catch (JsonProcessingException e) {
             throw new AthenaConnectorException(
-                "Failed to serialize updated secret JSON",
+                "Failed to parse OAuth token response",
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
+                    .build()
+            );
+        }
+
+        try {
+            secretsManager.getSecretsManager().putSecretValue(builder -> builder
+                    .secretId(this.oauthSecretName)
+                    .secretString(secretString)
+                    .build());
+        }
+        catch (ResourceNotFoundException e) {
+            throw new AthenaConnectorException(
+                "Secret not found: " + oauthSecretName,
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (InvalidParameterException | InvalidRequestException e) {
+            throw new AthenaConnectorException(
+                "Invalid request to Secrets Manager",
+                e.getMessage(),
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (LimitExceededException e) {
+            throw new AthenaConnectorException(
+                "Rate limit exceeded for Secrets Manager",
+                e.getMessage(),
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (EncryptionFailureException | InternalServiceErrorException e) {
+            throw new AthenaConnectorException(
+                "AWS Secrets Manager internal error",
+                e.getMessage(),
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                    .build()
+            );
+        }
+        catch (SecretsManagerException e) {
+            throw new AthenaConnectorException(
+                "Failed to update OAuth token in Secrets Manager",
+                e.getMessage(),
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
                     .build()
             );
         }
 
-        secretsManager.getSecretsManager().putSecretValue(builder -> builder
-                .secretId(this.oauthSecretName)
-                .secretString(secretString)
-                .build());
-
         return accessToken;
     }
 
-    // Replace fetchAccessTokenFromSecret to use fetchAndStoreNewToken
-    private String fetchAccessTokenFromSecret(Map<String, String> oauthConfig) throws Exception
+    private String fetchAccessTokenFromSecret(Map<String, String> oauthConfig) throws IOException, InterruptedException
     {
         String accessToken = loadTokenFromSecretsManager(oauthConfig);
         if (accessToken == null) {
@@ -244,21 +306,5 @@ public class SaphanaCredentialsProvider implements CredentialsProvider
                 return fetchAndStoreNewToken(oauthConfig);
             }
         }
-    }
-
-    @VisibleForTesting
-    static HttpURLConnection getHttpURLConnection(String tokenEndpoint, String clientId, String clientSecret) throws IOException
-    {
-        URL url = new URL(tokenEndpoint);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        
-        String auth = clientId + ":" + clientSecret;
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
-        
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Authorization", "Basic " + encodedAuth);
-        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-        conn.setDoOutput(true);
-        return conn;
     }
 }

@@ -61,10 +61,5 @@ public final class SaphanaConstants
 
     static final String TO_WELL_KNOWN_TEXT_FUNCTION = ".ST_AsWKT()";
 
-    // OAuth constants
-    public static final String CLIENT_ID = "client_id";
-    public static final String CLIENT_SECRET = "client_secret";
-    public static final String TOKEN_URL = "token_url";
-
     private SaphanaConstants() {}
 }
