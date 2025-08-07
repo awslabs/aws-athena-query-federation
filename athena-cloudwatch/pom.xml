@@ -32,7 +32,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>cloudwatchlogs</artifactId>
-            <version>2.32.4</version>
+            <version>2.32.16</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
