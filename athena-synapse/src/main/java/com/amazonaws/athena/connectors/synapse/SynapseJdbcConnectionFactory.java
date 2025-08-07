@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.synapse;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.DefaultCredentials;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -59,25 +60,44 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
     {
         try {
             final String derivedJdbcString;
-            if (null != credentialsProvider) {
+            final Properties connectionProps = new Properties();
+            connectionProps.putAll(this.jdbcProperties);
+
+            if (credentialsProvider != null) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement;
-                if (databaseConnectionConfig.getJdbcConnectionString().contains("authentication=ActiveDirectoryServicePrincipal")) {
-                    // Set AADSecurePrincipal credentials
+
+                String connectionString = databaseConnectionConfig.getJdbcConnectionString();
+
+                if (connectionString.contains("authentication=ActiveDirectoryServicePrincipal")) {
+                    // AAD Service Principal credentials
+                    DefaultCredentials credentials = credentialsProvider.getCredential();
                     secretReplacement = String.format(
-                        "%s;%s",
-                        "AADSecurePrincipalId=" + credentialsProvider.getCredential().getUser(),
-                        "AADSecurePrincipalSecret=" + credentialsProvider.getCredential().getPassword()
+                            "%s;%s",
+                            "AADSecurePrincipalId=" + credentials.getUser(),
+                            "AADSecurePrincipalSecret=" + credentials.getPassword()
                     );
                 }
                 else {
-                    // replace aws secret value with credentials and change username as user
-                    secretReplacement = String.format(
-                        "%s;%s",
-                        "user=" + credentialsProvider.getCredential().getUser(),
-                        "password=" + credentialsProvider.getCredential().getPassword()
-                    );
+                    SynapseCredentialsProvider synapseProvider = (SynapseCredentialsProvider) credentialsProvider;
+                    String accessToken = synapseProvider.getOAuthAccessToken();
+
+                    if (accessToken != null) {
+                        // OAuth token
+                        connectionProps.setProperty("accessToken", accessToken);
+                        secretReplacement = "";
+                    }
+                    else {
+                        // Fallback to username/password and change username as user
+                        DefaultCredentials credentials = synapseProvider.getCredential();
+                        secretReplacement = String.format(
+                                "%s;%s",
+                                "user=" + credentials.getUser(),
+                                "password=" + credentials.getPassword()
+                        );
+                    }
                 }
+
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {
@@ -86,7 +106,7 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
             // register driver
             Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
             // create connection
-            return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+            return DriverManager.getConnection(derivedJdbcString, connectionProps);
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
