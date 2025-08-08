@@ -34,6 +34,7 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.cloudwatch.metrics.MetricDataQuerySerDe;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
@@ -274,19 +275,22 @@ public class MetricsRecordHandlerTest
                 .withIsDirectory(true)
                 .build();
 
-        List<MetricStat> metricStats = new ArrayList<>();
-        metricStats.add(MetricStat.builder()
-                .metric(Metric.builder()
-                        .namespace(namespace)
-                        .metricName(metricName)
-                        .dimensions(dimensions)
+        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
+        metricDataQueries.add(MetricDataQuery.builder()
+                .metricStat(MetricStat.builder()
+                        .metric(Metric.builder()
+                                .namespace(namespace)
+                                .metricName(metricName)
+                                .dimensions(dimensions)
+                                .build())
+                        .period(60)
+                        .stat(statistic)
                         .build())
-                .period(60)
-                .stat(statistic)
+                .id("m1")
                 .build());
 
         Split split = Split.newBuilder(spillLocation, keyFactory.create())
-                .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, MetricStatSerDe.serialize(metricStats))
+                .add(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME, MetricDataQuerySerDe.serialize(metricDataQueries))
                 .add(METRIC_NAME_FIELD, metricName)
                 .add(NAMESPACE_FIELD, namespace)
                 .add(STATISTIC_FIELD, statistic)
