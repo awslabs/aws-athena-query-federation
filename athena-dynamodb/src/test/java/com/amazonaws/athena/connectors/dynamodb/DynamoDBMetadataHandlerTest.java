@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -35,6 +36,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
@@ -42,6 +45,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
@@ -348,6 +355,76 @@ public class DynamoDBMetadataHandlerTest
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(true), ":v1", DDBTypeUtils.toAttributeValue(null));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(EnhancedDocument.fromAttributeValueMap(expressionValues).toJson()));
+    }
+
+    @Test
+    public void doGetTableLayoutScanForSubstrait()
+            throws Exception
+    {
+        // query plan for SELECT * FROM test_table  where col_5 >= "" and col_5 <= ""
+        QueryPlan queryPlan = getQueryPlan("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb2" +
+                "4ueWFtbBIOGgwIARoIYW5kOmJvb2wSExoRCAIQARoLZ3RlOmFueV9hbnkSExoRCAIQAhoLbHRlOmFueV9hbnkalwQSlAQKywM6yAMK" +
+                "DhIMCgoKCwwNDg8QERITEr8CErwCCgIKABLGAQrDAQoCCgASrgEKBWNvbF8wCgVjb2xfMQoFY29sXzIKBWNvbF8zCgVjb2xfNAoFY2" +
+                "9sXzUKBWNvbF82CgVjb2xfNwoFY29sXzgKBWNvbF85EmYKCLIBBQjoBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEKCLIBBQjoBxgBCgi" +
+                "yAQUI6AcYAQoIsgEFCOgHGAEKCLIBBQjoBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEKCLIBBQjoBxgBGAE6DAoKVEVTVF9UQUJMRRpt" +
+                "GmsaBAoCEAEiMBouGiwIARoECgIQASIYGhZaFAoEKgIQARIKEggKBBICCAUiABgCIggaBgoEKMDEByIxGi8aLQgCGgQKAhABIhga" +
+                "FloUCgQqAhABEgoSCAoEEgIIBSIAGAIiCRoHCgUom4zbKRoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQS" +
+                "AggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJ" +
+                "IgASBWNvbF8wEgVjb2xfMRIFY29sXzISBWNvbF8zEgVjb2xfNBIFY29sXzUSBWNvbF82EgVjb2xfNxIFY29sXzgSBWNvbF85");
+        GetTableLayoutRequest req = new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                new TableName(TEST_CATALOG_NAME, TEST_TABLE),
+                new Constraints(null, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET);
+        GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
+
+        logger.info("doGetTableLayout schema - {}", res.getPartitions().getSchema());
+        logger.info("doGetTableLayout partitions - {}", res.getPartitions());
+
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(SCAN_PARTITION_TYPE));
+        // no hash key constraints, so look for segment count column
+        assertThat(res.getPartitions().getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
+        assertThat(res.getPartitions().getRowCount(), equalTo(1));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_5 BETWEEN :v0 AND :v1)"));
+    }
+
+
+    @Test
+    public void doGetTableLayoutQueryIndexForSubstraitPlan() throws Exception {
+        // query plan for SELECT * FROM test_table  where col_4 = "" and col_5 >= "" and col_5 <= ""
+        QueryPlan queryPlan = getQueryPlan("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb" +
+                "24ueWFtbBIOGgwIARoIYW5kOmJvb2wSFRoTCAIQARoNZXF1YWw6YW55X2FueRITGhEIAhACGgtndGU6YW55X2FueRITGhEIAhADG" +
+                "gtsdGU6YW55X2FueRrMBBLJBAqABDr9AwoOEgwKCgoLDA0ODxAREhMS9AIS8QIKAgoAEsYBCsMBCgIKABKuAQoFY29sXzAKBWNvb" +
+                "F8xCgVjb2xfMgoFY29sXzMKBWNvbF80CgVjb2xfNQoFY29sXzYKBWNvbF83CgVjb2xfOAoFY29sXzkSZgoIsgEFCOgHGAEKCLIBB" +
+                "QjoBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEKCLIBBQjoBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEKCLIBBQjoBxgBCgiyAQUI6AcYAQ" +
+                "oIsgEFCOgHGAEYAToMCgpURVNUX1RBQkxFGqEBGp4BGgQKAhABIjEaLxotCAEaBAoCEAEiGBoWWhQKBCoCEAESChIICgQSAggEI" +
+                "gAYAiIJGgcKBSi9ke86IjAaLhosCAIaBAoCEAEiGBoWWhQKBCoCEAESChIICgQSAggFIgAYAiIIGgYKBCjAxAciMRovGi0IAxoEC" +
+                "gIQASIYGhZaFAoEKgIQARIKEggKBBICCAUiABgCIgkaBwoFKJuM2ykaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAG" +
+                "goSCAoEEgIIAyIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAGgoSCAoEEgIICCIAGgoSC" +
+                "AoEEgIICSIAEgVjb2xfMBIFY29sXzESBWNvbF8yEgVjb2xfMxIFY29sXzQSBWNvbF81EgVjb2xfNhIFY29sXzcSBWNvbF84EgVj" +
+                "b2xfOQ==");
+        GetTableLayoutResponse res = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(null, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+
+        logger.info("doGetTableLayout schema - {}", res.getPartitions().getSchema());
+        logger.info("doGetTableLayout partitions - {}", res.getPartitions());
+
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(QUERY_PARTITION_TYPE));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().containsKey(INDEX_METADATA), is(true));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(INDEX_METADATA), equalTo("test_index"));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(HASH_KEY_NAME_METADATA), equalTo("col_4"));
+        assertThat(res.getPartitions().getRowCount(), equalTo(1));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_NAME_METADATA), equalTo("col_5"));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 BETWEEN :v0 AND :v1)"));
+        ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col_4", "col_4", "#col_5", "col_5");
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
     }
 
     @Test
@@ -712,5 +789,25 @@ public class DynamoDBMetadataHandlerTest
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", DDBTypeUtils.toAttributeValue(true), ":v1", DDBTypeUtils.toAttributeValue(null));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(EnhancedDocument.fromAttributeValueMap(expressionValues).toJson()));
+    }
+
+    @Test
+    public void testDoGetDataSourceCapabilities()
+    {
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(
+                TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
+        
+        GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(allocator, request);
+        
+        assertThat(response.getCatalogName(), equalTo(TEST_CATALOG_NAME));
+        
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+        assertThat(capabilities.containsKey("supports_limit_pushdown"), is(true));
+        List<OptimizationSubType> limitSubTypes = capabilities.get("supports_limit_pushdown");
+        assertThat(limitSubTypes.size(), equalTo(1));
+        
+        assertThat(capabilities.containsKey("supports_complex_expression_pushdown"), is(true));
+        List<OptimizationSubType> expressionSubTypes = capabilities.get("supports_complex_expression_pushdown");
+        assertThat(expressionSubTypes.size(), equalTo(1));
     }
 }
