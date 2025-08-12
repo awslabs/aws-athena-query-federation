@@ -24,17 +24,26 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
+
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
+import io.substrait.proto.FetchRel;
+import io.substrait.proto.Plan;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +51,7 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -147,6 +157,18 @@ public class DocDBRecordHandler
         MongoCollection<Document> table;
         Document query;
 
+        // ---------------------- Substrait Plan extraction ----------------------
+        QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
+        Plan plan = null;
+        if (queryPlan != null) {
+            plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+        }
+
+        // ---------------------- LIMIT pushdown support ----------------------
+        Pair<Boolean, Integer> limitPair = getLimit(plan, recordsRequest.getConstraints());
+        boolean hasLimit = limitPair.getLeft();
+        int limit = limitPair.getRight();
+
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
             queryPassthrough.verify(qptArguments);
@@ -157,7 +179,12 @@ public class DocDBRecordHandler
         else {
             db =  client.getDatabase(schemaName);
             table = db.getCollection(tableName);
-            query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
+            Map<String, List<ColumnPredicate>> columnPredicateMap = QueryUtils.buildFilterPredicatesFromPlan(plan);
+            if (!columnPredicateMap.isEmpty()) {
+                query = QueryUtils.makeQueryFromPlan(columnPredicateMap);
+            } else {
+                query = QueryUtils.makeQuery(recordsRequest.getSchema(), recordsRequest.getConstraints().getSummary());
+            }
         }
 
         String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
@@ -180,6 +207,10 @@ public class DocDBRecordHandler
         long numRows = 0;
         AtomicLong numResultRows = new AtomicLong(0);
         while (iterable.hasNext() && queryStatusChecker.isQueryRunning()) {
+            if (hasLimit && numRows >= limit) {
+                logger.info("Reached limit of {} rows, exiting document iteration.", numRows);
+                break;
+            }
             numRows++;
             spiller.writeRows((Block block, int rowNum) -> {
                 Map<String, Object> doc = documentAsMap(iterable.next(), disableProjectionAndCasing);
@@ -212,5 +243,45 @@ public class DocDBRecordHandler
         }
 
         logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
+    }
+
+    Pair<Boolean, Integer> getLimit(Plan plan, Constraints constraints)
+    {
+        SubstraitRelModel substraitRelModel = null;
+        boolean useQueryPlan = false;
+        if (plan != null) {
+            substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(plan.getRelations(0).getRoot().getInput());
+            useQueryPlan = true;
+        }
+        if (canApplyLimit(constraints, substraitRelModel, useQueryPlan)) {
+            if (useQueryPlan) {
+                int limit = getLimit(substraitRelModel);
+                return Pair.of(true, limit);
+            }
+            else {
+                return Pair.of(true, (int) constraints.getLimit());
+            }
+        }
+        return Pair.of(false, -1);
+    }
+
+    private boolean canApplyLimit(Constraints constraints,
+                                  SubstraitRelModel substraitRelModel,
+                                  boolean useQueryPlan)
+    {
+        if (useQueryPlan) {
+            if (substraitRelModel.getSortRel() == null && substraitRelModel.getFetchRel() != null) {
+                int limit = getLimit(substraitRelModel);
+                return limit > 0;
+            }
+            return false;
+        }
+        return constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause();
+    }
+
+    private int getLimit(SubstraitRelModel substraitRelModel)
+    {
+        FetchRel fetchRel = substraitRelModel.getFetchRel();
+        return (int) fetchRel.getCount();
     }
 }

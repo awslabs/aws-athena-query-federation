@@ -152,7 +152,7 @@ public class RedisMetadataHandlerTest
 
         GetTableLayoutRequest req = new GetTableLayoutRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG,
                 TABLE_NAME,
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 schema,
                 new HashSet<>());
 
@@ -233,7 +233,7 @@ public class RedisMetadataHandlerTest
                 TABLE_NAME,
                 partitions,
                 partitionCols,
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
@@ -286,7 +286,7 @@ public class RedisMetadataHandlerTest
                 TABLE_NAME,
                 partitions,
                 new ArrayList<>(),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);

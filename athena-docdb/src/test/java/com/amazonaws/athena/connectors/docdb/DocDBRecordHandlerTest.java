@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -42,15 +43,19 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
+import com.mongodb.DBRef;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import io.substrait.plan.Plan.Root;
+import io.substrait.proto.*;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -78,6 +83,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -86,11 +92,13 @@ import java.util.UUID;
 
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -108,6 +116,13 @@ public class DocDBRecordHandlerTest
     private Schema schemaForRead;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private DocDBMetadataHandler mdHandler;
+
+    private static final SpillLocation SPILL_LOCATION = S3SpillLocation.newBuilder()
+            .withBucket(UUID.randomUUID().toString())
+            .withSplitId(UUID.randomUUID().toString())
+            .withQueryId(UUID.randomUUID().toString())
+            .withIsDirectory(true)
+            .build();
 
     @Rule
     public TestName testName = new TestName();
@@ -265,7 +280,7 @@ public class DocDBRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -319,7 +334,7 @@ public class DocDBRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 1_500_000L, //~1.5MB so we should see some spill
                 0L
         );
@@ -419,7 +434,7 @@ public class DocDBRecordHandlerTest
                 TABLE_NAME,
                 res.getSchema(),
                 Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -440,6 +455,289 @@ public class DocDBRecordHandlerTest
         assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
     }
 
+    @Test
+    public void dbRefTest()
+            throws Exception
+    {
+        ObjectId id = ObjectId.get();
+
+        List<Document> documents = new ArrayList<>();
+        Document result = new Document();
+        documents.add(result);
+        result.put("DbRef", new DBRef("otherDb", "otherColl", id));
+
+        Document simpleStruct = new Document();
+        simpleStruct.put("SomeSimpleStruct", "someSimpleStruct");
+        result.put("SimpleStruct", simpleStruct);
+
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME,Collections.emptyMap());
+        GetTableResponse res = mdHandler.doGetTable(allocator, req);
+        logger.info("doGetTable - {}", res);
+
+        when(mockCollection.find(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
+            return mockIterable;
+        });
+        when(mockIterable.projection(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            logger.info("doReadRecordsNoSpill: projection[{}]", invocationOnMock.getArguments()[0]);
+            return mockIterable;
+        });
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                "queryId-" + System.currentTimeMillis(),
+                TABLE_NAME,
+                res.getSchema(),
+                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
+                new Constraints(constraintsMap,Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L, //100GB don't expect this to spill
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertTrue(response.getRecordCount() == 1);
+        String expectedString = "[DbRef : {[_db : otherDb],[_ref : otherColl],[_id : " + id.toHexString() + "]}], [SimpleStruct : {[SomeSimpleStruct : someSimpleStruct]}]";
+        assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void dbRefTest()
+            throws Exception
+    {
+        ObjectId id = ObjectId.get();
+
+        List<Document> documents = new ArrayList<>();
+        Document result = new Document();
+        documents.add(result);
+        result.put("DbRef", new DBRef("otherDb", "otherColl", id));
+
+        Document simpleStruct = new Document();
+        simpleStruct.put("SomeSimpleStruct", "someSimpleStruct");
+        result.put("SimpleStruct", simpleStruct);
+
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME,Collections.emptyMap());
+        GetTableResponse res = mdHandler.doGetTable(allocator, req);
+        logger.info("doGetTable - {}", res);
+
+        when(mockCollection.find(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
+            return mockIterable;
+        });
+        when(mockIterable.projection(nullable(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            logger.info("doReadRecordsNoSpill: projection[{}]", invocationOnMock.getArguments()[0]);
+            return mockIterable;
+        });
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                "queryId-" + System.currentTimeMillis(),
+                TABLE_NAME,
+                res.getSchema(),
+                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
+                new Constraints(constraintsMap,Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L, //100GB don't expect this to spill
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertTrue(response.getRecordCount() == 1);
+        String expectedString = "[DbRef : {[_db : otherDb],[_ref : otherColl],[_id : " + id.toHexString() + "]}], [SimpleStruct : {[SomeSimpleStruct : someSimpleStruct]}]";
+        assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testReadWithLimitFromQueryPlan() throws Exception
+    {
+        // SELECT * FROM test_table LIMIT 5
+        QueryPlan queryPlan = getQueryPlan(buildBase64SubstraitPlan(5, false));
+
+        // Prepare docs > limit
+        List<Document> documents = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            documents.add(DocumentGenerator.makeRandomRow(schemaForRead.getFields(), i));
+        }
+
+        // Mock Mongo iterable
+        when(mockCollection.find(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.projection(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(DOCDB_CONN_STR, CONNECTION_STRING)
+                .build();
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                queryPlan
+        );
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schemaForRead,
+                split,
+                constraints,
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        assertEquals(5, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void testReadWithLimitAndOrderByFromQueryPlan() throws Exception
+    {
+        // SELECT * FROM test_table ORDER BY col0 LIMIT 3
+        QueryPlan queryPlan = getQueryPlan(
+                buildBase64SubstraitPlan(3, true, 0));
+
+        List<Document> documents = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            documents.add(DocumentGenerator.makeRandomRow(schemaForRead.getFields(), i));
+        }
+
+        when(mockCollection.find(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.projection(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(DOCDB_CONN_STR, CONNECTION_STRING)
+                .build();
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                queryPlan
+        );
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schemaForRead,
+                split,
+                constraints,
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        // Limit not applicable if order by present
+        assertEquals(10, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void testReadWithLimitFromConstraintsOnly() throws Exception
+    {
+        int limitValue = 4;
+
+        List<Document> documents = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            documents.add(DocumentGenerator.makeRandomRow(schemaForRead.getFields(), i));
+        }
+
+        when(mockCollection.find(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.projection(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(DOCDB_CONN_STR, CONNECTION_STRING)
+                .build();
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                limitValue, // limit from constraints
+                Collections.emptyMap(),
+                null
+        );
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schemaForRead,
+                split,
+                constraints,
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        assertEquals(limitValue, response.getRecords().getRowCount());
+    }
+
     private class ByteHolder
     {
         private byte[] bytes;
@@ -454,4 +752,64 @@ public class DocDBRecordHandlerTest
             return bytes;
         }
     }
+
+    private Expression createFieldReference(int fieldIndex)
+    {
+        return Expression.newBuilder()
+                .setSelection(Expression.FieldReference.newBuilder()
+                        .setDirectReference(Expression.ReferenceSegment.newBuilder()
+                                .setStructField(Expression.ReferenceSegment.StructField.newBuilder()
+                                        .setField(fieldIndex)
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+    }
+
+    private String buildBase64SubstraitPlan(int limit, boolean withOrderBy, int... sortFieldIndexes)
+    {
+        Rel inputRel = Rel.newBuilder()
+                .setRead(ReadRel.newBuilder().build()) // base scan placeholder
+                .build();
+
+        if (withOrderBy && sortFieldIndexes != null && sortFieldIndexes.length > 0) {
+            // Build SortRel first
+            SortRel.Builder sortBuilder = SortRel.newBuilder();
+            for (int idx : sortFieldIndexes) {
+                SortField sortField = SortField.newBuilder()
+                        .setExpr(createFieldReference(idx))
+                        .setDirection(SortField.SortDirection.SORT_DIRECTION_ASC_NULLS_FIRST)
+                        .build();
+                sortBuilder.addSorts(sortField);
+            }
+            sortBuilder.setInput(inputRel);
+            inputRel = Rel.newBuilder().setSort(sortBuilder.build()).build();
+        }
+
+        // Wrap the input (sort or plain read) inside FetchRel for LIMIT
+        FetchRel fetchRel = FetchRel.newBuilder()
+                .setInput(inputRel)
+                .setCount(limit)
+                .build();
+
+        RelRoot relRoot = RelRoot.newBuilder()
+                .setInput(Rel.newBuilder().setFetch(fetchRel).build())
+                .build();
+
+        PlanRel planRel = PlanRel.newBuilder()
+                .setRoot(relRoot)
+                .build();
+
+        Plan plan = Plan.newBuilder()
+                .addRelations(planRel)
+                .build();
+
+        return Base64.getEncoder().encodeToString(plan.toByteArray());
+    }
+
+    private QueryPlan getQueryPlan(String base64Plan)
+    {
+        return new QueryPlan("", base64Plan, "");
+    }
+
 }

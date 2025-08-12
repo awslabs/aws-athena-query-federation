@@ -14,7 +14,9 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.31.63</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.31.77</aws-sdk-v2.version>
+        <!-- for redshift iam auth still using sdkv1 -->
+        <aws-sdk.version>1.12.773</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
@@ -23,16 +25,16 @@
         <slf4j-log4j.version>2.0.17</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.9.2</jqwik.version>
+        <jqwik.version>1.9.3</jqwik.version>
         <assertj.version>3.27.3</assertj.version>
         <testng.version>7.11.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.19.1</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.3</surefire.failsafe.version>
-        <log4j2Version>2.24.2</log4j2Version>
+        <log4j2Version>2.25.0</log4j2Version>
         <apache.arrow.version>18.1.0</apache.arrow.version>
         <guava.version>33.4.0-jre</guava.version>
-        <protobuf3.version>3.25.3</protobuf3.version>
+        <protobuf3.version>3.25.5</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
@@ -53,7 +55,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.13.0</version>
+                <version>5.13.3</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -231,6 +233,31 @@
             <artifactId>testng</artifactId>
             <version>${testng.version}</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.substrait</groupId>
+            <artifactId>isthmus</artifactId>
+            <version>0.52.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.substrait</groupId>
+            <artifactId>core</artifactId>
+            <version>0.52.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.calcite</groupId>
+            <artifactId>calcite-server</artifactId>
+            <version>1.39.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.calcite</groupId>
+            <artifactId>calcite-linq4j</artifactId>
+            <version>1.39.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.calcite</groupId>
+            <artifactId>calcite-core</artifactId>
+            <version>1.39.0</version>
         </dependency>
     </dependencies>
     <build>
@@ -485,7 +512,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.7</version>
+                        <version>3.2.8</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -506,7 +533,7 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.7.0</version>
+                        <version>0.8.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>

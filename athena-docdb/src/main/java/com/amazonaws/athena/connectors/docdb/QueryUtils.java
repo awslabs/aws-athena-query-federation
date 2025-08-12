@@ -39,6 +39,13 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.substrait.SubstraitFunctionParser;
+import com.amazonaws.athena.connector.substrait.SubstraitMetadataParser;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.Operator;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
+import io.substrait.proto.Plan;
+import io.substrait.proto.SimpleExtensionDeclaration;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -48,6 +55,7 @@ import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -246,6 +254,88 @@ public final class QueryUtils
         catch (JsonParseException e) {
             throw new IllegalArgumentException("Can't parse 'filter' argument as json", e);
         }
+    }
+
+    /**
+     * Parses Substrait plan and extracts filter predicates per column
+     */
+    public static Map<String, List<ColumnPredicate>> buildFilterPredicatesFromPlan(Plan plan)
+    {
+        if (plan == null || plan.getRelationsList().isEmpty()) {
+            return new HashMap<>();
+        }
+
+        SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
+                plan.getRelations(0).getRoot().getInput());
+        if (substraitRelModel.getFilterRel() == null) {
+            return new HashMap<>();
+        }
+
+        List<SimpleExtensionDeclaration> extensionDeclarations = plan.getExtensionsList();
+        List<String> tableColumns = SubstraitMetadataParser.getTableColumns(substraitRelModel);
+
+        return SubstraitFunctionParser.getColumnPredicatesMap(
+                extensionDeclarations,
+                substraitRelModel.getFilterRel().getCondition(),
+                tableColumns);
+    }
+
+    /**
+     * Converts Substrait column predicates to MongoDB filter Document
+     */
+    public static Document makeQueryFromPlan(Map<String, List<ColumnPredicate>> predicates)
+    {
+        Document query = new Document();
+        for (Map.Entry<String, List<ColumnPredicate>> entry : predicates.entrySet()) {
+            Document filter = convertColumnPredicatesToDoc(entry.getKey(), entry.getValue());
+            if (filter != null) {
+                query.putAll(filter);
+            }
+        }
+        return query;
+    }
+
+    /**
+     * Converts a list of ColumnPredicates into a MongoDB predicate Document
+     */
+    private static Document convertColumnPredicatesToDoc(String column, List<ColumnPredicate> colPreds)
+    {
+//        List<Document> disjuncts = new ArrayList<>();
+        Document mergedPredicates = new Document();
+
+        for (ColumnPredicate pred : colPreds) {
+            Object value = pred.getValue();
+            Operator op = pred.getOperator();
+
+            switch (op) {
+                case EQUAL:
+                    mergedPredicates.put(EQ_OP, value);
+                    break;
+                case NOT_EQUAL:
+                    mergedPredicates.put(NOT_EQ_OP, value);
+                    break;
+                case GREATER_THAN:
+                    mergedPredicates.put(GT_OP, value);
+                    break;
+                case GREATER_THAN_OR_EQUAL_TO:
+                    mergedPredicates.put(GTE_OP, value);
+                    break;
+                case LESS_THAN:
+                    mergedPredicates.put(LT_OP, value);
+                    break;
+                case LESS_THAN_OR_EQUAL_TO:
+                    mergedPredicates.put(LTE_OP, value);
+                    break;
+                case IS_NULL:
+                    return documentOf(column, isNullPredicate());
+                case IS_NOT_NULL:
+                    return documentOf(column, isNotNullPredicate());
+                default:
+                    throw new UnsupportedOperationException("Unsupported operator: " + op);
+            }
+            // Support for IN and NOT_IN not available in Operators yet.
+        }
+        return documentOf(column, mergedPredicates);
     }
 
     private static Document documentOf(String key, Object value)

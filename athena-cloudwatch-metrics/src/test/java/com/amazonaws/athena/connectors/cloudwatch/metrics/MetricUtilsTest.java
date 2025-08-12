@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,9 +34,10 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import org.apache.arrow.vector.types.pojo.Schema;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.DimensionFilter;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
@@ -60,21 +61,21 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PE
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.TIMESTAMP_FIELD;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class MetricUtilsTest
 {
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private String catalog = "default";
     private BlockAllocator allocator;
 
-    @Before
+    @BeforeEach
     public void setup()
     {
         allocator = new BlockAllocatorImpl();
     }
 
-    @After
+    @AfterEach
     public void tearDown()
     {
         allocator.close();
@@ -98,7 +99,7 @@ public class MetricUtilsTest
         constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, "match4"));
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, "match5"));
 
-        ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
+        ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
 
         Metric metric = Metric.builder()
                 .namespace("match1")
@@ -128,13 +129,35 @@ public class MetricUtilsTest
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, "match5"));
 
         ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
-        MetricUtils.pushDownPredicate(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), requestBuilder);
+        MetricUtils.pushDownPredicate(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), requestBuilder);
         ListMetricsRequest request = requestBuilder.build();
 
         assertEquals("match1", request.namespace());
         assertEquals("match2", request.metricName());
         assertEquals(1, request.dimensions().size());
         assertEquals(DimensionFilter.builder().name("match4").value("match5").build(), request.dimensions().get(0));
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = "include_linked_accounts", value = "true")
+    public void pushDownPredicateWithLinkedAccountsTrue() throws Exception
+    {
+        ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
+        MetricUtils.pushDownPredicate(new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), requestBuilder);
+        ListMetricsRequest request = requestBuilder.build();
+
+        assertTrue(request.includeLinkedAccounts());
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = "include_linked_accounts", value = "false")
+    public void pushDownPredicateWithLinkedAccountsFalse() throws Exception
+    {
+        ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
+        MetricUtils.pushDownPredicate(new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), requestBuilder);
+        ListMetricsRequest request = requestBuilder.build();
+
+        assertFalse(request.includeLinkedAccounts());
     }
 
     @Test
@@ -183,7 +206,7 @@ public class MetricUtilsTest
                 new TableName(schema, table),
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

@@ -30,7 +30,7 @@ import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.CustomSchemaRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.EdgeRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.VertexRowWriter;
-import com.amazonaws.athena.connectors.neptune.qpt.NeptuneQueryPassthrough;
+import com.amazonaws.athena.connectors.neptune.qpt.NeptuneGremlinQueryPassthrough;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.driver.Client;
@@ -73,7 +73,7 @@ public class PropertyGraphHandler
      */
 
     private final NeptuneConnection neptuneConnection;
-    private final NeptuneQueryPassthrough queryPassthrough = new NeptuneQueryPassthrough();
+    private final NeptuneGremlinQueryPassthrough queryPassthrough = new NeptuneGremlinQueryPassthrough();
 
     @VisibleForTesting
     public PropertyGraphHandler(NeptuneConnection neptuneConnection) 
@@ -117,8 +117,8 @@ public class PropertyGraphHandler
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
             queryPassthrough.verify(qptArguments);
-            labelName = qptArguments.get(NeptuneQueryPassthrough.COLLECTION);
-            gremlinQuery = qptArguments.get(NeptuneQueryPassthrough.QUERY);
+            labelName = qptArguments.get(NeptuneGremlinQueryPassthrough.COLLECTION);
+            gremlinQuery = qptArguments.get(NeptuneGremlinQueryPassthrough.TRAVERSE);
 
             Object object = getResponseFromGremlinQuery(graphTraversalSource, gremlinQuery);
             graphTraversal = (GraphTraversal) object;

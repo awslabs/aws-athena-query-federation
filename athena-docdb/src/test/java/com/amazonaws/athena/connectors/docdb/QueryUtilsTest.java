@@ -23,7 +23,10 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.Operator;
 import com.google.common.collect.ImmutableList;
+import io.substrait.proto.Plan;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -31,7 +34,17 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -101,6 +114,57 @@ public class QueryUtilsTest
         assertThrows(IllegalArgumentException.class, () -> {
             QueryUtils.parseFilter(invalidJsonFilter);
         });
+    }
+
+    @ParameterizedTest
+    @MethodSource("inputTestMakeQueryFromPlanPredicateProvider")
+    public void testMakeQueryFromPlanWithDifferentOperators(final Operator operator, final Object value,
+                                                           final String expectedMongoOp, final ArrowType arrowType)
+    {
+        ColumnPredicate pred = new ColumnPredicate("colX", operator, value, arrowType);
+        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("colX",
+                Collections.singletonList(pred));
+
+        Document result = QueryUtils.makeQueryFromPlan(predicates);
+
+        assertNotNull(result);
+        Document colDoc = (Document) result.get("colX");
+        assertTrue(colDoc.containsKey(expectedMongoOp));
+        if (value != null && !operator.equals(Operator.IS_NULL) && !operator.equals(Operator.IS_NOT_NULL)) {
+            assertEquals(value, colDoc.get(expectedMongoOp));
+        }
+    }
+
+    @Test
+    public void testBuildFilterPredicatesFromPlan_withNoRelations()
+    {
+        // Empty plan
+        Plan emptyPlan = Plan.newBuilder().build();
+        Map<String, List<ColumnPredicate>> result = QueryUtils.buildFilterPredicatesFromPlan(emptyPlan);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void testBuildFilterPredicatesFromPlan_withNullPlan()
+    {
+        Map<String, List<ColumnPredicate>> result = QueryUtils.buildFilterPredicatesFromPlan(null);
+        assertTrue(result.isEmpty());
+    }
+
+    private static Stream<Arguments> inputTestMakeQueryFromPlanPredicateProvider()
+    {
+        return Stream.of(
+                Arguments.of(Operator.EQUAL, 42, "$eq", new ArrowType.Int(32, true)),
+                Arguments.of(Operator.NOT_EQUAL, 100, "$ne", new ArrowType.Int(32, true)),
+                Arguments.of(Operator.GREATER_THAN, 50, "$gt", new ArrowType.Int(32, true)),
+                Arguments.of(Operator.GREATER_THAN_OR_EQUAL_TO, 75, "$gte", new ArrowType.Int(32, true)),
+                Arguments.of(Operator.LESS_THAN, 25, "$lt", new ArrowType.Int(32, true)),
+                Arguments.of(Operator.LESS_THAN_OR_EQUAL_TO, 30, "$lte",
+                        new ArrowType.Int(32, true)),
+                Arguments.of(Operator.EQUAL, "testString", "$eq", new ArrowType.Utf8()),
+                Arguments.of(Operator.IS_NULL, null, "$eq", new ArrowType.Utf8()),      // isNullPredicate
+                Arguments.of(Operator.IS_NOT_NULL, null, "$ne", new ArrowType.Utf8())   // isNotNullPredicate
+        );
     }
 }
 

@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
@@ -39,7 +40,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
 import com.google.common.base.Strings;
@@ -157,6 +161,31 @@ public class DocDBMetadataHandler
     {
         ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
         queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+                LimitPushdownSubType.INTEGER_CONSTANT
+        ));
+
+        List<StandardFunctions> supportedFunctions = new ArrayList<>();
+        supportedFunctions.add(StandardFunctions.AND_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.IN_PREDICATE_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.NOT_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.OR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.IS_NULL_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME);
+
+        // To check for $nin and $nor
+
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(supportedFunctions.stream()
+                                .map(f -> f.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
