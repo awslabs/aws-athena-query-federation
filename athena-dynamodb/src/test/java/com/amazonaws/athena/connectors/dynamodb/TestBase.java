@@ -123,7 +123,7 @@ public class TestBase
     }
 
     public QueryPlan getQueryPlan(String plan) {
-        return new QueryPlan("", plan, "");
+        return new QueryPlan("", plan);
     }
 
     private static String waitForTableToBecomeActive(DynamoDbClient ddb, DynamoDbWaiter dbWaiter, CreateTableResponse createTableResponse, String tableName) {
