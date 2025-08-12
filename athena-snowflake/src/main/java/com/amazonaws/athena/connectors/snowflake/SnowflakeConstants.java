@@ -35,6 +35,16 @@ public final class SnowflakeConstants
      */
     public static final int SINGLE_SPLIT_LIMIT_COUNT = 10000;
     public static final String SNOWFLAKE_QUOTE_CHARACTER = "\"";
+    /**
+     * A ssl file location constant to store the SSL certificate
+     * The file location is fixed at /tmp directory
+     * to retrieve ssl certificate location
+     */
+    public static final String SSL_CERT_FILE_LOCATION = "SSL_CERT_FILE";
+    public static final String SSL_CERT_FILE_LOCATION_VALUE = "/tmp/cacert.pem";
+    public static final String SNOWFLAKE_SPLIT_QUERY_ID = "query_id";
+    public static final String SNOWFLAKE_SPLIT_EXPORT_BUCKET = "exportBucket";
+    public static final String SNOWFLAKE_SPLIT_OBJECT_KEY = "s3ObjectKey";
     public static final String AUTH_CODE = "auth_code";
     public static final String CLIENT_ID = "client_id";
     public static final String TOKEN_URL = "token_url";

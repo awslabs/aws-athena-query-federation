@@ -42,6 +42,13 @@ Parameters:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Type: String
     Default: ""
+  EnableS3Export:
+    Description: '(Optional) Enable S3 export functionality for data transfer. Set to true to use S3 export path, false for direct query path.'
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
 
 Conditions:
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
@@ -59,6 +66,7 @@ Resources:
       Environment:
         Variables:
           glue_connection: !Ref GlueConnection
+          SNOWFLAKE_ENABLE_S3_EXPORT: !Ref EnableS3Export
       FunctionName: !Ref LambdaFunctionName
       PackageType: "Image"
       ImageUri: !Sub
@@ -127,14 +135,15 @@ Resources:
             Resource: '*'
           - Action:
               - s3:GetObject
+              - s3:GetObjectVersion
               - s3:ListBucket
               - s3:GetBucketLocation
-              - s3:GetObjectVersion
               - s3:PutObject
               - s3:PutObjectAcl
               - s3:GetLifecycleConfiguration
               - s3:PutLifecycleConfiguration
               - s3:DeleteObject
+              - s3:DeleteObjectVersion
             Effect: Allow
             Resource:
               - Fn::Sub:
@@ -151,6 +160,10 @@ Resources:
             Resource:
               - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:connection/${GlueConnection}'
               - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+          - Action:
+              - lambda:GetFunction
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaFunctionName}'
 
   FunctionKmsPolicy:
     Condition: CreateKmsPolicy
