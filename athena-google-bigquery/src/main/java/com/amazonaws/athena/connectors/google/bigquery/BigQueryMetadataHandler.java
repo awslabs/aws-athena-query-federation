@@ -46,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
@@ -67,11 +68,14 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
@@ -83,6 +87,7 @@ public class BigQueryMetadataHandler
     extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
+    private final SecretsManagerClient secretsManager;
     private final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID) != null ?
             configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase() : null;
 
@@ -91,6 +96,19 @@ public class BigQueryMetadataHandler
     BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(BigQueryConstants.SOURCE_TYPE, configOptions);
+        secretsManager = SecretsManagerClient.create();
+    }
+
+    public BigQueryMetadataHandler(EncryptionKeyFactory encryptionKeyFactory,
+                                   SecretsManagerClient secretsManager,
+                                   AthenaClient athena,
+                                   String sourceType,
+                                   String spillBucket,
+                                   String spillPrefix,
+                                   Map<String, String> configOptions)
+    {
+        super(encryptionKeyFactory, secretsManager, athena, sourceType, spillBucket, spillPrefix, configOptions);
+        this.secretsManager = secretsManager;
     }
 
     @Override
@@ -123,7 +141,7 @@ public class BigQueryMetadataHandler
         logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
 
         final List<String> schemas = new ArrayList<>();
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, secretsManager);
         Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
         if (response == null) {
             logger.info("Dataset does not contain any models");
@@ -152,7 +170,7 @@ public class BigQueryMetadataHandler
                 listTablesRequest.getSchemaName());
         //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
         String nextToken = null;
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, secretsManager);
         final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
         final DatasetId datasetId = DatasetId.of(projectName, datasetName);
         List<TableName> tables = new ArrayList<>();
@@ -249,7 +267,7 @@ public class BigQueryMetadataHandler
      */
     private Schema getSchema(String datasetName, String tableName) throws java.io.IOException
     {
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, secretsManager);
         datasetName = fixCaseForDatasetName(projectName, datasetName, bigQuery);
         tableName = fixCaseForTableName(projectName, datasetName, tableName, bigQuery);
 
