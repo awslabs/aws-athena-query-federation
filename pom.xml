@@ -14,24 +14,24 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.31.77</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.32.19</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
-        <aws-sdk.version>1.12.773</aws-sdk.version>
+        <aws-sdk.version>1.12.788</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.112.0</jsii.version>
+        <jsii.version>1.113.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.17</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.9.3</jqwik.version>
-        <assertj.version>3.27.3</assertj.version>
+        <assertj.version>3.27.4</assertj.version>
         <testng.version>7.11.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.19.1</fasterxml.jackson.version>
+        <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.3</surefire.failsafe.version>
-        <log4j2Version>2.25.0</log4j2Version>
+        <log4j2Version>2.25.1</log4j2Version>
         <apache.arrow.version>18.1.0</apache.arrow.version>
         <guava.version>33.4.0-jre</guava.version>
         <protobuf3.version>3.25.5</protobuf3.version>
@@ -39,7 +39,7 @@
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <mssql.jdbc.version>12.10.0.jre11</mssql.jdbc.version>
-        <commons.cli.version>1.9.0</commons.cli.version>
+        <commons.cli.version>1.10.0</commons.cli.version>
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
@@ -55,7 +55,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.13.3</version>
+                <version>5.13.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -327,7 +327,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.5.0</version>
+                <version>2.6.0</version>
                 <configuration>
                     <verbose>false</verbose>
                     <addSvnKeyWords>false</addSvnKeyWords>
