@@ -485,7 +485,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#attributeToJson(software.amazon.awssdk.services.dynamodb.model.AttributeValue,java.lang.String)">attributeToJson(AttributeValue, String)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#AUTH_CODE">AUTH_CODE</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">OAuth 2.0 Authentication Constants
+ These constants are used for configuring OAuth-based authentication with Snowflake.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/KafkaConstants.html#AUTH_TYPE">AUTH_TYPE</a></span> - Static variable in class com.amazonaws.athena.connectors.kafka.<a href="com/amazonaws/athena/connectors/kafka/KafkaConstants.html" title="class in com.amazonaws.athena.connectors.kafka">KafkaConstants</a></dt>
 <dd>
 <div class="block">This is the type of authentication client has set for the cluster</div>
@@ -493,6 +496,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/AmazonMskConstants.html#AUTH_TYPE">AUTH_TYPE</a></span> - Static variable in class com.amazonaws.athena.connectors.msk.<a href="com/amazonaws/athena/connectors/msk/AmazonMskConstants.html" title="class in com.amazonaws.athena.connectors.msk">AmazonMskConstants</a></dt>
 <dd>
 <div class="block">This is the type of authentication client has set for the cluster</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#AUTHENTICATOR">AUTHENTICATOR</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
+<dd>
+<div class="block">Configuration key for specifying the authentication method</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.State.html#AVOIDANCE">AVOIDANCE</a></span> - com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.State.html" title="enum in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.State</a></dt>
 <dd>&nbsp;</dd>
@@ -1590,7 +1597,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/snowflake/package-summary.html">com.amazonaws.athena.connectors.snowflake</a> - package com.amazonaws.athena.connectors.snowflake</dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/snowflake/connection/package-summary.html">com.amazonaws.athena.connectors.snowflake.connection</a> - package com.amazonaws.athena.connectors.snowflake.connection</dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/snowflake/resolver/package-summary.html">com.amazonaws.athena.connectors.snowflake.resolver</a> - package com.amazonaws.athena.connectors.snowflake.resolver</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/snowflake/utils/package-summary.html">com.amazonaws.athena.connectors.snowflake.utils</a> - package com.amazonaws.athena.connectors.snowflake.utils</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/sqlserver/package-summary.html">com.amazonaws.athena.connectors.sqlserver</a> - package com.amazonaws.athena.connectors.sqlserver</dt>
 <dd>&nbsp;</dd>
@@ -2040,6 +2051,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/MarkerFactory.html#createNullable(org.apache.arrow.vector.types.pojo.ArrowType,java.lang.Object,com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound)">createNullable(ArrowType, Object, Marker.Bound)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/MarkerFactory.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">MarkerFactory</a></dt>
 <dd>
 <div class="block">Creates a nullable Marker.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html#createPrivateKey(java.lang.String,java.lang.String)">createPrivateKey(String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html" title="class in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthUtils</a></dt>
+<dd>
+<div class="block">Creates a PrivateKey object from a private key string.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/QueryFactory.html#createQptVerticaExportQueryBuilder()">createQptVerticaExportQueryBuilder()</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/QueryFactory.html" title="class in com.amazonaws.athena.connectors.vertica.query">QueryFactory</a></dt>
 <dd>&nbsp;</dd>
@@ -2770,6 +2785,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html#deserializeWithType(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext,com.fasterxml.jackson.databind.jsontype.TypeDeserializer)">deserializeWithType(JsonParser, DeserializationContext, TypeDeserializer)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html#determineAuthType(java.util.Map)">determineAuthType(Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html" title="class in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthUtils</a></dt>
+<dd>
+<div class="block">Determines the authentication type based on the provided credentials.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#DIMENSION_NAME_FIELD">DIMENSION_NAME_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#DIMENSION_VALUE_FIELD">DIMENSION_VALUE_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
@@ -4356,6 +4375,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/TimestreamType.html#fromId(java.lang.String)">fromId(String)</a></span> - Static method in enum com.amazonaws.athena.connectors.timestream.<a href="com/amazonaws/athena/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.athena.connectors.timestream">TimestreamType</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html#fromString(java.lang.String)">fromString(String)</a></span> - Static method in enum com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthType</a></dt>
+<dd>
+<div class="block">Converts a string to the corresponding SnowflakeAuthType enum.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#fromTable(java.lang.String,java.lang.String)">fromTable(String, String)</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2DataType.html#fromType(java.lang.String)">fromType(String)</a></span> - Static method in enum com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2DataType.html" title="enum in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2DataType</a></dt>
@@ -4821,6 +4844,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Retrieves database connection for a database type.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/oracle/OracleJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.oracle.<a href="com/amazonaws/athena/connectors/oracle/OracleJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.oracle">OracleJdbcConnectionFactory</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/connection/SnowflakeConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.snowflake.connection.<a href="com/amazonaws/athena/connectors/snowflake/connection/SnowflakeConnectionFactory.html" title="class in com.amazonaws.athena.connectors.snowflake.connection">SnowflakeConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/sqlserver/SqlServerJdbcConnectionFactory.html#getConnection(com.amazonaws.athena.connector.credentials.CredentialsProvider)">getConnection(CredentialsProvider)</a></span> - Method in class com.amazonaws.athena.connectors.sqlserver.<a href="com/amazonaws/athena/connectors/sqlserver/SqlServerJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.sqlserver">SqlServerJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
@@ -6832,6 +6857,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Public accessor to the username retrieved from SecretsManager.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html#getUsername(java.util.Map)">getUsername(Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html" title="class in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthUtils</a></dt>
+<dd>
+<div class="block">Gets the username from credentials, checking both "username" and "user" fields.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html#getUserSettings()">getUserSettings()</a></span> - Method in class com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integ">IntegrationTestBase</a></dt>
 <dd>
 <div class="block">Public accessor for the user_settings attribute (stored in the test-config.json file) that are customizable to
@@ -6855,6 +6884,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/dto/MSKField.html#getValue()">getValue()</a></span> - Method in class com.amazonaws.athena.connectors.msk.dto.<a href="com/amazonaws/athena/connectors/msk/dto/MSKField.html" title="class in com.amazonaws.athena.connectors.msk.dto">MSKField</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html#getValue()">getValue()</a></span> - Method in enum com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthType</a></dt>
+<dd>
+<div class="block">Gets the string value of the authentication type.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.html#getValue(int)">getValue(int)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">EquatableValueSet</a></dt>
 <dd>
 <div class="block">Retrieves the value at a specific position in this ValueSet.</div>
@@ -8851,6 +8884,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </a>
 <h2 class="title">O</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html#OAUTH">OAUTH</a></span> - com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthType</a></dt>
+<dd>
+<div class="block">OAuth authentication</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">ObjectMapperFactory</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>
 <div class="deprecationBlock"><span class="deprecatedLabel">Deprecated.</span>
@@ -9079,13 +9116,17 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/CredentialsProvider.html#PASSWORD">PASSWORD</a></span> - Static variable in interface com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html#PASSWORD">PASSWORD</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeCredentialsProvider</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#PASSWORD">PASSWORD</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTableUtils.html#peekTableForSchema(java.lang.String,com.amazonaws.athena.connector.lambda.ThrottlingInvoker,software.amazon.awssdk.services.dynamodb.DynamoDbClient,software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">peekTableForSchema(String, ThrottlingInvoker, DynamoDbClient, AwsRequestOverrideConfiguration)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTableUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTableUtils</a></dt>
 <dd>
 <div class="block">Derives an Arrow <code>Schema</code> for the given table by performing a small table scan and mapping the returned
  attribute values' types to Arrow types.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#PEM_PRIVATE_KEY">PEM_PRIVATE_KEY</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#PEM_PRIVATE_KEY_PASSPHRASE">PEM_PRIVATE_KEY_PASSPHRASE</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#PERIOD_FIELD">PERIOD_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/KafkaMetadataHandler.html#pieceTopicPartition(long,long)">pieceTopicPartition(long, long)</a></span> - Method in class com.amazonaws.athena.connectors.kafka.<a href="com/amazonaws/athena/connectors/kafka/KafkaMetadataHandler.html" title="class in com.amazonaws.athena.connectors.kafka">KafkaMetadataHandler</a></dt>
@@ -9237,6 +9278,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html#prepareStatementWithSql(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split,java.lang.String)">prepareStatementWithSql(Connection, String, String, String, Schema, Constraints, Split, String)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcSplitQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html#PRINCIPAL_NAME">PRINCIPAL_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseKerberosUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseKerberosUtils</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#PRIVATE_KEY">PRIVATE_KEY</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/AWSRequestSigningApacheInterceptor.html#process(org.apache.http.HttpRequest,org.apache.http.protocol.HttpContext)">process(HttpRequest, HttpContext)</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/AWSRequestSigningApacheInterceptor.html" title="class in com.amazonaws.athena.connectors.elasticsearch">AWSRequestSigningApacheInterceptor</a></dt>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html#processQuery(java.lang.String)">processQuery(String)</a></span> - Method in class com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integ">IntegrationTestBase</a></dt>
@@ -10582,6 +10625,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Used to set values (Int, BigInt, Bit, etc...) on the provided FieldVector.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SF_USER">SF_USER</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
+<dd>
+<div class="block">Key-Pair Authentication Constants
+ These constants are used for configuring public/private key pair authentication with Snowflake.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchMetadataHandler.html#SHARD_KEY">SHARD_KEY</a></span> - Static variable in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/ElasticsearchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.elasticsearch">ElasticsearchMetadataHandler</a></dt>
 <dd>
 <div class="block">Key used to store shard information in the Split's properties map (later used by the Record Handler).</div>
@@ -10635,14 +10683,30 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/synapse/SynapseDataType.html#SMALLMONEY">SMALLMONEY</a></span> - com.amazonaws.athena.connectors.synapse.<a href="com/amazonaws/athena/connectors/synapse/SynapseDataType.html" title="enum in com.amazonaws.athena.connectors.synapse">SynapseDataType</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html#SNOWFLAKE">SNOWFLAKE</a></span> - com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthType</a></dt>
+<dd>
+<div class="block">Password-based authentication (default)</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_DEFAULT_PORT">SNOWFLAKE_DEFAULT_PORT</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_DRIVER_CLASS">SNOWFLAKE_DRIVER_CLASS</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html#SNOWFLAKE_JWT">SNOWFLAKE_JWT</a></span> - com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthType</a></dt>
+<dd>
+<div class="block">Key-pair authentication using JWT</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_NAME">SNOWFLAKE_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#SNOWFLAKE_QUOTE_CHARACTER">SNOWFLAKE_QUOTE_CHARACTER</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils"><span class="typeNameLink">SnowflakeAuthType</span></a> - Enum in <a href="com/amazonaws/athena/connectors/snowflake/utils/package-summary.html">com.amazonaws.athena.connectors.snowflake.utils</a></dt>
+<dd>
+<div class="block">Enum representing different Snowflake authentication types.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html" title="class in com.amazonaws.athena.connectors.snowflake.utils"><span class="typeNameLink">SnowflakeAuthUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/snowflake/utils/package-summary.html">com.amazonaws.athena.connectors.snowflake.utils</a></dt>
+<dd>
+<div class="block">Utility class for Snowflake authentication methods.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCompositeHandler.html" title="class in com.amazonaws.athena.connectors.snowflake"><span class="typeNameLink">SnowflakeCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/snowflake/package-summary.html">com.amazonaws.athena.connectors.snowflake</a></dt>
 <dd>
 <div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -10650,11 +10714,17 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCompositeHandler.html#%3Cinit%3E()">SnowflakeCompositeHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCompositeHandler.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeCompositeHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/snowflake/connection/SnowflakeConnectionFactory.html" title="class in com.amazonaws.athena.connectors.snowflake.connection"><span class="typeNameLink">SnowflakeConnectionFactory</span></a> - Class in <a href="com/amazonaws/athena/connectors/snowflake/connection/package-summary.html">com.amazonaws.athena.connectors.snowflake.connection</a></dt>
+<dd>
+<div class="block">Custom connection factory for Snowflake that supports key-pair authentication.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/connection/SnowflakeConnectionFactory.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map,com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo)">SnowflakeConnectionFactory(DatabaseConnectionConfig, Map&lt;String, String&gt;, DatabaseConnectionInfo)</a></span> - Constructor for class com.amazonaws.athena.connectors.snowflake.connection.<a href="com/amazonaws/athena/connectors/snowflake/connection/SnowflakeConnectionFactory.html" title="class in com.amazonaws.athena.connectors.snowflake.connection">SnowflakeConnectionFactory</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake"><span class="typeNameLink">SnowflakeConstants</span></a> - Class in <a href="com/amazonaws/athena/connectors/snowflake/package-summary.html">com.amazonaws.athena.connectors.snowflake</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html" title="class in com.amazonaws.athena.connectors.snowflake"><span class="typeNameLink">SnowflakeCredentialsProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/snowflake/package-summary.html">com.amazonaws.athena.connectors.snowflake</a></dt>
 <dd>
-<div class="block">Snowflake OAuth credentials provider that manages OAuth token lifecycle.</div>
+<div class="block">Snowflake credentials provider that manages multiple authentication methods.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html#%3Cinit%3E(java.lang.String)">SnowflakeCredentialsProvider(String)</a></span> - Constructor for class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeCredentialsProvider</a></dt>
 <dd>&nbsp;</dd>
@@ -10715,7 +10785,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeRecordHandler.html" title="class in com.amazonaws.athena.connectors.snowflake"><span class="typeNameLink">SnowflakeRecordHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/snowflake/package-summary.html">com.amazonaws.athena.connectors.snowflake</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeRecordHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory,java.util.Map)">SnowflakeRecordHandler(DatabaseConnectionConfig, GenericJdbcConnectionFactory, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeRecordHandler.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeRecordHandler</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeRecordHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory,java.util.Map)">SnowflakeRecordHandler(DatabaseConnectionConfig, SnowflakeConnectionFactory, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeRecordHandler.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeRecordHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeRecordHandler.html#%3Cinit%3E(com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig,java.util.Map)">SnowflakeRecordHandler(DatabaseConnectionConfig, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeRecordHandler.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeRecordHandler</a></dt>
 <dd>&nbsp;</dd>
@@ -11549,6 +11619,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/dto/TopicResultSet.html#toString()">toString()</a></span> - Method in class com.amazonaws.athena.connectors.msk.dto.<a href="com/amazonaws/athena/connectors/msk/dto/TopicResultSet.html" title="class in com.amazonaws.athena.connectors.msk.dto">TopicResultSet</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html#toString()">toString()</a></span> - Method in enum com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthType</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/PredicateBuilder.TypeAndValue.html#toString()">toString()</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/PredicateBuilder.TypeAndValue.html" title="class in com.amazonaws.athena.connectors.vertica.query">PredicateBuilder.TypeAndValue</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#toTableName()">toTableName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
@@ -11671,7 +11743,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/credentials/CredentialsProvider.html#USER">USER</a></span> - Static variable in interface com.amazonaws.athena.connector.credentials.<a href="com/amazonaws/athena/connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html#USER">USER</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeCredentialsProvider</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#USER">USER</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><span class="typeNameLink">UserDefinedFunctionHandler</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a></dt>
 <dd>
@@ -11701,8 +11773,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionType.html" title="enum in com.amazonaws.athena.connector.lambda.udf"><span class="typeNameLink">UserDefinedFunctionType</span></a> - Enum in <a href="com/amazonaws/athena/connector/lambda/udf/package-summary.html">com.amazonaws.athena.connector.lambda.udf</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html#USERNAME">USERNAME</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeCredentialsProvider.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeCredentialsProvider</a></dt>
-<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html#USERNAME">USERNAME</a></span> - Static variable in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeConstants.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeConstants</a></dt>
+<dd>
+<div class="block">Password Authentication Constants
+ These constants are used for traditional username/password authentication with Snowflake.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#UTC">UTC</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#UTC_KEY">UTC_KEY</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
@@ -11723,6 +11798,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateArrayStart(com.fasterxml.jackson.core.JsonParser)">validateArrayStart(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
 <dd>
 <div class="block">Helper used to validate that an array is starting (open bracket) at the next token.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html#validateCredentials(java.util.Map,com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthType)">validateCredentials(Map&lt;String, String&gt;, SnowflakeAuthType)</a></span> - Static method in class com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthUtils.html" title="class in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthUtils</a></dt>
+<dd>
+<div class="block">Validates that the credentials contain the required fields for the authentication type.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateObjectEnd(com.fasterxml.jackson.core.JsonParser)">validateObjectEnd(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
 <dd>
@@ -11871,6 +11950,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html#valueOf(java.lang.String)">valueOf(String)</a></span> - Static method in enum com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthType</a></dt>
+<dd>
+<div class="block">Returns the enum constant of this type with the specified name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/sqlserver/SqlServerDataType.html#valueOf(java.lang.String)">valueOf(String)</a></span> - Static method in enum com.amazonaws.athena.connectors.sqlserver.<a href="com/amazonaws/athena/connectors/sqlserver/SqlServerDataType.html" title="enum in com.amazonaws.athena.connectors.sqlserver">SqlServerDataType</a></dt>
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
@@ -11999,6 +12082,11 @@ the order they are declared.</div>
 the order they are declared.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/ValueType.html#values()">values()</a></span> - Static method in enum com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/ValueType.html" title="enum in com.amazonaws.athena.connectors.redis">ValueType</a></dt>
+<dd>
+<div class="block">Returns an array containing the constants of this enum type, in
+the order they are declared.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html#values()">values()</a></span> - Static method in enum com.amazonaws.athena.connectors.snowflake.utils.<a href="com/amazonaws/athena/connectors/snowflake/utils/SnowflakeAuthType.html" title="enum in com.amazonaws.athena.connectors.snowflake.utils">SnowflakeAuthType</a></dt>
 <dd>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
