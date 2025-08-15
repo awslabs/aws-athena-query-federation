@@ -28,6 +28,7 @@ public class IdentityUtil
 
     public static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+        return new FederatedIdentity("arn", "account", Collections.emptyMap(),
+                Collections.emptyList(), Collections.emptyMap());
     }
 }

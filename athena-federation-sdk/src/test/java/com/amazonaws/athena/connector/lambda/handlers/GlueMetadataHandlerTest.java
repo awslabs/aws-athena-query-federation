@@ -148,7 +148,6 @@ public class GlueMetadataHandlerTest
             throws Exception
     {
         logger.info("{}: enter", testName.getMethodName());
-
         handler = new GlueMetadataHandler(mockGlue,
                 new LocalKeyFactory(),
                 mock(SecretsManagerClient.class),

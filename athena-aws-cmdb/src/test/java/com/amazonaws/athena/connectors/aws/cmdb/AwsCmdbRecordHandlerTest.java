@@ -59,7 +59,7 @@ public class AwsCmdbRecordHandlerTest
     private String bucket = "bucket";
     private String prefix = "prefix";
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
 
     @Mock
     private S3Client mockS3;
@@ -115,7 +115,7 @@ public class AwsCmdbRecordHandlerTest
                         .withQueryId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000,
                 100_000);
 
