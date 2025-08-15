@@ -171,6 +171,9 @@ public class Constraints
     @Override
     public void close()
     {
+        if (summary == null) {
+            return;
+        }
         for (ValueSet next : summary.values()) {
             try {
                 next.close();
