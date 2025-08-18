@@ -42,7 +42,7 @@ jobs:
       # Fork PRs: upload WITHOUT token
       - name: Upload coverage reports to Codecov (fork PRs, no token)
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
 
       # Pushes & same-repo PRs: upload WITH token
       - name: Upload coverage reports to Codecov (internal only)
