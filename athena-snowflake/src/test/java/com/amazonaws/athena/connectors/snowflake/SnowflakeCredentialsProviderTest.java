@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.snowflake;
 import com.amazonaws.athena.connector.credentials.DefaultCredentials;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -470,7 +469,7 @@ public class SnowflakeCredentialsProviderTest
 
     private String createTokenResponse()
     {
-        return new JSONObject()
+        return new ObjectMapper().createObjectNode()
                 .put("access_token", TEST_ACCESS_TOKEN)
                 .put("token_type", "Bearer")
                 .put("expires_in", 3600)
