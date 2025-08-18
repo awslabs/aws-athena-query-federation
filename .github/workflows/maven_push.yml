@@ -37,13 +37,31 @@ jobs:
       - name: Identify any Maven Build changes
         run: >
           ! (git status | grep "modified: " )
-      - name: Upload coverage reports to Codecov
+
+      # -------- Codecov coverage upload --------
+      # Fork PRs: upload WITHOUT token
+      - name: Upload coverage reports to Codecov (fork PRs, no token)
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
         uses: codecov/codecov-action@v5
-        env:
+
+      # Pushes & same-repo PRs: upload WITH token
+      - name: Upload coverage reports to Codecov (internal only)
+        if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) }}
+        uses: codecov/codecov-action@v5
+        with:
           slug: awslabs/aws-athena-query-federation
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+      # -------- Codecov test results --------
+      # Fork PRs: no token
+      - name: Upload test results to Codecov (fork PRs, no token)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+        uses: codecov/test-results-action@v1
+        with:
+          slug: awslabs/aws-athena-query-federation
+
+      # Pushes & same-repo PRs: with token
+      - name: Upload test results to Codecov (internal only)
+        if: ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)) }}
         uses: codecov/test-results-action@v1
         with:
           slug: awslabs/aws-athena-query-federation
