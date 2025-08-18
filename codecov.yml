@@ -2,7 +2,6 @@ codecov:
   # Documentation: https://docs.codecov.com/docs/codecovyml-reference#codecov
   # Always Validate the file before submitting a PR as follows:
   # curl --data-binary @codecov.yml https://codecov.io/validate
-  token: ${{ secrets.CODECOV_TOKEN }}
   branch: master
 coverage:
   precision: 2
