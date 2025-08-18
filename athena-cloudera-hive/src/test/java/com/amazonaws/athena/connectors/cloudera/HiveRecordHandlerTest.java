@@ -32,7 +32,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -56,10 +55,17 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
 import static com.amazonaws.athena.connectors.cloudera.HiveConstants.HIVE_QUOTE_CHARACTER;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.NAME;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.SCHEMA_NAME;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -72,6 +78,20 @@ public class HiveRecordHandlerTest
     private S3Client amazonS3;
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
+
+    private static final String TEST_CATALOG_NAME = "testCatalog";
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable";
+    private static final String TEST_COL1 = "testCol1";
+    private static final String TEST_COL2 = "testCol2";
+    private static final String TEST_COL3 = "testCol3";
+    private static final String TEST_COL4 = "testCol4";
+    private static final String PARTITION_PROPERTY = "partition";
+    private static final String PARTITION_VALUE = "p0";
+    private static final String QPT_TEST_QUERY = "SELECT * FROM testSchema.testTable WHERE testCol1 = 1";
+    private static final String QPT_SCHEMA_FUNCTION_NAME_VALUE = "system.query";
+    private static final String QPT_NAME_PROPERTY = "name";
+    private static final String QPT_SCHEMA_PROPERTY = "schema";
 
     @Before
     public void setup()
@@ -106,19 +126,21 @@ public class HiveRecordHandlerTest
     public void buildSplitSql()
             throws SQLException
     {
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.INT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol2", Types.MinorType.DATEDAY.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol3", Types.MinorType.DATEMILLI.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol4", Types.MinorType.VARBINARY.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL2, Types.MinorType.DATEDAY.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL3, Types.MinorType.DATEMILLI.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL4, Types.MinorType.VARBINARY.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_PROPERTY, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
+        Map<String, String> properties = new HashMap<>();
+        properties.put(PARTITION_PROPERTY, PARTITION_VALUE);
+        Mockito.when(split.getProperties()).thenReturn(properties);
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_PROPERTY))).thenReturn(PARTITION_VALUE);
 
         Range range1a = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range1a.isSingleValue()).thenReturn(true);
@@ -130,90 +152,212 @@ public class HiveRecordHandlerTest
         Mockito.when(valueSet1.getRanges().getOrderedRanges()).thenReturn(ImmutableList.of(range1a, range1b));
         final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2020-01-05").getTime());
         ValueSet valueSet2 = getSingleValueSet(dateDays);
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
-                .put("testCol2", valueSet2)
-                .build());
+
+        Map<String, ValueSet> summary = new HashMap<>();
+        summary.put(TEST_COL2, valueSet2);
+        Constraints constraints = new Constraints(summary, Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
-        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+        
         Date expectedDate = new Date(120, 0, 5);
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        Mockito.verify(preparedStatement, Mockito.times(1))
-                .setDate(1, expectedDate);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDate(1, expectedDate);
+        Mockito.verify(this.connection).prepareStatement(Mockito.any(String.class));
+        Mockito.verifyNoMoreInteractions(this.connection);
+        assertSame(expectedPreparedStatement, preparedStatement);
     }
 
     @Test
     public void buildSplitSqlTimestamp()
             throws SQLException
     {
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.DATEMILLI.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, Types.MinorType.DATEMILLI.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_PROPERTY, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
+        Map<String, String> properties = new HashMap<>();
+        properties.put(PARTITION_PROPERTY, PARTITION_VALUE);
+        Mockito.when(split.getProperties()).thenReturn(properties);
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_PROPERTY))).thenReturn(PARTITION_VALUE);
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         LocalDateTime timestamp = LocalDateTime.parse("2024-10-03 12:34:56", formatter);
         ValueSet valueSet2 = getSingleValueSet(timestamp);
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
-                .put("testCol1", valueSet2)
-                .build());
+
+        Map<String, ValueSet> summary = new HashMap<>();
+        summary.put(TEST_COL1, valueSet2);
+        Constraints constraints = new Constraints(summary, Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
-        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+        
         Timestamp expectedTimestamp = new Timestamp(timestamp.toInstant(ZoneOffset.UTC).toEpochMilli());
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        Mockito.verify(preparedStatement, Mockito.times(1))
-                .setTimestamp(1, expectedTimestamp);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setTimestamp(1, expectedTimestamp);
+        Mockito.verify(this.connection).prepareStatement(Mockito.any(String.class));
+        Mockito.verifyNoMoreInteractions(this.connection);
+        assertSame(expectedPreparedStatement, preparedStatement);
     }
 
     @Test
-    public void testBuildSplitSql_withQueryPassthrough()
+    public void testBuildSplitSql_withQueryPassthrough() 
+            throws Exception
     {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_PROPERTY, Types.MinorType.VARCHAR.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = Mockito.mock(Split.class);
+        Map<String, String> properties = new HashMap<>();
+        properties.put(PARTITION_PROPERTY, PARTITION_VALUE);
+        Mockito.when(split.getProperties()).thenReturn(properties);
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_PROPERTY))).thenReturn(PARTITION_VALUE);
+
+        // Valid query passthrough args
+        Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
+                .put(QUERY, QPT_TEST_QUERY)
+                .put(SCHEMA_FUNCTION_NAME, QPT_SCHEMA_FUNCTION_NAME_VALUE)
+                .put(ENABLE_QUERY_PASSTHROUGH, "true")
+                .put(QPT_NAME_PROPERTY, NAME)
+                .put(QPT_SCHEMA_PROPERTY, SCHEMA_NAME)
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
+        
+        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+
+        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+
+        // Verify passthrough query was used
+        Mockito.verify(this.connection).prepareStatement(QPT_TEST_QUERY);
+        Mockito.verifyNoMoreInteractions(this.connection);
+        assertSame(expectedPreparedStatement, preparedStatement);
+    }
+
+    @Test
+    public void testBuildSplitSql_withoutQueryPassthrough() 
+            throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_PROPERTY, Types.MinorType.VARCHAR.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = Mockito.mock(Split.class);
+        Map<String, String> properties = new HashMap<>();
+        properties.put(PARTITION_PROPERTY, PARTITION_VALUE);
+        Mockito.when(split.getProperties()).thenReturn(properties);
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_PROPERTY))).thenReturn(PARTITION_VALUE);
+
+        // query passthrough is disabled (empty passthrough args)
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
+        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+
+        PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+
+        // Verify that a non-passthrough SQL query was used
+        Mockito.verify(this.connection).prepareStatement(Mockito.argThat(sql -> !sql.equals(QPT_TEST_QUERY)));
+        Mockito.verifyNoMoreInteractions(this.connection);
+        assertSame(expectedPreparedStatement, preparedStatement);
+    }
+
+    @Test
+    public void testBuildSplitSql_withMissingQueryArg()
+            throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_PROPERTY, Types.MinorType.VARCHAR.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = Mockito.mock(Split.class);
+        Map<String, String> properties = new HashMap<>();
+        properties.put(PARTITION_PROPERTY, PARTITION_VALUE);
+        Mockito.when(split.getProperties()).thenReturn(properties);
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_PROPERTY))).thenReturn(PARTITION_VALUE);
+
+        // Required QUERY parameter is missing
+        Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
+                .put(SCHEMA_FUNCTION_NAME, QPT_SCHEMA_FUNCTION_NAME_VALUE)
+                .put(ENABLE_QUERY_PASSTHROUGH, "true")
+                .put(QPT_NAME_PROPERTY, NAME)
+                .put(QPT_SCHEMA_PROPERTY, SCHEMA_NAME)
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
+
+        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+
         try {
-            TableName tableName = new TableName("testSchema", "testTable");
-
-            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.INT.getType()).build());
-            schemaBuilder.addField(FieldBuilder.newBuilder("partition", Types.MinorType.VARCHAR.getType()).build());
-            Schema schema = schemaBuilder.build();
-
-            Split split = Mockito.mock(Split.class);
-            Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-            Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p0");
-
-            Constraints constraints = Mockito.mock(Constraints.class);
-            Mockito.when(constraints.isQueryPassThrough()).thenReturn(true);
-
-            Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
-                    .put(JdbcQueryPassthrough.QUERY, "SELECT * FROM testSchema.testTable WHERE testCol1 = 1")
-                    .put("schemaFunctionName", "system.query")
-                    .put("enableQueryPassthrough", "true")
-                    .put("name", "query")
-                    .put("schema", "system")
-                    .build();
-
-            Mockito.when(constraints.getQueryPassthroughArguments()).thenReturn(queryPassthroughArgs);
-
-            PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-            Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
-
-            PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
-
-            Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-            Mockito.verify(this.connection).prepareStatement("SELECT * FROM testSchema.testTable WHERE testCol1 = 1");
+            this.hiveRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+            fail("Expected exception was not thrown");
         }
-        catch (Exception e) {
-            fail("Unexpected exception:" + e.getMessage());
+        catch (RuntimeException e) {
+            Mockito.verifyNoInteractions(this.connection);
+            Assert.assertTrue(e.getMessage().contains("Missing Query Passthrough Argument"));
+        }
+    }
+
+    @Test
+    public void testBuildSplitSql_withWrongSchemaFunctionName() 
+            throws Exception
+    {
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_PROPERTY, Types.MinorType.VARCHAR.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = Mockito.mock(Split.class);
+        Map<String, String> properties = new HashMap<>();
+        properties.put(PARTITION_PROPERTY, PARTITION_VALUE);
+        Mockito.when(split.getProperties()).thenReturn(properties);
+        Mockito.when(split.getProperty(Mockito.eq(PARTITION_PROPERTY))).thenReturn(PARTITION_VALUE);
+
+        // Schema function name is incorrect
+        Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
+                .put(QUERY, QPT_TEST_QUERY)
+                .put(SCHEMA_FUNCTION_NAME, "wrong.function")  // Wrong schema function name
+                .put(ENABLE_QUERY_PASSTHROUGH, "true")
+                .put(QPT_NAME_PROPERTY, NAME)
+                .put(QPT_SCHEMA_PROPERTY, SCHEMA_NAME)
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
+
+        PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
+
+        try {
+            this.hiveRecordHandler.buildSplitSql(this.connection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+            fail("Expected exception was not thrown");
+        }
+        catch (RuntimeException e) {
+            Mockito.verifyNoInteractions(this.connection);
+            Assert.assertTrue(e.getMessage().contains("Function Signature doesn't match implementation's"));
         }
     }
 }
