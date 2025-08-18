@@ -46,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -74,6 +75,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -287,8 +291,16 @@ public class HiveMetadataHandlerTest extends TestBase {
                 .map(Field::getName)
                 .collect(Collectors.toSet());
 
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.isQueryPassThrough()).thenReturn(true);
+        Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
+                .put(QUERY, "SELECT * FROM testSchema.testTable WHERE testCol1 = 1")
+                .put(SCHEMA_FUNCTION_NAME, "system.query")
+                .put(ENABLE_QUERY_PASSTHROUGH, "true")
+                .put("name", "query")
+                .put("schema", "system")
+                .build();
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, queryPassthroughArgs, null);
 
         Block partitions = Mockito.mock(Block.class);
 
@@ -316,8 +328,8 @@ public class HiveMetadataHandlerTest extends TestBase {
                 .map(Field::getName)
                 .collect(Collectors.toSet());
 
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.isQueryPassThrough()).thenReturn(false);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         schemaBuilder.addField(HiveConstants.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType());
