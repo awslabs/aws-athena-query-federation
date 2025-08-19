@@ -168,70 +168,56 @@ public final class SubstraitFunctionParser
         Expression.Literal literal = expr.getLiteral();
         ArrowType arrowType;
 
-        return switch (literal.getLiteralTypeCase()) {
-            case I8 -> {
+        switch (literal.getLiteralTypeCase()) {
+            case I8:
                 arrowType = new ArrowType.Int(8, true);
-                yield Pair.of(literal.getI8(), arrowType);
-            }
-            case I16 -> {
+                return Pair.of(literal.getI8(), arrowType);
+            case I16:
                 arrowType = new ArrowType.Int(16, true);
-                yield Pair.of(literal.getI16(), arrowType);
-            }
-            case I32 -> {
+                return Pair.of(literal.getI16(), arrowType);
+            case I32:
                 arrowType = new ArrowType.Int(32, true);
-                yield Pair.of(literal.getI32(), arrowType);
-            }
-            case I64 -> {
+                return Pair.of(literal.getI32(), arrowType);
+            case I64:
                 arrowType = new ArrowType.Int(64, true);
-                yield Pair.of(literal.getI64(), arrowType);
-            }
-            case FP32 -> {
+                return Pair.of(literal.getI64(), arrowType);
+            case FP32:
                 arrowType = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
-                yield Pair.of(literal.getFp32(), arrowType);
-            }
-            case FP64 -> {
+                return Pair.of(literal.getFp32(), arrowType);
+            case FP64:
                 arrowType = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
-                yield Pair.of(literal.getFp64(), arrowType);
-            }
-            case STRING -> {
+                return Pair.of(literal.getFp64(), arrowType);
+            case STRING:
                 arrowType = new ArrowType.Utf8();
-                yield Pair.of(literal.getString(), arrowType);
-            }
-            case BOOLEAN -> {
+                return Pair.of(literal.getString(), arrowType);
+            case BOOLEAN:
                 arrowType = new ArrowType.Bool();
-                yield Pair.of(literal.getBoolean(), arrowType);
-            }
-            case BINARY -> {
+                return Pair.of(literal.getBoolean(), arrowType);
+            case BINARY:
                 arrowType = new ArrowType.Binary();
-                yield Pair.of(literal.getBoolean(), arrowType);
-            }
-            case FIXED_BINARY -> {
+                return Pair.of(literal.getBoolean(), arrowType);
+            case FIXED_BINARY:
                 arrowType = new ArrowType.FixedSizeBinary(32);
-                yield Pair.of(literal.getBoolean(), arrowType);
-            }
-            case TIME, TIMESTAMP -> {
+                return Pair.of(literal.getBoolean(), arrowType);
+            case TIME:
+            case TIMESTAMP:
                 arrowType = new ArrowType.Time(TimeUnit.MILLISECOND, 32);
-                yield Pair.of(literal.getTime(), arrowType);
-            }
-            case DATE -> {
+                return Pair.of(literal.getTime(), arrowType);
+            case DATE:
                 arrowType = new ArrowType.Date(DateUnit.DAY);
-                yield Pair.of(literal.getDate(), arrowType);
-            }
-            case DECIMAL -> {
+                return Pair.of(literal.getDate(), arrowType);
+            case DECIMAL:
                 arrowType = new ArrowType.Decimal(38, 10, 128);
-                yield Pair.of(literal.getDecimal(), arrowType);
-            }
-            case VAR_CHAR -> {
+                return Pair.of(literal.getDecimal(), arrowType);
+            case VAR_CHAR:
                 arrowType = new ArrowType.Utf8();
-                yield Pair.of(literal.getVarChar().getValue(), arrowType);
-            }
-            case FIXED_CHAR -> {
+                return Pair.of(literal.getVarChar().getValue(), arrowType);
+            case FIXED_CHAR:
                 arrowType = new ArrowType.Utf8();
-                yield Pair.of(literal.getFixedChar(), arrowType);
-            }
-            default ->
-                    throw new UnsupportedOperationException("Unsupported literal type: " + literal.getLiteralTypeCase());
-        };
+                return Pair.of(literal.getFixedChar(), arrowType);
+            default:
+                throw new UnsupportedOperationException("Unsupported literal type: " + literal.getLiteralTypeCase());
+        }
     }
 
     /**
@@ -297,18 +283,29 @@ public final class SubstraitFunctionParser
      */
     private static Operator mapToOperator(String functionName)
     {
-        return switch (functionName) {
-            case "gt:any_any" -> Operator.GREATER_THAN;
-            case "gte:any_any" -> Operator.GREATER_THAN_OR_EQUAL_TO;
-            case "lt:any_any" -> Operator.LESS_THAN;
-            case "lte:any_any" -> Operator.LESS_THAN_OR_EQUAL_TO;
-            case "equal:any_any" -> Operator.EQUAL;
-            case "not_equal:any_any" -> Operator.NOT_EQUAL;
-            case "is_null:any" -> Operator.IS_NULL;
-            case "is_not_null:any" -> Operator.IS_NOT_NULL;
-            case "and:bool" -> Operator.AND;
-            case "or:bool" -> Operator.OR;
-            default -> throw new UnsupportedOperationException("Unsupported operator function: " + functionName);
-        };
+        switch (functionName) {
+            case "gt:any_any":
+                return Operator.GREATER_THAN;
+            case "gte:any_any":
+                return Operator.GREATER_THAN_OR_EQUAL_TO;
+            case "lt:any_any":
+                return Operator.LESS_THAN;
+            case "lte:any_any":
+                return Operator.LESS_THAN_OR_EQUAL_TO;
+            case "equal:any_any":
+                return Operator.EQUAL;
+            case "not_equal:any_any":
+                return Operator.NOT_EQUAL;
+            case "is_null:any":
+                return Operator.IS_NULL;
+            case "is_not_null:any":
+                return Operator.IS_NOT_NULL;
+            case "and:bool":
+                return Operator.AND;
+            case "or:bool":
+                return Operator.OR;
+            default:
+                throw new UnsupportedOperationException("Unsupported operator function: " + functionName);
+        }
     }
 }
