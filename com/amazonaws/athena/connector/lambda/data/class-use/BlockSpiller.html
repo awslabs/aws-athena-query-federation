@@ -207,18 +207,22 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.snowflake">com.amazonaws.athena.connectors.snowflake</a></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.synapse">com.amazonaws.athena.connectors.synapse</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.timestream">com.amazonaws.athena.connectors.timestream</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.tpcds">com.amazonaws.athena.connectors.tpcds</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colFirst" scope="row"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -1008,6 +1012,33 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                   <a href="../../records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;recordsRequest,
                   <a href="../../QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code></th>
 <td class="colLast">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</section>
+</li>
+<li class="blockList">
+<section><a id="com.amazonaws.athena.connectors.snowflake">
+<!--   -->
+</a>
+<h3>Uses of <a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a> in <a href="../../../../connectors/snowflake/package-summary.html">com.amazonaws.athena.connectors.snowflake</a></h3>
+<table class="useSummary">
+<caption><span>Methods in <a href="../../../../connectors/snowflake/package-summary.html">com.amazonaws.athena.connectors.snowflake</a> with parameters of type <a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Method</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeRecordHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeRecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></span>&#8203;(<a href="../BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
+                  <a href="../../records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;recordsRequest,
+                  <a href="../../QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code></th>
+<td class="colLast">
+<div class="block">Used to handle data transfer between Snowflake and Athena, supporting both direct query and S3 export paths,
+ converts to arrow format, and manages spillover logic.</div>
+</td>
 </tr>
 </tbody>
 </table>

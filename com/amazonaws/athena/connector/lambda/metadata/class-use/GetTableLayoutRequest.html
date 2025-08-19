@@ -1064,11 +1064,19 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#enhancePartitionSchema(com.amazonaws.athena.connector.lambda.data.SchemaBuilder,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest)">enhancePartitionSchema</a></span>&#8203;(<a href="../../data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a>&nbsp;partitionSchemaBuilder,
+                      <a href="../GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request)</code></th>
+<td class="colLast">
+<div class="block">Here we inject the additional column to hold the Prepared SQL Statement.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">SnowflakeMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../connectors/snowflake/SnowflakeMetadataHandler.html#getPartitions(com.amazonaws.athena.connector.lambda.data.BlockWriter,com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">getPartitions</a></span>&#8203;(<a href="../../data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
-             <a href="../GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;getTableLayoutRequest,
+             <a href="../GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
              <a href="../../QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code></th>
 <td class="colLast">
-<div class="block">Snowflake manual partition logic based upon number of records</div>
+<div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
 </td>
 </tr>
 </tbody>
