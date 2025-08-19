@@ -33,6 +33,33 @@ import static org.junit.Assert.assertThrows;
 public class JdbcFederationExpressionParserTest
 {
     private static final Class<AthenaConnectorException> ATHENA_EXCEPTION = AthenaConnectorException.class;
+    private static final String TEST_COLUMN = "my_col";
+    private static final String TEST_COLUMN_QUOTED = "\"my_col\"";
+    private static final String TEST_ARG_A = "a";
+    private static final String TEST_ARG_B = "b";
+    private static final String TEST_ARG_X = "x";
+    private static final String TEST_ARG_Y = "y";
+    private static final String TEST_QUOTE_CHAR = "\"";
+    private static final String TEST_ADD_FUNCTION = "$add";
+    private static final String TEST_AND_FUNCTION = "$and";
+    private static final String TEST_IN_FUNCTION = "$in";
+    private static final String TEST_IS_NULL_FUNCTION = "$is_null";
+    private static final String TEST_EQUAL_FUNCTION = "$equal";
+    private static final String TEST_NEGATE_FUNCTION = "$negate";
+    private static final String TEST_NULLIF_FUNCTION = "$nullif";
+    private static final String TEST_ARRAY_FUNCTION = "$array";
+    private static final String TEST_NOT_EQUAL_FUNCTION = "$not_equal";
+    private static final String TEST_GREATER_THAN_FUNCTION = "$greater_than";
+    private static final String TEST_GREATER_THAN_OR_EQUAL_FUNCTION = "$greater_than_or_equal";
+    private static final String TEST_LESS_THAN_FUNCTION = "$less_than";
+    private static final String TEST_LESS_THAN_OR_EQUAL_FUNCTION = "$less_than_or_equal";
+    private static final String TEST_NOT_FUNCTION = "$not";
+    private static final String TEST_OR_FUNCTION = "$or";
+    private static final String TEST_MODULUS_FUNCTION = "$modulus";
+    private static final String TEST_MULTIPLY_FUNCTION = "$multiply";
+    private static final String TEST_DIVIDE_FUNCTION = "$divide";
+    private static final String TEST_SUBTRACT_FUNCTION = "$subtract";
+    private static final String TEST_LIKE_FUNCTION = "$like_pattern";
 
     private static class TestJdbcFederationExpressionParser extends JdbcFederationExpressionParser
     {
@@ -48,7 +75,7 @@ public class JdbcFederationExpressionParserTest
         }
     }
 
-    private final JdbcFederationExpressionParser parser = new TestJdbcFederationExpressionParser("\"");
+    private final JdbcFederationExpressionParser parser = new TestJdbcFederationExpressionParser(TEST_QUOTE_CHAR);
 
     private void assertAthenaConnectorException(String functionName, List<String> arguments, String expectedMessage)
     {
@@ -62,166 +89,166 @@ public class JdbcFederationExpressionParserTest
     @Test
     public void testParseVariableExpression()
     {
-        VariableExpression expr = new VariableExpression("my_col", new ArrowType.Int(32, true));
+        VariableExpression expr = new VariableExpression(TEST_COLUMN, new ArrowType.Int(32, true));
         String result = parser.parseVariableExpression(expr);
-        assertEquals("\"my_col\"", result);
+        assertEquals(TEST_COLUMN_QUOTED, result);
     }
 
     @Test
     public void testAddFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$add"), new ArrowType.Int(32, true), List.of("a", "b"));
-        assertEquals("(a + b)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_ADD_FUNCTION), new ArrowType.Int(32, true), List.of(TEST_ARG_A, TEST_ARG_B));
+        assertEquals("(" + TEST_ARG_A + " + " + TEST_ARG_B + ")", result);
     }
 
     @Test
     public void testAndFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$and"), null, List.of("a", "b"));
-        assertEquals("(a AND b)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_AND_FUNCTION), null, List.of(TEST_ARG_A, TEST_ARG_B));
+        assertEquals("(" + TEST_ARG_A + " AND " + TEST_ARG_B + ")", result);
     }
 
     @Test
     public void testInPredicate()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$in"), null, List.of("a", "(1, 2, 3)"));
-        assertEquals("(a IN (1, 2, 3))", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_IN_FUNCTION), null, List.of(TEST_ARG_A, "(1, 2, 3)"));
+        assertEquals("(" + TEST_ARG_A + " IN (1, 2, 3))", result);
     }
 
     @Test
     public void testUnaryFunction_Valid()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$is_null"), null, List.of("x"));
-        assertEquals("(x IS NULL)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_IS_NULL_FUNCTION), null, List.of(TEST_ARG_X));
+        assertEquals("(" + TEST_ARG_X + " IS NULL)", result);
     }
 
     @Test
     public void testBinaryFunction_Valid()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$equal"), null, List.of("x", "y"));
-        assertEquals("(x = y)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_EQUAL_FUNCTION), null, List.of(TEST_ARG_X, TEST_ARG_Y));
+        assertEquals("(" + TEST_ARG_X + " = " + TEST_ARG_Y + ")", result);
     }
 
     @Test
     public void testNegateFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$negate"), null, List.of("5"));
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_NEGATE_FUNCTION), null, List.of("5"));
         assertEquals("(-5)", result);
     }
 
     @Test
     public void testNullIfFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$nullif"), null, List.of("a", "b"));
-        assertEquals("(NULLIF(a, b))", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_NULLIF_FUNCTION), null, List.of(TEST_ARG_A, TEST_ARG_B));
+        assertEquals("(NULLIF(" + TEST_ARG_A + ", " + TEST_ARG_B + "))", result);
     }
 
     @Test
     public void testWriteArrayConstructorFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$array"), new ArrowType.Int(32, true), List.of("1", "2", "3"));
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_ARRAY_FUNCTION), new ArrowType.Int(32, true), List.of("1", "2", "3"));
         assertEquals("(ARRAY[1,2,3])", result);
     }
 
     @Test
     public void testEmptyArgumentsThrowsException()
     {
-        assertAthenaConnectorException("$add", List.of(), "Arguments cannot be null or empty.");
+        assertAthenaConnectorException(TEST_ADD_FUNCTION, List.of(), "Arguments cannot be null or empty.");
     }
 
     @Test
     public void testUnaryFunctionInvalidArgCount()
     {
-        assertAthenaConnectorException("$is_null", List.of("a", "b"), "Unary function type $is_null was provided with 2 arguments.");
+        assertAthenaConnectorException(TEST_IS_NULL_FUNCTION, List.of(TEST_ARG_A, TEST_ARG_B), "Unary function type " + TEST_IS_NULL_FUNCTION + " was provided with 2 arguments.");
     }
 
     @Test
     public void testBinaryFunctionInvalidArgCount()
     {
-        assertAthenaConnectorException("$add", List.of("a"), "Binary function type $add was provided with 1 arguments.");
+        assertAthenaConnectorException(TEST_ADD_FUNCTION, List.of(TEST_ARG_A), "Binary function type " + TEST_ADD_FUNCTION + " was provided with 1 arguments.");
     }
 
     @Test
     public void testNotEqualFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$not_equal"), null, List.of("x", "y"));
-        assertEquals("(x <> y)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_NOT_EQUAL_FUNCTION), null, List.of(TEST_ARG_X, TEST_ARG_Y));
+        assertEquals("(" + TEST_ARG_X + " <> " + TEST_ARG_Y + ")", result);
     }
 
     @Test
     public void testGreaterThanFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$greater_than"), null, List.of("x", "y"));
-        assertEquals("(x > y)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_GREATER_THAN_FUNCTION), null, List.of(TEST_ARG_X, TEST_ARG_Y));
+        assertEquals("(" + TEST_ARG_X + " > " + TEST_ARG_Y + ")", result);
     }
 
     @Test
     public void testGreaterThanOrEqualFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$greater_than_or_equal"), null, List.of("x", "y"));
-        assertEquals("(x >= y)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_GREATER_THAN_OR_EQUAL_FUNCTION), null, List.of(TEST_ARG_X, TEST_ARG_Y));
+        assertEquals("(" + TEST_ARG_X + " >= " + TEST_ARG_Y + ")", result);
     }
 
     @Test
     public void testLessThanFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$less_than"), null, List.of("x", "y"));
-        assertEquals("(x < y)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LESS_THAN_FUNCTION), null, List.of(TEST_ARG_X, TEST_ARG_Y));
+        assertEquals("(" + TEST_ARG_X + " < " + TEST_ARG_Y + ")", result);
     }
 
     @Test
     public void testLessThanOrEqualFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$less_than_or_equal"), null, List.of("x", "y"));
-        assertEquals("(x <= y)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LESS_THAN_OR_EQUAL_FUNCTION), null, List.of(TEST_ARG_X, TEST_ARG_Y));
+        assertEquals("(" + TEST_ARG_X + " <= " + TEST_ARG_Y + ")", result);
     }
 
     @Test
     public void testNotFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$not"), null, List.of("x"));
-        assertEquals("( NOT x)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_NOT_FUNCTION), null, List.of(TEST_ARG_X));
+        assertEquals("( NOT " + TEST_ARG_X + ")", result);
     }
 
     @Test
     public void testOrFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$or"), null, List.of("x", "y"));
-        assertEquals("(x OR y)", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_OR_FUNCTION), null, List.of(TEST_ARG_X, TEST_ARG_Y));
+        assertEquals("(" + TEST_ARG_X + " OR " + TEST_ARG_Y + ")", result);
     }
 
     @Test
     public void testModFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$modulus"), new ArrowType.Int(32, true), List.of("10", "3"));
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_MODULUS_FUNCTION), new ArrowType.Int(32, true), List.of("10", "3"));
         assertEquals("(10 % 3)", result);
     }
 
     @Test
     public void testMultiplyFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$multiply"), new ArrowType.Int(32, true), List.of("2", "3"));
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_MULTIPLY_FUNCTION), new ArrowType.Int(32, true), List.of("2", "3"));
         assertEquals("(2 * 3)", result);
     }
 
     @Test
     public void testDivideFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$divide"), new ArrowType.Int(32, true), List.of("6", "2"));
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_DIVIDE_FUNCTION), new ArrowType.Int(32, true), List.of("6", "2"));
         assertEquals("(6 / 2)", result);
     }
 
     @Test
     public void testSubtractFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$subtract"), new ArrowType.Int(32, true), List.of("7", "4"));
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_SUBTRACT_FUNCTION), new ArrowType.Int(32, true), List.of("7", "4"));
         assertEquals("(7 - 4)", result);
     }
 
     @Test
     public void testLikeFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName("$like_pattern"), null, List.of("name", "'J%'"));
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LIKE_FUNCTION), null, List.of("name", "'J%'"));
         assertEquals("(name LIKE 'J%')", result);
     }
 }

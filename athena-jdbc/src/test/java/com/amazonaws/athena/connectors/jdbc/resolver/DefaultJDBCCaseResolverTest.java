@@ -45,6 +45,22 @@ import static org.mockito.Mockito.when;
 
 public class DefaultJDBCCaseResolverTest
 {
+    private static final String TEST_SCHEMA_NAME = "oRaNgE";
+    private static final String TEST_TABLE_NAME = "ApPlE";
+    private static final String TEST_SCHEMA_UPPER = "ORANGE";
+    private static final String TEST_TABLE_UPPER = "APPLE";
+    private static final String TEST_SCHEMA_LOWER = "orange";
+    private static final String TEST_TABLE_LOWER = "apple";
+    private static final String TEST_SOURCE_TYPE = "asdf";
+    private static final String TEST_SAPHANA_SOURCE = "saphana";
+    private static final String TEST_TABLE_ANNOTATION = "ApPlE@schemaCase=upper&tableCase=lower";
+    private static final String TEST_INPUT_SCHEMA = "MySchema";
+    private static final String TEST_EXPECTED_SCHEMA = "myschema";
+    private static final String TEST_INPUT_TABLE = "Table1";
+    private static final String TEST_EXPECTED_TABLE = "table1";
+    private static final String TEST_INVALID_SCHEMA = "InvalidSchema";
+    private static final String TEST_INVALID_TABLE = "InvalidTable";
+
     private Connection mockConnection;
     private PreparedStatement mockPreparedStatement;
     private ResultSet mockResultSet;
@@ -56,113 +72,95 @@ public class DefaultJDBCCaseResolverTest
         mockConnection = Mockito.mock(Connection.class);
         mockPreparedStatement = Mockito.mock(PreparedStatement.class);
         mockResultSet = Mockito.mock(ResultSet.class);
-        testableHelper = new TestableHelper("sourcetype");
+        testableHelper = new TestableHelper(TEST_SOURCE_TYPE);
     }
 
     @Test
     public void testDefaultJDBCCaseResolverDefaultCasing()
     {
-        DefaultJDBCCaseResolver test = new DefaultJDBCCaseResolver("asdf", CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
+        DefaultJDBCCaseResolver test = new DefaultJDBCCaseResolver(TEST_SOURCE_TYPE, CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
 
-        String schemaName = "oRaNgE";
-        String tableName = "ApPlE";
+        String nonGlueConnectionSchemaName = test.getAdjustedSchemaNameString(mockConnection, TEST_TABLE_NAME, Map.of());
+        assertEquals(TEST_TABLE_UPPER, nonGlueConnectionSchemaName);
 
-        // no glue connection based on config will be upper case based on config
-        String nonGlueConnectionSchemaName = test.getAdjustedSchemaNameString(mockConnection, tableName, Map.of());
-        assertEquals(tableName.toUpperCase(), nonGlueConnectionSchemaName);
+        String nonGlueConnectionTableName = test.getAdjustedTableNameString(mockConnection, TEST_SCHEMA_NAME, TEST_TABLE_NAME, Map.of());
+        assertEquals(TEST_TABLE_UPPER, nonGlueConnectionTableName);
 
-        String nonGlueConnectionTableName = test.getAdjustedTableNameString(mockConnection, schemaName, tableName, Map.of());
-        assertEquals(tableName.toUpperCase(), nonGlueConnectionTableName);
+        TableName nonGlueConnectionObject = test.getAdjustedTableNameObject(mockConnection, new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME), Map.of());
+        assertEquals(new TableName(TEST_SCHEMA_UPPER, TEST_TABLE_UPPER), nonGlueConnectionObject);
 
-        TableName nonGlueConnectionObject = test.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableName), Map.of());
-        assertEquals(new TableName(schemaName.toUpperCase(), tableName.toUpperCase()), nonGlueConnectionObject);
+        String glueConnectionSchemaName = test.getAdjustedSchemaNameString(mockConnection, TEST_TABLE_NAME, Map.of(DEFAULT_GLUE_CONNECTION, TEST_SOURCE_TYPE));
+        assertEquals(TEST_TABLE_LOWER, glueConnectionSchemaName);
 
-        // glue connection based on config will be lowered case based on config
-        String glueConnectionSchemaName = test.getAdjustedSchemaNameString(mockConnection, tableName, Map.of(DEFAULT_GLUE_CONNECTION, "asdf"));
-        assertEquals(tableName.toLowerCase(), glueConnectionSchemaName);
+        String glueConnectionTableName = test.getAdjustedTableNameString(mockConnection, TEST_SCHEMA_NAME, TEST_TABLE_NAME, Map.of(DEFAULT_GLUE_CONNECTION, TEST_SOURCE_TYPE));
+        assertEquals(TEST_TABLE_LOWER, glueConnectionTableName);
 
-        String glueConnectionTableName = test.getAdjustedTableNameString(mockConnection, schemaName, tableName, Map.of(DEFAULT_GLUE_CONNECTION, "asdf"));
-        assertEquals(tableName.toLowerCase(), glueConnectionTableName);
-
-        TableName glueConnectionObject = test.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableName), Map.of(DEFAULT_GLUE_CONNECTION, "asdf"));
-        assertEquals(new TableName(schemaName.toLowerCase(), tableName.toLowerCase()), glueConnectionObject);
+        TableName glueConnectionObject = test.getAdjustedTableNameObject(mockConnection, new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME), Map.of(DEFAULT_GLUE_CONNECTION, TEST_SOURCE_TYPE));
+        assertEquals(new TableName(TEST_SCHEMA_LOWER, TEST_TABLE_LOWER), glueConnectionObject);
     }
 
     @Test
     public void testNoneOverrideCase() {
-        String schemaName = "oRaNgE";
-        String tableName = "ApPlE";
-        DefaultJDBCCaseResolver test = new DefaultJDBCCaseResolver("asdf", CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
+        DefaultJDBCCaseResolver test = new DefaultJDBCCaseResolver(TEST_SOURCE_TYPE, CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
         // no glue connection based on config will be upper case
-        String schemaNameOutput = test.getAdjustedSchemaNameString(mockConnection, schemaName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()));
-        assertEquals(schemaName, schemaNameOutput);
+        String schemaNameOutput = test.getAdjustedSchemaNameString(mockConnection, TEST_SCHEMA_NAME, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()));
+        assertEquals(TEST_SCHEMA_NAME, schemaNameOutput);
 
-        String tableNameOutput = test.getAdjustedTableNameString(mockConnection, schemaName, tableName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()));
-        assertEquals(tableName, tableNameOutput);
+        String tableNameOutput = test.getAdjustedTableNameString(mockConnection, TEST_SCHEMA_NAME, TEST_TABLE_NAME, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()));
+        assertEquals(TEST_TABLE_NAME, tableNameOutput);
 
-        TableName tableNameObjectOutput = test.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableName), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()));
-        assertEquals(new TableName(schemaName, tableName), tableNameObjectOutput);
+        TableName tableNameObjectOutput = test.getAdjustedTableNameObject(mockConnection, new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()));
+        assertEquals(new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME), tableNameObjectOutput);
     }
 
 
     @Test
     public void testAnnotationOverrideCase() {
-        // unsupported case
-        String schemaName = "oRaNgE";
-        String tableName = "ApPlE";
-        DefaultJDBCCaseResolver test = new DefaultJDBCCaseResolver("asdf", CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
+        DefaultJDBCCaseResolver test = new DefaultJDBCCaseResolver(TEST_SOURCE_TYPE, CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
 
         // unsupported case
-        assertThrows(UnsupportedOperationException.class, () -> test.getAdjustedSchemaNameString(mockConnection, schemaName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
-        assertThrows(UnsupportedOperationException.class, () -> test.getAdjustedTableNameString(mockConnection, schemaName, tableName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
-        assertThrows(UnsupportedOperationException.class, () ->  test.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableName), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
+        assertThrows(UnsupportedOperationException.class, () -> test.getAdjustedSchemaNameString(mockConnection, TEST_SCHEMA_NAME, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
+        assertThrows(UnsupportedOperationException.class, () -> test.getAdjustedTableNameString(mockConnection, TEST_SCHEMA_NAME, TEST_TABLE_NAME, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
+        assertThrows(UnsupportedOperationException.class, () ->  test.getAdjustedTableNameObject(mockConnection, new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
 
 
         // only snowflake and synapse support annotation, we should not expand the usage of annotation casing resolving.
-        DefaultJDBCCaseResolver saphana = new DefaultJDBCCaseResolver("saphana", CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
+        DefaultJDBCCaseResolver saphana = new DefaultJDBCCaseResolver(TEST_SAPHANA_SOURCE, CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
         // it doesn't support on name level, only TableName object level.
-        assertThrows(UnsupportedOperationException.class, () -> saphana.getAdjustedSchemaNameString(mockConnection, schemaName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
-        assertThrows(UnsupportedOperationException.class, () -> saphana.getAdjustedTableNameString(mockConnection, schemaName, tableName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
+        assertThrows(UnsupportedOperationException.class, () -> saphana.getAdjustedSchemaNameString(mockConnection, TEST_SCHEMA_NAME, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
+        assertThrows(UnsupportedOperationException.class, () -> saphana.getAdjustedTableNameString(mockConnection, TEST_SCHEMA_NAME, TEST_TABLE_NAME, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name())));
 
-        TableName adjustedTableNameObject = saphana.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableName), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name()));
-        assertEquals(new TableName(schemaName, tableName), adjustedTableNameObject);
+        TableName adjustedTableNameObject = saphana.getAdjustedTableNameObject(mockConnection, new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name()));
+        assertEquals(new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME), adjustedTableNameObject);
 
-        //default snowflake case if no annotation is to upper case, this is for backward compatibility.
-        String tableNameAnnotation = "ApPlE@schemaCase=upper&tableCase=lower";
-        adjustedTableNameObject = saphana.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableNameAnnotation), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name()));
-        assertEquals(new TableName(schemaName.toUpperCase(), tableName.toLowerCase()), adjustedTableNameObject);
+        adjustedTableNameObject = saphana.getAdjustedTableNameObject(mockConnection, new TableName(TEST_SCHEMA_NAME, TEST_TABLE_ANNOTATION), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.ANNOTATION.name()));
+        assertEquals(new TableName(TEST_SCHEMA_UPPER, TEST_TABLE_LOWER), adjustedTableNameObject);
     }
 
     @Test
     public void testCaseInsensitivelyOverrideCase()
     {
-        // unsupported case
-        String schemaName = "oRaNgE";
-        String tableName = "ApPlE";
-        DefaultJDBCCaseResolver test = new DefaultJDBCCaseResolver("asdf", CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
+        DefaultJDBCCaseResolver test = new DefaultJDBCCaseResolver(TEST_SOURCE_TYPE, CaseResolver.FederationSDKCasingMode.UPPER, CaseResolver.FederationSDKCasingMode.LOWER);
 
         // unsupported case
-        assertThrows(UnsupportedOperationException.class, () -> test.getAdjustedSchemaNameString(mockConnection, schemaName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
-        assertThrows(UnsupportedOperationException.class, () -> test.getAdjustedTableNameString(mockConnection, schemaName, tableName, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
-        assertThrows(UnsupportedOperationException.class, () ->  test.getAdjustedTableNameObject(mockConnection, new TableName(schemaName, tableName), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
+        assertThrows(UnsupportedOperationException.class, () -> test.getAdjustedSchemaNameString(mockConnection, TEST_SCHEMA_NAME, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
+        assertThrows(UnsupportedOperationException.class, () -> test.getAdjustedTableNameString(mockConnection, TEST_SCHEMA_NAME, TEST_TABLE_NAME, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
+        assertThrows(UnsupportedOperationException.class, () ->  test.getAdjustedTableNameObject(mockConnection, new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME), Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())));
     }
 
     @Test
     public void testSchemaNameCaseInsensitively() throws Exception {
-        String inputSchema = "MySchema";
-        String expectedSchema = "myschema";
-
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
         when(mockResultSet.next()).thenReturn(true, false);
-        when(mockResultSet.getString("schema_name")).thenReturn(expectedSchema);
-        String result = testableHelper.getAdjustedSchemaNameString(mockConnection, inputSchema, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()));
-        assertEquals(expectedSchema, result);
+        when(mockResultSet.getString("schema_name")).thenReturn(TEST_EXPECTED_SCHEMA);
+        String result = testableHelper.getAdjustedSchemaNameString(mockConnection, TEST_INPUT_SCHEMA, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()));
+        assertEquals(TEST_EXPECTED_SCHEMA, result);
 
         //Exception scenario
         when(mockResultSet.next()).thenReturn(true,true, false);
         AthenaConnectorException ex = assertThrows(AthenaConnectorException.class, () ->
-                testableHelper.getAdjustedSchemaNameString(mockConnection, inputSchema, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()))
+                testableHelper.getAdjustedSchemaNameString(mockConnection, TEST_INPUT_SCHEMA, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()))
         );
         assertTrue(ex.getMessage().contains("Schema name case insensitive match failed"));
 
@@ -173,12 +171,10 @@ public class DefaultJDBCCaseResolverTest
 
     @Test
     public void testDoGetSchemaNameCaseInsensitively_sqlExceptionThrown() throws Exception {
-        String input = "InvalidSchema";
-
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenThrow(new SQLException("DB error"));
         RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                testableHelper.doGetSchemaNameCaseInsensitively(mockConnection, input, Map.of())
+                testableHelper.doGetSchemaNameCaseInsensitively(mockConnection, TEST_INVALID_SCHEMA, Map.of())
         );
 
         assertTrue(ex.getMessage().contains("getSchemaNameCaseInsensitively query failed for"));
@@ -186,22 +182,18 @@ public class DefaultJDBCCaseResolverTest
 
     @Test
     public void testTableNameCaseInsensitively() throws Exception {
-        String inputSchema = "MySchema";
-        String inputTable = "Table1";
-        String expectedTable = "table1";
-
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
         when(mockResultSet.next()).thenReturn(true, false);
-        when(mockResultSet.getString("table_name")).thenReturn(expectedTable);
+        when(mockResultSet.getString("table_name")).thenReturn(TEST_EXPECTED_TABLE);
 
-        String result = testableHelper.getAdjustedTableNameString(mockConnection, inputSchema, inputTable, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()));
-        assertEquals(expectedTable, result);
+        String result = testableHelper.getAdjustedTableNameString(mockConnection, TEST_INPUT_SCHEMA, TEST_INPUT_TABLE, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()));
+        assertEquals(TEST_EXPECTED_TABLE, result);
 
         //Exception scenario
         when(mockResultSet.next()).thenReturn(true,true, false);
         AthenaConnectorException ex = assertThrows(AthenaConnectorException.class, () ->
-                testableHelper.getAdjustedTableNameString(mockConnection, inputSchema, inputTable, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()))
+                testableHelper.getAdjustedTableNameString(mockConnection, TEST_INPUT_SCHEMA, TEST_INPUT_TABLE, Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()))
         );
         assertTrue(ex.getMessage().contains("Table name case insensitive match failed"));
 
@@ -213,12 +205,10 @@ public class DefaultJDBCCaseResolverTest
 
     @Test
     public void testDoGetTableNameCaseInsensitively_sqlExceptionThrown() throws Exception {
-        String inputSchema = "InvalidSchema";
-        String inputTable = "InvalidTable";
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenThrow(new SQLException("DB error"));
         RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                testableHelper.doGetTableNameCaseInsensitively(mockConnection, inputSchema, inputTable, Map.of())
+                testableHelper.doGetTableNameCaseInsensitively(mockConnection, TEST_INVALID_SCHEMA, TEST_INVALID_TABLE, Map.of())
         );
 
         assertTrue(ex.getMessage().contains("getTableNameCaseInsensitively query failed for schema"));

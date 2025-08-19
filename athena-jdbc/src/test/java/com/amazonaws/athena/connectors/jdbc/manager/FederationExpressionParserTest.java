@@ -44,6 +44,17 @@ import static org.mockito.Mockito.when;
 
 public class FederationExpressionParserTest {
 
+    private static final String TEST_COLUMN_NAME = "column";
+    private static final String TEST_VALUE = "val";
+    private static final String TEST_AGE_COLUMN = "age";
+    private static final int TEST_AGE_VALUE = 25;
+    private static final String TEST_COL_NAME = "col";
+    private static final int TEST_ROW_COUNT = 2;
+    private static final int TEST_SINGLE_ROW_COUNT = 1;
+    private static final String TEST_FUNCTION_NAME = "ADD";
+    private static final String TEST_EQUALS_FUNCTION = "EQUALS";
+    private static final String TEST_IS_NULL_FUNCTION = "IS_NULL";
+
     private FederationExpressionParser parser;
 
     @Before
@@ -58,17 +69,17 @@ public class FederationExpressionParserTest {
 
     @Test
     public void testParseVariableExpression() {
-        VariableExpression variableExpression = new VariableExpression("column", new ArrowType.Int(32, true));
-        assertEquals("column", parser.parseVariableExpression(variableExpression));
+        VariableExpression variableExpression = new VariableExpression(TEST_COLUMN_NAME, new ArrowType.Int(32, true));
+        assertEquals(TEST_COLUMN_NAME, parser.parseVariableExpression(variableExpression));
     }
 
     @Test
     public void testParseConstantExpression() {
         FieldReader mockReader = mock(FieldReader.class);
-        when(mockReader.readObject()).thenReturn("val");
+        when(mockReader.readObject()).thenReturn(TEST_VALUE);
 
         Block mockBlock = mock(Block.class);
-        when(mockBlock.getRowCount()).thenReturn(2);
+        when(mockBlock.getRowCount()).thenReturn(TEST_ROW_COUNT);
         when(mockBlock.getFieldReader(anyString())).thenReturn(mockReader);
 
         ConstantExpression constantExpression = new ConstantExpression(mockBlock, new ArrowType.Utf8());
@@ -77,34 +88,34 @@ public class FederationExpressionParserTest {
         String result = parser.parseConstantExpression(constantExpression, acc);
 
         assertEquals("?,?", result);
-        assertEquals(2, acc.size());
-        assertEquals("val", acc.get(0).getValue());
+        assertEquals(TEST_ROW_COUNT, acc.size());
+        assertEquals(TEST_VALUE, acc.get(0).getValue());
     }
 
     @Test
     public void testParseFunctionCallExpressionWithAllTypes() {
-        VariableExpression variableExpr = new VariableExpression("age", new ArrowType.Int(32, true));
+        VariableExpression variableExpr = new VariableExpression(TEST_AGE_COLUMN, new ArrowType.Int(32, true));
 
         Block mockBlock = mock(Block.class);
         FieldReader mockReader = mock(FieldReader.class);
-        when(mockReader.readObject()).thenReturn(25);
-        when(mockBlock.getRowCount()).thenReturn(1);
+        when(mockReader.readObject()).thenReturn(TEST_AGE_VALUE);
+        when(mockBlock.getRowCount()).thenReturn(TEST_SINGLE_ROW_COUNT);
         when(mockBlock.getFieldReader(anyString())).thenReturn(mockReader);
 
         ConstantExpression constantExpr = new ConstantExpression(mockBlock, new ArrowType.Int(32, true));
 
         FunctionCallExpression nestedFunc = new FunctionCallExpression(
                 new ArrowType.Int(32, true),
-                new FunctionName("ADD"),
+                new FunctionName(TEST_FUNCTION_NAME),
                 List.of(variableExpr, constantExpr)
         );
 
         List<TypeAndValue> acc = new ArrayList<>();
         String result = parser.parseFunctionCallExpression(nestedFunc, acc);
 
-        assertTrue(result.startsWith("ADD("));
-        assertEquals(1, acc.size());
-        assertEquals(25, acc.get(0).getValue());
+        assertTrue(result.startsWith(TEST_FUNCTION_NAME + "("));
+        assertEquals(TEST_SINGLE_ROW_COUNT, acc.size());
+        assertEquals(TEST_AGE_VALUE, acc.get(0).getValue());
     }
 
     @Test(expected = AthenaConnectorException.class)
@@ -112,7 +123,7 @@ public class FederationExpressionParserTest {
         FederationExpression unknown = mock(FederationExpression.class);
         FunctionCallExpression functionCall = new FunctionCallExpression(
                 new ArrowType.Bool(),
-                new FunctionName("EQUALS"),
+                new FunctionName(TEST_EQUALS_FUNCTION),
                 List.of(unknown)
         );
 
@@ -133,10 +144,10 @@ public class FederationExpressionParserTest {
 
     @Test
     public void testParseComplexExpressionsSingleFunction() {
-        VariableExpression variableExpr = new VariableExpression("col", new ArrowType.Int(32, true));
+        VariableExpression variableExpr = new VariableExpression(TEST_COL_NAME, new ArrowType.Int(32, true));
 
         FunctionCallExpression funcExpr = new FunctionCallExpression(
-                new ArrowType.Bool(), new FunctionName("IS_NULL"), List.of(variableExpr));
+                new ArrowType.Bool(), new FunctionName(TEST_IS_NULL_FUNCTION), List.of(variableExpr));
 
         Constraints mockConstraints = mock(Constraints.class);
         when(mockConstraints.getExpression()).thenReturn(List.of(funcExpr));
@@ -145,6 +156,6 @@ public class FederationExpressionParserTest {
         List<String> expressions = parser.parseComplexExpressions(List.of(), mockConstraints, acc);
 
         assertEquals(1, expressions.size());
-        assertEquals("IS_NULL(col)", expressions.get(0));
+        assertEquals(TEST_IS_NULL_FUNCTION + "(" + TEST_COL_NAME + ")", expressions.get(0));
     }
 }

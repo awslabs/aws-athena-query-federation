@@ -59,18 +59,25 @@ public class MultiplexingJdbcRecordHandlerTest
     private JdbcConnectionFactory jdbcConnectionFactory;
     private DatabaseConnectionConfig databaseConnectionConfig;
 
+    private static final String FAKE_DATABASE = "fakedatabase";
+    private static final String TEST_CATALOG = "testCatalog";
+    private static final String TEST_SECRET = "testSecret";
+    private static final String UNSUPPORTED_CATALOG = "unsupportedCatalog";
+    private static final String CONNECTION_STRING = FAKE_DATABASE + "://jdbc:" + FAKE_DATABASE + "://hostname/${" + TEST_SECRET + "}";
+    private static final int MAX_CATALOGS = 100;
+    private static final int TOO_MANY_CATALOGS = 101;
+
     @Before
     public void setup()
     {
         this.fakeJdbcRecordHandler = Mockito.mock(JdbcRecordHandler.class);
-        this.recordHandlerMap = Collections.singletonMap("fakedatabase", this.fakeJdbcRecordHandler);
+        this.recordHandlerMap = Collections.singletonMap(FAKE_DATABASE, this.fakeJdbcRecordHandler);
         this.amazonS3 = Mockito.mock(S3Client.class);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
-                "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
+        databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, FAKE_DATABASE, CONNECTION_STRING, TEST_SECRET);
         this.jdbcRecordHandler = new MultiplexingJdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
@@ -80,7 +87,7 @@ public class MultiplexingJdbcRecordHandlerTest
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
+        when(readRecordsRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
         Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest), Mockito.eq(queryStatusChecker));
     }
@@ -91,7 +98,8 @@ public class MultiplexingJdbcRecordHandlerTest
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        when(readRecordsRequest.getCatalogName()).thenReturn("unsupportedCatalog");
+        when(readRecordsRequest.getCatalogName()).thenReturn(UNSUPPORTED_CATALOG);
+        when(readRecordsRequest.getCatalogName()).thenReturn(UNSUPPORTED_CATALOG);
         this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
     }
 
@@ -100,20 +108,20 @@ public class MultiplexingJdbcRecordHandlerTest
             throws SQLException
     {
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
+        when(readRecordsRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         Connection jdbcConnection = Mockito.mock(Connection.class);
         TableName tableName = new TableName("testSchema", "tableName");
         Schema schema = Mockito.mock(Schema.class);
         Constraints constraints = Mockito.mock(Constraints.class);
         Split split = Mockito.mock(Split.class);
-        this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "fakedatabase", tableName, schema, constraints, split);
+        this.jdbcRecordHandler.buildSplitSql(jdbcConnection, FAKE_DATABASE, tableName, schema, constraints, split);
         Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq("fakedatabase"), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
     }
 
     @Test
     public void testConstructor_withTooManyHandlers_shouldThrowException() {
         recordHandlerMap = new HashMap<>();
-        for (int i = 0; i < 101; i++) {
+        for (int i = 0; i < TOO_MANY_CATALOGS; i++) {
             recordHandlerMap.put("catalog" + i, fakeJdbcRecordHandler);
         }
 
@@ -128,7 +136,7 @@ public class MultiplexingJdbcRecordHandlerTest
                         com.google.common.collect.ImmutableMap.of()
                 )
         );
-        assertTrue(exception.getMessage().contains("Max 100 catalogs supported in multiplexer"));
+        assertTrue(exception.getMessage().contains("Max " + MAX_CATALOGS + " catalogs supported in multiplexer"));
     }
 
     @Test

@@ -29,19 +29,28 @@ import static org.junit.Assert.assertEquals;
 
 public class JdbcEnvironmentPropertiesTest
 {
+    private static final String TEST_HOST = "test.host.com";
+    private static final String TEST_PORT = "1234";
+    private static final String TEST_DATABASE = "testdb";
+    private static final String TEST_SECRET = "testSecret";
+    private static final String TEST_ENCRYPT_PARAM = "encrypt=false";
+    private static final String CONNECTION_STRING_PREFIX = "databaseName://jdbc:databaseName://";
+    private static final String BASE_CONNECTION_STRING = CONNECTION_STRING_PREFIX + TEST_HOST + ":" + TEST_PORT + "/" + TEST_DATABASE;
+
     private Map<String, String> connectionProperties;
     private JdbcEnvironmentProperties jdbcEnvironmentProperties;
+
     @Before
     public void setup()
     {
         connectionProperties = new HashMap<>();
-        connectionProperties.put(HOST, "test.host.com");
-        connectionProperties.put(PORT, "1234");
-        connectionProperties.put(DATABASE, "testdb");
+        connectionProperties.put(HOST, TEST_HOST);
+        connectionProperties.put(PORT, TEST_PORT);
+        connectionProperties.put(DATABASE, TEST_DATABASE);
         jdbcEnvironmentProperties = new JdbcEnvironmentProperties() {
             @Override
             protected String getConnectionStringPrefix(Map<String, String> connectionProperties) {
-                return "databaseName://jdbc:databaseName://";
+                return CONNECTION_STRING_PREFIX;
             }
         };
     }
@@ -49,35 +58,36 @@ public class JdbcEnvironmentPropertiesTest
     @Test
     public void testConnectionPropertiesWithNoParams() {
         Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expected = "databaseName://jdbc:databaseName://test.host.com:1234/testdb?";
+        String expected = BASE_CONNECTION_STRING + "?";
 
         assertEquals(expected, result.get(DEFAULT));
     }
 
     @Test
     public void testConnectionPropertiesWithOnlySecret() {
-        connectionProperties.put(SECRET_NAME, "testSecret");
+        connectionProperties.put(SECRET_NAME, TEST_SECRET);
         Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expected = "databaseName://jdbc:databaseName://test.host.com:1234/testdb?${testSecret}";
+        String expected = BASE_CONNECTION_STRING + "?${" + TEST_SECRET + "}";
 
         assertEquals(expected, result.get(DEFAULT));
     }
 
     @Test
     public void testConnectionPropertiesWithOnlyJdbcParams() {
-        connectionProperties.put(JDBC_PARAMS, "ssl=true");
+        final String sslParam = "ssl=true";
+        connectionProperties.put(JDBC_PARAMS, sslParam);
         Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expected = "databaseName://jdbc:databaseName://test.host.com:1234/testdb?ssl=true";
+        String expected = BASE_CONNECTION_STRING + "?" + sslParam;
 
         assertEquals(expected, result.get(DEFAULT));
     }
 
     @Test
     public void testConnectionPropertiesWithDatabaseAndParamsAndSecret() {
-        connectionProperties.put(JDBC_PARAMS, "encrypt=false");
-        connectionProperties.put(SECRET_NAME, "testSecret");
+        connectionProperties.put(JDBC_PARAMS, TEST_ENCRYPT_PARAM);
+        connectionProperties.put(SECRET_NAME, TEST_SECRET);
         Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expected = "databaseName://jdbc:databaseName://test.host.com:1234/testdb?encrypt=false&${testSecret}";
+        String expected = BASE_CONNECTION_STRING + "?" + TEST_ENCRYPT_PARAM + "&${" + TEST_SECRET + "}";
 
         assertEquals(expected, result.get(DEFAULT));
     }

@@ -105,6 +105,19 @@ import static org.mockito.Mockito.when;
 public class JdbcRecordHandlerTest
         extends TestBase
 {
+    private static final String TEST_CATALOG = "testCatalog";
+    private static final String TEST_SECRET = "testSecret";
+    private static final String TEST_QUERY_ID = "testQueryId";
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable";
+    private static final String TEST_COL1 = "testCol1";
+    private static final String TEST_COL2 = "testCol2";
+    private static final String TEST_PARTITION_COL = "testPartitionCol";
+    private static final String TEST_PARTITION_VALUE = "testPartitionValue";
+    private static final String TEST_VAL1 = "testVal1";
+    private static final String TEST_VAL2 = "testVal2";
+    private static final String CONNECTION_STRING = "fakedatabase://jdbc:fakedatabase://hostname/${" + TEST_SECRET + "}";
+    private static final String TEST_SQL = "someSql";
 
     private JdbcRecordHandler jdbcRecordHandler;
     private Connection connection;
@@ -130,16 +143,16 @@ public class JdbcRecordHandlerTest
         when(this.queryStatusChecker.isQueryRunning()).thenReturn(true);
         when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.preparedStatement = Mockito.mock(PreparedStatement.class);
-        when(this.connection.prepareStatement("someSql")).thenReturn(this.preparedStatement);
-        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
-                "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
+        when(this.connection.prepareStatement(TEST_SQL)).thenReturn(this.preparedStatement);
+        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, "fakedatabase",
+                CONNECTION_STRING, TEST_SECRET);
         this.jdbcRecordHandler = new JdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, databaseConnectionConfig, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of())
         {
             @Override
             public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
                     throws SQLException
             {
-                return jdbcConnection.prepareStatement("someSql");
+                return jdbcConnection.prepareStatement(TEST_SQL);
             }
         };
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
@@ -151,24 +164,24 @@ public class JdbcRecordHandlerTest
         ConstraintEvaluator constraintEvaluator = Mockito.mock(ConstraintEvaluator.class);
         when(constraintEvaluator.apply(nullable(String.class), any())).thenReturn(true);
 
-        TableName inputTableName = new TableName("testSchema", "testTable");
+        TableName inputTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
-        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testPartitionCol", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL1, org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL2, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder(TEST_PARTITION_COL, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema fieldSchema = expectedSchemaBuilder.build();
 
         BlockAllocator allocator = new BlockAllocatorImpl();
         S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder().withIsDirectory(true).build();
 
         Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
-                .add("testPartitionCol", String.valueOf("testPartitionValue"));
+                .add(TEST_PARTITION_COL, String.valueOf(TEST_PARTITION_VALUE));
 
         Constraints constraints = Mockito.mock(Constraints.class, Mockito.RETURNS_DEEP_STUBS);
 
-        String[] schema = {"testCol1", "testCol2"};
+        String[] schema = {TEST_COL1, TEST_COL2};
         int[] columnTypes = {Types.INTEGER, Types.VARCHAR};
-        Object[][] values = {{1, "testVal1"}, {2, "testVal2"}};
+        Object[][] values = {{1, TEST_VAL1}, {2, TEST_VAL2}};
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, columnTypes, values, rowNumber);
         when(this.preparedStatement.executeQuery()).thenReturn(resultSet);
@@ -181,7 +194,7 @@ public class JdbcRecordHandlerTest
         SpillConfig spillConfig = Mockito.mock(SpillConfig.class);
         when(spillConfig.getSpillLocation()).thenReturn(s3SpillLocation);
         BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator, com.google.common.collect.ImmutableMap.of());
-        ReadRecordsRequest readRecordsRequest = new ReadRecordsRequest(this.federatedIdentity, "testCatalog", "testQueryId", inputTableName, fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
+        ReadRecordsRequest readRecordsRequest = new ReadRecordsRequest(this.federatedIdentity, TEST_CATALOG, TEST_QUERY_ID, inputTableName, fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
 
         when(amazonS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
@@ -190,7 +203,7 @@ public class JdbcRecordHandlerTest
                     byte[] bytes = new byte[n];
                     inputStream.read(bytes, 0, n);
                     String data = new String(bytes, StandardCharsets.UTF_8);
-                    Assert.assertTrue(data.contains("testVal1") || data.contains("testVal2") || data.contains("testPartitionValue"));
+                    Assert.assertTrue(data.contains(TEST_VAL1) || data.contains(TEST_VAL2) || data.contains(TEST_PARTITION_VALUE));
                     return PutObjectResponse.builder().build();
                 });
 
@@ -200,17 +213,17 @@ public class JdbcRecordHandlerTest
     public void makeExtractor()
             throws Exception
     {
-        String[] schema = {"testCol1", "testCol2", "testCol10"};
+        String[] schema = {TEST_COL1, TEST_COL2, "testCol10"};
         int[] columnTypes = {Types.INTEGER, Types.VARCHAR, Types.DOUBLE};
-        Object[][] values = {{1, "testVal1", "$1,000.50"}, {2, "testVal2", "$100.00"}};
+        Object[][] values = {{1, TEST_VAL1, "$1,000.50"}, {2, TEST_VAL2, "$100.00"}};
         AtomicInteger rowNumber = new AtomicInteger(0);
 
         ResultSet resultSet = mockResultSet(schema, columnTypes, values, rowNumber);
         when(this.preparedStatement.executeQuery()).thenReturn(resultSet);
-        Map<String,String> partitionMap = Collections.singletonMap("testPartitionCol","testPartitionValue");
+        Map<String,String> partitionMap = Collections.singletonMap(TEST_PARTITION_COL, TEST_PARTITION_VALUE);
 
-        Extractor actualInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build(),resultSet,partitionMap);
-        Extractor actualVarchar = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),resultSet,partitionMap);
+        Extractor actualInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder(TEST_COL1, org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build(),resultSet,partitionMap);
+        Extractor actualVarchar = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder(TEST_COL2, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),resultSet,partitionMap);
         Extractor actualBit = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.BIT.getType()).build(),resultSet,partitionMap);
         Extractor actualTinyInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType()).build(),resultSet,partitionMap);
         Extractor actualSmallInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol5", org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType()).build(),resultSet,partitionMap);

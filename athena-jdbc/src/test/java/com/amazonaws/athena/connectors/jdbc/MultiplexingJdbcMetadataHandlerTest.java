@@ -60,20 +60,25 @@ public class MultiplexingJdbcMetadataHandlerTest
     private JdbcConnectionFactory jdbcConnectionFactory;
     private DatabaseConnectionConfig databaseConnectionConfig;
 
+    private static final String FAKE_DATABASE = "fakedatabase";
+    private static final String TEST_CATALOG = "testCatalog";
+    private static final String TEST_SECRET = "testSecret";
+    private static final String UNSUPPORTED_CATALOG = "unsupportedCatalog";
+    private static final String CONNECTION_STRING = FAKE_DATABASE + "://jdbc:" + FAKE_DATABASE + "://hostname/${" + TEST_SECRET + "}";
+    private static final int MAX_CATALOGS = 100;
+    private static final int TOO_MANY_CATALOGS = 101;
+
     @Before
     public void setup()
     {
-        //this.allocator = Mockito.mock(BlockAllocator.class);
         this.allocator = new BlockAllocatorImpl();
-        //Mockito.when(this.allocator.createBlock(nullable(Schema.class))).thenReturn(Mockito.mock(Block.class));
         this.fakeDatabaseHandler = Mockito.mock(JdbcMetadataHandler.class);
-        this.metadataHandlerMap = Collections.singletonMap("fakedatabase", this.fakeDatabaseHandler);
+        this.metadataHandlerMap = Collections.singletonMap(FAKE_DATABASE, this.fakeDatabaseHandler);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
-                "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
+        databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, FAKE_DATABASE, CONNECTION_STRING, TEST_SECRET);
         this.jdbcMetadataHandler = new MultiplexingJdbcMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
 
@@ -82,7 +87,7 @@ public class MultiplexingJdbcMetadataHandlerTest
             throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
-        Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(listSchemasRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcMetadataHandler.doListSchemaNames(this.allocator, listSchemasRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doListSchemaNames(Mockito.eq(this.allocator), Mockito.eq(listSchemasRequest));
     }
@@ -92,7 +97,7 @@ public class MultiplexingJdbcMetadataHandlerTest
             throws Exception
     {
         ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
-        Mockito.when(listTablesRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(listTablesRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcMetadataHandler.doListTables(this.allocator, listTablesRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doListTables(Mockito.eq(this.allocator), Mockito.eq(listTablesRequest));
     }
@@ -102,7 +107,7 @@ public class MultiplexingJdbcMetadataHandlerTest
             throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
-        Mockito.when(getTableRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(getTableRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcMetadataHandler.doGetTable(this.allocator, getTableRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetTable(Mockito.eq(this.allocator), Mockito.eq(getTableRequest));
     }
@@ -113,7 +118,7 @@ public class MultiplexingJdbcMetadataHandlerTest
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
-        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcMetadataHandler.doGetTableLayout(this.allocator, getTableLayoutRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetTableLayout(Mockito.eq(this.allocator), Mockito.eq(getTableLayoutRequest));
     }
@@ -121,14 +126,14 @@ public class MultiplexingJdbcMetadataHandlerTest
     @Test
     public void getPartitionSchema()
     {
-        this.jdbcMetadataHandler.getPartitionSchema("fakedatabase");
-        Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).getPartitionSchema(Mockito.eq("fakedatabase"));
+        this.jdbcMetadataHandler.getPartitionSchema(FAKE_DATABASE);
+        Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).getPartitionSchema(Mockito.eq(FAKE_DATABASE));
     }
 
     @Test(expected = RuntimeException.class)
     public void getPartitionSchemaForUnsupportedCatalog()
     {
-        this.jdbcMetadataHandler.getPartitionSchema("unsupportedCatalog");
+        this.jdbcMetadataHandler.getPartitionSchema(UNSUPPORTED_CATALOG);
     }
 
 
@@ -137,7 +142,7 @@ public class MultiplexingJdbcMetadataHandlerTest
             throws Exception
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
-        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcMetadataHandler.getPartitions(Mockito.mock(BlockWriter.class), getTableLayoutRequest, queryStatusChecker);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).getPartitions(nullable(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
     }
@@ -146,7 +151,7 @@ public class MultiplexingJdbcMetadataHandlerTest
     public void doGetSplits()
     {
         GetSplitsRequest getSplitsRequest = Mockito.mock(GetSplitsRequest.class);
-        Mockito.when(getSplitsRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(getSplitsRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcMetadataHandler.doGetSplits(this.allocator, getSplitsRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetSplits(Mockito.eq(this.allocator), Mockito.eq(getSplitsRequest));
     }
@@ -154,7 +159,7 @@ public class MultiplexingJdbcMetadataHandlerTest
     @Test
     public void testConstructor_withTooManyHandlers_shouldThrowException() {
         metadataHandlerMap = new HashMap<>();
-        for (int i = 0; i < 101; i++) {
+        for (int i = 0; i < TOO_MANY_CATALOGS; i++) {
             metadataHandlerMap.put("catalog" + i, fakeDatabaseHandler);
         }
 
@@ -168,7 +173,7 @@ public class MultiplexingJdbcMetadataHandlerTest
                         com.google.common.collect.ImmutableMap.of()
                 )
         );
-        assertTrue(exception.getMessage().contains("Max 100 catalogs supported in multiplexer"));
+        assertTrue(exception.getMessage().contains("Max " + MAX_CATALOGS + " catalogs supported in multiplexer"));
     }
 
     @Test
@@ -176,7 +181,7 @@ public class MultiplexingJdbcMetadataHandlerTest
             throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
-        Mockito.when(getTableRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(getTableRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcMetadataHandler.doGetQueryPassthroughSchema(this.allocator, getTableRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetQueryPassthroughSchema(Mockito.eq(this.allocator), Mockito.eq(getTableRequest));
     }
@@ -185,7 +190,7 @@ public class MultiplexingJdbcMetadataHandlerTest
     public void testDoGetDataSourceCapabilities()
     {
         GetDataSourceCapabilitiesRequest getDataSourceCapabilitiesRequest = Mockito.mock(GetDataSourceCapabilitiesRequest.class);
-        Mockito.when(getDataSourceCapabilitiesRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(getDataSourceCapabilitiesRequest.getCatalogName()).thenReturn(FAKE_DATABASE);
         this.jdbcMetadataHandler.doGetDataSourceCapabilities(this.allocator, getDataSourceCapabilitiesRequest);
         Mockito.verify(this.fakeDatabaseHandler, Mockito.times(1)).doGetDataSourceCapabilities(Mockito.eq(this.allocator), Mockito.eq(getDataSourceCapabilitiesRequest));
     }
