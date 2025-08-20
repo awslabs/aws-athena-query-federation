@@ -24,9 +24,6 @@ import com.amazonaws.athena.connector.substrait.model.Operator;
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
 import io.substrait.proto.SimpleExtensionDeclaration;
-import org.apache.arrow.vector.types.DateUnit;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -151,73 +148,9 @@ public final class SubstraitFunctionParser
     private static Pair<Object, ArrowType> extractValueWithPossibleCast(Expression expr)
     {
         if (expr.hasCast()) {
-            return extractLiteralValue(expr.getCast().getInput());
+            return SubstraitLiteralConverter.extractLiteralValue(expr.getCast().getInput());
         }
-        return extractLiteralValue(expr);
-    }
-
-    /**
-     * Extracts a literal value and its corresponding Arrow type from a Substrait literal expression.
-     */
-    private static Pair<Object, ArrowType> extractLiteralValue(Expression expr)
-    {
-        if (!expr.hasLiteral()) {
-            throw new IllegalArgumentException("Expected literal value in expression");
-        }
-
-        Expression.Literal literal = expr.getLiteral();
-        ArrowType arrowType;
-
-        switch (literal.getLiteralTypeCase()) {
-            case I8:
-                arrowType = new ArrowType.Int(8, true);
-                return Pair.of(literal.getI8(), arrowType);
-            case I16:
-                arrowType = new ArrowType.Int(16, true);
-                return Pair.of(literal.getI16(), arrowType);
-            case I32:
-                arrowType = new ArrowType.Int(32, true);
-                return Pair.of(literal.getI32(), arrowType);
-            case I64:
-                arrowType = new ArrowType.Int(64, true);
-                return Pair.of(literal.getI64(), arrowType);
-            case FP32:
-                arrowType = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
-                return Pair.of(literal.getFp32(), arrowType);
-            case FP64:
-                arrowType = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
-                return Pair.of(literal.getFp64(), arrowType);
-            case STRING:
-                arrowType = new ArrowType.Utf8();
-                return Pair.of(literal.getString(), arrowType);
-            case BOOLEAN:
-                arrowType = new ArrowType.Bool();
-                return Pair.of(literal.getBoolean(), arrowType);
-            case BINARY:
-                arrowType = new ArrowType.Binary();
-                return Pair.of(literal.getBoolean(), arrowType);
-            case FIXED_BINARY:
-                arrowType = new ArrowType.FixedSizeBinary(32);
-                return Pair.of(literal.getBoolean(), arrowType);
-            case TIME:
-            case TIMESTAMP:
-                arrowType = new ArrowType.Time(TimeUnit.MILLISECOND, 32);
-                return Pair.of(literal.getTime(), arrowType);
-            case DATE:
-                arrowType = new ArrowType.Date(DateUnit.DAY);
-                return Pair.of(literal.getDate(), arrowType);
-            case DECIMAL:
-                arrowType = new ArrowType.Decimal(38, 10, 128);
-                return Pair.of(literal.getDecimal(), arrowType);
-            case VAR_CHAR:
-                arrowType = new ArrowType.Utf8();
-                return Pair.of(literal.getVarChar().getValue(), arrowType);
-            case FIXED_CHAR:
-                arrowType = new ArrowType.Utf8();
-                return Pair.of(literal.getFixedChar(), arrowType);
-            default:
-                throw new UnsupportedOperationException("Unsupported literal type: " + literal.getLiteralTypeCase());
-        }
+        return SubstraitLiteralConverter.extractLiteralValue(expr);
     }
 
     /**

@@ -220,6 +220,7 @@ public class DynamoDBRecordHandler
         Iterator<Map<String, AttributeValue>> itemIterator =
                 getIterator(split, tableName, recordsRequest.getSchema(), recordsRequest.getConstraints(),
                         disableProjectionAndCasing, plan, overrideConfig);
+        // Variable to determine limit can be applied or not, If applicable what is the limit value.
         Pair<Boolean, Integer> limitPair = getLimit(plan, recordsRequest.getConstraints());
         writeItemsToBlock(spiller, recordsRequest, queryStatusChecker, recordMetadata, itemIterator, disableProjectionAndCasing, limitPair);
     }
@@ -290,6 +291,7 @@ public class DynamoDBRecordHandler
             }
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
+            // If limit is enabled and records fetched is greater than limit, We can stop execution.
             if (limitPair.getLeft() && numRows >= limitPair.getRight()) {
                 return;
             }
@@ -501,6 +503,7 @@ public class DynamoDBRecordHandler
                 if (currentPageIterator.get() != null && currentPageIterator.get().hasNext()) {
                     return currentPageIterator.get().next();
                 }
+                // Variable to determine limit can be applied or not, If applicable what is the limit value.
                 Pair<Boolean, Integer> limitPair = getLimit(plan, constraints);
                 Iterator<Map<String, AttributeValue>> iterator;
                 try {
