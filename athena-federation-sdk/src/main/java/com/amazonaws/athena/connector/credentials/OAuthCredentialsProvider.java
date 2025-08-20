@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
 
@@ -38,119 +37,74 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.ACCESS_TOKEN;
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.EXPIRES_IN;
+
 /**
- * Base class for OAuth credential providers that handle token lifecycle management.
- * Supports both OAuth token and username/password authentication.
+ * Base class for OAuth credential providers.
+ * Handles OAuth token lifecycle management.
  */
 public abstract class OAuthCredentialsProvider implements CredentialsProvider
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OAuthCredentialsProvider.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    // Constants for OAuth token response fields
-    public static final String ACCESS_TOKEN = "access_token";
-    public static final String EXPIRES_IN = "expires_in";
-    public static final String FETCHED_AT = "fetched_at";
-
-    // Constants for OAuth configuration fields
-    public static final String CLIENT_ID = "client_id";
-    public static final String CLIENT_SECRET = "client_secret";
-
-    // Constants for basic authentication fields
-    public static final String USERNAME = "username";
-    public static final String PASSWORD = "password";
-    public static final String USER = "user";
-
     private final String secretName;
     private final CachableSecretsManager secretsManager;
+    private final Map<String, String> secretMap;
+
     private final HttpClient httpClient;
 
-    protected OAuthCredentialsProvider(String secretName)
+    protected OAuthCredentialsProvider(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager)
     {
-        this(secretName, SecretsManagerClient.create(), HttpClient.newBuilder().build());
+        this(secretName, secretMap, secretsManager, HttpClient.newBuilder().build());
     }
 
-    protected OAuthCredentialsProvider(String secretName, SecretsManagerClient secretsClient, HttpClient httpClient)
+    protected OAuthCredentialsProvider(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager, HttpClient httpClient)
     {
         this.secretName = secretName;
-        this.secretsManager = new CachableSecretsManager(secretsClient);
+        this.secretsManager = secretsManager;
+        this.secretMap = secretMap;
         this.httpClient = httpClient;
     }
 
     @Override
-    public DefaultCredentials getCredential()
-    {
-        Map<String, String> credentialMap = getCredentialMap();
-        return new DefaultCredentials(
-            credentialMap.get(USER),
-            credentialMap.get(PASSWORD)
-        );
-    }
-
-    @Override
-    public Map<String, String> getCredentialMap()
+    public Credentials getCredential()
     {
         try {
-            String secretString = secretsManager.getSecret(secretName);
-            Map<String, String> secretMap = OBJECT_MAPPER.readValue(secretString, Map.class);
-
-            if (isOAuthConfigured(secretMap)) {
-                String accessToken = getOAuthAccessToken(secretMap);
-                return mapOAuthCredentials(accessToken);
-            }
-            else {
-                // Fallback to username/password
-                return Map.of(
-                    USER, secretMap.getOrDefault(USERNAME, ""),
-                    PASSWORD, secretMap.getOrDefault(PASSWORD, "")
-                );
-            }
+            String accessToken = getOAuthAccessToken(secretMap);
+            return new OAuthAccessTokenCredentials(accessToken);
         }
         catch (ResourceNotFoundException e) {
-            throw new AthenaConnectorException(
-                "Secret not found: " + secretName,
+            throw new AthenaConnectorException("Secret not found: " + secretName,
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage(e.getMessage())
+                    .build());
         }
         catch (JsonProcessingException e) {
-            throw new AthenaConnectorException(
-                "Failed to parse secret JSON",
+            throw new AthenaConnectorException("Failed to parse secret JSON",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage(e.getMessage())
+                    .build());
         }
         catch (IOException e) {
-            throw new AthenaConnectorException(
-                "Failed to communicate with OAuth endpoint",
+            throw new AthenaConnectorException("Failed to communicate with OAuth endpoint",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage(e.getMessage())
+                    .build());
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new AthenaConnectorException(
-                "OAuth token fetch interrupted",
+            throw new AthenaConnectorException("OAuth token fetch interrupted",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage(e.getMessage())
+                    .build());
         }
     }
-
-    /**
-     * Maps OAuth access token to JDBC connection properties.
-     * Each provider can specify how the token should be used (e.g. as password, as property).
-     */
-    protected abstract Map<String, String> mapOAuthCredentials(String accessToken);
-
-    /**
-     * Checks if OAuth is configured by verifying required fields exist.
-     */
-    protected abstract boolean isOAuthConfigured(Map<String, String> secretMap);
 
     /**
      * Builds the token request for the specific OAuth provider.
@@ -159,119 +113,103 @@ public abstract class OAuthCredentialsProvider implements CredentialsProvider
 
     private String getOAuthAccessToken(Map<String, String> secretMap) throws IOException, InterruptedException
     {
-        String accessToken = secretMap.get(ACCESS_TOKEN);
-        if (accessToken != null) {
+        String cached = secretMap.get(ACCESS_TOKEN);
+        if (cached != null) {
             long expiresIn = Long.parseLong(secretMap.getOrDefault(EXPIRES_IN, "0"));
-            long fetchedAt = Long.parseLong(secretMap.getOrDefault(FETCHED_AT, "0"));
+            long fetchedAt = Long.parseLong(secretMap.getOrDefault(CredentialsConstants.FETCHED_AT, "0"));
             long now = System.currentTimeMillis() / 1000;
 
             if ((now - fetchedAt) < expiresIn - 60) {
                 LOGGER.debug("Access token still valid");
-                return accessToken;
+                return cached;
             }
             LOGGER.debug("Access token expired, fetching new token");
         }
 
-        return fetchAndStoreNewToken(secretMap);
-    }
+        HttpResponse<String> response = httpClient.send(
+            buildTokenRequest(secretMap), HttpResponse.BodyHandlers.ofString());
 
-    private String fetchAndStoreNewToken(Map<String, String> secretMap) throws IOException, InterruptedException
-    {
-        HttpRequest request = buildTokenRequest(secretMap);
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() == 401 || response.statusCode() == 403) {
-            throw new AthenaConnectorException(
-                "Failed to fetch access token: Invalid credentials",
+        int sc = response.statusCode();
+        if (sc == 401 || sc == 403) {
+            throw new AthenaConnectorException("Failed to fetch access token: Invalid credentials",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage("HTTP Status: " + sc)
+                    .build());
         }
-        if (response.statusCode() == 429) {
-            throw new AthenaConnectorException(
-                "Failed to fetch access token: Rate limit exceeded",
+        if (sc == 429) {
+            throw new AthenaConnectorException("Failed to fetch access token: Rate limit exceeded",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage("HTTP Status: " + sc)
+                    .build());
         }
-        if (response.statusCode() != 200) {
-            throw new AthenaConnectorException(
-                "Failed to fetch access token: HTTP " + response.statusCode(),
+        if (sc != 200) {
+            throw new AthenaConnectorException("Failed to fetch access token: HTTP " + sc,
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage("Unexpected HTTP status: " + sc)
+                    .build());
         }
 
-        JsonNode tokenResponse = OBJECT_MAPPER.readTree(response.body());
-        JsonNode accessTokenNode = tokenResponse.get(ACCESS_TOKEN);
-        JsonNode expiresInNode = tokenResponse.get(EXPIRES_IN);
-        
-        if (accessTokenNode == null || expiresInNode == null) {
-            throw new AthenaConnectorException(
-                "Invalid OAuth response: Missing required fields",
+        JsonNode tokenResponse;
+        try {
+            tokenResponse = OBJECT_MAPPER.readTree(response.body());
+        }
+        catch (JsonProcessingException e) {
+            throw new AthenaConnectorException("Failed to parse OAuth token response",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage(e.getMessage())
+                    .build());
+        }
+
+        JsonNode accessTokenNode = tokenResponse.get(ACCESS_TOKEN);
+        JsonNode expiresInNode = tokenResponse.get(EXPIRES_IN);
+
+        if (accessTokenNode == null || expiresInNode == null) {
+            throw new AthenaConnectorException("Invalid OAuth response: Missing required fields",
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
+                    .errorMessage("Response missing access_token or expires_in fields")
+                    .build());
         }
 
         String accessToken = accessTokenNode.asText();
-        long expiresIn;
-        try {
-            expiresIn = expiresInNode.asLong();
-        }
-        catch (NumberFormatException e) {
-            throw new AthenaConnectorException(
-                "Invalid OAuth response: Invalid expires_in value",
-                ErrorDetails.builder()
-                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
-                    .build()
-            );
-        }
-
+        long expiresIn = expiresInNode.asLong();
         long fetchedAt = System.currentTimeMillis() / 1000;
 
         secretMap.put(ACCESS_TOKEN, accessToken);
         secretMap.put(EXPIRES_IN, String.valueOf(expiresIn));
-        secretMap.put(FETCHED_AT, String.valueOf(fetchedAt));
-
-        String secretString;
-        try {
-            secretString = OBJECT_MAPPER.writeValueAsString(secretMap);
-        }
-        catch (JsonProcessingException e) {
-            throw new AthenaConnectorException(
-                "Failed to serialize OAuth credentials",
-                ErrorDetails.builder()
-                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
-                    .build()
-            );
-        }
+        secretMap.put(CredentialsConstants.FETCHED_AT, String.valueOf(fetchedAt));
 
         try {
-            secretsManager.getSecretsManager().putSecretValue(builder -> builder
+            String secretString = OBJECT_MAPPER.writeValueAsString(secretMap);
+            secretsManager.getSecretsManager().putSecretValue(b -> b
                 .secretId(secretName)
                 .secretString(secretString)
                 .build());
         }
         catch (ResourceNotFoundException e) {
-            throw new AthenaConnectorException(
-                "Secret not found: " + secretName,
+            throw new AthenaConnectorException("Secret not found: " + secretName,
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage(e.getMessage())
+                    .build());
+        }
+        catch (JsonProcessingException e) {
+            throw new AthenaConnectorException("Failed to serialize OAuth credentials",
+                ErrorDetails.builder()
+                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
+                    .errorMessage(e.getMessage())
+                    .build());
         }
         catch (SecretsManagerException e) {
-            throw new AthenaConnectorException(
-                "Failed to update OAuth credentials in Secrets Manager",
+            throw new AthenaConnectorException("Failed to update OAuth credentials in Secrets Manager",
                 ErrorDetails.builder()
                     .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
-                    .build()
-            );
+                    .errorMessage(e.getMessage())
+                    .build());
         }
 
         return accessToken;

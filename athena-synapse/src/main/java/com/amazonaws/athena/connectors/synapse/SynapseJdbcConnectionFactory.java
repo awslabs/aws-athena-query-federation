@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.synapse;
 
+import com.amazonaws.athena.connector.credentials.CredentialsConstants;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
@@ -66,16 +67,16 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     // Set AADSecurePrincipal credentials
                     secretReplacement = String.format(
                         "%s;%s",
-                        "AADSecurePrincipalId=" + credentialsProvider.getCredential().getUser(),
-                        "AADSecurePrincipalSecret=" + credentialsProvider.getCredential().getPassword()
+                        "AADSecurePrincipalId=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.USER),
+                        "AADSecurePrincipalSecret=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.PASSWORD)
                     );
                 }
                 else {
                     // replace aws secret value with credentials and change username as user
                     secretReplacement = String.format(
                         "%s;%s",
-                        "user=" + credentialsProvider.getCredential().getUser(),
-                        "password=" + credentialsProvider.getCredential().getPassword()
+                        "user=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.USER),
+                        "password=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.PASSWORD)
                     );
                 }
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
