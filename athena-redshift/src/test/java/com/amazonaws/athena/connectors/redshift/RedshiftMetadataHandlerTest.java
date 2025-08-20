@@ -104,8 +104,18 @@ public class RedshiftMetadataHandlerTest
     private static final int COMPLEX_EXPRESSION_SIZE = 1;
     private static final int TOP_N_PUSHDOWN_SIZE = 1;
 
-    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
-            "redshift://jdbc:redshift://hostname/user=A&password=B");
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable";
+    private static final String TEST_TABLE_2 = "testTable2";
+    private static final String TEST_QUERY_ID = "testQueryId";
+    private static final String TEST_SECRET_ID = "testSecret";
+    private static final String TEST_SECRET_STRING = "{\"username\": \"testUser\", \"password\": \"testPassword\"}";
+    private static final String TEST_CONNECTION_STRING = "redshift://jdbc:redshift://hostname/user=A&password=B";
+
+    private static final String SCHEMA_QUERY = "SELECT nspname FROM pg_namespace WHERE lower(nspname) = ?";
+    private static final String TABLE_NAME_QUERY = "SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND lower(table_name) = ?";
+
+    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(CATALOG_NAME, "redshift", TEST_CONNECTION_STRING);
     private RedshiftMetadataHandler redshiftMetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
@@ -121,7 +131,7 @@ public class RedshiftMetadataHandlerTest
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId(TEST_SECRET_ID).build()))).thenReturn(GetSecretValueResponse.builder().secretString(TEST_SECRET_STRING).build());
         this.athena = Mockito.mock(AthenaClient.class);
         this.redshiftMetadataHandler = new RedshiftMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
@@ -133,7 +143,7 @@ public class RedshiftMetadataHandlerTest
         Assert.assertEquals(SchemaBuilder.newBuilder()
                         .addField(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())
                         .addField(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
-                this.redshiftMetadataHandler.getPartitionSchema("testCatalogName"));
+                this.redshiftMetadataHandler.getPartitionSchema(CATALOG_NAME));
     }
 
     @Test
@@ -145,31 +155,30 @@ public class RedshiftMetadataHandlerTest
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(RedshiftMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
-        Object[][] values = {{"testSchema", "testTable"}};
-        TableName[] expected = {new TableName("testSchema", "testTable")};
+        Object[][] values = {{TEST_SCHEMA, TEST_TABLE}};
+        TableName[] expected = {new TableName(TEST_SCHEMA, TEST_TABLE)};
         ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         // insensitive search schema
-        String sql = "SELECT nspname FROM pg_namespace WHERE lower(nspname) = ?";
-        PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
-        preparedSchemaStatement.setString(1, "testSchema");
+        PreparedStatement preparedSchemaStatement = connection.prepareStatement(SCHEMA_QUERY);
+        preparedSchemaStatement.setString(1, TEST_SCHEMA);
 
         String[] columnNames = new String[] {"nspname"};
-        String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+        String[][] tableNameValues = new String[][]{new String[] {TEST_SCHEMA}};
         ResultSet caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
         Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult, caseInsensitiveSchemaResult);
 
         ListTablesResponse listTablesResponse = this.redshiftMetadataHandler.doListTables(
-                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "testSchema", null, 1));
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, TEST_QUERY_ID,
+                        CATALOG_NAME, TEST_SCHEMA, null, 1));
         Assert.assertEquals("1", listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
         preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(RedshiftMetadataHandler.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
-        Object[][] nextValues = {{"testSchema", "testTable2"}};
-        TableName[] nextExpected = {new TableName("testSchema", "testTable2")};
+        Object[][] nextValues = {{TEST_SCHEMA, TEST_TABLE_2}};
+        TableName[] nextExpected = {new TableName(TEST_SCHEMA, TEST_TABLE_2)};
         ResultSet nextResultSet = mockResultSet(schema, nextValues, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(nextResultSet);
 
@@ -177,8 +186,8 @@ public class RedshiftMetadataHandlerTest
         Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult2);
 
         listTablesResponse = this.redshiftMetadataHandler.doListTables(
-                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "testSchema", "1", 2));
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, TEST_QUERY_ID,
+                        CATALOG_NAME, TEST_SCHEMA, "1", 2));
         Assert.assertNull(listTablesResponse.getNextToken());
         Assert.assertArrayEquals(nextExpected, listTablesResponse.getTables().toArray());
     }
@@ -190,10 +199,10 @@ public class RedshiftMetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(PostGreSqlMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
@@ -233,10 +242,10 @@ public class RedshiftMetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(PostGreSqlMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
@@ -275,10 +284,10 @@ public class RedshiftMetadataHandlerTest
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
@@ -295,10 +304,10 @@ public class RedshiftMetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(PostGreSqlMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
@@ -314,7 +323,7 @@ public class RedshiftMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = this.redshiftMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, TEST_QUERY_ID, CATALOG_NAME, tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
         GetSplitsResponse getSplitsResponse = this.redshiftMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
@@ -331,10 +340,10 @@ public class RedshiftMetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
-        TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema(CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, TEST_QUERY_ID, CATALOG_NAME, tableName, constraints, partitionSchema, partitionCols);
 
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(PostGreSqlMetadataHandler.GET_PARTITIONS_QUERY)).thenReturn(preparedStatement);
@@ -351,7 +360,7 @@ public class RedshiftMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = this.redshiftMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
-        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, "1");
+        GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, TEST_QUERY_ID, CATALOG_NAME, tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, "1");
         GetSplitsResponse getSplitsResponse = this.redshiftMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
@@ -399,42 +408,40 @@ public class RedshiftMetadataHandlerTest
                 .addListField("decimal_array", new ArrowType.Decimal(38, 2))
                 .addListField("string_array", new ArrowType.Utf8())
                 .addListField("uuid_array", new ArrowType.Utf8());
-        redshiftMetadataHandler.getPartitionSchema("testCatalog").getFields()
+        redshiftMetadataHandler.getPartitionSchema(CATALOG_NAME).getFields()
                 .forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
-        String sql = "SELECT nspname FROM pg_namespace WHERE lower(nspname) = ?";
-        PreparedStatement preparedSchemaStatement = connection.prepareStatement(sql);
-        preparedSchemaStatement.setString(1, "testSchema");
+        PreparedStatement preparedSchemaStatement = connection.prepareStatement(SCHEMA_QUERY);
+        preparedSchemaStatement.setString(1, TEST_SCHEMA);
 
         String[] columnNames = new String[] {"nspname"};
-        String[][] tableNameValues = new String[][]{new String[] {"testSchema"}};
+        String[][] tableNameValues = new String[][]{new String[] {TEST_SCHEMA}};
         ResultSet caseInsensitiveSchemaResult = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
         Mockito.when(preparedSchemaStatement.executeQuery()).thenReturn(caseInsensitiveSchemaResult, caseInsensitiveSchemaResult);
 
 
-        TableName inputTableName = new TableName("testSchema", "testtable");
+        TableName inputTableName = new TableName(TEST_SCHEMA, "testtable");
         columnNames = new String[] {"table_name"};
-        tableNameValues = new String[][]{new String[] {"testTable"}};
+        tableNameValues = new String[][]{new String[] {TEST_TABLE}};
         ResultSet resultSetName = mockResultSet(columnNames, tableNameValues, new AtomicInteger(-1));
-        sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND lower(table_name) = ?";
-        PreparedStatement preparedStatement = this.connection.prepareStatement(sql);
-        preparedStatement.setString(1, "testSchema");
+        PreparedStatement preparedStatement = this.connection.prepareStatement(TABLE_NAME_QUERY);
+        preparedStatement.setString(1, TEST_SCHEMA);
         preparedStatement.setString(2, "testtable");
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSetName);
-        String resolvedTableName = "testTable";
-        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), resolvedTableName, null)).thenReturn(resultSet);
-        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        String resolvedTableName = TEST_TABLE;
+        Mockito.when(connection.getMetaData().getColumns(CATALOG_NAME, inputTableName.getSchemaName(), resolvedTableName, null)).thenReturn(resultSet);
+        Mockito.when(connection.getCatalog()).thenReturn(CATALOG_NAME);
 
         GetTableResponse getTableResponse = this.redshiftMetadataHandler.doGetTable(new BlockAllocatorImpl(),
-                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+                new GetTableRequest(this.federatedIdentity, TEST_QUERY_ID, CATALOG_NAME, inputTableName, Collections.emptyMap()));
 
         logger.info("Schema: {}", getTableResponse.getSchema());
 
-        TableName expectedTableName = new TableName("testSchema", "testTable");
+        TableName expectedTableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(expectedTableName, getTableResponse.getTableName());
-        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+        Assert.assertEquals(CATALOG_NAME, getTableResponse.getCatalogName());
 
         logger.info("doGetTableWithArrayColumns - exit");
     }
@@ -443,7 +450,7 @@ public class RedshiftMetadataHandlerTest
     public void doGetDataSourceCapabilitiesWithoutQueryPassthrough()
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, TEST_QUERY_ID, CATALOG_NAME);
 
         RedshiftMetadataHandler handler = new RedshiftMetadataHandler(
                 databaseConnectionConfig,
@@ -465,7 +472,7 @@ public class RedshiftMetadataHandlerTest
     public void doGetDataSourceCapabilitiesWithQueryPassthrough()
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, TEST_QUERY_ID, CATALOG_NAME);
 
         RedshiftMetadataHandler handler = new RedshiftMetadataHandler(
                 databaseConnectionConfig,
