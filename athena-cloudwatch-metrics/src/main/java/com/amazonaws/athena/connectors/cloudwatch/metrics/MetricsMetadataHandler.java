@@ -243,8 +243,6 @@ public class MetricsMetadataHandler
             Set<Split> splits = new HashSet<>();
             ListMetricsRequest listMetricsRequest = listMetricsRequestBuilder.build();
             ListMetricsResponse result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
-            
-            logger.debug(result.toString());
 
             List<MetricDataQuery> metricDataQueries = new ArrayList<>(100);
             List<Metric> metrics = result.metrics();
@@ -272,7 +270,6 @@ public class MetricsMetadataHandler
                     }
                 }
             }
-            logger.debug(metricDataQueries.toString());
 
             String continuationToken = null;
             if (result.nextToken() != null &&
