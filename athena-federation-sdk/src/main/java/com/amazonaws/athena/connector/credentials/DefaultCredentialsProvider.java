@@ -30,6 +30,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.PASSWORD;
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.USERNAME;
+
 /**
  * Encapsulates RDS secrets deserialization. AWS Secrets Manager managed RDS credentials are stored in following JSON format (showing minimal required for extraction):
  * <code>
@@ -55,7 +58,7 @@ public class DefaultCredentialsProvider
 
             rdsSecrets = new HashMap<>();
             for (Map.Entry<String, String> entry : originalMap.entrySet()) {
-                if (entry.getKey().equalsIgnoreCase("username") || entry.getKey().equalsIgnoreCase("password")) {
+                if (entry.getKey().equalsIgnoreCase(USERNAME) || entry.getKey().equalsIgnoreCase(PASSWORD)) {
                     rdsSecrets.put(entry.getKey().toLowerCase(), entry.getValue());
                 }
             }
@@ -65,7 +68,7 @@ public class DefaultCredentialsProvider
                     ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(ioException.getMessage()).build());
         }
 
-        this.defaultCredentials = new DefaultCredentials(rdsSecrets.get("username"), rdsSecrets.get("password"));
+        this.defaultCredentials = new DefaultCredentials(rdsSecrets.get(USERNAME), rdsSecrets.get(PASSWORD));
     }
 
     @Override
