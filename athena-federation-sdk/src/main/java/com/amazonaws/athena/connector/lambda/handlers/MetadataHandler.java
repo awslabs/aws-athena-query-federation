@@ -229,7 +229,7 @@ public abstract class MetadataHandler
      * @param request 
      * @return A unique spill location.
      */
-    public SpillLocation makeSpillLocation(MetadataRequest request)
+    protected SpillLocation makeSpillLocation(MetadataRequest request)
     {
         FederatedIdentity federatedIdentity = request.getIdentity();
         Map<String, String> configOptions = federatedIdentity.getConfigOptions();
