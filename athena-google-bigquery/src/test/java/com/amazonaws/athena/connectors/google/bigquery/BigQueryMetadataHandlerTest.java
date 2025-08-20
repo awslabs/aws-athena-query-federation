@@ -58,6 +58,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -108,7 +109,7 @@ public class BigQueryMetadataHandlerTest
         job = mock(Job.class);
         jobStatus = mock(JobStatus.class);
         mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
-        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
+        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class), any(SecretsManagerClient.class))).thenReturn(bigQuery);
     }
 
     @After
