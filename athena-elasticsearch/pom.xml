@@ -80,6 +80,18 @@
             <groupId>org.elasticsearch.client</groupId>
             <artifactId>elasticsearch-rest-high-level-client</artifactId>
             <version>7.10.2</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.yaml</groupId>
+                    <artifactId>snakeyaml</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>2.0</version>
+            <!-- Override to address CVE vulnerabilities in snakeyaml 1.26 from elasticsearch dependency -->
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/elasticsearch -->
         <dependency>
