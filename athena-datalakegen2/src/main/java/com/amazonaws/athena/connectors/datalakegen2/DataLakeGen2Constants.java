@@ -26,8 +26,5 @@ public class DataLakeGen2Constants
     public static final int DEFAULT_PORT = 1433;
     public static final String QUOTE_CHARACTER = "\"";
 
-    //Property name used to set OAuth access token in JDBC connection properties
-    public static final String ACCESS_TOKEN_PROPERTY = "accessToken";
-
     private DataLakeGen2Constants() {}
 }

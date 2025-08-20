@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.credentials;
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
@@ -28,9 +29,6 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
-import software.amazon.awssdk.services.secretsmanager.model.ResourceNotFoundException;
 
 import java.io.IOException;
 import java.net.http.HttpClient;
@@ -40,9 +38,14 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.ACCESS_TOKEN;
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.ACCESS_TOKEN_PROPERTY;
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.CLIENT_ID;
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.CLIENT_SECRET;
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.EXPIRES_IN;
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.FETCHED_AT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -55,9 +58,7 @@ public class OAuthCredentialsProviderTest
     private static final String TEST_CLIENT_ID = "test-client-id";
     private static final String TEST_CLIENT_SECRET = "test-client-secret";
     private static final String TEST_ACCESS_TOKEN = "test-access-token";
-    private static final String TEST_USERNAME = "testuser";
-    private static final String TEST_PASSWORD = "testpass";
-    private static final String TOKEN_PROPERTY = "token";
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Mock
     private SecretsManagerClient mockSecretsClient;
@@ -66,107 +67,50 @@ public class OAuthCredentialsProviderTest
     private HttpClient mockHttpClient;
 
     private TestOAuthCredentialsProvider credentialsProvider;
+    private Map<String, String> secretMap;
 
     @Before
     public void setUp()
     {
-        credentialsProvider = new TestOAuthCredentialsProvider(TEST_SECRET_NAME, mockSecretsClient, mockHttpClient);
+        secretMap = new HashMap<>();
+        credentialsProvider = new TestOAuthCredentialsProvider(TEST_SECRET_NAME, mockSecretsClient, mockHttpClient, secretMap);
     }
 
     @Test
-    public void testGetCredentialMap_whenOAuthConfigured()
+    public void testGetCredentialMap_whenValidUnexpiredToken() throws Exception
     {
-        try {
-            String secretJson = createOAuthSecretJson();
-            mockSecretResponse(secretJson);
-            mockHttpClientForTokenFetch(createTokenResponse(TEST_ACCESS_TOKEN));
-            
-            Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
-            assertNotNull(credentialMap);
-            assertNotNull(credentialMap.get(TOKEN_PROPERTY));
-            assertNull(credentialMap.get(OAuthCredentialsProvider.USER));
-            assertNull(credentialMap.get(OAuthCredentialsProvider.PASSWORD));
-        }
-        catch (Exception e) {
-            fail("Should not throw exception: " + e.getMessage());
-        }
+        // Setup valid token in secret map
+        long now = Instant.now().getEpochSecond();
+        String secretJson = createOAuthSecretJsonWithValidToken(now);
+        mockSecretResponse(secretJson);
+        
+        Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
+        assertNotNull(credentialMap);
+        assertEquals(TEST_ACCESS_TOKEN, credentialMap.get(ACCESS_TOKEN_PROPERTY));
     }
 
     @Test
-    public void testGetCredentialMap_whenValidUnexpiredToken()
+    public void testGetCredentialMap_whenExpiredToken() throws Exception
     {
-        try {
-            long now = Instant.now().getEpochSecond();
-            String secretJson = createOAuthSecretJsonWithValidToken(now);
-            mockSecretResponse(secretJson);
-            
-            Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
-            assertNotNull(credentialMap);
-            assertEquals(TEST_ACCESS_TOKEN, credentialMap.get(TOKEN_PROPERTY));
-        }
-        catch (Exception e) {
-            fail("Should not throw exception: " + e.getMessage());
-        }
+        // Setup expired token in secret map
+        long expiredFetchedAt = (Instant.now().getEpochSecond()) - 4000;
+        String secretJson = createOAuthSecretJsonWithExpiredToken(expiredFetchedAt);
+        mockSecretResponse(secretJson);
+        mockHttpClientForTokenFetch(createTokenResponse());
+        
+        Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
+        assertNotNull(credentialMap);
+        assertEquals("new-access-token", credentialMap.get(ACCESS_TOKEN_PROPERTY));
     }
 
     @Test
-    public void testGetCredentialMap_whenExpiredToken()
+    public void testGetCredentialMap_whenRequiredFieldsMissing_throwsException() throws IOException, InterruptedException
     {
-        try {
-            long expiredFetchedAt = (Instant.now().getEpochSecond()) - 4000;
-            String secretJson = createOAuthSecretJsonWithExpiredToken(expiredFetchedAt);
-            mockSecretResponse(secretJson);
-            mockHttpClientForTokenFetch(createTokenResponse("new-access-token"));
-            
-            Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
-            assertNotNull(credentialMap);
-            assertEquals("new-access-token", credentialMap.get(TOKEN_PROPERTY));
-        }
-        catch (Exception e) {
-            fail("Should not throw exception: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testGetCredentialMap_whenUsernamePasswordConfigured()
-    {
-        try {
-            String secretJson = createStandardSecretJson();
-            mockSecretResponse(secretJson);
-            
-            Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
-            assertNotNull(credentialMap);
-            assertNull(credentialMap.get(TOKEN_PROPERTY));
-            assertEquals(TEST_USERNAME, credentialMap.get(OAuthCredentialsProvider.USER));
-            assertEquals(TEST_PASSWORD, credentialMap.get(OAuthCredentialsProvider.PASSWORD));
-        }
-        catch (Exception e) {
-            fail("Should not throw exception: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testGetCredentialMap_whenSecretNotFound_throwsException()
-    {
-        when(mockSecretsClient.getSecretValue(any(GetSecretValueRequest.class)))
-            .thenThrow(ResourceNotFoundException.builder().message("Secret not found").build());
-
-        try {
-            credentialsProvider.getCredentialMap();
-            fail("Expected AthenaConnectorException");
-        }
-        catch (AthenaConnectorException e) {
-            assertEquals(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString(), 
-                e.getErrorDetails().errorCode());
-        }
-    }
-
-    @Test
-    public void testGetCredentialMap_whenInvalidJson_throwsException()
-    {
-        when(mockSecretsClient.getSecretValue(any(GetSecretValueRequest.class)))
-            .thenReturn(GetSecretValueResponse.builder().secretString("invalid-json").build());
-
+        // Setup initial OAuth config
+        String secretJson = createOAuthSecretJson();
+        mockSecretResponse(secretJson);
+        mockHttpClientForTokenFetch("{\"some_field\":\"value\"}");
+        
         try {
             credentialsProvider.getCredentialMap();
             fail("Expected AthenaConnectorException");
@@ -174,151 +118,115 @@ public class OAuthCredentialsProviderTest
         catch (AthenaConnectorException e) {
             assertEquals(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString(), 
                 e.getErrorDetails().errorCode());
-        }
-    }
-
-    @Test
-    public void testGetCredentialMap_whenRequiredFieldsMissing_throwsException()
-    {
-        try {
-            String secretJson = createOAuthSecretJson();
-            mockSecretResponse(secretJson);
-            mockHttpClientForTokenFetch("{\"some_field\":\"value\"}");
-            
-            credentialsProvider.getCredentialMap();
-            fail("Expected AthenaConnectorException");
-        }
-        catch (AthenaConnectorException e) {
-            assertEquals(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString(), 
-                e.getErrorDetails().errorCode());
+            assertEquals("Response missing access_token or expires_in fields", 
+                e.getErrorDetails().errorMessage());
         }
     }
 
     @Test
     public void testGetCredentialMap_whenIOException_throwsException() throws IOException, InterruptedException
     {
+        // Setup initial OAuth config
+        String secretJson = createOAuthSecretJson();
+        mockSecretResponse(secretJson);
+        
+        String errorMessage = "Network error";
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+            .thenThrow(new IOException(errorMessage));
+        
         try {
-            String secretJson = createOAuthSecretJson();
-            mockSecretResponse(secretJson);
-            
-            // Mock HTTP client to throw IOException
-            when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenThrow(new IOException("Network error"));
-            
             credentialsProvider.getCredentialMap();
             fail("Expected AthenaConnectorException");
         }
         catch (AthenaConnectorException e) {
             assertEquals(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString(), 
                 e.getErrorDetails().errorCode());
+            assertEquals(errorMessage, e.getErrorDetails().errorMessage());
         }
     }
 
     @Test
     public void testGetCredentialMap_whenInterruptedException_throwsException() throws IOException, InterruptedException
     {
+        // Setup initial OAuth config
+        String secretJson = createOAuthSecretJson();
+        mockSecretResponse(secretJson);
+        
+        String errorMessage = "Operation interrupted";
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+            .thenThrow(new InterruptedException(errorMessage));
+        
         try {
-            String secretJson = createOAuthSecretJson();
-            mockSecretResponse(secretJson);
-            
-            // Mock HTTP client to throw InterruptedException
-            when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenThrow(new InterruptedException("Operation interrupted"));
-            
             credentialsProvider.getCredentialMap();
             fail("Expected AthenaConnectorException");
         }
         catch (AthenaConnectorException e) {
             assertEquals(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString(), 
                 e.getErrorDetails().errorCode());
+            assertEquals(errorMessage, e.getErrorDetails().errorMessage());
         }
     }
 
-    private void mockSecretResponse(String secretJson)
+    private void mockSecretResponse(String secretJson) throws IOException
     {
-        when(mockSecretsClient.getSecretValue(any(GetSecretValueRequest.class)))
-                .thenReturn(GetSecretValueResponse.builder().secretString(secretJson).build());
+        // Only update the secret map for OAuth cases
+        if (secretJson.contains(CLIENT_ID) || secretJson.contains(ACCESS_TOKEN)) {
+            secretMap.clear();
+            secretMap.putAll(OBJECT_MAPPER.readValue(secretJson, Map.class));
+        }
     }
 
-    private void mockHttpClientForTokenFetch(String responseBody)
+    private void mockHttpClientForTokenFetch(String responseBody) throws IOException, InterruptedException
     {
-        try {
-            HttpResponse<String> mockResponse = mock(HttpResponse.class);
-            when(mockResponse.statusCode()).thenReturn(200);
-            when(mockResponse.body()).thenReturn(responseBody);
-            when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(mockResponse);
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Failed to mock HTTP client", e);
-        }
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn(responseBody);
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+            .thenReturn(mockResponse);
     }
 
     private String createOAuthSecretJson()
     {
         return new ObjectMapper().createObjectNode()
-                .put(OAuthCredentialsProvider.CLIENT_ID, TEST_CLIENT_ID)
-                .put(OAuthCredentialsProvider.CLIENT_SECRET, TEST_CLIENT_SECRET)
+                .put(CLIENT_ID, TEST_CLIENT_ID)
+                .put(CLIENT_SECRET, TEST_CLIENT_SECRET)
                 .toString();
     }
 
     private String createOAuthSecretJsonWithValidToken(long now)
     {
         return new ObjectMapper().createObjectNode()
-                .put(OAuthCredentialsProvider.CLIENT_ID, TEST_CLIENT_ID)
-                .put(OAuthCredentialsProvider.CLIENT_SECRET, TEST_CLIENT_SECRET)
-                .put(OAuthCredentialsProvider.ACCESS_TOKEN, TEST_ACCESS_TOKEN)
-                .put(OAuthCredentialsProvider.EXPIRES_IN, "3600")
-                .put(OAuthCredentialsProvider.FETCHED_AT, String.valueOf(now))
+                .put(CLIENT_ID, TEST_CLIENT_ID)
+                .put(CLIENT_SECRET, TEST_CLIENT_SECRET)
+                .put(ACCESS_TOKEN, TEST_ACCESS_TOKEN)
+                .put(EXPIRES_IN, "3600")
+                .put(FETCHED_AT, String.valueOf(now))
                 .toString();
     }
 
     private String createOAuthSecretJsonWithExpiredToken(long expiredFetchedAt)
     {
         return new ObjectMapper().createObjectNode()
-                .put(OAuthCredentialsProvider.CLIENT_ID, TEST_CLIENT_ID)
-                .put(OAuthCredentialsProvider.CLIENT_SECRET, TEST_CLIENT_SECRET)
-                .put(OAuthCredentialsProvider.ACCESS_TOKEN, "expired-token")
-                .put(OAuthCredentialsProvider.EXPIRES_IN, "3600")
-                .put(OAuthCredentialsProvider.FETCHED_AT, String.valueOf(expiredFetchedAt))
+                .put(CLIENT_ID, TEST_CLIENT_ID)
+                .put(CLIENT_SECRET, TEST_CLIENT_SECRET)
+                .put(ACCESS_TOKEN, "expired-token")
+                .put(EXPIRES_IN, "3600")
+                .put(FETCHED_AT, String.valueOf(expiredFetchedAt))
                 .toString();
     }
 
-    private String createStandardSecretJson()
-    {
-        return new ObjectMapper().createObjectNode()
-                .put(OAuthCredentialsProvider.USERNAME, TEST_USERNAME)
-                .put(OAuthCredentialsProvider.PASSWORD, TEST_PASSWORD)
-                .toString();
-    }
-
-    private String createTokenResponse(String token)
+    private String createTokenResponse()
     {
         return String.format("{\"%s\":\"%s\",\"%s\":3600}", 
-            OAuthCredentialsProvider.ACCESS_TOKEN, token, 
-            OAuthCredentialsProvider.EXPIRES_IN);
+            ACCESS_TOKEN, "new-access-token",
+            EXPIRES_IN);
     }
 
     private static class TestOAuthCredentialsProvider extends OAuthCredentialsProvider
     {
-        public TestOAuthCredentialsProvider(String secretName, SecretsManagerClient secretsClient, HttpClient httpClient)
+        public TestOAuthCredentialsProvider(String secretName, SecretsManagerClient secretsClient, HttpClient httpClient, Map<String, String> secretMap)
         {
-            super(secretName, secretsClient, httpClient);
-        }
-
-        @Override
-        protected Map<String, String> mapOAuthCredentials(String accessToken)
-        {
-            Map<String, String> props = new HashMap<>();
-            props.put(TOKEN_PROPERTY, accessToken);
-            return props;
-        }
-
-        @Override
-        protected boolean isOAuthConfigured(Map<String, String> secretMap)
-        {
-            return secretMap.containsKey(OAuthCredentialsProvider.CLIENT_ID) && 
-                   secretMap.containsKey(OAuthCredentialsProvider.CLIENT_SECRET);
+            super(secretName, secretMap, new CachableSecretsManager(secretsClient), httpClient);
         }
 
         @Override
