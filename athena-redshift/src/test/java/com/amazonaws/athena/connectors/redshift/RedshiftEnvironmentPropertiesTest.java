@@ -33,25 +33,29 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 import static org.junit.Assert.assertEquals;
 
 public class RedshiftEnvironmentPropertiesTest {
-    Map<String, String> connectionProperties;
-    RedshiftEnvironmentProperties redshiftEnvironmentProperties;
+    private static final String TEST_HOST = "redshift-cluster-endpoint";
+    private static final String TEST_DATABASE = "testdb";
+    private static final String TEST_SECRET = "redshift-secret";
+    private static final String TEST_PORT = "5436";
+    private static final String EXPECTED_CONNECTION_STRING = "redshift://jdbc:redshift://redshift-cluster-endpoint:5436/testdb?${redshift-secret}";
+    
+    private Map<String, String> connectionProperties;
+    private RedshiftEnvironmentProperties redshiftEnvironmentProperties;
 
     @Before
     public void setUp() {
         connectionProperties = new HashMap<>();
-        connectionProperties.put(HOST, "redshift-cluster-endpoint");
-        connectionProperties.put(DATABASE, "testdb");
-        connectionProperties.put(SECRET_NAME, "redshift-secret");
-        connectionProperties.put(PORT, "5436");
+        connectionProperties.put(HOST, TEST_HOST);
+        connectionProperties.put(DATABASE, TEST_DATABASE);
+        connectionProperties.put(SECRET_NAME, TEST_SECRET);
+        connectionProperties.put(PORT, TEST_PORT);
         redshiftEnvironmentProperties = new RedshiftEnvironmentProperties();
     }
 
     @Test
     public void redshiftConnectionPropertiesTest() {
-
         Map<String, String> redshiftConnectionProperties = redshiftEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
 
-        String expectedConnectionString = "redshift://jdbc:redshift://redshift-cluster-endpoint:5436/testdb?${redshift-secret}";
-        assertEquals(expectedConnectionString, redshiftConnectionProperties.get(DEFAULT));
+        assertEquals(EXPECTED_CONNECTION_STRING, redshiftConnectionProperties.get(DEFAULT));
     }
 }
