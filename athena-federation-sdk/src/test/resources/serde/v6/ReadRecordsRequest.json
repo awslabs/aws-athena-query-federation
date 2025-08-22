@@ -142,8 +142,7 @@
     },
     "queryPlan" : {
       "substraitVersion" : "1.0.0",
-      "substraitPlan" : "TestPlan",
-      "sqlConformance" : "TestConformance"
+      "substraitPlan" : "TestPlan"
     }
   },
   "maxBlockSize" : "100000000000",
