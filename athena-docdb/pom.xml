@@ -87,12 +87,6 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>athena-federation-sdk-tools</artifactId>
-            <version>2022.47.1</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>5.13.3</version> <!-- Use the latest stable version -->
