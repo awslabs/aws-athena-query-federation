@@ -33,7 +33,6 @@ public final class QueryPlanSerDe
 {
     private static final String SUBSTRAIT_VERSION_FIELD = "substraitVersion";
     private static final String SUBSTRAIT_PLAN_FIELD = "substraitPlan";
-    private static final String SQL_CONFORMANCE_FIELD = "sqlConformance";
 
     private QueryPlanSerDe() {}
 
@@ -50,7 +49,6 @@ public final class QueryPlanSerDe
         {
             jgen.writeStringField(SUBSTRAIT_VERSION_FIELD, queryPlan.getSubstraitVersion());
             jgen.writeStringField(SUBSTRAIT_PLAN_FIELD, queryPlan.getSubstraitPlan());
-            jgen.writeStringField(SQL_CONFORMANCE_FIELD, queryPlan.getSqlConformance());
         }
     }
 
@@ -67,9 +65,8 @@ public final class QueryPlanSerDe
         {
             String substraitVersion = getNextStringField(jparser, SUBSTRAIT_VERSION_FIELD);
             String substraitPlan = getNextStringField(jparser, SUBSTRAIT_PLAN_FIELD);
-            String sqlConformance = getNextStringField(jparser, SQL_CONFORMANCE_FIELD);
 
-            return new QueryPlan(substraitVersion, substraitPlan, sqlConformance);
+            return new QueryPlan(substraitVersion, substraitPlan);
         }
     }
 }

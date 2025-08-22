@@ -97,7 +97,7 @@ public class ReadRecordsRequestSerDeV6Test extends TypedSerDeTest<FederationRequ
         HashMap<String, String> queryPassthroughArguments = new HashMap<>(1);
         queryPassthroughArguments.put("query", "SELECT * FROM DUMMY_TABLE;");
 
-        QueryPlan queryPlan = new QueryPlan("1.0.0", "TestPlan", "TestConformance");
+        QueryPlan queryPlan = new QueryPlan("1.0.0", "TestPlan");
 
         Block partitions = allocator.createBlock(schema);
 

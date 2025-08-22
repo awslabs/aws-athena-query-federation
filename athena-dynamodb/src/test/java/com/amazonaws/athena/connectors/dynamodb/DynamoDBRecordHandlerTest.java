@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -165,6 +166,89 @@ public class DynamoDBRecordHandlerTest
                 schema,
                 split,
                 new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(),null),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(1000, response.getRecords().getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testReadScanSplitWithLimitFromQueryPlan()
+            throws Exception
+    {
+        //SELECT * FROM test_table limit 100
+        QueryPlan queryPlan = getQueryPlan("GqwDEqkDCuACGt0CCgIKABLSAjrPAgoOEgwKCgoLDA0ODxAREhMSxgEKwwEKAgoAEq4BCgVjb2x" +
+                "fMAoFY29sXzEKBWNvbF8yCgVjb2xfMwoFY29sXzQKBWNvbF81CgVjb2xfNgoFY29sXzcKBWNvbF84CgVjb2xfORJmCgiyAQUI6AcYA" +
+                "QoIsgEFCOgHGAEKCLIBBQjoBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEKCLIBBQjoBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEKCLIB" +
+                "BQjoBxgBCgiyAQUI6AcYARgBOgwKClRFU1RfVEFCTEUaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAGgoSCAoEEgIIA" +
+                "yIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAGgoSCAoEEgIICCIAGgoSCAoEEgIICSIAGA" +
+                "AgZBIFY29sXzASBWNvbF8xEgVjb2xfMhIFY29sXzMSBWNvbF80EgVjb2xfNRIFY29sXzYSBWNvbF83EgVjb2xfOBIFY29sXzk=");
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(),
+                        Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(),queryPlan),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(100, response.getRecords().getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testReadScanSplitWithLimitAndOrderByFromQueryPlan()
+            throws Exception
+    {
+        //SELECT * FROM test_table order by col_0 limit 100
+        QueryPlan queryPlan = getQueryPlan("GsQDEsEDCvgCGvUCCgIKABLqAirnAgoCCgAS0gI6zwIKDhIMCgoKCwwNDg8QERITEsYBCsMBCgI" +
+                "KABKuAQoFY29sXzAKBWNvbF8xCgVjb2xfMgoFY29sXzMKBWNvbF80CgVjb2xfNQoFY29sXzYKBWNvbF83CgVjb2xfOAoFY29sXzkSZ" +
+                "goIsgEFCOgHGAEKCLIBBQjoBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEKCLIBBQjoBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEKCLIBBQj" +
+                "oBxgBCgiyAQUI6AcYAQoIsgEFCOgHGAEYAToMCgpURVNUX1RBQkxFGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKE" +
+                "ggKBBICCAMiABoKEggKBBICCAQiABoKEggKBBICCAUiABoKEggKBBICCAYiABoKEggKBBICCAciABoKEggKBBICCAgiABoKEggKBBI" +
+                "CCAkiABoMCggSBgoCEgAiABACGAAgZBIFY29sXzASBWNvbF8xEgVjb2xfMhIFY29sXzMSBWNvbF80EgVjb2xfNRIFY29sXzYSBWNvbF8" +
+                "3EgVjb2xfOBIFY29sXzk=");
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(),
+                        Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(),queryPlan),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
