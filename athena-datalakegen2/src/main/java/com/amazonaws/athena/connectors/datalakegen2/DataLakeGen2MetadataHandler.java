@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -29,6 +31,7 @@ import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -42,22 +45,28 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Top
 import com.amazonaws.athena.connectors.datalakegen2.resolver.DataLakeGen2CaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -76,6 +85,7 @@ import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.S
 public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(DataLakeGen2MetadataHandler.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String PARTITION_NUMBER = "partition_number";
@@ -96,7 +106,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     public DataLakeGen2MetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig,
-                new DataLakeGen2JdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
                 new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)),
                 configOptions);
     }
@@ -282,5 +292,31 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             return schemaBuilder.build();
         }
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        final String secretName = getDatabaseConnectionConfig().getSecret();
+        if (StringUtils.isNotBlank(secretName)) {
+            try {
+                String secretString = getCachableSecretsManager().getSecret(secretName);
+                Map<String, String> secretMap = OBJECT_MAPPER.readValue(secretString, Map.class);
+
+                // Check if OAuth is configured
+                if (DataLakeGen2OAuthCredentialsProvider.isOAuthConfigured(secretMap)) {
+                    return new DataLakeGen2OAuthCredentialsProvider(secretName, secretMap, getCachableSecretsManager());
+                }
+
+                // Fall back to default credentials if OAuth is not configured
+                return new DefaultCredentialsProvider(secretString);
+            }
+            catch (IOException ioException) {
+                throw new AthenaConnectorException("Could not deserialize RDS credentials into HashMap: ",
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(ioException.getMessage()).build());
+            }
+        }
+
+        return null;
     }
 }
