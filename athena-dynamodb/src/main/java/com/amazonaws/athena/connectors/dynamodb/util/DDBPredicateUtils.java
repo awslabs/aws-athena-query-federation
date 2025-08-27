@@ -220,7 +220,7 @@ public class DDBPredicateUtils
         // requested columns must be projected in index
         List<DynamoDBIndex> candidateIndices = table.getIndexes().stream()
                 .filter(index -> indexContainsAllRequiredColumns(requestedCols, index, table))
-                .toList();
+                .collect(Collectors.toList());
 
         // get indices with hash keys that match a predicate
         candidateIndices.stream()
@@ -232,7 +232,7 @@ public class DDBPredicateUtils
         List<DynamoDBIndex> rangeKeyMatches = Stream.concat(
                 tableIndex.getRangeKey().filter(hasPredicateForColumn).stream().map(key -> tableIndex),
                 candidateIndices.stream().filter(index -> index.getRangeKey().filter(hasPredicateForColumn).isPresent())
-        ).toList();
+        ).collect(Collectors.toList());
 
         // return first index where both hash and range key can be specified with predicates
         for (DynamoDBIndex index : hashKeyMatches) {

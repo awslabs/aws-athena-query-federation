@@ -200,31 +200,6 @@ public final class SubstraitFunctionParser
     }
 
     /**
-     * Helper class to hold scalar function information.
-     */
-    private static final class ScalarFunctionInfo
-    {
-        private final String functionName;
-        private final List<FunctionArgument> arguments;
-
-        public ScalarFunctionInfo(String functionName, List<FunctionArgument> arguments)
-        {
-            this.functionName = functionName;
-            this.arguments = arguments;
-        }
-
-        public String getFunctionName()
-        {
-            return functionName;
-        }
-
-        public List<FunctionArgument> getArguments()
-        {
-            return arguments;
-        }
-    }
-
-    /**
      * Maps Substrait function names to corresponding Operator enum values.
      * This method is mapping only small set of operators, and we will extend this as we need.
      * 
@@ -257,6 +232,31 @@ public final class SubstraitFunctionParser
                 return SubstraitOperator.OR;
             default:
                 throw new UnsupportedOperationException("Unsupported operator function: " + functionName);
+        }
+    }
+
+    /**
+     * Helper class to hold scalar function information.
+     */
+    private static final class ScalarFunctionInfo
+    {
+        private final String functionName;
+        private final List<FunctionArgument> arguments;
+
+        public ScalarFunctionInfo(String functionName, List<FunctionArgument> arguments)
+        {
+            this.functionName = functionName;
+            this.arguments = arguments;
+        }
+
+        public String getFunctionName()
+        {
+            return functionName;
+        }
+
+        public List<FunctionArgument> getArguments()
+        {
+            return arguments;
         }
     }
 }
