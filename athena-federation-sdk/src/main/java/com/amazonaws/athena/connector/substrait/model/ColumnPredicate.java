@@ -30,7 +30,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 public class ColumnPredicate
 {
     private final String columnName;
-    private final Operator operator;
+    private final SubstraitOperator substraitOperator;
     private final Object value;
     private final ArrowType arrowType;
 
@@ -38,14 +38,14 @@ public class ColumnPredicate
      * Constructs a new column predicate.
      *
      * @param column the name of the column to filter
-     * @param operator the comparison operator to use
+     * @param substraitOperator the comparison operator to use
      * @param value the value to compare the column against
      * @param arrowType the Arrow data type of the column
      */
-    public ColumnPredicate(String column, Operator operator, Object value, ArrowType arrowType)
+    public ColumnPredicate(String column, SubstraitOperator substraitOperator, Object value, ArrowType arrowType)
     {
         this.columnName = column;
-        this.operator = operator;
+        this.substraitOperator = substraitOperator;
         this.value = value;
         this.arrowType = arrowType;
     }
@@ -55,9 +55,9 @@ public class ColumnPredicate
         return columnName;
     }
 
-    public Operator getOperator()
+    public SubstraitOperator getOperator()
     {
-        return operator;
+        return substraitOperator;
     }
 
     public Object getValue()
@@ -73,6 +73,6 @@ public class ColumnPredicate
     @Override
     public String toString()
     {
-        return columnName + " " + operator + " '" + value + "'";
+        return columnName + " " + substraitOperator + " '" + value + "'";
     }
 }

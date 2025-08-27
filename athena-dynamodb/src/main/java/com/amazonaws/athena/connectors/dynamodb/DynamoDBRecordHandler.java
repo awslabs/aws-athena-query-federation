@@ -299,24 +299,22 @@ public class DynamoDBRecordHandler
         logger.info("readWithConstraint: numRows[{}]", numRows);
     }
 
-    private boolean canApplyLimit(Constraints constraints,
+    private Optional<Integer> canApplyLimit(Constraints constraints,
                                   SubstraitRelModel substraitRelModel,
                                   boolean useQueryPlan)
     {
         if (useQueryPlan) {
             if (substraitRelModel.getSortRel() == null && substraitRelModel.getFetchRel() != null) {
-                int limit = getLimit(substraitRelModel);
-                return limit > 0;
+                FetchRel fetchRel = substraitRelModel.getFetchRel();
+                int limit = (int) fetchRel.getCount();
+                return Optional.of(limit);
             }
-            return false;
+            return Optional.empty();
         }
-        return constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause();
-    }
-
-    private int getLimit(SubstraitRelModel substraitRelModel)
-    {
-        FetchRel fetchRel = substraitRelModel.getFetchRel();
-        return (int) fetchRel.getCount();
+        if (constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause()) {
+            return Optional.of((int) constraints.getLimit());
+        }
+        return Optional.empty();
     }
 
     private boolean rangeFilterHasIn(String rangeKeyFilter) 
@@ -564,14 +562,9 @@ public class DynamoDBRecordHandler
             substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(plan.getRelations(0).getRoot().getInput());
             useQueryPlan = true;
         }
-        if (canApplyLimit(constraints, substraitRelModel, useQueryPlan)) {
-            if (useQueryPlan) {
-                int limit = getLimit(substraitRelModel);
-                return Pair.of(true, limit);
-            }
-            else {
-                return Pair.of(true, (int) constraints.getLimit());
-            }
+        Optional<Integer> optionalLimit = canApplyLimit(constraints, substraitRelModel, useQueryPlan);
+        if (optionalLimit.isPresent()) {
+            return Pair.of(true, optionalLimit.get());
         }
         return Pair.of(false, -1);
     }

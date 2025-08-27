@@ -24,7 +24,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
-import com.amazonaws.athena.connector.substrait.model.Operator;
+import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
@@ -497,7 +497,7 @@ public class DDBPredicateUtilsTest
                 ), 1000, 10, 5);
         
         Map<String, List<ColumnPredicate>> predicates = ImmutableMap.of(
-                "col0", ImmutableList.of(new ColumnPredicate("col0", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value", new ArrowType.Utf8()))
+                "col0", ImmutableList.of(new ColumnPredicate("col0", SubstraitOperator.EQUAL, "value", new ArrowType.Utf8()))
         );
         
         DynamoDBIndex result = DDBPredicateUtils.getBestIndexForPredicatesForPlan(table, ImmutableList.of("col0"), predicates);
@@ -518,7 +518,7 @@ public class DDBPredicateUtilsTest
                 ), 1000, 10, 5);
         
         Map<String, List<ColumnPredicate>> predicates = ImmutableMap.of(
-                "col0", ImmutableList.of(new ColumnPredicate("col0", com.amazonaws.athena.connector.substrait.model.Operator.GREATER_THAN, "value", new ArrowType.Utf8()))
+                "col0", ImmutableList.of(new ColumnPredicate("col0", SubstraitOperator.GREATER_THAN, "value", new ArrowType.Utf8()))
         );
         
         DynamoDBIndex result = DDBPredicateUtils.getBestIndexForPredicatesForPlan(table, ImmutableList.of("col0"), predicates);
@@ -538,8 +538,8 @@ public class DDBPredicateUtilsTest
                 ), 1000, 10, 5);
         
         Map<String, List<ColumnPredicate>> predicates = ImmutableMap.of(
-                "col0", ImmutableList.of(new ColumnPredicate("col0", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value1", new ArrowType.Utf8())),
-                "col1", ImmutableList.of(new ColumnPredicate("col1", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value2", new ArrowType.Utf8()))
+                "col0", ImmutableList.of(new ColumnPredicate("col0", SubstraitOperator.EQUAL, "value1", new ArrowType.Utf8())),
+                "col1", ImmutableList.of(new ColumnPredicate("col1", SubstraitOperator.EQUAL, "value2", new ArrowType.Utf8()))
         );
         
         DynamoDBIndex result = DDBPredicateUtils.getBestIndexForPredicatesForPlan(table, ImmutableList.of("col0", "col1"), predicates);
@@ -561,7 +561,7 @@ public class DDBPredicateUtilsTest
                 ), 1000, 10, 5);
         
         Map<String, List<ColumnPredicate>> predicates = ImmutableMap.of(
-                "col0", ImmutableList.of(new ColumnPredicate("col0", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value", new ArrowType.Utf8()))
+                "col0", ImmutableList.of(new ColumnPredicate("col0", SubstraitOperator.EQUAL, "value", new ArrowType.Utf8()))
         );
         
         // Request columns that are not projected in the index
@@ -588,8 +588,8 @@ public class DDBPredicateUtilsTest
                 ), 1000, 10, 5);
         
         Map<String, List<ColumnPredicate>> predicates = ImmutableMap.of(
-                "col0", ImmutableList.of(new ColumnPredicate("col0", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value1", new ArrowType.Utf8())),
-                "col1", ImmutableList.of(new ColumnPredicate("col1", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value2", new ArrowType.Utf8()))
+                "col0", ImmutableList.of(new ColumnPredicate("col0", SubstraitOperator.EQUAL, "value1", new ArrowType.Utf8())),
+                "col1", ImmutableList.of(new ColumnPredicate("col1", SubstraitOperator.EQUAL, "value2", new ArrowType.Utf8()))
         );
         
         // Should return first matching index
@@ -610,7 +610,7 @@ public class DDBPredicateUtilsTest
                 ), 1000, 10, 5);
         
         Map<String, List<ColumnPredicate>> predicates = ImmutableMap.of(
-                "hashKey", ImmutableList.of(new ColumnPredicate("hashKey", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value", new ArrowType.Utf8()))
+                "hashKey", ImmutableList.of(new ColumnPredicate("hashKey", SubstraitOperator.EQUAL, "value", new ArrowType.Utf8()))
         );
         
         DynamoDBIndex result = DDBPredicateUtils.getBestIndexForPredicatesForPlan(table, ImmutableList.of("hashKey", "sortKey"), predicates);
@@ -631,8 +631,8 @@ public class DDBPredicateUtilsTest
                 ), 1000, 10, 5);
         
         Map<String, List<ColumnPredicate>> predicates = ImmutableMap.of(
-                "hashKey", ImmutableList.of(new ColumnPredicate("hashKey", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value1", new ArrowType.Utf8())),
-                "col0", ImmutableList.of(new ColumnPredicate("col0", com.amazonaws.athena.connector.substrait.model.Operator.EQUAL, "value2", new ArrowType.Utf8()))
+                "hashKey", ImmutableList.of(new ColumnPredicate("hashKey", SubstraitOperator.EQUAL, "value1", new ArrowType.Utf8())),
+                "col0", ImmutableList.of(new ColumnPredicate("col0", SubstraitOperator.EQUAL, "value2", new ArrowType.Utf8()))
         );
         
         DynamoDBIndex result = DDBPredicateUtils.getBestIndexForPredicatesForPlan(table, ImmutableList.of("hashKey", "col0"), predicates);
@@ -661,7 +661,7 @@ public class DDBPredicateUtilsTest
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
-                ImmutableList.of(new ColumnPredicate("col1", Operator.EQUAL, "value1", new ArrowType.Utf8())), 
+                ImmutableList.of(new ColumnPredicate("col1", SubstraitOperator.EQUAL, "value1", new ArrowType.Utf8())),
                 accumulator, 
                 new IncrementingValueNameProducer(), 
                 new DDBRecordMetadata(null), 
@@ -678,8 +678,8 @@ public class DDBPredicateUtilsTest
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
                 ImmutableList.of(
-                        new ColumnPredicate("col1", Operator.EQUAL, "value1", new ArrowType.Utf8()),
-                        new ColumnPredicate("col1", Operator.EQUAL, "value2", new ArrowType.Utf8())
+                        new ColumnPredicate("col1", SubstraitOperator.EQUAL, "value1", new ArrowType.Utf8()),
+                        new ColumnPredicate("col1", SubstraitOperator.EQUAL, "value2", new ArrowType.Utf8())
                 ), 
                 accumulator, 
                 new IncrementingValueNameProducer(), 
@@ -696,7 +696,7 @@ public class DDBPredicateUtilsTest
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
-                ImmutableList.of(new ColumnPredicate("col1", Operator.NOT_EQUAL, "value1", new ArrowType.Utf8())), 
+                ImmutableList.of(new ColumnPredicate("col1", SubstraitOperator.NOT_EQUAL, "value1", new ArrowType.Utf8())),
                 accumulator, 
                 new IncrementingValueNameProducer(), 
                 new DDBRecordMetadata(null), 
@@ -713,8 +713,8 @@ public class DDBPredicateUtilsTest
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
                 ImmutableList.of(
-                        new ColumnPredicate("col1", Operator.NOT_EQUAL, "value1", new ArrowType.Utf8()),
-                        new ColumnPredicate("col1", Operator.NOT_EQUAL, "value2", new ArrowType.Utf8())
+                        new ColumnPredicate("col1", SubstraitOperator.NOT_EQUAL, "value1", new ArrowType.Utf8()),
+                        new ColumnPredicate("col1", SubstraitOperator.NOT_EQUAL, "value2", new ArrowType.Utf8())
                 ), 
                 accumulator, 
                 new IncrementingValueNameProducer(), 
@@ -731,7 +731,7 @@ public class DDBPredicateUtilsTest
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
-                ImmutableList.of(new ColumnPredicate("col1", Operator.GREATER_THAN, "value1", new ArrowType.Utf8())), 
+                ImmutableList.of(new ColumnPredicate("col1", SubstraitOperator.GREATER_THAN, "value1", new ArrowType.Utf8())),
                 accumulator, 
                 new IncrementingValueNameProducer(), 
                 new DDBRecordMetadata(null), 
@@ -747,7 +747,7 @@ public class DDBPredicateUtilsTest
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
-                ImmutableList.of(new ColumnPredicate("col1", Operator.LESS_THAN, "value1", new ArrowType.Utf8())), 
+                ImmutableList.of(new ColumnPredicate("col1", SubstraitOperator.LESS_THAN, "value1", new ArrowType.Utf8())),
                 accumulator, 
                 new IncrementingValueNameProducer(), 
                 new DDBRecordMetadata(null), 
@@ -764,8 +764,8 @@ public class DDBPredicateUtilsTest
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
                 ImmutableList.of(
-                        new ColumnPredicate("col1", Operator.GREATER_THAN_OR_EQUAL_TO, "value1", new ArrowType.Utf8()),
-                        new ColumnPredicate("col1", Operator.LESS_THAN_OR_EQUAL_TO, "value2", new ArrowType.Utf8())
+                        new ColumnPredicate("col1", SubstraitOperator.GREATER_THAN_OR_EQUAL_TO, "value1", new ArrowType.Utf8()),
+                        new ColumnPredicate("col1", SubstraitOperator.LESS_THAN_OR_EQUAL_TO, "value2", new ArrowType.Utf8())
                 ), 
                 accumulator, 
                 new IncrementingValueNameProducer(), 
@@ -783,8 +783,8 @@ public class DDBPredicateUtilsTest
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "sortKey", 
                 ImmutableList.of(
-                        new ColumnPredicate("sortKey", Operator.GREATER_THAN, "value1", new ArrowType.Utf8()),
-                        new ColumnPredicate("sortKey", Operator.LESS_THAN, "value2", new ArrowType.Utf8())
+                        new ColumnPredicate("sortKey", SubstraitOperator.GREATER_THAN, "value1", new ArrowType.Utf8()),
+                        new ColumnPredicate("sortKey", SubstraitOperator.LESS_THAN, "value2", new ArrowType.Utf8())
                 ), 
                 accumulator, 
                 new IncrementingValueNameProducer(), 
@@ -802,7 +802,7 @@ public class DDBPredicateUtilsTest
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
-                ImmutableList.of(new ColumnPredicate("col1", Operator.IS_NULL, null, new ArrowType.Utf8())), 
+                ImmutableList.of(new ColumnPredicate("col1", SubstraitOperator.IS_NULL, null, new ArrowType.Utf8())),
                 accumulator, 
                 new IncrementingValueNameProducer(), 
                 new DDBRecordMetadata(null), 
@@ -818,7 +818,7 @@ public class DDBPredicateUtilsTest
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "col1", 
-                ImmutableList.of(new ColumnPredicate("col1", Operator.IS_NOT_NULL, null, new ArrowType.Utf8())), 
+                ImmutableList.of(new ColumnPredicate("col1", SubstraitOperator.IS_NOT_NULL, null, new ArrowType.Utf8())),
                 accumulator, 
                 new IncrementingValueNameProducer(), 
                 new DDBRecordMetadata(null), 
@@ -834,7 +834,7 @@ public class DDBPredicateUtilsTest
         List<AttributeValue> accumulator = new ArrayList<>();
         String result = DDBPredicateUtils.generateSingleColumnFilter(
                 "column-with$special@chars", 
-                ImmutableList.of(new ColumnPredicate("column-with$special@chars", Operator.EQUAL, "value1", new ArrowType.Utf8())), 
+                ImmutableList.of(new ColumnPredicate("column-with$special@chars", SubstraitOperator.EQUAL, "value1", new ArrowType.Utf8())),
                 accumulator, 
                 new IncrementingValueNameProducer(), 
                 new DDBRecordMetadata(null), 

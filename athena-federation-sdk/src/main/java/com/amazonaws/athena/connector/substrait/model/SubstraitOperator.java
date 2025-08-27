@@ -25,7 +25,7 @@ package com.amazonaws.athena.connector.substrait.model;
  * by the Athena Query Federation framework. The full Substrait specification
  * includes many more operators, We will extend more operators as we need.
  */
-public enum Operator
+public enum SubstraitOperator
 {
     EQUAL("="),
     NOT_EQUAL("!="),
@@ -41,7 +41,7 @@ public enum Operator
 
     private final String symbol;
 
-    Operator(String symbol)
+    SubstraitOperator(String symbol)
     {
         this.symbol = symbol;
     }

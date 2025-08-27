@@ -28,7 +28,7 @@ import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException
 import com.amazonaws.athena.connector.substrait.SubstraitFunctionParser;
 import com.amazonaws.athena.connector.substrait.SubstraitMetadataParser;
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
-import com.amazonaws.athena.connector.substrait.model.Operator;
+import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
 import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
@@ -185,7 +185,7 @@ public class DDBPredicateUtils
             return ImmutableList.of();
         }
         return columnPredicates.stream()
-                .filter(columnPredicate -> Operator.EQUAL.equals(columnPredicate.getOperator()))
+                .filter(columnPredicate -> SubstraitOperator.EQUAL.equals(columnPredicate.getOperator()))
                 .collect(Collectors.toList());
     }
 
@@ -539,8 +539,8 @@ public class DDBPredicateUtils
     private static boolean areEquatablePredicates(List<ColumnPredicate> predicates)
     {
         for (ColumnPredicate predicate : predicates) {
-            Operator operator = predicate.getOperator();
-            if (!(operator == Operator.EQUAL  || operator == Operator.NOT_EQUAL)) {
+            SubstraitOperator substraitOperator = predicate.getOperator();
+            if (!(substraitOperator == SubstraitOperator.EQUAL  || substraitOperator == SubstraitOperator.NOT_EQUAL)) {
                 return false;
             }
         }
@@ -550,7 +550,7 @@ public class DDBPredicateUtils
     private static boolean isAllowListPredicate(List<ColumnPredicate> predicates)
     {
         for (ColumnPredicate predicate : predicates) {
-            if (predicate.getOperator() == Operator.NOT_EQUAL) {
+            if (predicate.getOperator() == SubstraitOperator.NOT_EQUAL) {
                 return false;
             }
         }
@@ -563,11 +563,11 @@ public class DDBPredicateUtils
         boolean hasUpper = false;
 
         for (ColumnPredicate predicate : predicates) {
-            Operator op = predicate.getOperator();
-            if (op == Operator.GREATER_THAN_OR_EQUAL_TO) {
+            SubstraitOperator op = predicate.getOperator();
+            if (op == SubstraitOperator.GREATER_THAN_OR_EQUAL_TO) {
                 hasLower = true;
             }
-            else if (op == Operator.LESS_THAN_OR_EQUAL_TO) {
+            else if (op == SubstraitOperator.LESS_THAN_OR_EQUAL_TO) {
                 hasUpper = true;
             }
         }
@@ -581,11 +581,11 @@ public class DDBPredicateUtils
         ColumnPredicate upperBound = null;
 
         for (ColumnPredicate predicate : predicates) {
-            Operator op = predicate.getOperator();
-            if (op == Operator.GREATER_THAN_OR_EQUAL_TO) {
+            SubstraitOperator op = predicate.getOperator();
+            if (op == SubstraitOperator.GREATER_THAN_OR_EQUAL_TO) {
                 lowerBound = predicate;
             }
-            else if (op == Operator.LESS_THAN_OR_EQUAL_TO) {
+            else if (op == SubstraitOperator.LESS_THAN_OR_EQUAL_TO) {
                 upperBound = predicate;
             }
         }
@@ -610,12 +610,12 @@ public class DDBPredicateUtils
                                                    List<AttributeValue> accumulator, IncrementingValueNameProducer valueNameProducer,
                                                    DDBRecordMetadata recordMetadata)
     {
-        Operator operator = predicate.getOperator();
-        if (operator == Operator.IS_NOT_NULL) {
+        SubstraitOperator substraitOperator = predicate.getOperator();
+        if (substraitOperator == SubstraitOperator.IS_NOT_NULL) {
             return "(attribute_exists(" + columnName + ") AND " + 
                    toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata) + ")";
         }
-        if (operator == Operator.IS_NULL) {
+        if (substraitOperator == SubstraitOperator.IS_NULL) {
             return "(attribute_not_exists(" + columnName + ") OR " + 
                    toPredicate(originalColumnName, "<>", null, accumulator, valueNameProducer.getNext(), recordMetadata) + ")";
         }
@@ -701,7 +701,7 @@ public class DDBPredicateUtils
                                              DDBRecordMetadata recordMetadata, List<String> rangeConjuncts)
     {
         Predicate<ColumnPredicate> isLessThanPredicate = predicate ->
-                (predicate.getOperator() == Operator.LESS_THAN || predicate.getOperator() == Operator.LESS_THAN_OR_EQUAL_TO);
+                (predicate.getOperator() == SubstraitOperator.LESS_THAN || predicate.getOperator() == SubstraitOperator.LESS_THAN_OR_EQUAL_TO);
         ColumnPredicate upperBoundPredicate = getColumnPredicate(predicates, isLessThanPredicate);
         
         if (upperBoundPredicate != null) {
@@ -735,7 +735,7 @@ public class DDBPredicateUtils
         }
         
         Predicate<ColumnPredicate> isGreaterThan = predicate ->
-                (predicate.getOperator() == Operator.GREATER_THAN_OR_EQUAL_TO || predicate.getOperator() == Operator.GREATER_THAN);
+                (predicate.getOperator() == SubstraitOperator.GREATER_THAN_OR_EQUAL_TO || predicate.getOperator() == SubstraitOperator.GREATER_THAN);
         ColumnPredicate lowerBoundPredicate = getColumnPredicate(predicates, isGreaterThan);
         
         if (lowerBoundPredicate != null) {
