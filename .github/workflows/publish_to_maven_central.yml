@@ -26,7 +26,7 @@ jobs:
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
       - name: Publish to Apache Maven Central
-        run: mvn clean deploy --batch-mode -Dmaven.compiler.release=11 -am -P release -pl ".,athena-federation-sdk,athena-dynamodb,athena-cloudwatch,athena-cloudwatch-metrics,athena-aws-cmdb,athena-jdbc,athena-mysql"
+        run: mvn clean deploy --batch-mode -Dmaven.compiler.release=11 -am -P release -pl ".,athena-federation-sdk,athena-dynamodb,athena-cloudwatch,athena-cloudwatch-metrics,athena-aws-cmdb,athena-jdbc,athena-mysql,athena-oracle,athena-redshift,athena-postgres"
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
