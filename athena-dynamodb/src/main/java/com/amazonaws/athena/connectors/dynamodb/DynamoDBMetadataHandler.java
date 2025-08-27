@@ -659,8 +659,27 @@ public class DynamoDBMetadataHandler
     /**
      * Helper class to encapsulate hash key information.
      */
-    private record HashKeyPredicateInfo(List<Object> values, ArrowType arrowType)
+    private static final class HashKeyPredicateInfo
     {
+        private final List<Object> values;
+        private final ArrowType arrowType;
+        
+        HashKeyPredicateInfo(List<Object> values, ArrowType arrowType)
+        {
+            this.values = values;
+            this.arrowType = arrowType;
+        }
+        
+        List<Object> values()
+        {
+            return values;
+        }
+        
+        ArrowType arrowType()
+        {
+            return arrowType;
+        }
+        
         boolean isEmpty()
         {
             return values.isEmpty();
