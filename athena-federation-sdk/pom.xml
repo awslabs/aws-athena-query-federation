@@ -278,12 +278,12 @@
         <dependency>
             <groupId>io.substrait</groupId>
             <artifactId>isthmus</artifactId>
-            <version>0.52.0</version>
+            <version>${io.substrait.version}</version>
         </dependency>
         <dependency>
             <groupId>io.substrait</groupId>
             <artifactId>core</artifactId>
-            <version>0.52.0</version>
+            <version>${io.substrait.version}</version>
         </dependency>
     </dependencies>
     <build>
@@ -425,6 +425,25 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.failsafe.version}</version>
+                <configuration>
+                    <!--<groups>fast</groups>-->
+                    <excludedGroups>slow</excludedGroups>
+                    <properties>
+                        <!--
+                    <configurationParameters>
+                        junit.jupiter.conditions.deactivate = *
+                    </configurationParameters>
+                    -->
+                    </properties>
+                    <systemPropertyVariables>
+                        <aws.region>us-west-2</aws.region>
+                    </systemPropertyVariables>
+                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED</argLine>
+                </configuration>
             </plugin>
             <plugin>
                  <!--- Allow to Add *-source.jar;  -->
