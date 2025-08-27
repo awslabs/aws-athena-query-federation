@@ -427,25 +427,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>${surefire.failsafe.version}</version>
-                <configuration>
-                    <!--<groups>fast</groups>-->
-                    <excludedGroups>slow</excludedGroups>
-                    <properties>
-                        <!--
-                    <configurationParameters>
-                        junit.jupiter.conditions.deactivate = *
-                    </configurationParameters>
-                    -->
-                    </properties>
-                    <systemPropertyVariables>
-                        <aws.region>us-west-2</aws.region>
-                    </systemPropertyVariables>
-                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED</argLine>
-                </configuration>
-            </plugin>
-            <plugin>
                  <!--- Allow to Add *-source.jar;  -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
