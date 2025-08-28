@@ -19,14 +19,18 @@
  */
 package com.amazonaws.athena.connector.substrait;
 
-import io.substrait.expression.ExpressionCreator;
+import com.google.protobuf.ByteString;
 import io.substrait.proto.Expression;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
+import java.time.ZoneOffset;
 
 import static org.junit.Assert.*;
 
@@ -95,6 +99,22 @@ public class SubstraitLiteralConverterTest
     }
 
     @Test
+    public void testExtractFp32Literal()
+    {
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setFp32(2.5f)
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertEquals(2.5f, (Float) result.getLeft(), 0.001);
+        ArrowType.FloatingPoint fpType = (ArrowType.FloatingPoint) result.getRight();
+        assertEquals(FloatingPointPrecision.SINGLE, fpType.getPrecision());
+    }
+
+    @Test
     public void testCreateStringLiteral()
     {
         ArrowType arrowType = new ArrowType.Utf8();
@@ -138,10 +158,268 @@ public class SubstraitLiteralConverterTest
         SubstraitLiteralConverter.extractLiteralValue(expr);
     }
 
+    @Test
+    public void testExtractBinaryLiteral()
+    {
+        byte[] data = {1, 2, 3, 4};
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setBinary(ByteString.copyFrom(data))
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertArrayEquals(data, (byte[]) result.getLeft());
+        assertTrue(result.getRight() instanceof ArrowType.Binary);
+    }
+
+    @Test
+    public void testExtractDateLiteral()
+    {
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setDate(18628)
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertEquals(18628L, result.getLeft());
+        ArrowType.Date dateType = (ArrowType.Date) result.getRight();
+        assertEquals(DateUnit.DAY, dateType.getUnit());
+    }
+
+    @Test
+    public void testExtractTimestampLiteral()
+    {
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setTimestamp(1609459200000000L)
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertEquals(1609459200000000L, result.getLeft());
+        ArrowType.Timestamp timestampType = (ArrowType.Timestamp) result.getRight();
+        assertEquals(TimeUnit.MICROSECOND, timestampType.getUnit());
+        assertNull(timestampType.getTimezone());
+    }
+
+
+
+    @Test
+    public void testExtractVarCharLiteral()
+    {
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setVarChar(Expression.Literal.VarChar.newBuilder()
+                                .setValue("varchar_test")
+                                .setLength(20)
+                                .build())
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertEquals("varchar_test", result.getLeft());
+        assertTrue(result.getRight() instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testExtractFixedCharLiteral()
+    {
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setFixedChar("fixed")
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertEquals("fixed", result.getLeft());
+        assertTrue(result.getRight() instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testExtractI8Literal()
+    {
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setI8(8)
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertEquals(8, result.getLeft());
+        assertEquals(8, ((ArrowType.Int) result.getRight()).getBitWidth());
+    }
+
+    @Test
+    public void testExtractI16Literal()
+    {
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setI16(16)
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertEquals(16, result.getLeft());
+        assertEquals(16, ((ArrowType.Int) result.getRight()).getBitWidth());
+    }
+
+    @Test
+    public void testExtractI64Literal()
+    {
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setI64(64L)
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertEquals(64L, result.getLeft());
+        assertEquals(64, ((ArrowType.Int) result.getRight()).getBitWidth());
+    }
+
+    @Test
+    public void testExtractDecimalLiteral()
+    {
+        // Create a proper 16-byte array for decimal representation
+        byte[] decimalBytes = new byte[16];
+        decimalBytes[15] = 123; // Simple value in the least significant byte
+        
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .setDecimal(Expression.Literal.Decimal.newBuilder()
+                                .setValue(ByteString.copyFrom(decimalBytes))
+                                .setPrecision(10)
+                                .setScale(2)
+                                .build())
+                        .build())
+                .build();
+        
+        Pair<Object, ArrowType> result = SubstraitLiteralConverter.extractLiteralValue(expr);
+        
+        assertTrue(result.getLeft() instanceof BigDecimal);
+        ArrowType.Decimal decimalType = (ArrowType.Decimal) result.getRight();
+        assertEquals(10, decimalType.getPrecision());
+        assertEquals(2, decimalType.getScale());
+    }
+
+    @Test
+    public void testCreateI8Literal()
+    {
+        ArrowType arrowType = new ArrowType.Int(8, true);
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(8, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateI16Literal()
+    {
+        ArrowType arrowType = new ArrowType.Int(16, true);
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(16, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateI64Literal()
+    {
+        ArrowType arrowType = new ArrowType.Int(64, true);
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(64L, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateFp32Literal()
+    {
+        ArrowType arrowType = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(3.14f, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateFp64Literal()
+    {
+        ArrowType arrowType = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(3.14, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateBinaryLiteral()
+    {
+        ArrowType arrowType = new ArrowType.Binary();
+        byte[] data = {1, 2, 3};
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(data, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateDateLiteral()
+    {
+        ArrowType arrowType = new ArrowType.Date(DateUnit.DAY);
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(18628L, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateTimestampLiteral()
+    {
+        ArrowType arrowType = new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(1609459200000000L, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateTimestampTzLiteral()
+    {
+        ArrowType arrowType = new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC");
+        ZonedDateTime zonedDateTime = ZonedDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(zonedDateTime, arrowType);
+        
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testCreateIntegerDefaultBitWidth()
+    {
+        ArrowType arrowType = new ArrowType.Int(128, true); // Unsupported bit width
+        io.substrait.expression.Expression result = SubstraitLiteralConverter.createLiteralExpression(42, arrowType);
+        
+        assertNotNull(result);
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void testCreateUnsupportedArrowType()
     {
-        ArrowType unsupportedType = new ArrowType.List();
-        SubstraitLiteralConverter.createLiteralExpression("test", unsupportedType);
+        ArrowType arrowType = new ArrowType.List();
+        SubstraitLiteralConverter.createLiteralExpression("test", arrowType);
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testExtractUnsupportedLiteralType()
+    {
+        // Create a literal with LITERALTYPE_NOT_SET to trigger the default case
+        Expression expr = Expression.newBuilder()
+                .setLiteral(Expression.Literal.newBuilder()
+                        .build())
+                .build();
+        
+        SubstraitLiteralConverter.extractLiteralValue(expr);
     }
 }
