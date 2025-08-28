@@ -29,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
 
 import java.io.IOException;
 import java.net.http.HttpClient;
@@ -37,6 +38,7 @@ import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static com.amazonaws.athena.connector.credentials.CredentialsConstants.ACCESS_TOKEN;
 import static com.amazonaws.athena.connector.credentials.CredentialsConstants.ACCESS_TOKEN_PROPERTY;
@@ -164,6 +166,157 @@ public class OAuthCredentialsProviderTest
             assertEquals(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString(), 
                 e.getErrorDetails().errorCode());
             assertEquals(errorMessage, e.getErrorDetails().errorMessage());
+        }
+    }
+
+    @Test
+    public void testGetCredential_whenSecretNotFound_throwsException() throws IOException, InterruptedException
+    {
+        // Force a SecretsManager ResourceNotFoundException during secret update
+        secretMap.clear();
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn("{\"access_token\":\"abc\",\"expires_in\":3600}");
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        when(mockSecretsClient.putSecretValue(any(Consumer.class)))
+                .thenThrow(software.amazon.awssdk.services.secretsmanager.model.ResourceNotFoundException.builder()
+                        .message("secret missing").build());
+
+        try {
+            credentialsProvider.getCredential();
+            fail("Expected AthenaConnectorException");
+        }
+        catch (AthenaConnectorException e) {
+            assertEquals(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString(),
+                    e.getErrorDetails().errorCode());
+            assertEquals("secret missing", e.getErrorDetails().errorMessage());
+        }
+    }
+    @Test
+    public void testGetCredential_whenJsonProcessingException_throwsException() throws IOException, InterruptedException
+    {
+        // Break JSON parsing deliberately by mocking HttpResponse with invalid JSON
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn("not-json");
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        try {
+            credentialsProvider.getCredential();
+            fail("Expected AthenaConnectorException");
+        }
+        catch (AthenaConnectorException e) {
+            assertEquals(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString(),
+                    e.getErrorDetails().errorCode());
+            // message from Jackson parse exception
+            assertNotNull(e.getErrorDetails().errorMessage());
+        }
+    }
+
+    @Test
+    public void testGetCredential_whenHttpUnauthorized_throwsInvalidCredentials() throws IOException, InterruptedException
+    {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(401);
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        try {
+            credentialsProvider.getCredential();
+            fail("Expected AthenaConnectorException");
+        }
+        catch (AthenaConnectorException e) {
+            assertEquals(FederationSourceErrorCode.INVALID_CREDENTIALS_EXCEPTION.toString(),
+                    e.getErrorDetails().errorCode());
+            assertEquals("HTTP Status: 401", e.getErrorDetails().errorMessage());
+        }
+    }
+
+    @Test
+    public void testGetCredential_whenHttpRateLimited_throwsThrottlingException() throws IOException, InterruptedException
+    {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(429);
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        try {
+            credentialsProvider.getCredential();
+            fail("Expected AthenaConnectorException");
+        }
+        catch (AthenaConnectorException e) {
+            assertEquals(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString(),
+                    e.getErrorDetails().errorCode());
+            assertEquals("HTTP Status: 429", e.getErrorDetails().errorMessage());
+        }
+    }
+
+    @Test
+    public void testGetCredential_whenHttpUnexpectedStatus_throwsInvalidResponse() throws IOException, InterruptedException
+    {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(500);
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        try {
+            credentialsProvider.getCredential();
+            fail("Expected AthenaConnectorException");
+        }
+        catch (AthenaConnectorException e) {
+            assertEquals(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString(),
+                    e.getErrorDetails().errorCode());
+            assertEquals("Unexpected HTTP status: 500", e.getErrorDetails().errorMessage());
+        }
+    }
+
+    @Test
+    public void testGetCredential_whenSecretUpdateFailsWithResourceNotFound() throws IOException, InterruptedException
+    {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn("{\"access_token\":\"abc\",\"expires_in\":3600}");
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        when(mockSecretsClient.putSecretValue(any(Consumer.class)))
+                .thenThrow(software.amazon.awssdk.services.secretsmanager.model.ResourceNotFoundException.builder()
+                        .message("secret not found").build());
+
+        try {
+            credentialsProvider.getCredential();
+            fail("Expected AthenaConnectorException");
+        }
+        catch (AthenaConnectorException e) {
+            assertEquals(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString(),
+                    e.getErrorDetails().errorCode());
+            assertEquals("secret not found", e.getErrorDetails().errorMessage());
+        }
+    }
+
+    @Test
+    public void testGetCredential_whenSecretUpdateFailsWithSecretsManagerException() throws IOException, InterruptedException
+    {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn("{\"access_token\":\"abc\",\"expires_in\":3600}");
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        when(mockSecretsClient.putSecretValue(any(Consumer.class)))
+                .thenThrow(SecretsManagerException.builder().message("SM failure").build());
+
+        try {
+            credentialsProvider.getCredential();
+            fail("Expected AthenaConnectorException");
+        }
+        catch (AthenaConnectorException e) {
+            assertEquals(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString(),
+                    e.getErrorDetails().errorCode());
+            assertEquals("SM failure", e.getErrorDetails().errorMessage());
         }
     }
 

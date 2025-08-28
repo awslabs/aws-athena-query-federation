@@ -49,12 +49,12 @@ import static org.mockito.Mockito.when;
 
 public class DataLakeGen2OAuthCredentialsProviderTest
 {
-    private static final String SECRET_NAME = "test-secret";
-    private static final String TEST_CLIENT_ID = "test-client-id";
-    private static final String TEST_CLIENT_SECRET = "test-client-secret";
-    private static final String TENANT_ID = "tenant_id";
-    private static final String TEST_TENANT_ID = "test-tenant-id";
-    private static final String TEST_ACCESS_TOKEN = "test-access-token";
+    protected static final String SECRET_NAME = "test-secret";
+    protected static final String TEST_CLIENT_ID = "test-client-id";
+    protected static final String TEST_CLIENT_SECRET = "test-client-secret";
+    protected static final String TENANT_ID = "tenant_id";
+    protected static final String TEST_TENANT_ID = "test-tenant-id";
+    protected static final String TEST_ACCESS_TOKEN = "test-access-token";
 
     @Mock
     private SecretsManagerClient secretsManagerClient;

@@ -19,11 +19,9 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -31,29 +29,22 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import software.amazon.awssdk.services.athena.AthenaClient;
-import software.amazon.awssdk.services.glue.model.ErrorDetails;
-import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Map;
 
 import static com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2Constants.QUOTE_CHARACTER;
 
 public class DataLakeGen2RecordHandler extends JdbcRecordHandler
 {
     private static final int FETCH_SIZE = 1000;
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
     public DataLakeGen2RecordHandler(java.util.Map<String, String> configOptions)
     {
@@ -90,25 +81,9 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
     @Override
     protected CredentialsProvider getCredentialProvider()
     {
-        final String secretName = getDatabaseConnectionConfig().getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            try {
-                String secretString = getCachableSecretsManager().getSecret(secretName);
-                Map<String, String> secretMap = OBJECT_MAPPER.readValue(secretString, Map.class);
-
-                // Check if OAuth is configured
-                if (DataLakeGen2OAuthCredentialsProvider.isOAuthConfigured(secretMap)) {
-                    return new DataLakeGen2OAuthCredentialsProvider(secretName, secretMap, getCachableSecretsManager());
-                }
-
-                // Fall back to default credentials if OAuth is not configured
-                return new DefaultCredentialsProvider(secretString);
-            }
-            catch (IOException ioException) {
-                throw new AthenaConnectorException("Could not deserialize RDS credentials into HashMap: ",
-                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(ioException.getMessage()).build());
-            }
-        }
-        return null;
+        return DataLakeGen2CredentialProviderUtils.getCredentialProvider(
+            getDatabaseConnectionConfig().getSecret(),
+            getCachableSecretsManager()
+        );
     }
 }
