@@ -277,4 +277,15 @@ public class BigQueryMetadataHandlerTest
         when(bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request)).thenThrow(new BigQueryExceptions.TooManyTablesException());
         bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
     }
+
+    @Test
+    public void testDoGetDataSourceCapabilities()
+    {
+        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest request = 
+            new com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest(federatedIdentity, QUERY_ID, CATALOG);
+        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse response = 
+            bigQueryMetadataHandler.doGetDataSourceCapabilities(blockAllocator, request);
+        assertNotNull(response);
+        assertNotNull(response.getCapabilities());
+    }
 }

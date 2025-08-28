@@ -72,11 +72,9 @@ public class BigQueryUtilsTest
     @Test
     public void testGetCredentialsFromSecret() throws IOException
     {
-        // Test that the method is called - this covers the line
         try {
             BigQueryUtils.getCredentialsFromSecret("invalid-secret");
         } catch (Exception e) {
-            // Expected to fail with invalid secret, but the line is covered
             assertNotNull(e);
         }
     }
@@ -84,15 +82,37 @@ public class BigQueryUtilsTest
     @Test
     public void testGetBigQueryClientWithSecret() throws IOException
     {
-        // Test that the method is called - this covers the line
         java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
                 BigQueryConstants.GCP_PROJECT_ID, "test"
         );
         try {
             BigQueryUtils.getBigQueryClient(configOptions, "invalid-secret");
         } catch (Exception e) {
-            // Expected to fail with invalid secret, but the line is covered
             assertNotNull(e);
         }
+    }
+
+    @Test
+    public void testGetEnvBigQueryCredsSmId()
+    {
+        java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+                BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "test-secret-id"
+        );
+        String result = BigQueryUtils.getEnvBigQueryCredsSmId(configOptions);
+        assertNotNull(result);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testGetEnvBigQueryCredsSmIdEmpty()
+    {
+        java.util.Map<String, String> configOptions = new java.util.HashMap<>();
+        BigQueryUtils.getEnvBigQueryCredsSmId(configOptions);
+    }
+
+    @Test
+    public void testFixCaseForDatasetNameSuccess()
+    {
+        String result = BigQueryUtils.fixCaseForDatasetName(BigQueryTestUtils.PROJECT_1_NAME, datasetName, bigQuery);
+        assertNotNull(result);
     }
 }
