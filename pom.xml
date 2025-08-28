@@ -50,6 +50,7 @@
         <mvn.jar.plugin.version>3.4.2</mvn.jar.plugin.version>
         <io.substrait.version>0.52.0</io.substrait.version>
         <org.apache.calcite.version>1.39.0</org.apache.calcite.version>
+        <com.google.protobuf.version>4.29.3</com.google.protobuf.version>
         <doclint>none</doclint>
     </properties>
     <dependencyManagement>
@@ -176,6 +177,13 @@
             <version>${fasterxml.jackson.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-bom</artifactId>
+            <version>${com.google.protobuf.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>${fasterxml.jackson.version}</version>
@@ -245,6 +253,12 @@
             <groupId>io.substrait</groupId>
             <artifactId>core</artifactId>
             <version>${io.substrait.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.calcite</groupId>
