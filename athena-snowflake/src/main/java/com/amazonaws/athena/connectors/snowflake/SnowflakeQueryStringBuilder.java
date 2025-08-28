@@ -288,6 +288,11 @@ public class SnowflakeQueryStringBuilder
                 long millis = ((Number) value).longValue();
                 Timestamp timestamp = new Timestamp(millis);
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                String timezone = ((ArrowType.Timestamp) arrowType).getTimezone();
+                if (timezone == null || timezone.isEmpty()) {
+                    timezone = "UTC";
+                }
+                sdf.setTimeZone(java.util.TimeZone.getTimeZone(timezone));
                 return sdf.format(timestamp);
             case Time:
             case Interval:

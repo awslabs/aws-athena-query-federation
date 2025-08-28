@@ -129,9 +129,27 @@ class SnowflakeQueryStringBuilderTest {
     }
 
     @Test
-    void testGetObjectForWhereClause_Timestamp() {
+    void testGetObjectForWhereClause_TimestampWithNullZone() {
+        Object result = queryBuilder.getObjectForWhereClause("created_at", 1711929600000L,  new ArrowType.Timestamp(TimeUnit.MILLISECOND, null));
+        assertEquals("2024-04-01 00:00:00", result);
+    }
+
+    @Test
+    void testGetObjectForWhereClause_TimestampWithUtcZone() {
         Object result = queryBuilder.getObjectForWhereClause("created_at", 1711929600000L,  new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC"));
         assertEquals("2024-04-01 00:00:00", result);
+    }
+
+    @Test
+    void testGetObjectForWhereClause_TimestampWithLocalZone() {
+        Object result = queryBuilder.getObjectForWhereClause("created_at", 1711929600000L,  new ArrowType.Timestamp(TimeUnit.MILLISECOND, "PST"));
+        assertEquals("2024-03-31 17:00:00", result);
+
+        Object result1 = queryBuilder.getObjectForWhereClause("created_at", 1711929600000L,  new ArrowType.Timestamp(TimeUnit.MILLISECOND, "America/Los_Angeles"));
+        assertEquals("2024-03-31 17:00:00", result1);
+
+        Object result2 = queryBuilder.getObjectForWhereClause("created_at", 1711929600000L,  new ArrowType.Timestamp(TimeUnit.MILLISECOND, "GMT-8:00"));
+        assertEquals("2024-03-31 16:00:00", result2);
     }
 
     @Test
