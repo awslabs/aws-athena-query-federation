@@ -89,12 +89,10 @@ public class BigQueryUtils
                 ImmutableSet.of(BIGQUERY_SCOPE, DRIVE_SCOPE));
     }
 
-    public static Credentials getCredentialsFromSecretsManager(java.util.Map<String, String> configOptions, SecretsManagerClient secretsManager)
+    public static Credentials getCredentialsFromSecret(String secret)
             throws IOException
     {
-        GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder().secretId(getEnvBigQueryCredsSmId(configOptions)).build();
-        GetSecretValueResponse response = secretsManager.getSecretValue(getSecretValueRequest);
-        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.secretString().getBytes())).createScoped(
+        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(secret.getBytes())).createScoped(
                 ImmutableSet.of(BIGQUERY_SCOPE, DRIVE_SCOPE));
     }
 
@@ -110,7 +108,7 @@ public class BigQueryUtils
         return bigqueryBuilder.build().getService();
     }
 
-    public static BigQuery getBigQueryClient(java.util.Map<String, String> configOptions, SecretsManagerClient secretsManager) throws IOException
+    public static BigQuery getBigQueryClient(java.util.Map<String, String> configOptions, String secret) throws IOException
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
         String endpoint = configOptions.get(BigQueryConstants.BIG_QUERY_ENDPOINT);
@@ -118,7 +116,7 @@ public class BigQueryUtils
             bigqueryBuilder.setHost(endpoint);
         }
         bigqueryBuilder.setProjectId(configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase());
-        bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager(configOptions, secretsManager));
+        bigqueryBuilder.setCredentials(getCredentialsFromSecret(secret));
         return bigqueryBuilder.build().getService();
     }
 

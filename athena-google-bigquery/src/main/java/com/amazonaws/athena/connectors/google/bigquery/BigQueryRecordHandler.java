@@ -73,6 +73,7 @@ import java.util.concurrent.TimeoutException;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
+import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.getEnvBigQueryCredsSmId;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.getObjectFromFieldValue;
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
@@ -86,7 +87,6 @@ public class BigQueryRecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
     private final ThrottlingInvoker invoker;
-    private SecretsManagerClient secretsManager;
     BufferAllocator allocator;
 
     private final BigQueryQueryPassthrough queryPassthrough = new BigQueryQueryPassthrough();
@@ -96,7 +96,6 @@ public class BigQueryRecordHandler
         this(S3Client.create(),
                 SecretsManagerClient.create(),
                 AthenaClient.create(), configOptions, allocator);
-        this.secretsManager = SecretsManagerClient.create();
     }
 
     @VisibleForTesting
@@ -106,7 +105,6 @@ public class BigQueryRecordHandler
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.allocator = allocator;
         LoadBalancerRegistry.getDefaultRegistry().register(new PickFirstLoadBalancerProvider());
-        this.secretsManager = secretsManager;
     }
 
     @Override
@@ -114,7 +112,7 @@ public class BigQueryRecordHandler
     {
         List<QueryParameterValue> parameterValues = new ArrayList<>();
         invoker.setBlockSpiller(spiller);
-        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions, secretsManager);
+        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
 
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             handleQueryPassthrough(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient);

@@ -80,6 +80,7 @@ import java.util.Map;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
+import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.getEnvBigQueryCredsSmId;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.translateToArrowType;
 import static com.google.cloud.bigquery.JobStatistics.QueryStatistics.StatementType.SELECT;
 
@@ -87,7 +88,6 @@ public class BigQueryMetadataHandler
     extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
-    private final SecretsManagerClient secretsManager;
     private final String projectName = configOptions.get(BigQueryConstants.GCP_PROJECT_ID) != null ?
             configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase() : null;
 
@@ -96,7 +96,6 @@ public class BigQueryMetadataHandler
     BigQueryMetadataHandler(java.util.Map<String, String> configOptions)
     {
         super(BigQueryConstants.SOURCE_TYPE, configOptions);
-        secretsManager = SecretsManagerClient.create();
     }
 
     public BigQueryMetadataHandler(EncryptionKeyFactory encryptionKeyFactory,
@@ -108,7 +107,6 @@ public class BigQueryMetadataHandler
                                    Map<String, String> configOptions)
     {
         super(encryptionKeyFactory, secretsManager, athena, sourceType, spillBucket, spillPrefix, configOptions);
-        this.secretsManager = secretsManager;
     }
 
     @Override
@@ -141,7 +139,7 @@ public class BigQueryMetadataHandler
         logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
 
         final List<String> schemas = new ArrayList<>();
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, secretsManager);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
         Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
         if (response == null) {
             logger.info("Dataset does not contain any models");
@@ -170,7 +168,7 @@ public class BigQueryMetadataHandler
                 listTablesRequest.getSchemaName());
         //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
         String nextToken = null;
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, secretsManager);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
         final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
         final DatasetId datasetId = DatasetId.of(projectName, datasetName);
         List<TableName> tables = new ArrayList<>();
@@ -267,7 +265,7 @@ public class BigQueryMetadataHandler
      */
     private Schema getSchema(String datasetName, String tableName) throws java.io.IOException
     {
-        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, secretsManager);
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
         datasetName = fixCaseForDatasetName(projectName, datasetName, bigQuery);
         tableName = fixCaseForTableName(projectName, datasetName, tableName, bigQuery);
 
