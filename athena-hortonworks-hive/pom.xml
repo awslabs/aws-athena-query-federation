@@ -8,6 +8,9 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-hortonworks-hive</artifactId>
     <version>2022.47.1</version>
+    <properties>
+        <clouderaVersion>2.6.23.1027</clouderaVersion>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -21,10 +24,20 @@
             <version>2022.47.1</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>hive-jdbc</artifactId>
-            <version>3.1.3</version>
-            <!-- Updated from proprietary Cloudera driver to address zookeeper CVE vulnerabilities -->
+            <groupId>Hive</groupId>
+            <artifactId>HiveJDBC42</artifactId>
+            <version>${clouderaVersion}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.zookeeper</groupId>
+                    <artifactId>zookeeper</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>3.9.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -81,6 +94,14 @@
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                        <filter>
+                            <artifact>Hive:HiveJDBC42</artifact>
+                            <excludes>
+                                <exclude>org/apache/zookeeper/**</exclude>
+                                <exclude>com/cloudera/hive/jdbc42/internal/apache/zookeeper/**</exclude>
+                                <exclude>META-INF/maven/org.apache.zookeeper/**</exclude>
                             </excludes>
                         </filter>
                     </filters>
