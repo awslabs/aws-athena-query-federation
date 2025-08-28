@@ -10,6 +10,7 @@ jobs:
     steps:
       - name: Setup dependencies
         run: |
+          sudo apt update --fix-missing
           sudo apt-get install -y libxml2-utils python3
           pip3 install lxml beautifulsoup4
 
