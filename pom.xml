@@ -14,7 +14,7 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.32.24</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.32.29</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
         <aws-sdk.version>1.12.788</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
@@ -32,7 +32,7 @@
         <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.3</surefire.failsafe.version>
         <log4j2Version>2.25.1</log4j2Version>
-        <apache.arrow.version>18.1.0</apache.arrow.version>
+        <apache.arrow.version>18.3.0</apache.arrow.version>
         <guava.version>33.4.0-jre</guava.version>
         <protobuf3.version>3.25.5</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
@@ -46,7 +46,7 @@
         <mvn.checkstyle.version>3.6.0</mvn.checkstyle.version>
         <mvn.shade.plugin.version>3.6.0</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.3.1</mvn.source.plugin.version>
-        <mvn.javadoc.plugin.version>3.11.2</mvn.javadoc.plugin.version>
+        <mvn.javadoc.plugin.version>3.11.3</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.4.2</mvn.jar.plugin.version>
         <doclint>none</doclint>
     </properties>
