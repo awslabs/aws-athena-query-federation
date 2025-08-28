@@ -11,6 +11,9 @@
     <properties>
         <clouderaVersion>2.6.23.1027</clouderaVersion>
     </properties>
+    <properties>
+        <clouderaVersion>2.6.23.1027</clouderaVersion>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>

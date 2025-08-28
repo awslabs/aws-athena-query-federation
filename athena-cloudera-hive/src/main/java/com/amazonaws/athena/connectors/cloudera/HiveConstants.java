@@ -37,7 +37,7 @@ public class HiveConstants
     static final int FETCH_SIZE = 1000;
     static final String ALL_PARTITIONS = "*";
     public static final String HIVE_NAME = "hive";
-    public static final String HIVE_DRIVER_CLASS = "org.apache.hive.jdbc.HiveDriver";
+    public static final String HIVE_DRIVER_CLASS = "com.cloudera.hive.jdbc.HS2Driver";
     public static final int HIVE_DEFAULT_PORT = 10000;
     public static final String METADATA_COLUMN_NAME = "col_name";
     public static final String METADATA_COLUMN_TYPE = "data_type";

@@ -45,6 +45,6 @@ public class HiveJdbcConnectionFactoryTest {
         String originalURL = connection.getMetaData().getURL();
         Driver drv = DriverManager.getDriver(originalURL);
         String driverClass = drv.getClass().getName();
-        Assert.assertEquals("org.apache.hive.jdbc.HiveDriver", driverClass);
+        Assert.assertEquals("com.cloudera.hive.jdbc.HS2Driver", driverClass);
     }
 }
