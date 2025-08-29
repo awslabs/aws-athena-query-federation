@@ -31,6 +31,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
@@ -40,12 +42,25 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.HintsSubtype;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyString;
+
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,7 +87,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 
@@ -80,6 +94,21 @@ public class PostGreSqlMetadataHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(PostGreSqlMetadataHandlerTest.class);
+
+    private static final String FILTER_PUSHDOWN = DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.getOptimization();
+    private static final String COMPLEX_EXPRESSION_PUSHDOWN = DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization();
+    private static final String DATA_SOURCE_HINTS = DataSourceOptimizations.DATA_SOURCE_HINTS.getOptimization();
+    private static final String QUERY_PASSTHROUGH = "supports_query_passthrough";
+    private static final String SORTED_RANGE_SET = FilterPushdownSubType.SORTED_RANGE_SET.getSubType();
+    private static final String NULLABLE_COMPARISON = FilterPushdownSubType.NULLABLE_COMPARISON.getSubType();
+    private static final String SUPPORTED_FUNCTIONS = ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES.getSubType();
+    private static final String NON_DEFAULT_COLLATE = HintsSubtype.NON_DEFAULT_COLLATE.getSubType();
+    private static final String CATALOG_NAME = "testCatalog";
+    private static final int FILTER_PUSHDOWN_SIZE = 2;
+    private static final int COMPLEX_EXPRESSION_SIZE = 1;
+    private static final int HINTS_SIZE = 1;
+    private static final String TABLES_SQL = "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" FROM information_schema.tables WHERE table_schema = ?";
+    private static final String MATERIALIZED_VIEWS_SQL = "select matviewname as \"TABLE_NAME\", schemaname as \"TABLE_SCHEM\" from pg_catalog.pg_matviews mv where has_table_privilege(format('%I.%I', mv.schemaname, mv.matviewname), 'select') and schemaname = ?";
 
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "postgres",
             "postgres://jdbc:postgresql://hostname/user=A&password=B");
@@ -89,6 +118,7 @@ public class PostGreSqlMetadataHandlerTest
     private FederatedIdentity federatedIdentity;
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
+    private BlockAllocator blockAllocator;
 
     @Before
     public void setup()
@@ -101,6 +131,13 @@ public class PostGreSqlMetadataHandlerTest
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.postGreSqlMetadataHandler = new PostGreSqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        this.blockAllocator = new BlockAllocatorImpl();
+    }
+
+    @After
+    public void tearDown()
+    {
+        blockAllocator.close();
     }
 
     @Test
@@ -191,6 +228,9 @@ public class PostGreSqlMetadataHandlerTest
 
         GetTableLayoutResponse getTableLayoutResponse = this.postGreSqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
+
         Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
 
         List<String> expectedValues = new ArrayList<>();
@@ -205,9 +245,89 @@ public class PostGreSqlMetadataHandlerTest
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
+    }
 
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
+    @Test
+    public void testListTablesWithValidConnection() throws SQLException {
+        String databaseName = "testSchema";
+        Connection jdbcConnection = Mockito.mock(Connection.class);
+        PreparedStatement tablesStatement = Mockito.mock(PreparedStatement.class);
+        PreparedStatement matViewStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet tablesResultSet = Mockito.mock(ResultSet.class);
+        ResultSet matViewResultSet = Mockito.mock(ResultSet.class);
+
+        // Mock for regular tables
+        when(jdbcConnection.prepareStatement(TABLES_SQL)).thenReturn(tablesStatement);
+        when(tablesStatement.executeQuery()).thenReturn(tablesResultSet);
+        when(tablesResultSet.next()).thenReturn(true, false);
+        when(tablesResultSet.getString("TABLE_NAME")).thenReturn("table1");
+        when(tablesResultSet.getString("TABLE_SCHEM")).thenReturn(databaseName);
+
+        // Mock for materialized views
+        when(jdbcConnection.prepareStatement(MATERIALIZED_VIEWS_SQL)).thenReturn(matViewStatement);
+        when(matViewStatement.executeQuery()).thenReturn(matViewResultSet);
+        when(matViewResultSet.next()).thenReturn(true, false);
+        when(matViewResultSet.getString("TABLE_NAME")).thenReturn("matview1");
+        when(matViewResultSet.getString("TABLE_SCHEM")).thenReturn(databaseName);
+
+        List<TableName> result = postGreSqlMetadataHandler.listTables(jdbcConnection, databaseName);
+
+        List<TableName> expected = ImmutableList.of(
+                new TableName(databaseName, "table1"),
+                new TableName(databaseName, "matview1")
+        );
+
+        Mockito.verify(tablesStatement).executeQuery();
+        Mockito.verify(matViewStatement).setString(1, databaseName);
+        Mockito.verify(matViewStatement).executeQuery();
+        assertEquals("Expected tables and materialized views", expected, result);
+    }
+
+
+    @Test
+    public void testListTablesWithNoMaterializedViews() throws SQLException {
+        String databaseName = "testSchema";
+        Connection jdbcConnection = Mockito.mock(Connection.class);
+        PreparedStatement tablesStatement = Mockito.mock(PreparedStatement.class);
+        PreparedStatement matViewStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet tablesResultSet = Mockito.mock(ResultSet.class);
+        ResultSet matViewResultSet = Mockito.mock(ResultSet.class);
+
+        // Mock for regular tables
+        when(jdbcConnection.prepareStatement(TABLES_SQL)).thenReturn(tablesStatement);
+        when(tablesStatement.executeQuery()).thenReturn(tablesResultSet);
+        when(tablesResultSet.next()).thenReturn(true, false);
+        when(tablesResultSet.getString("TABLE_NAME")).thenReturn("table1");
+        when(tablesResultSet.getString("TABLE_SCHEM")).thenReturn(databaseName);
+
+        // Mock for materialized views (no results)
+        when(jdbcConnection.prepareStatement(MATERIALIZED_VIEWS_SQL)).thenReturn(matViewStatement);
+        when(matViewStatement.executeQuery()).thenReturn(matViewResultSet);
+        when(matViewResultSet.next()).thenReturn(false);
+
+        List<TableName> result = postGreSqlMetadataHandler.listTables(jdbcConnection, databaseName);
+
+        List<TableName> expected = ImmutableList.of(new TableName(databaseName, "table1"));
+        Mockito.verify(tablesStatement).executeQuery();
+        Mockito.verify(matViewStatement).setString(1, databaseName);
+        Mockito.verify(matViewStatement).executeQuery();
+        assertEquals("Expected only tables", expected, result);
+    }
+
+    @Test
+    public void testListTablesWithDatabaseConnectionError() {
+        try {
+            String databaseName = "testSchema";
+            Connection jdbcConnection = Mockito.mock(Connection.class);
+            when(jdbcConnection.prepareStatement(anyString())).thenThrow(new SQLException("Database error"));
+
+            postGreSqlMetadataHandler.listTables(jdbcConnection, databaseName);
+            fail("Expected SQLException was not thrown");
+        } catch (SQLException e) {
+            assertEquals("Database error", e.getMessage());
+        } catch (Exception e) {
+            fail("Unexpected exception occurred: " + e.getMessage());
+        }
     }
 
     @Test
@@ -234,6 +354,9 @@ public class PostGreSqlMetadataHandlerTest
 
         GetTableLayoutResponse getTableLayoutResponse = this.postGreSqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
+
         Assert.assertEquals(1, getTableLayoutResponse.getPartitions().getRowCount());
 
         List<String> expectedValues = new ArrayList<>();
@@ -248,9 +371,6 @@ public class PostGreSqlMetadataHandlerTest
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
-
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
     }
 
     @Test(expected = RuntimeException.class)
@@ -326,7 +446,6 @@ public class PostGreSqlMetadataHandlerTest
         int[] types = {Types.VARCHAR, Types.VARCHAR};
         Object[][] values = {{"s0", "p0"}, {"s1", "p1"}};
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
-        final String expectedQuery = String.format(PostGreSqlMetadataHandler.GET_PARTITIONS_QUERY, tableName.getTableName(), tableName.getSchemaName());
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
@@ -379,7 +498,7 @@ public class PostGreSqlMetadataHandlerTest
                 .addListField("date_array", new ArrowType.Date(DateUnit.DAY))
                 .addListField("timestamp_array", new ArrowType.Date(DateUnit.MILLISECOND))
                 .addListField("binary_array", new ArrowType.Utf8())
-                .addListField("decimal_array", new ArrowType.Decimal(38, 2))
+                .addListField("decimal_array", new ArrowType.Decimal(38, 2,128))
                 .addListField("string_array", new ArrowType.Utf8())
                 .addListField("uuid_array", new ArrowType.Utf8());
         postGreSqlMetadataHandler.getPartitionSchema("testCatalog").getFields()
@@ -503,6 +622,162 @@ public class PostGreSqlMetadataHandlerTest
        Assert.assertEquals(expectedTableName, getTableResponse.getTableName());
        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
 
-       logger.info("doGetTableWithArrayColumns - exit");
-  }
+        logger.info("doGetTableWithArrayColumns - exit");
+    }
+    @Test
+    public void testDoGetDataSourceCapabilitiesWithoutQueryPassthrough()
+    {
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
+
+        PostGreSqlMetadataHandler handler = new PostGreSqlMetadataHandler(
+                databaseConnectionConfig,
+                secretsManager,
+                athena,
+                jdbcConnectionFactory,
+                ImmutableMap.of()
+        );
+
+        GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
+
+        verifyCommonCapabilities(response);
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+        Assert.assertNull("Query passthrough should not be present when disabled.", capabilities.get(QUERY_PASSTHROUGH));
+    }
+
+    @Test
+    public void testDoGetDataSourceCapabilitiesWithQueryPassthrough()
+    {
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
+
+        PostGreSqlMetadataHandler handler = new PostGreSqlMetadataHandler(
+                databaseConnectionConfig,
+                secretsManager,
+                athena,
+                jdbcConnectionFactory,
+                ImmutableMap.of("enable_query_passthrough", "true")
+        );
+
+        GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
+        verifyCommonCapabilities(response);
+
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+        List<OptimizationSubType> passthrough = capabilities.get("SYSTEM.QUERY");
+        assertNotNull("Query passthrough should be present when enabled.", passthrough);
+        Assert.assertFalse("Query passthrough list should not be empty.", passthrough.isEmpty());
+    }
+
+    @Test
+    public void testDoGetDataSourceCapabilitiesWithNonDefaultCollate()
+    {
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, "testQueryId", CATALOG_NAME);
+
+        PostGreSqlMetadataHandler handler = new PostGreSqlMetadataHandler(
+                databaseConnectionConfig,
+                secretsManager,
+                athena,
+                jdbcConnectionFactory,
+                ImmutableMap.of("non_default_collate", "true")
+        );
+
+        GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(blockAllocator, request);
+        verifyCommonCapabilities(response);
+
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+        List<OptimizationSubType> hints = capabilities.get(DATA_SOURCE_HINTS);
+        assertNotNull("Expected " + DATA_SOURCE_HINTS + " capability to be present", hints);
+        assertEquals(HINTS_SIZE, hints.size());
+        Assert.assertTrue(hints.stream().anyMatch(subType -> subType.getSubType().equals(NON_DEFAULT_COLLATE)));
+    }
+
+    @Test
+    public void testGetCharColumnsWithCharacterColumns() throws SQLException {
+        String schema = "testSchema";
+        String table = "testTable";
+        String query = "SELECT column_name FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND data_type = 'character'";
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+
+        when(connection.prepareStatement(query)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true, true, false);
+        when(resultSet.getString("column_name")).thenReturn("col1", "col2");
+
+        List<String> charColumns = PostGreSqlMetadataHandler.getCharColumns(connection, schema, table);
+
+        Mockito.verify(preparedStatement).setString(1, schema);
+        Mockito.verify(preparedStatement).setString(2, table);
+        assertEquals("Expected two character columns", Arrays.asList("col1", "col2"), charColumns);
+    }
+
+    @Test
+    public void testGetArrayArrowTypeFromTypeName() {
+        // Test boolean array
+        ArrowType boolType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_bool", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Bool", boolType.getClass().getName());
+
+        // Test integer types
+        ArrowType smallintType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_int2", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Int", smallintType.getClass().getName());
+
+        ArrowType intType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_int4", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Int", intType.getClass().getName());
+
+        ArrowType bigintType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_int8", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Int", bigintType.getClass().getName());
+
+        // Test float types
+        ArrowType float4Type = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_float4", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$FloatingPoint", float4Type.getClass().getName());
+
+        ArrowType float8Type = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_float8", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$FloatingPoint", float8Type.getClass().getName());
+
+        // Test date/timestamp types
+        ArrowType dateType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_date", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Date", dateType.getClass().getName());
+
+        ArrowType timestampType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_timestamp", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Date", timestampType.getClass().getName());
+
+        // Test numeric type
+        ArrowType numericType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_numeric", 10, 2);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Decimal", numericType.getClass().getName());
+
+        // Test fallback for unknown type
+        ArrowType unknownType = postGreSqlMetadataHandler.getArrayArrowTypeFromTypeName("_unknown", 0, 0);
+        assertEquals("org.apache.arrow.vector.types.pojo.ArrowType$Utf8", unknownType.getClass().getName());
+    }
+
+    @Test
+    public void testGetPartitionSchema() {
+        Schema partitionSchema = postGreSqlMetadataHandler.getPartitionSchema("testCatalog");
+        assertEquals(2, partitionSchema.getFields().size());
+        assertEquals(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME, partitionSchema.getFields().get(0).getName());
+        assertEquals(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, partitionSchema.getFields().get(1).getName());
+    }
+
+    private void verifyCommonCapabilities(GetDataSourceCapabilitiesResponse response)
+    {
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+        logger.info("Capabilities: {}", capabilities);
+
+        assertEquals(CATALOG_NAME, response.getCatalogName());
+
+        // Verify filter pushdown capabilities
+        List<OptimizationSubType> filterPushdown = capabilities.get(FILTER_PUSHDOWN);
+        assertNotNull("Expected " + FILTER_PUSHDOWN + " capability to be present", filterPushdown);
+        assertEquals(FILTER_PUSHDOWN_SIZE, filterPushdown.size());
+        Assert.assertTrue(filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals(SORTED_RANGE_SET)));
+        Assert.assertTrue(filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals(NULLABLE_COMPARISON)));
+
+        // Verify complex expression pushdown capabilities
+        List<OptimizationSubType> complexExpressionPushdown = capabilities.get(COMPLEX_EXPRESSION_PUSHDOWN);
+        assertNotNull("Expected " + COMPLEX_EXPRESSION_PUSHDOWN + " capability to be present", complexExpressionPushdown);
+        assertEquals(COMPLEX_EXPRESSION_SIZE, complexExpressionPushdown.size());
+        Assert.assertTrue(complexExpressionPushdown.stream().anyMatch(subType ->
+                subType.getSubType().equals(SUPPORTED_FUNCTIONS) &&
+                        (!subType.getProperties().isEmpty())));
+    }
 }
