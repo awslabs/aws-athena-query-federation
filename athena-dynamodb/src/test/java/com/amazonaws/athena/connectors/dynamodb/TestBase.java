@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
@@ -119,6 +120,10 @@ public class TestBase
     @AfterClass
     public static void tearDownOnce() throws Exception {
         server.stop();
+    }
+
+    public QueryPlan getQueryPlan(String plan) {
+        return new QueryPlan("", plan);
     }
 
     private static String waitForTableToBecomeActive(DynamoDbClient ddb, DynamoDbWaiter dbWaiter, CreateTableResponse createTableResponse, String tableName) {
