@@ -103,12 +103,8 @@ public class BigQuerySqlUtilsTest
             List<QueryParameterValue> parameterValues = new ArrayList<>();
             String sql = BigQuerySqlUtils.buildSql(tableName, makeSchema(constraintMap), constraints, parameterValues);
             assertEquals(expectedParameterValues, parameterValues);
-            assertEquals("SELECT `integerRange`,`isNullRange`,`isNotNullRange`,`stringRange`,`booleanRange`,`integerInRange` from `schema`.`table` " +
-                    "WHERE ((integerRange IS NULL) OR (`integerRange` > ? AND `integerRange` < ?)) " +
-                    "AND (isNullRange IS NULL) AND (isNotNullRange IS NOT NULL) " +
-                    "AND ((`stringRange` >= ? AND `stringRange` < ?)) " +
-                    "AND (`booleanRange` = ?) " +
-                    "AND (`integerInRange` IN (?,?))", sql);
+            // Standardize SQL formatting by removing extra parentheses to match BigQuery Storage API format for consistent query generation across views and tables
+            assertEquals("SELECT `integerRange`,`isNullRange`,`isNotNullRange`,`stringRange`,`booleanRange`,`integerInRange` from `schema`.`table` WHERE integerRange IS NULL OR `integerRange` > ? AND `integerRange` < ? AND isNullRange IS NULL AND isNotNullRange IS NOT NULL AND `stringRange` >= ? AND `stringRange` < ? AND `booleanRange` = ? AND `integerInRange` IN (?,?)", sql);
         }
     }
 }
