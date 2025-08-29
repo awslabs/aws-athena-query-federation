@@ -20,6 +20,7 @@
 
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connector.credentials.CredentialsConstants;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
@@ -78,11 +79,11 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     LOGGER.info("Establishing normal connection..");
                 }
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                String password = credentialsProvider.getCredential().getPassword();
+                String password = credentialsProvider.getCredentialMap().get(CredentialsConstants.PASSWORD);
                 if (!password.contains("\"")) {
                     password = String.format("\"%s\"", password);
                 }
-                final String secretReplacement = String.format("%s/%s", credentialsProvider.getCredential().getUser(),
+                final String secretReplacement = String.format("%s/%s", credentialsProvider.getCredentialMap().get(CredentialsConstants.USER),
                         password);
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
                 // register driver
