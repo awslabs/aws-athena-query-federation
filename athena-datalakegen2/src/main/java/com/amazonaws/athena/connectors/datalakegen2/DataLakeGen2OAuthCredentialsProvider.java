@@ -49,7 +49,8 @@ public class DataLakeGen2OAuthCredentialsProvider extends OAuthCredentialsProvid
         super(secretName, secretMap, secretsManager, httpClient);
     }
 
-    protected static boolean isOAuthConfigured(Map<String, String> secretMap)
+    @Override
+    protected boolean isOAuthConfigured(Map<String, String> secretMap)
     {
         return secretMap.containsKey(CredentialsConstants.CLIENT_ID) &&
                !secretMap.get(CredentialsConstants.CLIENT_ID).isEmpty() &&

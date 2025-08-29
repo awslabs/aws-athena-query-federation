@@ -383,6 +383,15 @@ public class OAuthCredentialsProviderTest
         }
 
         @Override
+        protected boolean isOAuthConfigured(Map<String, String> secretMap)
+        {
+            return secretMap.containsKey(CLIENT_ID) &&
+                   !secretMap.get(CLIENT_ID).isEmpty() &&
+                   secretMap.containsKey(CLIENT_SECRET) &&
+                   !secretMap.get(CLIENT_SECRET).isEmpty();
+        }
+
+        @Override
         protected HttpRequest buildTokenRequest(Map<String, String> secretMap)
         {
             return HttpRequest.newBuilder().uri(java.net.URI.create("http://test")).build();
