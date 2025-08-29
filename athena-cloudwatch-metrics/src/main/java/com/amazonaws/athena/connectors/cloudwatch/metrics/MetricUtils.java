@@ -34,9 +34,7 @@ import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
 import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
 import software.amazon.awssdk.services.cloudwatch.model.Metric;
 import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
-import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -151,15 +149,9 @@ public class MetricUtils
     protected static GetMetricDataRequest makeGetMetricDataRequest(ReadRecordsRequest readRecordsRequest)
     {
         Split split = readRecordsRequest.getSplit();
-        String serializedMetricStats = split.getProperty(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME);
-        List<MetricStat> metricStats = MetricStatSerDe.deserialize(serializedMetricStats);
+        String serializedMetricDataQueries = split.getProperty(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME);
+        List<MetricDataQuery> metricDataQueries = MetricDataQuerySerDe.deserialize(serializedMetricDataQueries);
         GetMetricDataRequest.Builder dataRequestBuilder = GetMetricDataRequest.builder();
-
-        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
-        int metricId = 1;
-        for (MetricStat nextMetricStat : metricStats) {
-            metricDataQueries.add(MetricDataQuery.builder().metricStat(nextMetricStat).id("m" + metricId++).build());
-        }
 
         dataRequestBuilder.metricDataQueries(metricDataQueries);
 
