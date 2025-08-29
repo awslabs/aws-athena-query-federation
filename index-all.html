@@ -349,6 +349,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/msk/AmazonMskUtils.html" title="class in com.amazonaws.athena.connectors.msk"><span class="typeNameLink">AmazonMskUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/msk/package-summary.html">com.amazonaws.athena.connectors.msk</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#AND">AND</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#AND_FUNCTION_NAME">AND_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>
 <div class="block">$and is a vararg function accepting boolean arguments</div>
@@ -906,6 +908,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">A constructor for the client builder.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#buildFilterPredicatesFromPlan(io.substrait.proto.Plan)">buildFilterPredicatesFromPlan(Plan)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
+<dd>
+<div class="block">Builds filter predicates from a Substrait execution plan.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfigBuilder.html#buildFromSystemEnv(java.lang.String,java.util.Map)">buildFromSystemEnv(String, Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfigBuilder.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfigBuilder</a></dt>
 <dd>
 <div class="block">Utility to build database instance connection configurations from Environment variables.</div>
@@ -977,6 +983,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeQueryStringBuilder.html#buildSqlString(java.sql.Connection,java.lang.String,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">buildSqlString(Connection, String, String, String, Schema, Constraints, Split)</a></span> - Method in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeQueryStringBuilder.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeQueryStringBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html#buildSubstraitRelModel(io.substrait.proto.Rel)">buildSubstraitRelModel(Rel)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitRelModel</a></dt>
+<dd>
+<div class="block">Factory method to build a SubstraitRelModel by extracting all relation types from a Substrait relation tree.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/VerticaSchemaUtils.html#buildTableSchema(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.TableName)">buildTableSchema(Connection, TableName)</a></span> - Method in class com.amazonaws.athena.connectors.vertica.<a href="com/amazonaws/athena/connectors/vertica/VerticaSchemaUtils.html" title="class in com.amazonaws.athena.connectors.vertica">VerticaSchemaUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/gcs/storage/StorageMetadata.html#buildTableSchema(software.amazon.awssdk.services.glue.model.Table,org.apache.arrow.memory.BufferAllocator)">buildTableSchema(Table, BufferAllocator)</a></span> - Method in class com.amazonaws.athena.connectors.gcs.storage.<a href="com/amazonaws/athena/connectors/gcs/storage/StorageMetadata.html" title="class in com.amazonaws.athena.connectors.gcs.storage">StorageMetadata</a></dt>
@@ -1368,6 +1378,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#COLUMN_NAME_MAPPING_PROPERTY">COLUMN_NAME_MAPPING_PROPERTY</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html" title="class in com.amazonaws.athena.connector.substrait.model"><span class="typeNameLink">ColumnPredicate</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/model/package-summary.html">com.amazonaws.athena.connector.substrait.model</a></dt>
+<dd>
+<div class="block">Represents a column predicate extracted from Substrait filter expressions.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html#%3Cinit%3E(java.lang.String,com.amazonaws.athena.connector.substrait.model.SubstraitOperator,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType)">ColumnPredicate(String, SubstraitOperator, Object, ArrowType)</a></span> - Constructor for class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html" title="class in com.amazonaws.athena.connector.substrait.model">ColumnPredicate</a></dt>
+<dd>
+<div class="block">Constructs a new column predicate.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/credentials/package-summary.html">com.amazonaws.athena.connector.credentials</a> - package com.amazonaws.athena.connector.credentials</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/integ/package-summary.html">com.amazonaws.athena.connector.integ</a> - package com.amazonaws.athena.connector.integ</dt>
@@ -1441,6 +1459,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/v6/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v6</a> - package com.amazonaws.athena.connector.lambda.serde.v6</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/udf/package-summary.html">com.amazonaws.athena.connector.lambda.udf</a> - package com.amazonaws.athena.connector.lambda.udf</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/package-summary.html">com.amazonaws.athena.connector.substrait</a> - package com.amazonaws.athena.connector.substrait</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/model/package-summary.html">com.amazonaws.athena.connector.substrait.model</a> - package com.amazonaws.athena.connector.substrait.model</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/util/package-summary.html">com.amazonaws.athena.connector.util</a> - package com.amazonaws.athena.connector.util</dt>
 <dd>&nbsp;</dd>
@@ -2046,6 +2068,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html#createJdbcRecordHandlerMap(java.util.Map,com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory)">createJdbcRecordHandlerMap(Map&lt;String, String&gt;, JdbcRecordHandlerFactory)</a></span> - Static method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JDBCUtil</a></dt>
 <dd>
 <div class="block">Creates a map of Catalog to respective record handler to be used by Multiplexer.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitLiteralConverter.html#createLiteralExpression(java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType)">createLiteralExpression(Object, ArrowType)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitLiteralConverter.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitLiteralConverter</a></dt>
+<dd>
+<div class="block">Creates a Substrait literal expression from a Java object and Arrow type.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/MarkerFactory.html#createNullable(org.apache.arrow.vector.types.pojo.ArrowType,java.lang.Object,com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound)">createNullable(ArrowType, Object, Marker.Bound)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/MarkerFactory.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">MarkerFactory</a></dt>
 <dd>
@@ -2778,6 +2804,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/v2/RemoteReadRecordsResponseSerDe.Deserializer.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer,com.amazonaws.athena.connector.lambda.serde.v2.SpillLocationSerDe.Deserializer,com.amazonaws.athena.connector.lambda.serde.v2.EncryptionKeySerDe.Deserializer)">Deserializer(VersionedSerDe.Deserializer&lt;Schema&gt;, SpillLocationSerDe.Deserializer, EncryptionKeySerDe.Deserializer)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.v2.<a href="com/amazonaws/athena/connector/lambda/serde/v2/RemoteReadRecordsResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">RemoteReadRecordsResponseSerDe.Deserializer</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html#deserializeSubstraitPlan(java.lang.String)">deserializeSubstraitPlan(String)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitRelUtils</a></dt>
+<dd>
+<div class="block">Deserializes a Base64-encoded Substrait plan into a Plan object.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#deserializeWithType(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext,com.fasterxml.jackson.databind.jsontype.TypeDeserializer)">deserializeWithType(JsonParser, DeserializationContext, TypeDeserializer)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html#deserializeWithType(com.fasterxml.jackson.core.JsonParser,com.fasterxml.jackson.databind.DeserializationContext,com.fasterxml.jackson.databind.jsontype.TypeDeserializer)">deserializeWithType(JsonParser, DeserializationContext, TypeDeserializer)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a></dt>
@@ -3874,6 +3904,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html#equal(com.amazonaws.athena.connector.lambda.data.BlockAllocator,org.apache.arrow.vector.types.pojo.ArrowType,java.lang.Object)">equal(BlockAllocator, ArrowType, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#EQUAL">EQUAL</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#EQUAL_OPERATOR_FUNCTION_NAME">EQUAL_OPERATOR_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>
 <div class="block">$cast function result type is determined by the <code>Call#getType()</code>
@@ -3966,6 +3998,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionRequest</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionResponse</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitField</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
 <dd>&nbsp;</dd>
@@ -4126,6 +4160,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html#extractColumnParts(java.lang.String)">extractColumnParts(String)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseSchemaUtils</a></dt>
 <dd>
 <div class="block">Helper which can go from a Glue/Apache Arrow column name to its HBase family + column.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitLiteralConverter.html#extractLiteralValue(io.substrait.proto.Expression)">extractLiteralValue(Expression)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitLiteralConverter.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitLiteralConverter</a></dt>
+<dd>
+<div class="block">Extracts a literal value and its corresponding Arrow type from a Substrait literal expression.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/Extractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="typeNameLink">Extractor</span></a> - Interface in <a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/package-summary.html">com.amazonaws.athena.connector.lambda.data.writers.extractors</a></dt>
 <dd>
@@ -4491,6 +4529,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Generates a combined filter expression for the given predicates.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#generateFilterExpressionForPlan(java.util.Set,java.util.Map,java.util.List,com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata)">generateFilterExpressionForPlan(Set&lt;String&gt;, Map&lt;String, List&lt;ColumnPredicate&gt;&gt;, List&lt;AttributeValue&gt;, IncrementingValueNameProducer, DDBRecordMetadata)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/neptune/propertygraph/GremlinQueryPreProcessor.html#generateGremlinQueryPart(org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal,java.lang.String,java.lang.String,org.apache.arrow.vector.types.pojo.ArrowType,com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound,com.amazonaws.athena.connectors.neptune.propertygraph.GremlinQueryPreProcessor.Operator)">generateGremlinQueryPart(GraphTraversal&lt;Element, Element&gt;, String, String, ArrowType, Marker.Bound, GremlinQueryPreProcessor.Operator)</a></span> - Static method in class com.amazonaws.athena.connectors.neptune.propertygraph.<a href="com/amazonaws/athena/connectors/neptune/propertygraph/GremlinQueryPreProcessor.html" title="class in com.amazonaws.athena.connectors.neptune.propertygraph">GremlinQueryPreProcessor</a></dt>
 <dd>
 <div class="block">Pick and Process pre-defined templates based on parameters to generate
@@ -4501,6 +4541,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#generateSingleColumnFilter(java.lang.String,com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet,java.util.List,com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata,boolean)">generateSingleColumnFilter(String, ValueSet, List&lt;AttributeValue&gt;, IncrementingValueNameProducer, DDBRecordMetadata, boolean)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
 <dd>
 <div class="block">Generates a filter expression for a single column given a <a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate"><code>ValueSet</code></a> predicate for that column.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#generateSingleColumnFilter(java.lang.String,java.util.List,java.util.List,com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer,com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata,boolean)">generateSingleColumnFilter(String, List&lt;ColumnPredicate&gt;, List&lt;AttributeValue&gt;, IncrementingValueNameProducer, DDBRecordMetadata, boolean)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
+<dd>
+<div class="block">Generates a filter expression for a single column from Substrait predicates.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connectors/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.connection"><span class="typeNameLink">GenericJdbcConnectionFactory</span></a> - Class in <a href="com/amazonaws/athena/connectors/jdbc/connection/package-summary.html">com.amazonaws.athena.connectors.jdbc.connection</a></dt>
 <dd>
@@ -4588,6 +4632,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#getArrowType()">getArrowType()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">DefaultGlueType</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html#getArrowType()">getArrowType()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html" title="class in com.amazonaws.athena.connector.substrait.model">ColumnPredicate</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2DataType.html#getArrowType()">getArrowType()</a></span> - Method in enum com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2DataType.html" title="enum in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2DataType</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/FederationRequestHandler.html#getAthenaClient(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration,software.amazon.awssdk.services.athena.AthenaClient)">getAthenaClient(AwsRequestOverrideConfiguration, AthenaClient)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/FederationRequestHandler.html" title="interface in com.amazonaws.athena.connector.lambda.handlers">FederationRequestHandler</a></dt>
@@ -4625,6 +4671,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Attempts to pick an optimal index (if any) from the given predicates.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#getBestIndexForPredicatesForPlan(com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable,java.util.List,java.util.Map)">getBestIndexForPredicatesForPlan(DynamoDBTable, List&lt;String&gt;, Map&lt;String, List&lt;ColumnPredicate&gt;&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryUtils.html#getBigQueryClient(java.util.Map)">getBigQueryClient(Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryUtils.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockSpiller.html#getBlock()">getBlock()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a></dt>
@@ -4797,6 +4845,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/expression/VariableExpression.html#getChildren()">getChildren()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.expression.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/expression/VariableExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">VariableExpression</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html#getChildren()">getChildren()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitField</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/elasticsearch/AwsElasticsearchFactory.html#getClient()">getClient()</a></span> - Method in class com.amazonaws.athena.connectors.elasticsearch.<a href="com/amazonaws/athena/connectors/elasticsearch/AwsElasticsearchFactory.html" title="class in com.amazonaws.athena.connectors.elasticsearch">AwsElasticsearchFactory</a></dt>
 <dd>
 <div class="block">Gets a default AWS ES client.</div>
@@ -4811,6 +4861,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#getColNames()">getColNames()</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html#getColumn()">getColumn()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html" title="class in com.amazonaws.athena.connector.substrait.model">ColumnPredicate</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/expression/VariableExpression.html#getColumnName()">getColumnName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.expression.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/expression/VariableExpression.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate.expression">VariableExpression</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/OrderByField.html#getColumnName()">getColumnName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/OrderByField.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">OrderByField</a></dt>
@@ -4823,6 +4875,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">If available, will parse and return a column name mapping for cases when a data source's columns
  cannot be represented by Glue's quite restrictive naming rules.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html#getColumnPredicatesMap(java.util.List,io.substrait.proto.Expression,java.util.List)">getColumnPredicatesMap(List&lt;SimpleExtensionDeclaration&gt;, Expression, List&lt;String&gt;)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitFunctionParser</a></dt>
+<dd>
+<div class="block">Parses a Substrait expression into a map of column predicates grouped by column name.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#getColumns(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,java.sql.DatabaseMetaData)">getColumns(String, TableName, DatabaseMetaData)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
@@ -5135,6 +5191,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/KmsEncryptionProvider.html#getFasCredentials(java.lang.String,java.lang.String)">getFasCredentials(String, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/KmsEncryptionProvider.html" title="class in com.amazonaws.athena.connector.lambda.security">KmsEncryptionProvider</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html#getFetchRel()">getFetchRel()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitRelModel</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html#getFetchRel(io.substrait.proto.Rel)">getFetchRel(Rel)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitRelUtils</a></dt>
+<dd>
+<div class="block">Extracts a FetchRel (LIMIT operation) from a Substrait relation tree.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SchemaBuilder.html#getField(java.lang.String)">getField(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueFieldLexer.BaseTypeMapper.html#getField(java.lang.String,java.lang.String)">getField(String, String)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueFieldLexer.BaseTypeMapper.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.glue">GlueFieldLexer.BaseTypeMapper</a></dt>
@@ -5193,6 +5255,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/gcs/storage/StorageMetadata.html#getFileSchema(java.lang.String,java.lang.String,org.apache.arrow.dataset.file.FileFormat,org.apache.arrow.memory.BufferAllocator)">getFileSchema(String, String, FileFormat, BufferAllocator)</a></span> - Method in class com.amazonaws.athena.connectors.gcs.storage.<a href="com/amazonaws/athena/connectors/gcs/storage/StorageMetadata.html" title="class in com.amazonaws.athena.connectors.gcs.storage">StorageMetadata</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html#getFilterRel()">getFilterRel()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitRelModel</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html#getFilterRel(io.substrait.proto.Rel)">getFilterRel(Rel)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitRelUtils</a></dt>
+<dd>
+<div class="block">Extracts a FilterRel from a Substrait relation tree.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/dto/KafkaField.html#getFormatHint()">getFormatHint()</a></span> - Method in class com.amazonaws.athena.connectors.kafka.dto.<a href="com/amazonaws/athena/connectors/kafka/dto/KafkaField.html" title="class in com.amazonaws.athena.connectors.kafka.dto">KafkaField</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/msk/dto/MSKField.html#getFormatHint()">getFormatHint()</a></span> - Method in class com.amazonaws.athena.connectors.msk.dto.<a href="com/amazonaws/athena/connectors/msk/dto/MSKField.html" title="class in com.amazonaws.athena.connectors.msk.dto">MSKField</a></dt>
@@ -5353,6 +5421,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Generates a list of distinct values from the given <a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate"><code>ValueSet</code></a> or an empty list if not possible.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#getHashKeyAttributeValues(java.util.List)">getHashKeyAttributeValues(List&lt;ColumnPredicate&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html#getHbaseTableName(java.util.Map,com.amazonaws.athena.connectors.hbase.connection.HBaseConnection,com.amazonaws.athena.connector.lambda.domain.TableName)">getHbaseTableName(Map&lt;String, String&gt;, HBaseConnection, TableName)</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseTableNameUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseTableNameUtils</a></dt>
 <dd>
 <div class="block">Gets the hbase table name from Athena table name.</div>
@@ -5577,6 +5647,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/timestream/TimestreamType.html#getMinorType()">getMinorType()</a></span> - Method in enum com.amazonaws.athena.connectors.timestream.<a href="com/amazonaws/athena/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.athena.connectors.timestream">TimestreamType</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html#getName()">getName()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitField</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricSamplesTable.html#getName()">getName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricSamplesTable.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">MetricSamplesTable</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricsTable.html#getName()">getName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricsTable.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">MetricsTable</a></dt>
@@ -5670,6 +5742,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html#getNumSplits()">getNumSplits()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeQueryStringBuilder.html#getObjectForWhereClause(java.lang.String,java.lang.Object,org.apache.arrow.vector.types.pojo.ArrowType)">getObjectForWhereClause(String, Object, ArrowType)</a></span> - Static method in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeQueryStringBuilder.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeQueryStringBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html#getOperator()">getOperator()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html" title="class in com.amazonaws.athena.connector.substrait.model">ColumnPredicate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#getOperatorType()">getOperatorType()</a></span> - Method in enum com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>&nbsp;</dd>
@@ -6034,6 +6108,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#getProjectionType()">getProjectionType()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html#getProjectRel()">getProjectRel()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitRelModel</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html#getProjectRel(io.substrait.proto.Rel)">getProjectRel(Rel)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitRelUtils</a></dt>
+<dd>
+<div class="block">Extracts a ProjectRel (SELECT operation) from a Substrait relation tree.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/Split.html#getProperties()">getProperties()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a></dt>
 <dd>
 <div class="block">Provides access to all properties on this Split.</div>
@@ -6141,6 +6221,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorImpl.html#getRawAllocator()">getRawAllocator()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockAllocatorImpl</a></dt>
 <dd>
 <div class="block">Provides access to the underlying Apache Arrow Allocator.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html#getReadRel()">getReadRel()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitRelModel</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html#getReadRel(io.substrait.proto.Rel)">getReadRel(Rel)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitRelUtils</a></dt>
+<dd>
+<div class="block">Extracts a ReadRel (table scan operation) from a Substrait relation tree.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#getRecordBatch()">getRecordBatch()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>
@@ -6437,6 +6523,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/snowflake/SnowflakeEnvironmentProperties.html#getSnowFlakeParameter(java.util.Map,java.util.Map)">getSnowFlakeParameter(Map&lt;String, String&gt;, Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.snowflake.<a href="com/amazonaws/athena/connectors/snowflake/SnowflakeEnvironmentProperties.html" title="class in com.amazonaws.athena.connectors.snowflake">SnowflakeEnvironmentProperties</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html#getSortRel()">getSortRel()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitRelModel</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html#getSortRel(io.substrait.proto.Rel)">getSortRel(Rel)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitRelUtils</a></dt>
+<dd>
+<div class="block">Extracts a SortRel (ORDER BY operation) from a Substrait relation tree.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#getSourceTableName(org.apache.arrow.vector.types.pojo.Schema)">getSourceTableName(Schema)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
 <dd>
 <div class="block">Will return the source table name stored by <a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#populateSourceTableNameIfAvailable(software.amazon.awssdk.services.glue.model.Table,com.amazonaws.athena.connector.lambda.data.SchemaBuilder)"><code>GlueMetadataHandler.populateSourceTableNameIfAvailable(software.amazon.awssdk.services.glue.model.Table, com.amazonaws.athena.connector.lambda.data.SchemaBuilder)</code></a></div>
@@ -6529,8 +6621,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/splits/SplitterFactory.html#getSplitter(java.lang.String,java.sql.ResultSet,int)">getSplitter(String, ResultSet, int)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.splits.<a href="com/amazonaws/athena/connectors/jdbc/splits/SplitterFactory.html" title="class in com.amazonaws.athena.connectors.jdbc.splits">SplitterFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/QueryPlan.html#getSqlConformance()">getSqlConformance()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/QueryPlan.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">QueryPlan</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/ConnectorStackProvider.html#getStack()">getStack()</a></span> - Method in class com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/ConnectorStackProvider.html" title="class in com.amazonaws.athena.connector.integ">ConnectorStackProvider</a></dt>
 <dd>
 <div class="block">Gets the CloudFormation stack programmatically using AWS CDK.</div>
@@ -6579,6 +6669,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Provides access to the associative predicates that are part of the Constraints.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#getSymbol()">getSymbol()</a></span> - Method in enum com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html#getTable()">getTable()</a></span> - Method in class com.amazonaws.athena.connectors.vertica.query.<a href="com/amazonaws/athena/connectors/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.athena.connectors.vertica.query">VerticaExportQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/EbsTableProvider.html#getTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)">getTable(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connectors.aws.cmdb.tables.ec2.<a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/EbsTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2">EbsTableProvider</a></dt>
@@ -6615,6 +6707,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Fetches metadata for a DynamoDB table</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitMetadataParser.html#getTableColumns(com.amazonaws.athena.connector.substrait.model.SubstraitRelModel)">getTableColumns(SubstraitRelModel)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitMetadataParser.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitMetadataParser</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.html#getTableLayout(java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,org.apache.arrow.vector.types.pojo.Schema,java.util.Set,java.lang.String,com.amazonaws.athena.connector.lambda.security.FederatedIdentity)">getTableLayout(String, TableName, Constraints, Schema, Set&lt;String&gt;, String, FederatedIdentity)</a></span> - Static method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.html" title="class in com.amazonaws.athena.connector.validation">LambdaMetadataProvider</a></dt>
 <dd>
 <div class="block">This method builds and executes a GetTableLayoutRequest against the specified Lambda function.</div>
@@ -6833,6 +6927,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">The Arrow Type of the values represented in this ValueSet.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html#getType()">getType()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitField</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/TypeAndValue.html#getType()">getType()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/TypeAndValue.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">TypeAndValue</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/dto/AvroTopicSchema.html#getType()">getType()</a></span> - Method in class com.amazonaws.athena.connectors.kafka.dto.<a href="com/amazonaws/athena/connectors/kafka/dto/AvroTopicSchema.html" title="class in com.amazonaws.athena.connectors.kafka.dto">AvroTopicSchema</a></dt>
@@ -6888,6 +6984,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html#getValue()">getValue()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser.Token</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthrough.html#getValue()">getValue()</a></span> - Method in enum com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.<a href="com/amazonaws/athena/connector/lambda/metadata/optimizations/querypassthrough/QueryPassthrough.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough">QueryPassthrough</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html#getValue()">getValue()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html" title="class in com.amazonaws.athena.connector.substrait.model">ColumnPredicate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/TypeAndValue.html#getValue()">getValue()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/TypeAndValue.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">TypeAndValue</a></dt>
 <dd>&nbsp;</dd>
@@ -6997,9 +7095,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/connection/EnvironmentConstants.html#GRAPH_TYPE">GRAPH_TYPE</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.connection.<a href="com/amazonaws/athena/connector/lambda/connection/EnvironmentConstants.html" title="class in com.amazonaws.athena.connector.lambda.connection">EnvironmentConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#GREATER_THAN">GREATER_THAN</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#GREATER_THAN_OPERATOR_FUNCTION_NAME">GREATER_THAN_OPERATOR_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME">GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#GREATER_THAN_OR_EQUAL_TO">GREATER_THAN_OR_EQUAL_TO</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#greaterAdjacent()">greaterAdjacent()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
 <dd>&nbsp;</dd>
@@ -7051,6 +7153,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest(InputStream, OutputStream, Context)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseIntegTestHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/integ/RedisIntegTestHandler.html#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest(InputStream, OutputStream, Context)</a></span> - Method in class com.amazonaws.athena.connectors.redis.integ.<a href="com/amazonaws/athena/connectors/redis/integ/RedisIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.redis.integ">RedisIntegTestHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html#hasChildren()">hasChildren()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitField</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html#hasContinuationToken()">hasContinuationToken()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a></dt>
 <dd>
@@ -7150,6 +7254,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionRequest</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionResponse</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitField</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#hashCode()">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
 <dd>&nbsp;</dd>
@@ -7655,6 +7761,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/oracle/OracleJdbcConnectionFactory.html#IS_FIPS_ENABLED_LEGACY">IS_FIPS_ENABLED_LEGACY</a></span> - Static variable in class com.amazonaws.athena.connectors.oracle.<a href="com/amazonaws/athena/connectors/oracle/OracleJdbcConnectionFactory.html" title="class in com.amazonaws.athena.connectors.oracle">OracleJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#IS_NOT_NULL">IS_NOT_NULL</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#IS_NULL">IS_NULL</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#IS_NULL_FUNCTION_NAME">IS_NULL_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#isAdjacent(com.amazonaws.athena.connector.lambda.domain.predicate.Marker)">isAdjacent(Marker)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
@@ -8050,9 +8160,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">This class offers a convenience method to retrieve records from a deployed Lambda.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#LESS_THAN">LESS_THAN</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#LESS_THAN_OPERATOR_FUNCTION_NAME">LESS_THAN_OPERATOR_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME">LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#LESS_THAN_OR_EQUAL_TO">LESS_THAN_OR_EQUAL_TO</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#lesserAdjacent()">lesserAdjacent()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
 <dd>&nbsp;</dd>
@@ -8857,6 +8971,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/NoOpBlockCrypto.html#%3Cinit%3E(com.amazonaws.athena.connector.lambda.data.BlockAllocator)">NoOpBlockCrypto(BlockAllocator)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/NoOpBlockCrypto.html" title="class in com.amazonaws.athena.connector.lambda.security">NoOpBlockCrypto</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#NOT">NOT</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#NOT_EQUAL">NOT_EQUAL</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#NOT_EQUAL_OPERATOR_FUNCTION_NAME">NOT_EQUAL_OPERATOR_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#NOT_FUNCTION_NAME">NOT_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
@@ -8964,6 +9082,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/v4/OptimizationSubTypeSerDeV4.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v4"><span class="typeNameLink">OptimizationSubTypeSerDeV4.Deserializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v4/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v4</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/v4/OptimizationSubTypeSerDeV4.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v4"><span class="typeNameLink">OptimizationSubTypeSerDeV4.Serializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v4/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v4</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#OR">OR</a></span> - com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#OR_FUNCTION_NAME">OR_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
 <dd>
@@ -9081,6 +9201,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/util/PaginationHelper.html" title="class in com.amazonaws.athena.connector.util"><span class="typeNameLink">PaginationHelper</span></a> - Class in <a href="com/amazonaws/athena/connector/util/package-summary.html">com.amazonaws.athena.connector.util</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html#parseColumnPredicates(java.util.List,io.substrait.proto.Expression,java.util.List)">parseColumnPredicates(List&lt;SimpleExtensionDeclaration&gt;, Expression, List&lt;String&gt;)</a></span> - Static method in class com.amazonaws.athena.connector.substrait.<a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html" title="class in com.amazonaws.athena.connector.substrait">SubstraitFunctionParser</a></dt>
+<dd>
+<div class="block">Recursively parses a Substrait expression to extract all column predicates.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryFederationExpressionParser.html#parseComplexExpressions(java.util.List,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">parseComplexExpressions(List&lt;Field&gt;, Constraints)</a></span> - Method in class com.amazonaws.athena.connectors.google.bigquery.<a href="com/amazonaws/athena/connectors/google/bigquery/BigQueryFederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.google.bigquery">BigQueryFederationExpressionParser</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/manager/FederationExpressionParser.html#parseComplexExpressions(java.util.List,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,java.util.List)">parseComplexExpressions(List&lt;Field&gt;, Constraints, List&lt;TypeAndValue&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.manager.<a href="com/amazonaws/athena/connectors/jdbc/manager/FederationExpressionParser.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">FederationExpressionParser</a></dt>
@@ -9435,7 +9559,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/domain/predicate/QueryPlan.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="typeNameLink">QueryPlan</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/domain/predicate/package-summary.html">com.amazonaws.athena.connector.lambda.domain.predicate</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/QueryPlan.html#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String)">QueryPlan(String, String, String)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/QueryPlan.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">QueryPlan</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/QueryPlan.html#%3Cinit%3E(java.lang.String,java.lang.String)">QueryPlan(String, String)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/QueryPlan.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">QueryPlan</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/v6/QueryPlanSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v6"><span class="typeNameLink">QueryPlanSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v6/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v6</a></dt>
 <dd>&nbsp;</dd>
@@ -11133,6 +11257,40 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/SubnetTableProvider.html#%3Cinit%3E(software.amazon.awssdk.services.ec2.Ec2Client)">SubnetTableProvider(Ec2Client)</a></span> - Constructor for class com.amazonaws.athena.connectors.aws.cmdb.tables.ec2.<a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/SubnetTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2">SubnetTableProvider</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model"><span class="typeNameLink">SubstraitField</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/model/package-summary.html">com.amazonaws.athena.connector.substrait.model</a></dt>
+<dd>
+<div class="block">Represents a field in a Substrait schema with its name, type, and optional nested children.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html#%3Cinit%3E(java.lang.String,java.lang.String,java.util.List)">SubstraitField(String, String, List&lt;SubstraitField&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitField</a></dt>
+<dd>
+<div class="block">Constructs a SubstraitField with the specified name, type, and children.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/SubstraitFunctionParser.html" title="class in com.amazonaws.athena.connector.substrait"><span class="typeNameLink">SubstraitFunctionParser</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/package-summary.html">com.amazonaws.athena.connector.substrait</a></dt>
+<dd>
+<div class="block">Utility class for parsing Substrait function expressions into filter predicates and column predicates.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/SubstraitLiteralConverter.html" title="class in com.amazonaws.athena.connector.substrait"><span class="typeNameLink">SubstraitLiteralConverter</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/package-summary.html">com.amazonaws.athena.connector.substrait</a></dt>
+<dd>
+<div class="block">Utility class for converting between Substrait literal expressions and Java objects with Arrow types.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/SubstraitMetadataParser.html" title="class in com.amazonaws.athena.connector.substrait"><span class="typeNameLink">SubstraitMetadataParser</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/package-summary.html">com.amazonaws.athena.connector.substrait</a></dt>
+<dd>
+<div class="block">Utility class for parsing Substrait metadata and Handles schema extraction from Substrait protocol buffers.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model"><span class="typeNameLink">SubstraitOperator</span></a> - Enum in <a href="com/amazonaws/athena/connector/substrait/model/package-summary.html">com.amazonaws.athena.connector.substrait.model</a></dt>
+<dd>
+<div class="block">Represents a subset of Substrait-supported operators for query federation.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model"><span class="typeNameLink">SubstraitRelModel</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/model/package-summary.html">com.amazonaws.athena.connector.substrait.model</a></dt>
+<dd>
+<div class="block">Model class that encapsulates the different types of Substrait relations extracted from a query plan.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html#%3Cinit%3E(io.substrait.proto.ReadRel,io.substrait.proto.FilterRel,io.substrait.proto.ProjectRel,io.substrait.proto.SortRel,io.substrait.proto.FetchRel)">SubstraitRelModel(ReadRel, FilterRel, ProjectRel, SortRel, FetchRel)</a></span> - Constructor for class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitRelModel.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitRelModel</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/substrait/SubstraitRelUtils.html" title="class in com.amazonaws.athena.connector.substrait"><span class="typeNameLink">SubstraitRelUtils</span></a> - Class in <a href="com/amazonaws/athena/connector/substrait/package-summary.html">com.amazonaws.athena.connector.substrait</a></dt>
+<dd>
+<div class="block">Utility class for working with Substrait relational algebra expressions.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html#subtract(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet)">subtract(BlockAllocator, ValueSet)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html#SUBTRACT_FUNCTION_NAME">SUBTRACT_FUNCTION_NAME</a></span> - com.amazonaws.athena.connector.lambda.domain.predicate.functions.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/functions/StandardFunctions.html" title="enum in com.amazonaws.athena.connector.lambda.domain.predicate.functions">StandardFunctions</a></dt>
@@ -11643,6 +11801,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#toString()">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html#toString()">toString()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/ColumnPredicate.html" title="class in com.amazonaws.athena.connector.substrait.model">ColumnPredicate</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html#toString()">toString()</a></span> - Method in class com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitField.html" title="class in com.amazonaws.athena.connector.substrait.model">SubstraitField</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#toString()">toString()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfig.html#toString()">toString()</a></span> - Method in class com.amazonaws.athena.connectors.jdbc.connection.<a href="com/amazonaws/athena/connectors/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.athena.connectors.jdbc.connection">DatabaseConnectionConfig</a></dt>
@@ -11972,6 +12134,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#valueOf(java.lang.String)">valueOf(String)</a></span> - Static method in enum com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
+<dd>
+<div class="block">Returns the enum constant of this type with the specified name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2DataType.html#valueOf(java.lang.String)">valueOf(String)</a></span> - Static method in enum com.amazonaws.athena.connectors.datalakegen2.<a href="com/amazonaws/athena/connectors/datalakegen2/DataLakeGen2DataType.html" title="enum in com.amazonaws.athena.connectors.datalakegen2">DataLakeGen2DataType</a></dt>
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
@@ -12097,6 +12263,11 @@ the order they are declared.</div>
 the order they are declared.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionType.html#values()">values()</a></span> - Static method in enum com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionType.html" title="enum in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionType</a></dt>
+<dd>
+<div class="block">Returns an array containing the constants of this enum type, in
+the order they are declared.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html#values()">values()</a></span> - Static method in enum com.amazonaws.athena.connector.substrait.model.<a href="com/amazonaws/athena/connector/substrait/model/SubstraitOperator.html" title="enum in com.amazonaws.athena.connector.substrait.model">SubstraitOperator</a></dt>
 <dd>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
