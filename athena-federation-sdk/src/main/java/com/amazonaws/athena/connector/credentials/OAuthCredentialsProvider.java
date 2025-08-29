@@ -107,6 +107,11 @@ public abstract class OAuthCredentialsProvider implements CredentialsProvider
     }
 
     /**
+     * Checks if OAuth is configured by verifying required fields exist.
+     */
+    protected abstract boolean isOAuthConfigured(Map<String, String> secretMap);
+
+    /**
      * Builds the token request for the specific OAuth provider.
      */
     protected abstract HttpRequest buildTokenRequest(Map<String, String> secretMap);

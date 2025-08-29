@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -81,9 +82,10 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
     @Override
     protected CredentialsProvider getCredentialProvider()
     {
-        return DataLakeGen2CredentialProviderUtils.getCredentialProvider(
+        return CredentialsProviderFactory.createCredentialProvider(
             getDatabaseConnectionConfig().getSecret(),
-            getCachableSecretsManager()
+            getCachableSecretsManager(),
+            DataLakeGen2OAuthCredentialsProvider.class
         );
     }
 }

@@ -82,7 +82,7 @@ public class DataLakeGen2OAuthCredentialsProviderTest
         secretMap.put(CLIENT_SECRET, TEST_CLIENT_SECRET);
         secretMap.put(TENANT_ID, TEST_TENANT_ID);
 
-        assertTrue(DataLakeGen2OAuthCredentialsProvider.isOAuthConfigured(secretMap));
+        assertTrue(credentialsProvider.isOAuthConfigured(secretMap));
     }
 
     @Test
@@ -92,7 +92,7 @@ public class DataLakeGen2OAuthCredentialsProviderTest
         secretMap.put(CLIENT_ID, TEST_CLIENT_ID);
         // Missing client_secret and tenant_id
 
-        assertFalse(DataLakeGen2OAuthCredentialsProvider.isOAuthConfigured(secretMap));
+        assertFalse(credentialsProvider.isOAuthConfigured(secretMap));
     }
 
     @Test
