@@ -275,6 +275,16 @@
             <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.substrait</groupId>
+            <artifactId>isthmus</artifactId>
+            <version>${io.substrait.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.substrait</groupId>
+            <artifactId>core</artifactId>
+            <version>${io.substrait.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

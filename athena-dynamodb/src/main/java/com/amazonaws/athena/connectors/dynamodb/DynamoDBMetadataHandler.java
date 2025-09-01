@@ -27,7 +27,9 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
@@ -43,9 +45,14 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.athena.connectors.dynamodb.credentials.CrossAccountCredentialsProviderV2;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
@@ -61,8 +68,10 @@ import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProduc
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import io.substrait.proto.Plan;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
@@ -89,6 +98,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
@@ -110,6 +120,7 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExceptionFilter.EXCEPTION_FILTER;
+import static com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils.buildFilterPredicatesFromPlan;
 import static com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils.SCHEMA_INFERENCE_NUM_RECORDS;
 
 /**
@@ -185,6 +196,24 @@ public class DynamoDBMetadataHandler
     {
         ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
         this.queryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, this.configOptions);
+        capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
+                LimitPushdownSubType.INTEGER_CONSTANT
+        ));
+
+        List<StandardFunctions> supportedFunctions = new ArrayList<>();
+        supportedFunctions.add(StandardFunctions.AND_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.IS_NULL_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME);
+        supportedFunctions.add(StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME);
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(supportedFunctions.stream()
+                                .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                                .toArray(String[]::new))
+        ));
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
@@ -343,39 +372,39 @@ public class DynamoDBMetadataHandler
         // add table name so we don't have to do case insensitive resolution again
         partitionSchemaBuilder.addMetadata(TABLE_METADATA, table.getName());
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
+        QueryPlan queryPlan = request.getConstraints().getQueryPlan();
+
         List<String> requestedCols = request.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toList());
-        DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
+        DynamoDBIndex index;
+        Plan plan = null;
+        Map<String, List<ColumnPredicate>> filterPredicates = new HashMap<>();
+        boolean useQueryPlan = false;
+        if (Objects.nonNull(queryPlan)) {
+            plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+            filterPredicates = buildFilterPredicatesFromPlan(plan);
+            index = DDBPredicateUtils.getBestIndexForPredicatesForPlan(table, requestedCols, filterPredicates);
+            useQueryPlan = true;
+        }
+        else {
+            index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
+        }
         logger.info("using index: {}", index.getName());
         String hashKeyName = index.getHashKey();
-        ValueSet hashKeyValueSet = summary.get(hashKeyName);
-        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+        
+        HashKeyPredicateInfo hashKeyInfo = extractHashKeyInfo(hashKeyName, summary, filterPredicates, useQueryPlan);
 
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(request.getSchema());
 
         Set<String> columnsToIgnore = new HashSet<>();
         List<AttributeValue> valueAccumulator = new ArrayList<>();
         IncrementingValueNameProducer valueNameProducer = new IncrementingValueNameProducer();
-        if (!hashKeyValues.isEmpty()) {
+        
+        if (!hashKeyInfo.isEmpty()) {
             // can "partition" on hash key
-            partitionSchemaBuilder.addField(hashKeyName, hashKeyValueSet.getType());
-            partitionSchemaBuilder.addMetadata(HASH_KEY_NAME_METADATA, hashKeyName);
-            columnsToIgnore.add(hashKeyName);
-            partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, QUERY_PARTITION_TYPE);
-            if (!table.getName().equals(index.getName())) {
-                partitionSchemaBuilder.addMetadata(INDEX_METADATA, index.getName());
-            }
+            setupQueryPartition(partitionSchemaBuilder, hashKeyName, hashKeyInfo.arrowType(), table, index, columnsToIgnore);
 
-            // add range key filter if there is one
-            Optional<String> rangeKey = index.getRangeKey();
-            if (rangeKey.isPresent()) {
-                String rangeKeyName = rangeKey.get();
-                if (summary.containsKey(rangeKeyName)) {
-                    String rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true);
-                    partitionSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName);
-                    partitionSchemaBuilder.addMetadata(RANGE_KEY_FILTER_METADATA, rangeKeyFilter);
-                    columnsToIgnore.add(rangeKeyName);
-                }
-            }
+            setupRangeKeyFilter(partitionSchemaBuilder, index, summary, filterPredicates, useQueryPlan, 
+                              valueAccumulator, valueNameProducer, recordMetadata, columnsToIgnore);
         }
         else {
             // always fall back to a scan
@@ -388,7 +417,8 @@ public class DynamoDBMetadataHandler
         // So we have to filter the results after the query/scan result is returned
         columnsToIgnore.addAll(recordMetadata.getNonComparableColumns());
 
-        precomputeAdditionalMetadata(columnsToIgnore, summary, valueAccumulator, valueNameProducer, partitionSchemaBuilder, recordMetadata);
+        precomputeAdditionalMetadata(columnsToIgnore, summary, valueAccumulator, valueNameProducer,
+                partitionSchemaBuilder, recordMetadata, filterPredicates, useQueryPlan);
     }
 
     /**
@@ -410,13 +440,40 @@ public class DynamoDBMetadataHandler
             tableName = request.getTableName().getTableName();
         }
         DynamoDBTable table = tableResolver.getTableMetadata(tableName, overrideConfig);
-        Map<String, ValueSet> summary = request.getConstraints().getSummary();
+
         List<String> requestedCols = request.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toList());
-        DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
-        logger.info("using index: {}", index.getName());
+        QueryPlan queryPlan = request.getConstraints().getQueryPlan();
+        Plan plan = null;
+        boolean useQueryPlan = false;
+        DynamoDBIndex index;
+        Map<String, List<ColumnPredicate>>  filterPredicates = new HashMap<>();
+        if (Objects.nonNull(queryPlan)) {
+            plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+            filterPredicates = buildFilterPredicatesFromPlan(plan);
+            index = DDBPredicateUtils.getBestIndexForPredicatesForPlan(table, requestedCols, filterPredicates);
+            useQueryPlan = true;
+        }
+        else {
+            Map<String, ValueSet> summary = request.getConstraints().getSummary();
+            index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
+        }
+
         String hashKeyName = index.getHashKey();
-        ValueSet hashKeyValueSet = summary.get(hashKeyName);
-        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+        List<Object> hashKeyValues = new ArrayList<>();
+        if (useQueryPlan) {
+            if (filterPredicates.get(hashKeyName) != null) {
+                List<ColumnPredicate> columnPredicates = DDBPredicateUtils.getHashKeyAttributeValues(filterPredicates.get(hashKeyName));
+                hashKeyValues = columnPredicates.stream()
+                        .map(ColumnPredicate::getValue)
+                        .collect(Collectors.toList());
+            }
+        }
+        else {
+            Map<String, ValueSet> summary = request.getConstraints().getSummary();
+            ValueSet hashKeyValueSet = summary.get(hashKeyName);
+            hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet)
+                    : Collections.emptyList();
+        }
 
         if (!hashKeyValues.isEmpty()) {
             for (Object hashKeyValue : hashKeyValues) {
@@ -441,10 +498,18 @@ public class DynamoDBMetadataHandler
     Injects additional metadata into the partition schema like a non-key filter expression for additional DDB-side filtering
      */
     private void precomputeAdditionalMetadata(Set<String> columnsToIgnore, Map<String, ValueSet> predicates, List<AttributeValue> accumulator,
-                                              IncrementingValueNameProducer valueNameProducer, SchemaBuilder partitionsSchemaBuilder, DDBRecordMetadata recordMetadata)
+                                              IncrementingValueNameProducer valueNameProducer, SchemaBuilder partitionsSchemaBuilder, DDBRecordMetadata recordMetadata,
+                                              Map<String, List<ColumnPredicate>> filterPredicates, boolean useQueryPlan)
     {
         // precompute non-key filter
-        String filterExpression = DDBPredicateUtils.generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer, recordMetadata);
+        String filterExpression = null;
+        if (!useQueryPlan) {
+            filterExpression = DDBPredicateUtils.generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer, recordMetadata);
+        }
+        else {
+            filterExpression = DDBPredicateUtils.generateFilterExpressionForPlan(columnsToIgnore, filterPredicates, accumulator, valueNameProducer, recordMetadata);
+        }
+
         if (filterExpression != null) {
             partitionsSchemaBuilder.addMetadata(NON_KEY_FILTER_METADATA, filterExpression);
         }
@@ -452,7 +517,14 @@ public class DynamoDBMetadataHandler
         if (!accumulator.isEmpty()) {
             // add in mappings for aliased columns and value placeholders
             Map<String, String> aliasedColumns = new HashMap<>();
-            for (String column : predicates.keySet()) {
+            Set<String> filterColumns = new HashSet<>();
+            if (useQueryPlan) {
+                filterColumns = filterPredicates.keySet();
+            }
+            else {
+                filterColumns = predicates.keySet();
+            }
+            for (String column : filterColumns) {
                 aliasedColumns.put(DDBPredicateUtils.aliasColumn(column), column);
             }
             Map<String, AttributeValue> expressionValueMapping = new HashMap<>();
@@ -583,6 +655,84 @@ public class DynamoDBMetadataHandler
     {
         return String.valueOf(partition);
     }
+    
+    /**
+     * Extracts hash key values and type information from constraints.
+     */
+    private HashKeyPredicateInfo extractHashKeyInfo(String hashKeyName, Map<String, ValueSet> summary,
+                                                    Map<String, List<ColumnPredicate>> filterPredicates, boolean useQueryPlan)
+    {
+        if (useQueryPlan) {
+            List<ColumnPredicate> predicates = filterPredicates.get(hashKeyName);
+            if (predicates != null) {
+                List<ColumnPredicate> hashKeyPredicates = DDBPredicateUtils.getHashKeyAttributeValues(predicates);
+                if (!hashKeyPredicates.isEmpty()) {
+                    return new HashKeyPredicateInfo(
+                        Collections.singletonList(hashKeyPredicates),
+                        hashKeyPredicates.get(0).getArrowType()
+                    );
+                }
+            }
+            return new HashKeyPredicateInfo(Collections.emptyList(), null);
+        }
+        else {
+            ValueSet hashKeyValueSet = summary.get(hashKeyName);
+            ArrowType arrowType = (hashKeyValueSet != null) ? hashKeyValueSet.getType() : null;
+            List<Object> hashKeyValues = (hashKeyValueSet != null) ? 
+                DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+            return new HashKeyPredicateInfo(hashKeyValues, arrowType);
+        }
+    }
+    
+    /**
+     * Sets up query partition metadata in the schema builder.
+     */
+    private void setupQueryPartition(SchemaBuilder partitionSchemaBuilder, String hashKeyName, ArrowType arrowType,
+                                   DynamoDBTable table, DynamoDBIndex index, Set<String> columnsToIgnore)
+    {
+        partitionSchemaBuilder.addField(hashKeyName, arrowType);
+        partitionSchemaBuilder.addMetadata(HASH_KEY_NAME_METADATA, hashKeyName);
+        columnsToIgnore.add(hashKeyName);
+        partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, QUERY_PARTITION_TYPE);
+        
+        if (!table.getName().equals(index.getName())) {
+            partitionSchemaBuilder.addMetadata(INDEX_METADATA, index.getName());
+        }
+    }
+    
+    /**
+     * Sets up range key filter if applicable.
+     */
+    private void setupRangeKeyFilter(SchemaBuilder partitionSchemaBuilder, DynamoDBIndex index,
+                                   Map<String, ValueSet> summary, Map<String, List<ColumnPredicate>> filterPredicates,
+                                   boolean useQueryPlan, List<AttributeValue> valueAccumulator,
+                                   IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata,
+                                   Set<String> columnsToIgnore)
+    {
+        Optional<String> rangeKey = index.getRangeKey();
+        if (rangeKey.isEmpty()) {
+            return;
+        }
+        
+        String rangeKeyName = rangeKey.get();
+        String rangeKeyFilter = null;
+        
+        if (!useQueryPlan && summary.containsKey(rangeKeyName)) {
+            rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(
+                rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true);
+        }
+        else if (useQueryPlan && filterPredicates.containsKey(rangeKeyName)) {
+            rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(
+                rangeKeyName, filterPredicates.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true);
+        }
+        
+        if (rangeKeyFilter != null) {
+            logger.info("filter on range key is: {}", rangeKeyFilter);
+            partitionSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName);
+            partitionSchemaBuilder.addMetadata(RANGE_KEY_FILTER_METADATA, rangeKeyFilter);
+            columnsToIgnore.add(rangeKeyName);
+        }
+    }
 
     /**
      * Helper function that provides a single partition for Query Pass-Through
@@ -599,5 +749,35 @@ public class DynamoDBMetadataHandler
                 Split.newBuilder(spillLocation, makeEncryptionKey())
                         .applyProperties(qptArguments)
                         .build());
+    }
+
+    /**
+     * Helper class to encapsulate hash key information.
+     */
+    private static final class HashKeyPredicateInfo
+    {
+        private final List<Object> values;
+        private final ArrowType arrowType;
+
+        HashKeyPredicateInfo(List<Object> values, ArrowType arrowType)
+        {
+            this.values = values;
+            this.arrowType = arrowType;
+        }
+
+        List<Object> values()
+        {
+            return values;
+        }
+
+        ArrowType arrowType()
+        {
+            return arrowType;
+        }
+
+        boolean isEmpty()
+        {
+            return values.isEmpty();
+        }
     }
 }
