@@ -134,11 +134,31 @@ public class BigQueryRecordHandler
         TableId tableId = TableId.of(projectName, datasetName, tableName);
         TableDefinition.Type type = bigQueryClient.getTable(tableId).getDefinition().getType();
 
+        // Extract Substrait optimizations from split properties
+        String whereClause = recordsRequest.getSplit().getProperty("whereClause");
+        String limitStr = recordsRequest.getSplit().getProperty("limit");
+        
         if (type.equals(TableDefinition.Type.TABLE)) {
-            getTableData(spiller, recordsRequest, parameterValues, projectName, datasetName, tableName);
+            // For tables, use optimized query if Substrait optimizations are available
+            if (whereClause != null || limitStr != null) {
+                String sql = buildOptimizedQuery(recordsRequest, whereClause, limitStr, projectName, datasetName, tableName);
+                getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, sql);
+            }
+            else {
+                getTableData(spiller, recordsRequest, parameterValues, projectName, datasetName, tableName);
+            }
         }
         else {
-            getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, datasetName, tableName);
+            // For views, always use SQL-based approach with optimizations
+            String sql;
+            if (whereClause != null || limitStr != null) {
+                sql = buildOptimizedQuery(recordsRequest, whereClause, limitStr, projectName, datasetName, tableName);
+            }
+            else {
+                sql = BigQuerySqlUtils.buildSql(new TableName(datasetName, tableName),
+                    recordsRequest.getSchema(), recordsRequest.getConstraints(), parameterValues);
+            }
+            getData(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient, sql);
         }
     }
 
@@ -362,5 +382,36 @@ public class BigQueryRecordHandler
                 });
             }
         }
+    }
+
+    /**
+     * Builds an optimized BigQuery SQL query using Substrait-derived filters and limits.
+     */
+    private String buildOptimizedQuery(ReadRecordsRequest request, String whereClause, String limitStr, 
+                                       String projectName, String datasetName, String tableName)
+    {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ");
+        
+        // Add column projections
+        List<String> columns = new ArrayList<>();
+        for (Field field : request.getSchema().getFields()) {
+            columns.add(field.getName());
+        }
+        sql.append(String.join(", ", columns));
+        
+        sql.append(" FROM `").append(projectName).append(".").append(datasetName).append(".").append(tableName).append("`");
+        
+        // Add WHERE clause from Substrait predicates
+        if (whereClause != null && !whereClause.isEmpty()) {
+            sql.append(" WHERE ").append(whereClause);
+        }
+        
+        // Add LIMIT from Substrait plan
+        if (limitStr != null && !limitStr.isEmpty()) {
+            sql.append(" LIMIT ").append(limitStr);
+        }
+        
+        return sql.toString();
     }
 }

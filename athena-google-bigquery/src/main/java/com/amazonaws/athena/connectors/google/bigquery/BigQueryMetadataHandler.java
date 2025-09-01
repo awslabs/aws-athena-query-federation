@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
@@ -46,6 +47,9 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
+import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
@@ -62,6 +66,8 @@ import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.substrait.proto.FetchRel;
+import io.substrait.proto.Plan;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -71,7 +77,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
@@ -235,9 +244,35 @@ public class BigQueryMetadataHandler
     {
         //Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
+        
+        // Add Substrait support
+        QueryPlan queryPlan = request.getConstraints().getQueryPlan();
+        Map<String, String> splitProperties = new HashMap<>();
+        
+        if (Objects.nonNull(queryPlan)) {
+            Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+            Map<String, List<ColumnPredicate>> filterPredicates = 
+                BigQueryPredicateUtils.buildFilterPredicatesFromPlan(plan);
+            
+            // Convert predicates to BigQuery SQL and store in split
+            String whereClause = BigQueryPredicateUtils.buildBigQueryWhereClause(filterPredicates);
+            if (!whereClause.isEmpty()) {
+                splitProperties.put("whereClause", whereClause);
+            }
+            
+            // Handle LIMIT from Substrait plan
+            SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
+                plan.getRelations(0).getRoot().getInput());
+            if (substraitRelModel.getFetchRel() != null) {
+                FetchRel fetchRel = substraitRelModel.getFetchRel();
+                splitProperties.put("limit", String.valueOf(fetchRel.getCount()));
+            }
+        }
 
-        return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
-                makeEncryptionKey()).build());
+        return new GetSplitsResponse(request.getCatalogName(), 
+            Split.newBuilder(spillLocation, makeEncryptionKey())
+                 .applyProperties(splitProperties)
+                 .build());
     }
 
     /**

@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -248,6 +249,25 @@ public class BigQueryMetadataHandlerTest
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
         assertEquals(1, response.getSplits().size());
+    }
+
+    @Test
+    public void testDoGetSplitsWithSubstraitPlan()
+    {
+        // Create a mock QueryPlan with Substrait data
+        QueryPlan queryPlan = new QueryPlan("1.0", "mock-substrait-plan");
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
+        
+        GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
+                QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase(),
+                new TableName("dataset0", "table0"),
+                mock(Block.class), Collections.emptyList(), constraints, "1");
+
+        GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
+
+        assertEquals(1, response.getSplits().size());
+        // Verify that split properties are set (would contain whereClause and/or limit if Substrait parsing worked)
+        assertNotNull(response.getSplits().iterator().next().getProperties());
     }
 
     @Test(expected = Exception.class)
