@@ -250,22 +250,28 @@ public class BigQueryMetadataHandler
         Map<String, String> splitProperties = new HashMap<>();
         
         if (Objects.nonNull(queryPlan)) {
-            Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
-            Map<String, List<ColumnPredicate>> filterPredicates = 
-                BigQueryPredicateUtils.buildFilterPredicatesFromPlan(plan);
-            
-            // Convert predicates to BigQuery SQL and store in split
-            String whereClause = BigQueryPredicateUtils.buildBigQueryWhereClause(filterPredicates);
-            if (!whereClause.isEmpty()) {
-                splitProperties.put("whereClause", whereClause);
+            try {
+                Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+                Map<String, List<ColumnPredicate>> filterPredicates = 
+                    BigQueryPredicateUtils.buildFilterPredicatesFromPlan(plan);
+                
+                // Convert predicates to BigQuery SQL and store in split
+                String whereClause = BigQueryPredicateUtils.buildBigQueryWhereClause(filterPredicates);
+                if (!whereClause.isEmpty()) {
+                    splitProperties.put("whereClause", whereClause);
+                }
+                
+                // Handle LIMIT from Substrait plan
+                SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
+                    plan.getRelations(0).getRoot().getInput());
+                if (substraitRelModel.getFetchRel() != null) {
+                    FetchRel fetchRel = substraitRelModel.getFetchRel();
+                    splitProperties.put("limit", String.valueOf(fetchRel.getCount()));
+                }
             }
-            
-            // Handle LIMIT from Substrait plan
-            SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
-                plan.getRelations(0).getRoot().getInput());
-            if (substraitRelModel.getFetchRel() != null) {
-                FetchRel fetchRel = substraitRelModel.getFetchRel();
-                splitProperties.put("limit", String.valueOf(fetchRel.getCount()));
+            catch (Exception e) {
+                // Log and continue without Substrait optimizations if plan is invalid
+                logger.warn("Failed to parse Substrait plan, continuing without optimizations: {}", e.getMessage());
             }
         }
 

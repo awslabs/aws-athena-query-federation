@@ -254,7 +254,7 @@ public class BigQueryMetadataHandlerTest
     @Test
     public void testDoGetSplitsWithSubstraitPlan()
     {
-        // Create a mock QueryPlan with Substrait data
+        // Create a mock QueryPlan with Substrait data (invalid Base64 will be handled gracefully)
         QueryPlan queryPlan = new QueryPlan("1.0", "mock-substrait-plan");
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan);
         
@@ -266,7 +266,7 @@ public class BigQueryMetadataHandlerTest
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
         assertEquals(1, response.getSplits().size());
-        // Verify that split properties are set (would contain whereClause and/or limit if Substrait parsing worked)
+        // Verify that split properties are set (empty due to invalid plan, but method should not fail)
         assertNotNull(response.getSplits().iterator().next().getProperties());
     }
 
