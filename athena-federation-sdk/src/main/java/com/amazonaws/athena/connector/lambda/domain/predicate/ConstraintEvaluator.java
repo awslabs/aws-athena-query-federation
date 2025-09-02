@@ -98,6 +98,9 @@ public class ConstraintEvaluator
     public boolean apply(String fieldName, Object value)
     {
         try {
+            if (constraints.getSummary() == null) {
+                return true;
+            }
             ValueSet constraint = constraints.getSummary().get(fieldName);
             if (constraint != null && typeMap.get(fieldName) != null) {
                 try (Marker marker = markerFactory.createNullable(typeMap.get(fieldName),
