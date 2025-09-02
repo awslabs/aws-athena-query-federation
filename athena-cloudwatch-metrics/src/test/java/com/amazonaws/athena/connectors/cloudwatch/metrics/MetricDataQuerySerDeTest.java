@@ -34,7 +34,9 @@ import static org.junit.Assert.*;
 
 public class MetricDataQuerySerDeTest
 {
-    private static final Logger logger = LoggerFactory.getLogger(MetricDataQuerySerDeTest.class);
+	private static final Logger logger = LoggerFactory.getLogger(MetricDataQuerySerDeTest.class);
+
+	private static final String EXPECTED_SERIALIZATION = "[{\"id\":\"m1\",\"metricStat\":{\"metric\":{\"namespace\":\"namespace\",\"metricName\":\"metricName\",\"dimensions\":[{\"name\":\"dim_name1\",\"value\":\"dim_value1\"},{\"name\":\"dim_name2\",\"value\":\"dim_value2\"}]},\"period\":60,\"stat\":\"p90\",\"unit\":null},\"expression\":null,\"label\":null,\"returnData\":null,\"period\":null,\"accountId\":null}]";
 
     @Test
     public void serializeTest()
@@ -66,6 +68,7 @@ public class MetricDataQuerySerDeTest
         String actualSerialization = MetricDataQuerySerDe.serialize(metricDataQueries);
         logger.info("serializeTest: {}", actualSerialization);
         List<MetricDataQuery> actual = MetricDataQuerySerDe.deserialize(actualSerialization);
-        assertEquals(metricDataQueries, actual);
+        assertEquals(EXPECTED_SERIALIZATION, actualSerialization);
+		assertEquals(metricDataQueries, actual);
     }
 }
