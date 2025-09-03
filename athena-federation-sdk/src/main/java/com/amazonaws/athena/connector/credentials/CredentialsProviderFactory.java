@@ -27,7 +27,6 @@ import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.Map;
 
 /**
@@ -50,40 +49,37 @@ public final class CredentialsProviderFactory
      *
      * @param secretName The name of the secret in AWS Secrets Manager
      * @param secretsManager The secrets manager instance
-     * @param oAuthProviderClass The class of the OAuth provider to instantiate (must extend OAuthCredentialsProvider)
+     * @param provider The InitializableCredentialsProvider instance to check and initialize
      * @return A new CredentialsProvider instance based on the secret configuration
      * @throws AthenaConnectorException if there are errors deserializing the secret or creating the provider
      */
-    public static <T extends OAuthCredentialsProvider> CredentialsProvider createCredentialProvider(
+    public static CredentialsProvider createCredentialProvider(
             String secretName,
             CachableSecretsManager secretsManager,
-            Class<T> oAuthProviderClass)
+            InitializableCredentialsProvider provider)
     {
         if (StringUtils.isNotBlank(secretName)) {
             try {
                 String secretString = secretsManager.getSecret(secretName);
                 Map<String, String> secretMap = OBJECT_MAPPER.readValue(secretString, Map.class);
 
-                // Create an instance of the OAuth provider
-                T provider;
-                try {
-                    Constructor<T> constructor = oAuthProviderClass.getConstructor(
-                            String.class, Map.class, CachableSecretsManager.class);
-                    provider = constructor.newInstance(secretName, secretMap, secretsManager);
+                if (provider instanceof OAuthCredentialsProvider) {
+                    OAuthCredentialsProvider oauthProvider = (OAuthCredentialsProvider) provider;
+                    try {
+                        // Check if OAuth is configured
+                        if (oauthProvider.isOAuthConfigured(secretMap)) {
+                            oauthProvider.initialize(secretName, secretMap, secretsManager);
+                            return oauthProvider;
+                        }
+                    }
+                    catch (RuntimeException e) {
+                        throw new AthenaConnectorException("Failed to create OAuth provider: " + e.getMessage(),
+                                ErrorDetails.builder()
+                                        .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                                        .errorMessage(e.getMessage())
+                                        .build());
+                    }
                 }
-                catch (ReflectiveOperationException e) {
-                    throw new AthenaConnectorException("Failed to create OAuth provider: " + e.getMessage(),
-                            ErrorDetails.builder()
-                                    .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
-                                    .errorMessage(e.getMessage())
-                                    .build());
-                }
-
-                // Check if OAuth is configured
-                if (provider.isOAuthConfigured(secretMap)) {
-                    return provider;
-                }
-
                 // Fall back to default credentials if OAuth is not configured
                 return new DefaultCredentialsProvider(secretString);
             }

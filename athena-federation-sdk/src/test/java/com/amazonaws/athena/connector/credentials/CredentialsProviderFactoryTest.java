@@ -70,11 +70,6 @@ public class CredentialsProviderFactoryTest
     // Test OAuth provider class for testing
     public static class TestOAuthProvider extends OAuthCredentialsProvider
     {
-        public TestOAuthProvider(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager)
-        {
-            super(secretName, secretMap, secretsManager);
-        }
-
         @Override
         protected boolean isOAuthConfigured(Map<String, String> secretMap)
         {
@@ -103,7 +98,7 @@ public class CredentialsProviderFactoryTest
         CredentialsProvider provider = CredentialsProviderFactory.createCredentialProvider(
                 SECRET_NAME, 
                 cachableSecretsManager,
-                TestOAuthProvider.class
+                new TestOAuthProvider()
         );
         assertTrue(provider instanceof TestOAuthProvider);
     }
@@ -123,7 +118,7 @@ public class CredentialsProviderFactoryTest
         CredentialsProvider provider = CredentialsProviderFactory.createCredentialProvider(
                 SECRET_NAME,
                 cachableSecretsManager,
-                TestOAuthProvider.class
+                new TestOAuthProvider()
         );
         assertTrue(provider instanceof DefaultCredentialsProvider);
     }
@@ -134,7 +129,7 @@ public class CredentialsProviderFactoryTest
         CredentialsProvider provider = CredentialsProviderFactory.createCredentialProvider(
                 "",
                 cachableSecretsManager,
-                TestOAuthProvider.class
+                new TestOAuthProvider()
         );
         assertNull(provider);
     }
@@ -151,7 +146,7 @@ public class CredentialsProviderFactoryTest
             CredentialsProviderFactory.createCredentialProvider(
                     SECRET_NAME,
                     cachableSecretsManager,
-                    TestOAuthProvider.class
+                    new TestOAuthProvider()
             );
             fail("Expected AthenaConnectorException");
         }
@@ -168,11 +163,6 @@ public class CredentialsProviderFactoryTest
         // Create a class that doesn't properly implement the required methods
         class InvalidOAuthProvider extends OAuthCredentialsProvider
         {
-            public InvalidOAuthProvider(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager)
-            {
-                super(secretName, secretMap, secretsManager);
-            }
-
             @Override
             protected boolean isOAuthConfigured(Map<String, String> secretMap)
             {
@@ -198,7 +188,7 @@ public class CredentialsProviderFactoryTest
             CredentialsProviderFactory.createCredentialProvider(
                     SECRET_NAME,
                     cachableSecretsManager,
-                    InvalidOAuthProvider.class
+                    new InvalidOAuthProvider()
             );
             fail("Expected AthenaConnectorException");
         }

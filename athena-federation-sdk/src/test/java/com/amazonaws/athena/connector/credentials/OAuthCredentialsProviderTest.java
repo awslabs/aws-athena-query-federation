@@ -75,7 +75,8 @@ public class OAuthCredentialsProviderTest
     public void setUp()
     {
         secretMap = new HashMap<>();
-        credentialsProvider = new TestOAuthCredentialsProvider(TEST_SECRET_NAME, mockSecretsClient, mockHttpClient, secretMap);
+        credentialsProvider = new TestOAuthCredentialsProvider(mockHttpClient);
+        credentialsProvider.initialize(TEST_SECRET_NAME, secretMap, new CachableSecretsManager(mockSecretsClient));
     }
 
     @Test
@@ -377,9 +378,14 @@ public class OAuthCredentialsProviderTest
 
     private static class TestOAuthCredentialsProvider extends OAuthCredentialsProvider
     {
-        public TestOAuthCredentialsProvider(String secretName, SecretsManagerClient secretsClient, HttpClient httpClient, Map<String, String> secretMap)
+        public TestOAuthCredentialsProvider()
         {
-            super(secretName, secretMap, new CachableSecretsManager(secretsClient), httpClient);
+            super();
+        }
+        
+        public TestOAuthCredentialsProvider(HttpClient httpClient)
+        {
+            super(httpClient);
         }
 
         @Override

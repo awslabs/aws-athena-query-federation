@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.datalakegen2;
 
 import com.amazonaws.athena.connector.credentials.CredentialsConstants;
 import com.amazonaws.athena.connector.credentials.OAuthCredentialsProvider;
-import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.net.URI;
@@ -38,15 +37,15 @@ public class DataLakeGen2OAuthCredentialsProvider extends OAuthCredentialsProvid
     private static final String SCOPE = "https://sql.azuresynapse.net/.default";
     private static final String TENANT_ID = "tenant_id";
 
-    public DataLakeGen2OAuthCredentialsProvider(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager)
+    public DataLakeGen2OAuthCredentialsProvider()
     {
-        super(secretName, secretMap, secretsManager);
+        super();
     }
 
     @VisibleForTesting
-    public DataLakeGen2OAuthCredentialsProvider(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager, HttpClient httpClient)
+    protected DataLakeGen2OAuthCredentialsProvider(HttpClient httpClient)
     {
-        super(secretName, secretMap, secretsManager, httpClient);
+        super(httpClient);
     }
 
     @Override

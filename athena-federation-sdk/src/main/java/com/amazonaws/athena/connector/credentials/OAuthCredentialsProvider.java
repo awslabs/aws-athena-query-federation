@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
@@ -39,33 +40,42 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.credentials.CredentialsConstants.ACCESS_TOKEN;
 import static com.amazonaws.athena.connector.credentials.CredentialsConstants.EXPIRES_IN;
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.FETCHED_AT;
 
 /**
  * Base class for OAuth credential providers.
  * Handles OAuth token lifecycle management.
  */
-public abstract class OAuthCredentialsProvider implements CredentialsProvider
+public abstract class OAuthCredentialsProvider implements InitializableCredentialsProvider
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OAuthCredentialsProvider.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private final String secretName;
-    private final CachableSecretsManager secretsManager;
-    private final Map<String, String> secretMap;
+    private String secretName;
+    private CachableSecretsManager secretsManager;
+    private Map<String, String> secretMap;
+    private HttpClient httpClient;
 
-    private final HttpClient httpClient;
-
-    protected OAuthCredentialsProvider(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager)
+    protected OAuthCredentialsProvider()
     {
-        this(secretName, secretMap, secretsManager, HttpClient.newBuilder().build());
+        // Initialized later via initialize() method
     }
 
-    protected OAuthCredentialsProvider(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager, HttpClient httpClient)
+    @VisibleForTesting
+    protected OAuthCredentialsProvider(HttpClient httpClient)
+    {
+        this.httpClient = httpClient;
+    }
+
+    @Override
+    public void initialize(String secretName, Map<String, String> secretMap, CachableSecretsManager secretsManager)
     {
         this.secretName = secretName;
-        this.secretsManager = secretsManager;
         this.secretMap = secretMap;
-        this.httpClient = httpClient;
+        this.secretsManager = secretsManager;
+        this.httpClient = (this.httpClient != null)
+                ? this.httpClient
+                : HttpClient.newBuilder().build();
     }
 
     @Override
@@ -121,7 +131,7 @@ public abstract class OAuthCredentialsProvider implements CredentialsProvider
         String cached = secretMap.get(ACCESS_TOKEN);
         if (cached != null) {
             long expiresIn = Long.parseLong(secretMap.getOrDefault(EXPIRES_IN, "0"));
-            long fetchedAt = Long.parseLong(secretMap.getOrDefault(CredentialsConstants.FETCHED_AT, "0"));
+            long fetchedAt = Long.parseLong(secretMap.getOrDefault(FETCHED_AT, "0"));
             long now = System.currentTimeMillis() / 1000;
 
             if ((now - fetchedAt) < expiresIn - 60) {
@@ -186,7 +196,7 @@ public abstract class OAuthCredentialsProvider implements CredentialsProvider
 
         secretMap.put(ACCESS_TOKEN, accessToken);
         secretMap.put(EXPIRES_IN, String.valueOf(expiresIn));
-        secretMap.put(CredentialsConstants.FETCHED_AT, String.valueOf(fetchedAt));
+        secretMap.put(FETCHED_AT, String.valueOf(fetchedAt));
 
         try {
             String secretString = OBJECT_MAPPER.writeValueAsString(secretMap);

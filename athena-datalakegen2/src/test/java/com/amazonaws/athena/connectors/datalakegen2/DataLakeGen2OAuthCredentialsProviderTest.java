@@ -70,7 +70,8 @@ public class DataLakeGen2OAuthCredentialsProviderTest
     {
         MockitoAnnotations.openMocks(this);
         CachableSecretsManager cachableSecretsManager = new CachableSecretsManager(secretsManagerClient);
-        credentialsProvider = new DataLakeGen2OAuthCredentialsProvider(SECRET_NAME, new HashMap<>(), cachableSecretsManager, httpClient);
+        credentialsProvider = new DataLakeGen2OAuthCredentialsProvider(httpClient);
+        credentialsProvider.initialize(SECRET_NAME, new HashMap<>(), cachableSecretsManager);
         objectMapper = new ObjectMapper();
     }
 

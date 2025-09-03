@@ -85,7 +85,7 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
         return CredentialsProviderFactory.createCredentialProvider(
             getDatabaseConnectionConfig().getSecret(),
             getCachableSecretsManager(),
-            DataLakeGen2OAuthCredentialsProvider.class
+            new DataLakeGen2OAuthCredentialsProvider()
         );
     }
 }
