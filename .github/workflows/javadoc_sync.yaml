@@ -6,31 +6,38 @@ on:
 jobs:
   build-and-deploy:
     runs-on: aws-athena-query-federation_ubuntu-latest_16-core
+    strategy:
+      matrix:
+        java-version: ['11', '17']
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up JDK 11
+      - name: Set up JDK ${{ matrix.java-version }}
         uses: actions/setup-java@v5
         with:
           distribution: 'corretto'
-          java-version: '11'
+          java-version: ${{ matrix.java-version }}
 
       - name: Build Javadoc with Maven
         run: mvn -B javadoc:aggregate --file pom.xml -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
 
       - name: Switch to gh-pages branch
+        if: ${{ matrix.java-version == '17' }}
         run: |
           git fetch
           git checkout gh-pages
 
       - name: Remove old files
+        if: ${{ matrix.java-version == '17' }}
         run: rm -rf com
 
       - name: Copy new files
+        if: ${{ matrix.java-version == '17' }}
         run: cp -r target/reports/apidocs/* .
 
       - name: Commit files
+        if: ${{ matrix.java-version == '17' }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -40,6 +47,7 @@ jobs:
           git diff-index --quiet HEAD || git commit -m "Syncing javadoc from master:$GITHUB_SHA" -a
 
       - name: Push changes
+        if: ${{ matrix.java-version == '17' }}
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

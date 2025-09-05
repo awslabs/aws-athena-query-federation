@@ -27,9 +27,17 @@ jobs:
     runs-on: aws-athena-query-federation_ubuntu-latest_16-core
     permissions:
       security-events: write
+    strategy:
+      matrix:
+        java-version: ['11', '17']
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'corretto'
+          java-version: ${{ matrix.java-version }}
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
       # Specify custom java build since the autobuild doesn't take advantage of multiple cores.
