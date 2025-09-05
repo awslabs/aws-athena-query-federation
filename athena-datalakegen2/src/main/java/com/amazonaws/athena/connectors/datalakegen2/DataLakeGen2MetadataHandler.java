@@ -227,11 +227,9 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         String dataType;
         String columnName;
         HashMap<String, String> hashMap = new HashMap<>();
-        boolean found = false;
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
@@ -242,18 +240,94 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                     hashMap.put(columnName.trim(), dataType.trim());
                 }
             }
+        }
 
+        String environment = DataLakeGen2Util.checkEnvironment(jdbcConnection.getMetaData().getURL());
+        
+        if (DataLakeGen2Constants.SQL_POOL.equalsIgnoreCase(environment)) {
+            // getColumns() method from SQL Server driver is causing an exception in case of Azure Serverless environment.
+            // so doing explicit data type conversion
+            schemaBuilder = doDataTypeConversion(hashMap);
+        }
+        else {
+            schemaBuilder = doDataTypeConversionForNonCompatible(jdbcConnection, tableName, hashMap);
+        }
+        // add partition columns
+        partitionSchema.getFields().forEach(schemaBuilder::addField);
+        return schemaBuilder.build();
+    }
+
+    private SchemaBuilder doDataTypeConversion(HashMap<String, String> columnNameAndDataTypeMap)
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+        for (Map.Entry<String, String> entry : columnNameAndDataTypeMap.entrySet()) {
+            String columnName = entry.getKey();
+            String dataType = entry.getValue();
+            ArrowType columnType = Types.MinorType.VARCHAR.getType();
+
+            if ("char".equalsIgnoreCase(dataType) || "varchar".equalsIgnoreCase(dataType) || "binary".equalsIgnoreCase(dataType) ||
+                    "nchar".equalsIgnoreCase(dataType) || "nvarchar".equalsIgnoreCase(dataType) || "varbinary".equalsIgnoreCase(dataType)
+                    || "time".equalsIgnoreCase(dataType) || "uniqueidentifier".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.VARCHAR.getType();
+            }
+
+            if ("bit".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.TINYINT.getType();
+            }
+
+            if ("tinyint".equalsIgnoreCase(dataType) || "smallint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.SMALLINT.getType();
+            }
+
+            if ("int".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.INT.getType();
+            }
+
+            if ("bigint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.BIGINT.getType();
+            }
+
+            if ("decimal".equalsIgnoreCase(dataType) || "money".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT8.getType();
+            }
+
+            if ("numeric".equalsIgnoreCase(dataType) || "float".equalsIgnoreCase(dataType) || "smallmoney".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT8.getType();
+            }
+
+            if ("real".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT4.getType();
+            }
+
+            if ("date".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.DATEDAY.getType();
+            }
+
+            if ("datetime".equalsIgnoreCase(dataType) || "datetime2".equalsIgnoreCase(dataType)
+                    || "smalldatetime".equalsIgnoreCase(dataType) || "datetimeoffset".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.DATEMILLI.getType();
+            }
+
+            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+        }
+        return schemaBuilder;
+    }
+
+    private SchemaBuilder doDataTypeConversionForNonCompatible(Connection jdbcConnection, TableName tableName, HashMap<String, String> columnNameAndDataTypeMap) throws SQLException
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
+            boolean found = false;
             while (resultSet.next()) {
                 Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
                         configOptions);
-                columnName = resultSet.getString("COLUMN_NAME");
-
-                dataType = hashMap.get(columnName);
-                LOGGER.debug("columnName: " + columnName);
-                LOGGER.debug("dataType: " + dataType);
+                String columnName = resultSet.getString("COLUMN_NAME");
+                String dataType = columnNameAndDataTypeMap.get(columnName);
 
                 if (dataType != null && DataLakeGen2DataType.isSupported(dataType)) {
                     columnType = Optional.of(DataLakeGen2DataType.fromType(dataType));
@@ -266,21 +340,19 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                     columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                LOGGER.debug("columnType: " + columnType);
                 if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
                     schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     found = true;
                 }
                 else {
-                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                    LOGGER.error("getSchema: Unable to map type for column[{}] to a supported type, attempted {}", columnName, columnType);
                 }
             }
             if (!found) {
+                LOGGER.error("Could not find any supported columns in table: {}.{}", tableName.getSchemaName(), tableName.getTableName());
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
-
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
-            return schemaBuilder.build();
         }
+        return schemaBuilder;
     }
 }
