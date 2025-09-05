@@ -9,6 +9,9 @@ jobs:
   release:
     name: Publish to maven central
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: ['11', '17']
 
     steps:
       - name: Checkout Codebase
@@ -17,7 +20,7 @@ jobs:
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v5
         with:
-          java-version: '11'
+          java-version: ${{ matrix.java-version }}
           distribution: 'adopt'
           server-id: central
           server-username: MAVEN_USERNAME
@@ -26,6 +29,7 @@ jobs:
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
       - name: Publish to Apache Maven Central
+        if: ${{ matrix.java-version == '17' }}
         run: mvn clean deploy --batch-mode -Dmaven.compiler.release=11 -am -P release -pl ".,athena-federation-sdk,athena-dynamodb,athena-cloudwatch,athena-cloudwatch-metrics,athena-aws-cmdb,athena-jdbc,athena-mysql,athena-oracle,athena-redshift,athena-postgresql"
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}

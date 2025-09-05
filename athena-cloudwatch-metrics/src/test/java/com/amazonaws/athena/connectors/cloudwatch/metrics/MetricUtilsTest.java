@@ -31,13 +31,14 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import org.apache.arrow.vector.types.pojo.Schema;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junitpioneer.jupiter.SetEnvironmentVariable;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.DimensionFilter;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
@@ -51,6 +52,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.TestUtils.makeStringEquals;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_NAME_FIELD;
@@ -60,8 +62,10 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NA
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.TIMESTAMP_FIELD;
-import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MetricUtilsTest
 {
@@ -139,25 +143,31 @@ public class MetricUtilsTest
     }
 
     @Test
-    @SetEnvironmentVariable(key = "include_linked_accounts", value = "true")
-    public void pushDownPredicateWithLinkedAccountsTrue() throws Exception
+    public void pushDownPredicateWithLinkedAccountsTrue()
     {
-        ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
-        MetricUtils.pushDownPredicate(new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), requestBuilder);
-        ListMetricsRequest request = requestBuilder.build();
+        try (MockedStatic<MetricUtils> mockedMetricUtils = Mockito.mockStatic(MetricUtils.class, Mockito.CALLS_REAL_METHODS)) {
+            mockedMetricUtils.when(MetricUtils::getEnv).thenReturn("true");
+            
+            ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
+            MetricUtils.pushDownPredicate(new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), requestBuilder);
+            ListMetricsRequest request = requestBuilder.build();
 
-        assertTrue(request.includeLinkedAccounts());
+            assertTrue(request.includeLinkedAccounts());
+        }
     }
 
     @Test
-    @SetEnvironmentVariable(key = "include_linked_accounts", value = "false")
-    public void pushDownPredicateWithLinkedAccountsFalse() throws Exception
+    public void pushDownPredicateWithLinkedAccountsFalse()
     {
-        ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
-        MetricUtils.pushDownPredicate(new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), requestBuilder);
-        ListMetricsRequest request = requestBuilder.build();
+        try (MockedStatic<MetricUtils> mockedMetricUtils = Mockito.mockStatic(MetricUtils.class, Mockito.CALLS_REAL_METHODS)) {
+            mockedMetricUtils.when(MetricUtils::getEnv).thenReturn("false");
+            
+            ListMetricsRequest.Builder requestBuilder = ListMetricsRequest.builder();
+            MetricUtils.pushDownPredicate(new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), requestBuilder);
+            ListMetricsRequest request = requestBuilder.build();
 
-        assertFalse(request.includeLinkedAccounts());
+            assertFalse(request.includeLinkedAccounts());
+        }
     }
 
     @Test
