@@ -7,6 +7,10 @@ jobs:
   cut_release:
     name: Cut a release
     runs-on: aws-athena-query-federation_ubuntu-latest_16-core
+    strategy:
+      matrix:
+        java-version: ['11', '17']
+
     steps:
       - name: Setup dependencies
         run: |
@@ -14,11 +18,11 @@ jobs:
           sudo apt-get install -y libxml2-utils python3
           pip3 install lxml beautifulsoup4
 
-      - name: Set up JDK 11
+      - name: Set up JDK
         uses: actions/setup-java@v5
         with:
           distribution: 'corretto'
-          java-version: '11'
+          java-version: ${{ matrix.java-version }}
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -40,9 +44,11 @@ jobs:
           echo "NEW_RELEASE_VERSION=$NEW_RELEASE_VERSION" >> $GITHUB_ENV
 
       - name: Create branch locally on the runner
+        if: ${{ matrix.java-version == '11' }}
         run: git checkout -b release_${NEW_RELEASE_VERSION} origin/master
 
       - name: Bump the versions in the branch
+        if: ${{ matrix.java-version == '11' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -51,11 +57,13 @@ jobs:
 
       # See: https://joht.github.io/johtizen/build/2022/01/20/github-actions-push-into-repository.html
       - name: Setup workflow git committer user
+        if: ${{ matrix.java-version == '11' }}
         run: |
           git config --global user.name "athena_federation_cut_release_workflow"
           git config --global user.email "athena_federation_cut_release_workflow@users.noreply.github.com"
 
       - name: Create the release bump commit
+        if: ${{ matrix.java-version == '11' }}
         run: |
           echo "Cut release $NEW_RELEASE_VERSION" > /tmp/RELEASE_MESSAGE
           echo >> /tmp/RELEASE_MESSAGE
@@ -63,10 +71,12 @@ jobs:
           git log --format='  - %s' $PREVIOUS_RELEASE_TAG..HEAD >> /tmp/RELEASE_MESSAGE
           git commit -a -F /tmp/RELEASE_MESSAGE
 
-      - name: Build Java 11 jars
-        run: |
-          mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
+      - name: Build Java ${{ matrix.java-version }} jars
+        run: mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
 
+      - name: Copy Java 11 artifacts
+        if: ${{ matrix.java-version == '11' }}
+        run: |
           # Copy over the sdk jars
           mkdir -p /tmp/java11_sdk_jars/
           cp ./athena-federation-sdk/target/aws-athena-federation-sdk-${NEW_RELEASE_VERSION}.jar /tmp/java11_sdk_jars/
@@ -81,16 +91,19 @@ jobs:
           find athena-*/target/ -name "*.zip" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java11_connector_zips/
 
       - name: Push the release branch
+        if: ${{ matrix.java-version == '11' }}
         run: |
-          git push origin release_${NEW_RELEASE_VERSION}:release_${NEW_RELEASE_VERSION}
+          git push --force origin release_${NEW_RELEASE_VERSION}:release_${NEW_RELEASE_VERSION}
 
       - name: Sync up with origin again now that the new branch has been pushed
+        if: ${{ matrix.java-version == '11' }}
         run: |
           git fetch origin
           git status
           git pull --rebase origin release_${NEW_RELEASE_VERSION}
 
       - name: Create the release on github
+        if: ${{ matrix.java-version == '11' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

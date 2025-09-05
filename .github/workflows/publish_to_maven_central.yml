@@ -9,12 +9,25 @@ jobs:
   release:
     name: Publish to maven central
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        java-version: ['11', '17']
     steps:
       - name: Checkout Codebase
         uses: actions/checkout@v6
 
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'corretto'
+          java-version: ${{ matrix.java-version }}
+
+      - name: Build Java ${{ matrix.java-version }}
+        if: ${{ matrix.java-version == '17' }}
+        run: mvn clean package -T 1C -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
+
       - name: Set up Maven Central Repository
+        if: ${{ matrix.java-version == '11' }}
         uses: actions/setup-java@v5
         with:
           java-version: '11'
@@ -26,7 +39,8 @@ jobs:
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
       - name: Publish to Apache Maven Central
-        run: mvn clean deploy --batch-mode -Dmaven.compiler.release=11 -am -P release -pl ".,athena-federation-sdk,athena-dynamodb,athena-cloudwatch,athena-cloudwatch-metrics,athena-aws-cmdb,athena-jdbc,athena-mysql,athena-oracle,athena-redshift,athena-postgresql"
+        if: ${{ matrix.java-version == '11' }}
+        run: mvn clean deploy --batch-mode -am -P release -pl ".,athena-federation-sdk,athena-dynamodb,athena-cloudwatch,athena-cloudwatch-metrics,athena-aws-cmdb,athena-jdbc,athena-mysql,athena-oracle,athena-redshift,athena-postgresql"
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}

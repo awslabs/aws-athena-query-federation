@@ -12,6 +12,11 @@ jobs:
     permissions:
       id-token: write
       contents: read
+
+    strategy:
+      matrix:
+        java-version: ['11', '17']
+
     steps:
       - name: install dependencies. note aws is pre-installed and we use a specific action for node.
         run: |
@@ -21,11 +26,11 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 18
-      - name: Set up JDK 11
+      - name: Set up JDK ${{ matrix.java-version }}
         uses: actions/setup-java@v5
         with:
           distribution: 'corretto'
-          java-version: '11'
+          java-version: ${{ matrix.java-version }}
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -40,7 +45,9 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 18000
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE }}
+      # Run release tests ONLY on Java 11
       - name: Run tests
+        if: ${{ matrix.java-version == '11' }}
         run: |
             cd $GITHUB_WORKSPACE/validation_testing;
             python3 main.py;
@@ -52,6 +59,7 @@ jobs:
           S3_DATA_PATH: ${{ secrets.S3_DATA_PATH }}
           SPILL_BUCKET: ${{ secrets.SPILL_BUCKET }}
       - name: Upload coverage reports to Codecov
+        if: ${{ matrix.java-version == '11' }}
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
