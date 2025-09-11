@@ -217,8 +217,8 @@ public class DataLakeGen2MetadataHandlerTest
         when(connection.getAutoCommit()).thenReturn(true);
         
         // Mock the data type query result set
-        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE"};
-        Object[][] dataTypeValues = {{"testCol1", "int"}, {"testCol2", "varchar"}, {"testCol3", "datetime"}, {"testCol4", "datetimeoffset"}};
+        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE", "PRECISION", "SCALE"};
+        Object[][] dataTypeValues = {{"testCol1", "int", 10, 0}, {"testCol2", "varchar", 255, 0}, {"testCol3", "datetime", 23, 3}, {"testCol4", "datetimeoffset", 34, 7}};
         AtomicInteger dataTypeRowNumber = new AtomicInteger(-1);
         ResultSet dataTypeResultSet = mockResultSet(dataTypeSchema, dataTypeValues, dataTypeRowNumber);
         
@@ -241,49 +241,49 @@ public class DataLakeGen2MetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
 
         // Mock the data type query result set for Azure serverless with all supported data types
-        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE"};
+        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE", "PRECISION", "SCALE"};
         Object[][] dataTypeValues = {
             // Primary Key
-            {"id", "int"},
+            {"id", "int", 10, 0},
             
             // Integer Types
-            {"small_int_col", "smallint"},
-            {"tiny_int_col", "tinyint"},
-            {"big_int_col", "bigint"},
+            {"small_int_col", "smallint", 5, 0},
+            {"tiny_int_col", "tinyint", 3, 0},
+            {"big_int_col", "bigint", 19, 0},
             
             // Decimal/Numeric Types
-            {"decimal_col", "decimal"},
-            {"numeric_col", "numeric"},
-            {"money_col", "money"},
-            {"small_money_col", "smallmoney"},
+            {"decimal_col", "decimal", 18, 2},
+            {"numeric_col", "numeric", 18, 2},
+            {"money_col", "money", 19, 4},
+            {"small_money_col", "smallmoney", 10, 4},
             
             // Floating Point Types
-            {"float_col", "float"},
-            {"real_col", "real"},
+            {"float_col", "float", 53, 0},
+            {"real_col", "real", 24, 0},
             
             // Character Types
-            {"char_col", "char"},
-            {"varchar_col", "varchar"},
-            {"nchar_col", "nchar"},
-            {"nvarchar_col", "nvarchar"},
+            {"char_col", "char", 10, 0},
+            {"varchar_col", "varchar", 255, 0},
+            {"nchar_col", "nchar", 10, 0},
+            {"nvarchar_col", "nvarchar", 255, 0},
             
             // Binary Types
-            {"binary_col", "binary"},
-            {"varbinary_col", "varbinary"},
+            {"binary_col", "binary", 16, 0},
+            {"varbinary_col", "varbinary", 255, 0},
             
             // Date and Time Types
-            {"date_col", "date"},
-            {"time_col", "time"},
-            {"datetime_col", "datetime"},
-            {"datetime2_col", "datetime2"},
-            {"smalldatetime_col", "smalldatetime"},
-            {"datetimeoffset_col", "datetimeoffset"},
+            {"date_col", "date", 10, 0},
+            {"time_col", "time", 16, 7},
+            {"datetime_col", "datetime", 23, 3},
+            {"datetime2_col", "datetime2", 27, 7},
+            {"smalldatetime_col", "smalldatetime", 16, 0},
+            {"datetimeoffset_col", "datetimeoffset", 34, 7},
             
             // Special Types
-            {"uniqueidentifier_col", "uniqueidentifier"},
+            {"uniqueidentifier_col", "uniqueidentifier", 36, 0},
             
             // Boolean
-            {"bit_col", "bit"}
+            {"bit_col", "bit", 1, 0}
         };
         AtomicInteger dataTypeRowNumber = new AtomicInteger(-1);
         ResultSet dataTypeResultSet = mockResultSet(dataTypeSchema, dataTypeValues, dataTypeRowNumber);
@@ -317,11 +317,11 @@ public class DataLakeGen2MetadataHandlerTest
         // Verify integer types (based on actual DataLakeGen2MetadataHandler mappings)
         assertTrue("Should contain INT field", fields.stream().anyMatch(f -> f.getName().equals("id") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.INT.getType())));
         assertTrue("Should contain SMALLINT field", fields.stream().anyMatch(f -> f.getName().equals("small_int_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType())));
-        assertTrue("Should contain TINYINT field (mapped to SMALLINT)", fields.stream().anyMatch(f -> f.getName().equals("tiny_int_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType())));
+        assertTrue("Should contain TINYINT field", fields.stream().anyMatch(f -> f.getName().equals("tiny_int_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType())));
         assertTrue("Should contain BIGINT field", fields.stream().anyMatch(f -> f.getName().equals("big_int_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType())));
         
-        // Verify decimal types (mapped to FLOAT8 in DataLakeGen2MetadataHandler)
-        assertTrue("Should contain DECIMAL field (mapped to FLOAT8)", fields.stream().anyMatch(f -> f.getName().equals("decimal_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType())));
+        // Verify decimal types (mapped to DECIMAL in DataLakeGen2MetadataHandler)
+        assertTrue("Should contain DECIMAL field", fields.stream().anyMatch(f -> f.getName().equals("decimal_col") && f.getType() instanceof org.apache.arrow.vector.types.pojo.ArrowType.Decimal));
         assertTrue("Should contain NUMERIC field (mapped to FLOAT8)", fields.stream().anyMatch(f -> f.getName().equals("numeric_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType())));
         
         // Verify floating point types
@@ -334,9 +334,10 @@ public class DataLakeGen2MetadataHandlerTest
         assertTrue("Should contain NCHAR field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("nchar_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
         assertTrue("Should contain NVARCHAR field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("nvarchar_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
         
-        // Verify binary types (mapped to VARCHAR in DataLakeGen2MetadataHandler)
-        assertTrue("Should contain BINARY field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("binary_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
-        assertTrue("Should contain VARBINARY field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("varbinary_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
+        // Verify binary types (mapped to VARBINARY in DataLakeGen2MetadataHandler)
+        assertTrue("Should contain BINARY field (mapped to VARBINARY)", fields.stream().anyMatch(f -> f.getName().equals("binary_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType())));
+        assertTrue("Should contain VARBINARY field", fields.stream().anyMatch(f -> f.getName().equals("varbinary_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType())));
+        
         
         // Verify date/time types (based on actual mappings)
         assertTrue("Should contain DATE field", fields.stream().anyMatch(f -> f.getName().equals("date_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.DATEDAY.getType())));
@@ -348,7 +349,7 @@ public class DataLakeGen2MetadataHandlerTest
         
         // Verify special types
         assertTrue("Should contain UNIQUEIDENTIFIER field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("uniqueidentifier_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
-        assertTrue("Should contain BIT field (mapped to TINYINT)", fields.stream().anyMatch(f -> f.getName().equals("bit_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType())));
+        assertTrue("Should contain BIT field (mapped to BIT)", fields.stream().anyMatch(f -> f.getName().equals("bit_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.BIT.getType())));
         
         // Verify money types (mapped to FLOAT8 in DataLakeGen2MetadataHandler)
         assertTrue("Should contain MONEY field (mapped to FLOAT8)", fields.stream().anyMatch(f -> f.getName().equals("money_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType())));
@@ -362,8 +363,8 @@ public class DataLakeGen2MetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
 
         // Mock the data type query result set
-        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE"};
-        Object[][] dataTypeValues = {{"testCol1", "int"}, {"testCol2", "varchar"}};
+        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE", "PRECISION", "SCALE"};
+        Object[][] dataTypeValues = {{"testCol1", "int", 10, 0}, {"testCol2", "varchar", 255, 0}};
         AtomicInteger dataTypeRowNumber = new AtomicInteger(-1);
         ResultSet dataTypeResultSet = mockResultSet(dataTypeSchema, dataTypeValues, dataTypeRowNumber);
 

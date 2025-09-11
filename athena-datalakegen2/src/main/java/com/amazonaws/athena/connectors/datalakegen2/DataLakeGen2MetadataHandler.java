@@ -218,7 +218,8 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("Inside getSchema");
 
-        String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
+        String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE, " +
+                "C.PRECISION, C.SCALE " +
                 "FROM sys.columns C " +
                 "JOIN sys.types T " +
                 "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
@@ -226,7 +227,9 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
 
         String dataType;
         String columnName;
-        HashMap<String, String> hashMap = new HashMap<>();
+        int precision;
+        int scale;
+        HashMap<String, ColumnInfo> hashMap = new HashMap<>();
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
@@ -237,7 +240,9 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                 while (dataTypeResultSet.next()) {
                     dataType = dataTypeResultSet.getString("DATA_TYPE");
                     columnName = dataTypeResultSet.getString("COLUMN_NAME");
-                    hashMap.put(columnName.trim(), dataType.trim());
+                    precision = dataTypeResultSet.getInt("PRECISION");
+                    scale = dataTypeResultSet.getInt("SCALE");
+                    hashMap.put(columnName.trim(), new ColumnInfo(dataType.trim(), precision, scale));
                 }
             }
         }
@@ -257,26 +262,35 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         return schemaBuilder.build();
     }
 
-    private SchemaBuilder doDataTypeConversion(HashMap<String, String> columnNameAndDataTypeMap)
+    private SchemaBuilder doDataTypeConversion(HashMap<String, ColumnInfo> columnNameAndDataTypeMap)
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
-        for (Map.Entry<String, String> entry : columnNameAndDataTypeMap.entrySet()) {
+        for (Map.Entry<String, ColumnInfo> entry : columnNameAndDataTypeMap.entrySet()) {
             String columnName = entry.getKey();
-            String dataType = entry.getValue();
+            ColumnInfo columnInfo = entry.getValue();
+            String dataType = columnInfo.getDataType();
             ArrowType columnType = Types.MinorType.VARCHAR.getType();
 
-            if ("char".equalsIgnoreCase(dataType) || "varchar".equalsIgnoreCase(dataType) || "binary".equalsIgnoreCase(dataType) ||
-                    "nchar".equalsIgnoreCase(dataType) || "nvarchar".equalsIgnoreCase(dataType) || "varbinary".equalsIgnoreCase(dataType)
+            if ("char".equalsIgnoreCase(dataType) || "varchar".equalsIgnoreCase(dataType) ||
+                    "nchar".equalsIgnoreCase(dataType) || "nvarchar".equalsIgnoreCase(dataType)
                     || "time".equalsIgnoreCase(dataType) || "uniqueidentifier".equalsIgnoreCase(dataType)) {
                 columnType = Types.MinorType.VARCHAR.getType();
             }
 
+            if ("binary".equalsIgnoreCase(dataType) || "varbinary".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.VARBINARY.getType();
+            }
+
             if ("bit".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.BIT.getType();
+            }
+
+            if ("tinyint".equalsIgnoreCase(dataType)) {
                 columnType = Types.MinorType.TINYINT.getType();
             }
 
-            if ("tinyint".equalsIgnoreCase(dataType) || "smallint".equalsIgnoreCase(dataType)) {
+            if ("smallint".equalsIgnoreCase(dataType)) {
                 columnType = Types.MinorType.SMALLINT.getType();
             }
 
@@ -288,11 +302,11 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                 columnType = Types.MinorType.BIGINT.getType();
             }
 
-            if ("decimal".equalsIgnoreCase(dataType) || "money".equalsIgnoreCase(dataType)) {
-                columnType = Types.MinorType.FLOAT8.getType();
+            if ("decimal".equalsIgnoreCase(dataType)) {
+                columnType = new ArrowType.Decimal(columnInfo.getPrecision(), columnInfo.getScale(), 128);
             }
 
-            if ("numeric".equalsIgnoreCase(dataType) || "float".equalsIgnoreCase(dataType) || "smallmoney".equalsIgnoreCase(dataType)) {
+            if ("numeric".equalsIgnoreCase(dataType) || "float".equalsIgnoreCase(dataType) || "smallmoney".equalsIgnoreCase(dataType) || "money".equalsIgnoreCase(dataType)) {
                 columnType = Types.MinorType.FLOAT8.getType();
             }
 
@@ -314,7 +328,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         return schemaBuilder;
     }
 
-    private SchemaBuilder doDataTypeConversionForNonCompatible(Connection jdbcConnection, TableName tableName, HashMap<String, String> columnNameAndDataTypeMap) throws SQLException
+    private SchemaBuilder doDataTypeConversionForNonCompatible(Connection jdbcConnection, TableName tableName, HashMap<String, ColumnInfo> columnNameAndDataTypeMap) throws SQLException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
@@ -327,10 +341,10 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                         resultSet.getInt("DECIMAL_DIGITS"),
                         configOptions);
                 String columnName = resultSet.getString("COLUMN_NAME");
-                String dataType = columnNameAndDataTypeMap.get(columnName);
+                ColumnInfo columnInfo = columnNameAndDataTypeMap.get(columnName);
 
-                if (dataType != null && DataLakeGen2DataType.isSupported(dataType)) {
-                    columnType = Optional.of(DataLakeGen2DataType.fromType(dataType));
+                if (columnInfo != null && DataLakeGen2DataType.isSupported(columnInfo.getDataType())) {
+                    columnType = Optional.of(DataLakeGen2DataType.fromType(columnInfo.getDataType()));
                 }
 
                 /**
@@ -354,5 +368,34 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
             }
         }
         return schemaBuilder;
+    }
+}
+
+class ColumnInfo
+{
+    private final String dataType;
+    private final int precision;
+    private final int scale;
+
+    public ColumnInfo(String dataType, int precision, int scale)
+    {
+        this.dataType = dataType;
+        this.precision = precision;
+        this.scale = scale;
+    }
+
+    public String getDataType()
+    {
+        return dataType;
+    }
+
+    public int getPrecision()
+    {
+        return precision;
+    }
+
+    public int getScale()
+    {
+        return scale;
     }
 }
