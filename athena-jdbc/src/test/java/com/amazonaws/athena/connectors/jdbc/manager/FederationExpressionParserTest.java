@@ -49,11 +49,18 @@ public class FederationExpressionParserTest {
     private static final String TEST_AGE_COLUMN = "age";
     private static final int TEST_AGE_VALUE = 25;
     private static final String TEST_COL_NAME = "col";
+    private static final String TEST_COL1_NAME = "col1";
+    private static final String TEST_COL2_NAME = "col2";
+    private static final String TEST_INT_COL_NAME = "int_col";
+    private static final String TEST_STRING_COL_NAME = "string_col";
+    private static final String TEST_BOOL_COL_NAME = "bool_col";
     private static final int TEST_ROW_COUNT = 2;
     private static final int TEST_SINGLE_ROW_COUNT = 1;
+    private static final int TEST_CONSTANT_VALUE_42 = 42;
     private static final String TEST_FUNCTION_NAME = "ADD";
     private static final String TEST_EQUALS_FUNCTION = "EQUALS";
     private static final String TEST_IS_NULL_FUNCTION = "IS_NULL";
+    private static final String TEST_NOT_NULL_FUNCTION = "NOT_NULL";
 
     private FederationExpressionParser parser;
 
@@ -75,14 +82,8 @@ public class FederationExpressionParserTest {
 
     @Test
     public void testParseConstantExpression() {
-        FieldReader mockReader = mock(FieldReader.class);
-        when(mockReader.readObject()).thenReturn(TEST_VALUE);
-
-        Block mockBlock = mock(Block.class);
-        when(mockBlock.getRowCount()).thenReturn(TEST_ROW_COUNT);
-        when(mockBlock.getFieldReader(anyString())).thenReturn(mockReader);
-
-        ConstantExpression constantExpression = new ConstantExpression(mockBlock, new ArrowType.Utf8());
+        Block mockBlock = createMockBlock(TEST_ROW_COUNT, TEST_VALUE);
+        ConstantExpression constantExpression = createConstantExpression(mockBlock, new ArrowType.Utf8());
 
         List<TypeAndValue> acc = new ArrayList<>();
         String result = parser.parseConstantExpression(constantExpression, acc);
@@ -96,13 +97,8 @@ public class FederationExpressionParserTest {
     public void testParseFunctionCallExpressionWithAllTypes() {
         VariableExpression variableExpr = new VariableExpression(TEST_AGE_COLUMN, new ArrowType.Int(32, true));
 
-        Block mockBlock = mock(Block.class);
-        FieldReader mockReader = mock(FieldReader.class);
-        when(mockReader.readObject()).thenReturn(TEST_AGE_VALUE);
-        when(mockBlock.getRowCount()).thenReturn(TEST_SINGLE_ROW_COUNT);
-        when(mockBlock.getFieldReader(anyString())).thenReturn(mockReader);
-
-        ConstantExpression constantExpr = new ConstantExpression(mockBlock, new ArrowType.Int(32, true));
+        Block mockBlock = createMockBlock(TEST_SINGLE_ROW_COUNT, TEST_AGE_VALUE);
+        ConstantExpression constantExpr = createConstantExpression(mockBlock, new ArrowType.Int(32, true));
 
         FunctionCallExpression nestedFunc = new FunctionCallExpression(
                 new ArrowType.Int(32, true),
@@ -132,13 +128,12 @@ public class FederationExpressionParserTest {
 
     @Test
     public void parseComplexExpressions_withNullOrEmptyConstraints_shouldReturnEmptyList() {
-        Constraints mockConstraints = mock(Constraints.class);
-        when(mockConstraints.getExpression()).thenReturn(null);
-        List<String> result = parser.parseComplexExpressions(List.of(), mockConstraints, new ArrayList<>());
+        Constraints emptyConstraints = createEmptyConstraints();
+        List<String> result = parser.parseComplexExpressions(List.of(), emptyConstraints, new ArrayList<>());
         assertTrue(result.isEmpty());
 
-        when(mockConstraints.getExpression()).thenReturn(Collections.emptyList());
-        result = parser.parseComplexExpressions(List.of(), mockConstraints, new ArrayList<>());
+        Constraints constraintsWithEmptyExpressions = createConstraintsWithExpressions(Collections.emptyList());
+        result = parser.parseComplexExpressions(List.of(), constraintsWithEmptyExpressions, new ArrayList<>());
         assertTrue(result.isEmpty());
     }
 
@@ -149,13 +144,84 @@ public class FederationExpressionParserTest {
         FunctionCallExpression funcExpr = new FunctionCallExpression(
                 new ArrowType.Bool(), new FunctionName(TEST_IS_NULL_FUNCTION), List.of(variableExpr));
 
-        Constraints mockConstraints = mock(Constraints.class);
-        when(mockConstraints.getExpression()).thenReturn(List.of(funcExpr));
+        Constraints constraints = createConstraintsWithExpressions(List.of(funcExpr));
 
         List<TypeAndValue> acc = new ArrayList<>();
-        List<String> expressions = parser.parseComplexExpressions(List.of(), mockConstraints, acc);
+        List<String> expressions = parser.parseComplexExpressions(List.of(), constraints, acc);
 
         assertEquals(1, expressions.size());
         assertEquals(TEST_IS_NULL_FUNCTION + "(" + TEST_COL_NAME + ")", expressions.get(0));
+    }
+
+    @Test
+    public void testParseComplexExpressionsMultipleFunctions() {
+        VariableExpression variableExpr1 = new VariableExpression(TEST_COL1_NAME, new ArrowType.Int(32, true));
+        VariableExpression variableExpr2 = new VariableExpression(TEST_COL2_NAME, new ArrowType.Utf8());
+
+        FunctionCallExpression funcExpr1 = new FunctionCallExpression(
+                new ArrowType.Bool(), new FunctionName(TEST_IS_NULL_FUNCTION), List.of(variableExpr1));
+
+        FunctionCallExpression funcExpr2 = new FunctionCallExpression(
+                new ArrowType.Bool(), new FunctionName(TEST_NOT_NULL_FUNCTION), List.of(variableExpr2));
+
+        Constraints constraints = createConstraintsWithExpressions(List.of(funcExpr1, funcExpr2));
+
+        List<TypeAndValue> acc = new ArrayList<>();
+        List<String> expressions = parser.parseComplexExpressions(List.of(), constraints, acc);
+
+        assertEquals(2, expressions.size());
+        assertEquals(TEST_IS_NULL_FUNCTION + "(" + TEST_COL1_NAME + ")", expressions.get(0));
+        assertEquals(TEST_NOT_NULL_FUNCTION + "(" + TEST_COL2_NAME + ")", expressions.get(1));
+    }
+
+    @Test
+    public void testParseConstantExpressionSingleValue() {
+        Block mockBlock = createMockBlock(TEST_SINGLE_ROW_COUNT, TEST_CONSTANT_VALUE_42);
+        ConstantExpression constantExpression = createConstantExpression(mockBlock, new ArrowType.Int(32, true));
+
+        List<TypeAndValue> acc = new ArrayList<>();
+        String result = parser.parseConstantExpression(constantExpression, acc);
+
+        assertEquals("?", result);
+        assertEquals(TEST_SINGLE_ROW_COUNT, acc.size());
+        assertEquals(TEST_CONSTANT_VALUE_42, acc.get(0).getValue());
+    }
+
+    @Test
+    public void testParseVariableExpressionDifferentTypes() {
+        // Test with different arrow types
+        VariableExpression intExpr = new VariableExpression(TEST_INT_COL_NAME, new ArrowType.Int(32, true));
+        VariableExpression stringExpr = new VariableExpression(TEST_STRING_COL_NAME, new ArrowType.Utf8());
+        VariableExpression boolExpr = new VariableExpression(TEST_BOOL_COL_NAME, new ArrowType.Bool());
+
+        assertEquals(TEST_INT_COL_NAME, parser.parseVariableExpression(intExpr));
+        assertEquals(TEST_STRING_COL_NAME, parser.parseVariableExpression(stringExpr));
+        assertEquals(TEST_BOOL_COL_NAME, parser.parseVariableExpression(boolExpr));
+    }
+
+    private Constraints createEmptyConstraints() {
+        return new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+    }
+
+
+    private Constraints createConstraintsWithExpressions(List<FederationExpression> expressions) {
+        return new Constraints(Collections.emptyMap(), expressions, Collections.emptyList(),
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+    }
+
+    private Block createMockBlock(int rowCount, Object returnValue) {
+        FieldReader mockReader = mock(FieldReader.class);
+        when(mockReader.readObject()).thenReturn(returnValue);
+
+        Block mockBlock = mock(Block.class);
+        when(mockBlock.getRowCount()).thenReturn(rowCount);
+        when(mockBlock.getFieldReader(anyString())).thenReturn(mockReader);
+
+        return mockBlock;
+    }
+
+    private ConstantExpression createConstantExpression(Block block, ArrowType arrowType) {
+        return new ConstantExpression(block, arrowType);
     }
 }

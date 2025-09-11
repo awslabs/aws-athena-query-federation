@@ -42,6 +42,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtr
 
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import java.util.HashMap;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
@@ -175,9 +176,10 @@ public class JdbcRecordHandlerTest
         S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder().withIsDirectory(true).build();
 
         Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
-                .add(TEST_PARTITION_COL, String.valueOf(TEST_PARTITION_VALUE));
+                .add(TEST_PARTITION_COL, TEST_PARTITION_VALUE);
 
-        Constraints constraints = Mockito.mock(Constraints.class, Mockito.RETURNS_DEEP_STUBS);
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
 
         String[] schema = {TEST_COL1, TEST_COL2};
         int[] columnTypes = {Types.INTEGER, Types.VARCHAR};
@@ -248,7 +250,7 @@ public class JdbcRecordHandlerTest
 
         NullableFloat8Holder dollarValue = new NullableFloat8Holder();
         ((Float8Extractor) actualFloat8).extract(null, dollarValue);
-        Assert.assertEquals(dollarValue.value, 1000.5, 0.0);
+        Assert.assertEquals(1000.5, dollarValue.value, 0.0);
     }
 
     @Test
@@ -262,6 +264,7 @@ public class JdbcRecordHandlerTest
 
         when(resultSet.getInt("testCol1")).thenReturn(10);
         when(resultSet.getString("testCol2")).thenReturn("test");
+        when(resultSet.getString("varchar_col")).thenReturn("test value");  // Added for VARCHAR test
         when(resultSet.getBoolean("testCol3")).thenReturn(true);
         when(resultSet.getByte("testCol4")).thenReturn((byte) 100);
         when(resultSet.getShort("testCol5")).thenReturn((short) 1234);
@@ -275,6 +278,7 @@ public class JdbcRecordHandlerTest
 
         Extractor actualInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build(), resultSet, partitionMap);
         Extractor actualVarchar = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(), resultSet, partitionMap);
+        Extractor actualVarcharTest = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("varchar_col", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(), resultSet, partitionMap);
         Extractor actualBit = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.BIT.getType()).build(), resultSet, partitionMap);
         Extractor actualTinyInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType()).build(), resultSet, partitionMap);
         Extractor actualSmallInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol5", org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType()).build(), resultSet, partitionMap);
@@ -294,6 +298,11 @@ public class JdbcRecordHandlerTest
         ((VarCharExtractor) actualVarchar).extract(null, varHolder);
         Assert.assertEquals("test", varHolder.value);
         Assert.assertEquals(1, varHolder.isSet);
+
+        NullableVarCharHolder varTestHolder = new NullableVarCharHolder();
+        ((VarCharExtractor) actualVarcharTest).extract(null, varTestHolder);
+        Assert.assertEquals("test value", varTestHolder.value);
+        Assert.assertEquals(1, varTestHolder.isSet);
 
         NullableBitHolder bitHolder = new NullableBitHolder();
         ((BitExtractor) actualBit).extract(null, bitHolder);
@@ -344,6 +353,7 @@ public class JdbcRecordHandlerTest
 
         when(resultSet.getInt("testCol1")).thenReturn(0); // Default value for NULL
         when(resultSet.getString("testCol2")).thenReturn(null);
+        when(resultSet.getString("varchar_col")).thenReturn(null);
         when(resultSet.getBoolean("testCol3")).thenReturn(false); // Default value for NULL
         when(resultSet.getByte("testCol4")).thenReturn((byte) 0); // Default value for NULL
         when(resultSet.getShort("testCol5")).thenReturn((short) 0); // Default value for NULL
@@ -358,6 +368,7 @@ public class JdbcRecordHandlerTest
 
         Extractor actualInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build(), resultSet, partitionMap);
         Extractor actualVarchar = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(), resultSet, partitionMap);
+        Extractor actualVarcharTest = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("varchar_col", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(), resultSet, partitionMap);
         Extractor actualBit = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.BIT.getType()).build(), resultSet, partitionMap);
         Extractor actualTinyInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType()).build(), resultSet, partitionMap);
         Extractor actualSmallInt = this.jdbcRecordHandler.makeExtractor(FieldBuilder.newBuilder("testCol5", org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType()).build(), resultSet, partitionMap);
@@ -377,6 +388,11 @@ public class JdbcRecordHandlerTest
         ((VarCharExtractor) actualVarchar).extract(null, varHolder);
         Assert.assertEquals(0, varHolder.isSet);
         Assert.assertNull(varHolder.value);
+
+        NullableVarCharHolder varTestHolder = new NullableVarCharHolder();
+        ((VarCharExtractor) actualVarcharTest).extract(null, varTestHolder);
+        Assert.assertEquals(0, varTestHolder.isSet);
+        Assert.assertNull(varTestHolder.value);
 
         NullableBitHolder bitHolder = new NullableBitHolder();
         ((BitExtractor) actualBit).extract(null, bitHolder);
@@ -439,5 +455,90 @@ public class JdbcRecordHandlerTest
             Assert.assertEquals(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString(), e.getErrorDetails().errorCode());
         }
     }
-}
 
+    @Test
+    public void testBuildQueryPassthroughSql() throws Exception {
+        String testQuery = "SELECT * FROM test_table";
+        Map<String, String> queryArgs = new HashMap<>();
+        queryArgs.put("QUERY", testQuery);
+        queryArgs.put("schemaFunctionName", "SYSTEM.QUERY");
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, queryArgs, null);
+
+        PreparedStatement mockPreparedStmt = Mockito.mock(PreparedStatement.class);
+        when(this.connection.prepareStatement(testQuery)).thenReturn(mockPreparedStmt);
+
+        PreparedStatement result = this.jdbcRecordHandler.buildQueryPassthroughSql(this.connection, constraints);
+        Assert.assertSame(mockPreparedStmt, result);
+        verify(this.connection).prepareStatement(testQuery);
+    }
+
+    @Test
+    public void testBuildQueryPassthroughSqlWithException() throws Exception {
+        String testQuery = "SELECT * FROM test_table";
+        Map<String, String> queryArgs = new HashMap<>();
+        queryArgs.put("QUERY", testQuery);
+
+        Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 
+                Constraints.DEFAULT_NO_LIMIT, queryArgs, null);
+
+        try {
+            this.jdbcRecordHandler.buildQueryPassthroughSql(this.connection, constraints);
+            Assert.fail("Expected AthenaConnectorException");
+        } catch (AthenaConnectorException e) {
+            Assert.assertTrue(e.getMessage().contains("Function Signature doesn't match implementation's"));
+        }
+    }
+
+    @Test
+    public void testMakeExtractorFloat8WithSQLException() throws Exception {
+        Map<String, String> partitionValues = new HashMap<>();
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        
+        Field field = FieldBuilder.newBuilder(TEST_COL1, org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType()).build();
+        Float8Extractor extractor = (Float8Extractor) jdbcRecordHandler.makeExtractor(field, resultSet, partitionValues);
+        
+        NullableFloat8Holder nullableFloat8Holder = new NullableFloat8Holder();
+        
+        // Mock SQLException to trigger the parsing fallback
+        Mockito.when(resultSet.getDouble(TEST_COL1)).thenThrow(new SQLException("Test SQLException"));
+        Mockito.when(resultSet.getString(TEST_COL1)).thenReturn("$25,000.50");
+        Mockito.when(resultSet.wasNull()).thenReturn(false);
+        
+        extractor.extract(resultSet, nullableFloat8Holder);
+        
+        Assert.assertEquals(1, nullableFloat8Holder.isSet);
+        Assert.assertEquals(25000.50, nullableFloat8Holder.value, 0.01);
+    }
+
+    @Test
+    public void testMakeExtractorWithPartitionValues() throws Exception {
+        Map<String, String> partitionValues = new HashMap<>();
+        partitionValues.put(TEST_PARTITION_COL, TEST_PARTITION_VALUE);
+        ResultSet resultSet = Mockito.mock(ResultSet.class);
+        
+        Field field = FieldBuilder.newBuilder(TEST_PARTITION_COL, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
+        VarCharExtractor extractor = (VarCharExtractor) jdbcRecordHandler.makeExtractor(field, resultSet, partitionValues);
+        
+        NullableVarCharHolder nullableVarCharHolder = new NullableVarCharHolder();
+        extractor.extract(resultSet, nullableVarCharHolder);
+        
+        Assert.assertEquals(1, nullableVarCharHolder.isSet);
+        Assert.assertEquals(TEST_PARTITION_VALUE, nullableVarCharHolder.value);
+    }
+
+    @Test
+    public void testEnableCaseSensitivelyLookUpSession() {
+        Connection mockConnection = Mockito.mock(Connection.class);
+        boolean result = jdbcRecordHandler.enableCaseSensitivelyLookUpSession(mockConnection);
+        Assert.assertFalse(result); // Default implementation returns false
+    }
+
+    @Test
+    public void testDisableCaseSensitivelyLookUpSession() {
+        Connection mockConnection = Mockito.mock(Connection.class);
+        boolean result = jdbcRecordHandler.disableCaseSensitivelyLookUpSession(mockConnection);
+        Assert.assertFalse(result); // Default implementation returns false
+    }
+}

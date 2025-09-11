@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Test;
 
@@ -250,5 +251,87 @@ public class JdbcFederationExpressionParserTest
     {
         String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LIKE_FUNCTION), null, List.of("name", "'J%'"));
         assertEquals("(name LIKE 'J%')", result);
+    }
+
+
+    @Test
+    public void testNullArguments()
+    {
+        assertAthenaConnectorException(TEST_ADD_FUNCTION, null, "Arguments cannot be null or empty.");
+    }
+
+    @Test
+    public void testTernaryFunctionInvalidArgCount()
+    {
+        assertAthenaConnectorException(TEST_NULLIF_FUNCTION, List.of(TEST_ARG_A, TEST_ARG_B, TEST_ARG_X),
+            "Binary function type " + TEST_NULLIF_FUNCTION + " was provided with 3 arguments.");
+    }
+
+    @Test
+    public void testComplexNestedFunctions()
+    {
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_ARRAY_FUNCTION),
+            new ArrowType.Utf8(), List.of("'hello'", "'world'", "'test'"));
+        assertEquals("(ARRAY['hello','world','test'])", result);
+    }
+
+    @Test
+    public void testArithmeticFunctionsWithDifferentTypes()
+    {
+        // Test arithmetic functions with different arrow types
+        String floatResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_ADD_FUNCTION), 
+            new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), List.of("3.14", "2.86"));
+        assertEquals("(3.14 + 2.86)", floatResult);
+
+        String decimalResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_MULTIPLY_FUNCTION), 
+            new ArrowType.Decimal(10, 2, 128), List.of("100.50", "2"));
+        assertEquals("(100.50 * 2)", decimalResult);
+    }
+
+    @Test
+    public void testLogicalFunctionsWithMultipleArguments()
+    {
+        String andResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_AND_FUNCTION),
+            null, List.of("condition1", "condition2"));
+        assertEquals("(condition1 AND condition2)", andResult);
+
+        String orResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_OR_FUNCTION), 
+            null, List.of("condition1", "condition2"));
+        assertEquals("(condition1 OR condition2)", orResult);
+    }
+
+    @Test
+    public void testComparisonFunctionsEdgeCases()
+    {
+        // Test all comparison functions
+        String gtResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_GREATER_THAN_FUNCTION), 
+            null, List.of("age", "18"));
+        assertEquals("(age > 18)", gtResult);
+
+        String gteResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_GREATER_THAN_OR_EQUAL_FUNCTION), 
+            null, List.of("score", "90"));
+        assertEquals("(score >= 90)", gteResult);
+
+        String ltResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LESS_THAN_FUNCTION), 
+            null, List.of("count", "100"));
+        assertEquals("(count < 100)", ltResult);
+
+        String lteResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LESS_THAN_OR_EQUAL_FUNCTION), 
+            null, List.of("limit", "50"));
+        assertEquals("(limit <= 50)", lteResult);
+    }
+
+    @Test
+    public void testUnaryFunctionsEdgeCases()
+    {
+        // Test NOT function
+        String notResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_NOT_FUNCTION), 
+            null, List.of("active"));
+        assertEquals("( NOT active)", notResult);
+
+        // Test NEGATE function with different numeric types
+        String negateFloatResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_NEGATE_FUNCTION), 
+            null, List.of("3.14"));
+        assertEquals("(-3.14)", negateFloatResult);
     }
 }

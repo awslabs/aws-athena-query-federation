@@ -92,4 +92,63 @@ public class JdbcEnvironmentPropertiesTest
         assertEquals(expected, result.get(DEFAULT));
     }
 
+    @Test
+    public void testSpecialCharactersInConnectionParams() {
+        String specialHost = "test.host-with_special.chars.com";
+        String specialDb = "test/db#1";
+        String specialParams = "param1=value1&param2=value2#hash;param3=value3";
+        
+        connectionProperties.put(HOST, specialHost);
+        connectionProperties.put(DATABASE, specialDb);
+        connectionProperties.put(JDBC_PARAMS, specialParams);
+        
+        Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expected = CONNECTION_STRING_PREFIX + specialHost + ":" + TEST_PORT + "/" + specialDb + "?" + specialParams;
+        assertEquals(expected, result.get(DEFAULT));
+    }
+
+    @Test
+    public void testMultipleJdbcParameters() {
+        String params = "ssl=true&connectTimeout=10000&socketTimeout=5000&autoReconnect=true&useUnicode=true&characterEncoding=UTF-8";
+        connectionProperties.put(JDBC_PARAMS, params);
+        
+        Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expected = BASE_CONNECTION_STRING + "?" + params;
+        assertEquals(expected, result.get(DEFAULT));
+    }
+
+    @Test
+    public void testComplexDatabasePath() {
+        String complexDb = "main/schema1/table2";
+        connectionProperties.put(DATABASE, complexDb);
+        
+        Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expected = CONNECTION_STRING_PREFIX + TEST_HOST + ":" + TEST_PORT + "/" + complexDb + "?";
+        assertEquals(expected, result.get(DEFAULT));
+    }
+
+    @Test
+    public void testSecretWithSpecialCharacters() {
+        String specialSecret = "secret/name#1";
+        connectionProperties.put(SECRET_NAME, specialSecret);
+        
+        Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expected = BASE_CONNECTION_STRING + "?${" + specialSecret + "}";
+        assertEquals(expected, result.get(DEFAULT));
+    }
+
+    @Test
+    public void testMultipleSecretsAndParams() {
+        String secret1 = "secret1";
+        String secret2 = "secret2";
+        String params = "param1=value1&param2=value2";
+        
+        connectionProperties.put(SECRET_NAME, secret1 + "," + secret2);
+        connectionProperties.put(JDBC_PARAMS, params);
+        
+        Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expected = BASE_CONNECTION_STRING + "?" + params + "&${" + secret1 + "," + secret2 + "}";
+        assertEquals(expected, result.get(DEFAULT));
+    }
+
 }
