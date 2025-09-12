@@ -45,6 +45,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.credentials.CredentialsConstants.USER;
 import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthType.OAUTH;
 import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils.getUsername;
 import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils.validateCredentials;

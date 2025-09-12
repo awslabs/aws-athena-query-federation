@@ -18,6 +18,8 @@
  * #L%
  */
 package com.amazonaws.athena.connectors.datalakegen2;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -87,6 +89,16 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
         // Disable fetching all rows.
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+            getDatabaseConnectionConfig().getSecret(),
+            getCachableSecretsManager(),
+            new DataLakeGen2OAuthCredentialsProvider()
+        );
     }
 
     @Override
