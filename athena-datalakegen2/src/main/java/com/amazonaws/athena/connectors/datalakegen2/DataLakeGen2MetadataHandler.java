@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -42,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Top
 import com.amazonaws.athena.connectors.datalakegen2.resolver.DataLakeGen2CaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
@@ -96,7 +99,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     public DataLakeGen2MetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig,
-                new DataLakeGen2JdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
                 new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)),
                 configOptions);
     }
@@ -282,5 +285,15 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             return schemaBuilder.build();
         }
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+            getDatabaseConnectionConfig().getSecret(),
+            getCachableSecretsManager(),
+            new DataLakeGen2OAuthCredentialsProvider()
+        );
     }
 }
