@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10};
+var data = {"i0":10,"i1":10,"i2":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -235,13 +235,22 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getCredentialProvider()">getCredentialProvider</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></span>&#8203;(<a href="../../connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;blockSpiller,
+                  <a href="../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest,
+                  <a href="../../connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code></th>
+<td class="colLast">
+<div class="block">A more stream lined option for reading the row data associated with the provided Split.</div>
+</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler">
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connectors.jdbc.manager.<a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></h3>
-<code><a href="../jdbc/manager/JdbcRecordHandler.html#buildQueryPassthroughSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">buildQueryPassthroughSql</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#disableCaseSensitivelyLookUpSession(java.sql.Connection)">disableCaseSensitivelyLookUpSession</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#enableCaseSensitivelyLookUpSession(java.sql.Connection)">enableCaseSensitivelyLookUpSession</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getDatabaseConnectionConfig()">getDatabaseConnectionConfig</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getJdbcConnectionFactory()">getJdbcConnectionFactory</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#makeExtractor(org.apache.arrow.vector.types.pojo.Field,java.sql.ResultSet,java.util.Map)">makeExtractor</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#makeFactory(org.apache.arrow.vector.types.pojo.Field)">makeFactory</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></code></li>
+<code><a href="../jdbc/manager/JdbcRecordHandler.html#buildQueryPassthroughSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">buildQueryPassthroughSql</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#disableCaseSensitivelyLookUpSession(java.sql.Connection)">disableCaseSensitivelyLookUpSession</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#enableCaseSensitivelyLookUpSession(java.sql.Connection)">enableCaseSensitivelyLookUpSession</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getDatabaseConnectionConfig()">getDatabaseConnectionConfig</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getJdbcConnectionFactory()">getJdbcConnectionFactory</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#makeExtractor(org.apache.arrow.vector.types.pojo.Field,java.sql.ResultSet,java.util.Map)">makeExtractor</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#makeFactory(org.apache.arrow.vector.types.pojo.Field)">makeFactory</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.RecordHandler">
@@ -344,13 +353,44 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 <a id="getCredentialProvider()">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getCredentialProvider</h4>
 <pre class="methodSignature">protected&nbsp;<a href="../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a>&nbsp;getCredentialProvider()</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
 <dd><code><a href="../jdbc/manager/JdbcRecordHandler.html#getCredentialProvider()">getCredentialProvider</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></code></dd>
+</dl>
+</li>
+</ul>
+<a id="readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>readWithConstraint</h4>
+<pre class="methodSignature">public&nbsp;void&nbsp;readWithConstraint&#8203;(<a href="../../connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;blockSpiller,
+                               <a href="../../connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest,
+                               <a href="../../connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)
+                        throws <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from class:&nbsp;<code><a href="../../connector/lambda/handlers/RecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">RecordHandler</a></code></span></div>
+<div class="block">A more stream lined option for reading the row data associated with the provided Split. This method differs from
+ doReadRecords(...) in that the SDK handles more of the request lifecycle, leaving you to focus more closely on
+ the task of actually reading from your source.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="../jdbc/manager/JdbcRecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>blockSpiller</code> - A BlockSpiller that should be used to write the row data associated with this Split.
+ The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.</dd>
+<dd><code>readRecordsRequest</code> - Details of the read request, including:
+ 1. The Split
+ 2. The Catalog, Database, and Table the read request is for.
+ 3. The filtering predicate (if any)
+ 4. The columns required for projection.</dd>
+<dd><code>queryStatusChecker</code> - A QueryStatusChecker that you can use to stop doing work for a query that has already terminated</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Exception.html?is-external=true" title="class or interface in java.lang" class="externalLink">Exception</a></code></dd>
 </dl>
 </li>
 </ul>
