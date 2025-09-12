@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10};
+var data = {"i0":10,"i1":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -230,20 +230,25 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 <div class="block">Builds split SQL string and returns prepared statement.</div>
 </td>
 </tr>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code>protected <a href="../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getCredentialProvider()">getCredentialProvider</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler">
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connectors.jdbc.manager.<a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></h3>
-<code><a href="../jdbc/manager/JdbcRecordHandler.html#buildQueryPassthroughSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">buildQueryPassthroughSql</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#disableCaseSensitivelyLookUpSession(java.sql.Connection)">disableCaseSensitivelyLookUpSession</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#enableCaseSensitivelyLookUpSession(java.sql.Connection)">enableCaseSensitivelyLookUpSession</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getCredentialProvider()">getCredentialProvider</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getDatabaseConnectionConfig()">getDatabaseConnectionConfig</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getJdbcConnectionFactory()">getJdbcConnectionFactory</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#makeExtractor(org.apache.arrow.vector.types.pojo.Field,java.sql.ResultSet,java.util.Map)">makeExtractor</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#makeFactory(org.apache.arrow.vector.types.pojo.Field)">makeFactory</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></code></li>
+<code><a href="../jdbc/manager/JdbcRecordHandler.html#buildQueryPassthroughSql(java.sql.Connection,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints)">buildQueryPassthroughSql</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#disableCaseSensitivelyLookUpSession(java.sql.Connection)">disableCaseSensitivelyLookUpSession</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#enableCaseSensitivelyLookUpSession(java.sql.Connection)">enableCaseSensitivelyLookUpSession</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getDatabaseConnectionConfig()">getDatabaseConnectionConfig</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#getJdbcConnectionFactory()">getJdbcConnectionFactory</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#makeExtractor(org.apache.arrow.vector.types.pojo.Field,java.sql.ResultSet,java.util.Map)">makeExtractor</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#makeFactory(org.apache.arrow.vector.types.pojo.Field)">makeFactory</a>, <a href="../jdbc/manager/JdbcRecordHandler.html#readWithConstraint(com.amazonaws.athena.connector.lambda.data.BlockSpiller,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest,com.amazonaws.athena.connector.lambda.QueryStatusChecker)">readWithConstraint</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.RecordHandler">
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;com.amazonaws.athena.connector.lambda.handlers.<a href="../../connector/lambda/handlers/RecordHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">RecordHandler</a></h3>
-<code><a href="../../connector/lambda/handlers/RecordHandler.html#doHandleRequest(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.fasterxml.jackson.databind.ObjectMapper,com.amazonaws.athena.connector.lambda.records.RecordRequest,java.io.OutputStream)">doHandleRequest</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#doReadRecords(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest)">doReadRecords</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#getRequestOverrideConfig(java.util.Map)">getRequestOverrideConfig</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#getSecret(java.lang.String)">getSecret</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#getSpillConfig(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest)">getSpillConfig</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#onPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">onPing</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#resolveSecrets(java.lang.String)">resolveSecrets</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials</a></code></li>
+<code><a href="../../connector/lambda/handlers/RecordHandler.html#doHandleRequest(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.fasterxml.jackson.databind.ObjectMapper,com.amazonaws.athena.connector.lambda.records.RecordRequest,java.io.OutputStream)">doHandleRequest</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#doReadRecords(com.amazonaws.athena.connector.lambda.data.BlockAllocator,com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest)">doReadRecords</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#getCachableSecretsManager()">getCachableSecretsManager</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#getRequestOverrideConfig(java.util.Map)">getRequestOverrideConfig</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#getSecret(java.lang.String)">getSecret</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#getSpillConfig(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest)">getSpillConfig</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#handleRequest(java.io.InputStream,java.io.OutputStream,com.amazonaws.services.lambda.runtime.Context)">handleRequest</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#onPing(com.amazonaws.athena.connector.lambda.request.PingRequest)">onPing</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#resolveSecrets(java.lang.String)">resolveSecrets</a>, <a href="../../connector/lambda/handlers/RecordHandler.html#resolveWithDefaultCredentials(java.lang.String)">resolveWithDefaultCredentials</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -307,7 +312,7 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 <a id="buildSplitSql(java.sql.Connection,java.lang.String,com.amazonaws.athena.connector.lambda.domain.TableName,org.apache.arrow.vector.types.pojo.Schema,com.amazonaws.athena.connector.lambda.domain.predicate.Constraints,com.amazonaws.athena.connector.lambda.domain.Split)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>buildSplitSql</h4>
 <pre class="methodSignature">public&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink">PreparedStatement</a>&nbsp;buildSplitSql&#8203;(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/Connection.html?is-external=true" title="class or interface in java.sql" class="externalLink">Connection</a>&nbsp;jdbcConnection,
@@ -333,6 +338,19 @@ extends <a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.ama
 <dd>prepared statement with sql. See <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html?is-external=true" title="class or interface in java.sql" class="externalLink"><code>PreparedStatement</code></a></dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/SQLException.html?is-external=true" title="class or interface in java.sql" class="externalLink">SQLException</a></code> - JDBC database exception.</dd>
+</dl>
+</li>
+</ul>
+<a id="getCredentialProvider()">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getCredentialProvider</h4>
+<pre class="methodSignature">protected&nbsp;<a href="../../connector/credentials/CredentialsProvider.html" title="interface in com.amazonaws.athena.connector.credentials">CredentialsProvider</a>&nbsp;getCredentialProvider()</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="../jdbc/manager/JdbcRecordHandler.html#getCredentialProvider()">getCredentialProvider</a></code>&nbsp;in class&nbsp;<code><a href="../jdbc/manager/JdbcRecordHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.manager">JdbcRecordHandler</a></code></dd>
 </dl>
 </li>
 </ul>
