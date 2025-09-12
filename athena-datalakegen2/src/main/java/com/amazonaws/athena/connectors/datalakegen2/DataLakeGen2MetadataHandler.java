@@ -372,6 +372,16 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
         }
         return schemaBuilder;
     }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new DataLakeGen2OAuthCredentialsProvider()
+        );
+    }
 }
 
 class ColumnInfo
@@ -400,15 +410,5 @@ class ColumnInfo
     public int getScale()
     {
         return scale;
-    }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider()
-    {
-        return CredentialsProviderFactory.createCredentialProvider(
-            getDatabaseConnectionConfig().getSecret(),
-            getCachableSecretsManager(),
-            new DataLakeGen2OAuthCredentialsProvider()
-        );
     }
 }
