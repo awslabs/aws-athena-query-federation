@@ -21,12 +21,13 @@ package com.amazonaws.athena.connector.credentials;
 
 import org.apache.commons.lang3.Validate;
 
+import java.util.Map;
 import java.util.Objects;
 
 /**
  * Encapsulates database connection user name and password information.
  */
-public class DefaultCredentials
+public class DefaultCredentials implements Credentials
 {
     private final String user;
     private final String password;
@@ -49,6 +50,15 @@ public class DefaultCredentials
     public String getPassword()
     {
         return password;
+    }
+
+    @Override
+    public Map<String, String> getProperties()
+    {
+        return Map.of(
+            CredentialsConstants.USER, user,
+            CredentialsConstants.PASSWORD, password
+        );
     }
 
     @Override
