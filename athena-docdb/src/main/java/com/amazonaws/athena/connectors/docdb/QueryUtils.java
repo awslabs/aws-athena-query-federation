@@ -54,10 +54,7 @@ import org.bson.Document;
 import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -285,6 +282,9 @@ public final class QueryUtils
      */
     public static Document makeQueryFromPlan(Map<String, List<ColumnPredicate>> predicates)
     {
+        if (Objects.isNull(predicates)) {
+            return new Document();
+        }
         Document query = new Document();
         for (Map.Entry<String, List<ColumnPredicate>> entry : predicates.entrySet()) {
             Document filter = convertColumnPredicatesToDoc(entry.getKey(), entry.getValue());
@@ -300,31 +300,30 @@ public final class QueryUtils
      */
     private static Document convertColumnPredicatesToDoc(String column, List<ColumnPredicate> colPreds)
     {
-//        List<Document> disjuncts = new ArrayList<>();
-        Document mergedPredicates = new Document();
-
+        // Separate EQUAL predicates from others
+        List<Object> equalValues = new ArrayList<>();
+        List<Document> otherPredicates = new ArrayList<>();
         for (ColumnPredicate pred : colPreds) {
             Object value = pred.getValue();
             Operator op = pred.getOperator();
-
             switch (op) {
                 case EQUAL:
-                    mergedPredicates.put(EQ_OP, value);
+                    equalValues.add(value);
                     break;
                 case NOT_EQUAL:
-                    mergedPredicates.put(NOT_EQ_OP, value);
+                    otherPredicates.add(new Document(NOT_EQ_OP, value));
                     break;
                 case GREATER_THAN:
-                    mergedPredicates.put(GT_OP, value);
+                    otherPredicates.add(new Document(GT_OP, value));
                     break;
                 case GREATER_THAN_OR_EQUAL_TO:
-                    mergedPredicates.put(GTE_OP, value);
+                    otherPredicates.add(new Document(GTE_OP, value));
                     break;
                 case LESS_THAN:
-                    mergedPredicates.put(LT_OP, value);
+                    otherPredicates.add(new Document(LT_OP, value));
                     break;
                 case LESS_THAN_OR_EQUAL_TO:
-                    mergedPredicates.put(LTE_OP, value);
+                    otherPredicates.add(new Document(LTE_OP, value));
                     break;
                 case IS_NULL:
                     return documentOf(column, isNullPredicate());
@@ -333,9 +332,52 @@ public final class QueryUtils
                 default:
                     throw new UnsupportedOperationException("Unsupported operator: " + op);
             }
-            // Support for IN and NOT_IN not available in Operators yet.
         }
-        return documentOf(column, mergedPredicates);
+        // Handle multiple EQUAL values with $in (like the makePredicate method does)
+        if (equalValues.size() > 1) {
+            Document inPredicate = new Document(IN_OP, equalValues);
+            // If there are other predicates, we need to combine with $and
+            if (!otherPredicates.isEmpty()) {
+                List<Document> andConditions = new ArrayList<>();
+                andConditions.add(new Document(column, inPredicate));
+                // Add other predicates as individual conditions
+                for (Document otherPred : otherPredicates) {
+                    andConditions.add(new Document(column, otherPred));
+                }
+                return new Document(AND_OP, andConditions);
+            }
+            return documentOf(column, inPredicate);
+        }
+        // Single EQUAL value
+        else if (equalValues.size() == 1) {
+            Document equalPredicate = new Document(EQ_OP, equalValues.get(0));
+            // If there are other predicates, combine with $and
+            if (!otherPredicates.isEmpty()) {
+                List<Document> andConditions = new ArrayList<>();
+                andConditions.add(new Document(column, equalPredicate));
+                for (Document otherPred : otherPredicates) {
+                    andConditions.add(new Document(column, otherPred));
+                }
+                return new Document(AND_OP, andConditions);
+            }
+            return documentOf(column, equalPredicate);
+        }
+        // Only non-EQUAL predicates
+        else if (!otherPredicates.isEmpty()) {
+            // For multiple conditions, use OR (like makePredicate does with orPredicate)
+            if (otherPredicates.size() > 1) {
+                List<Document> orConditions = new ArrayList<>();
+                for (Document predicate : otherPredicates) {
+                    orConditions.add(new Document(column, predicate));
+                }
+                return new Document(OR_OP, orConditions);
+            }
+            // Single non-EQUAL predicate
+            else {
+                return documentOf(column, otherPredicates.get(0));
+            }
+        }
+        return new Document();
     }
 
     private static Document documentOf(String key, Object value)

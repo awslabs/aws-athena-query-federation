@@ -524,8 +524,8 @@ public class DocDBRecordHandlerTest
     @Test
     public void testReadWithLimitFromQueryPlan() throws Exception
     {
-        // SELECT * FROM test_table LIMIT 5
-        QueryPlan queryPlan = getQueryPlan(buildBase64SubstraitPlan(5, false));
+        // SELECT col1, col2, col3 FROM test_table WHERE col1 IN (123, 456, 789) limit 5
+        QueryPlan queryPlan = getQueryPlan("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBINGgsIARoHb3I6Ym9vbBIVGhMIAhABGg1lcXVhbDphbnlfYW55Go4CEosCCvYBGvMBCgIKABLqATrnAQoHEgUKAwMEBRK5ARK2AQoCCgASPgo8CgIKABIoCgRDT0wxCgRDT0wyCgRDT0wzEhQKBCoCEAEKBGICEAEKBFoCEAEYAjoMCgpURVNUX1RBQkxFGnAabhoECgIQASIgGh4aHAgBGgQKAhABIgoaCBIGCgISACIAIgYaBAoCKHsiIRofGh0IARoECgIQASIKGggSBgoCEgAiACIHGgUKAyjIAyIhGh8aHQgBGgQKAhABIgoaCBIGCgISACIAIgcaBQoDKJUGGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiACAFEgRDT0wxEgRDT0wyEgRDT0wz");
 
         // Prepare docs > limit
         List<Document> documents = new ArrayList<>();
@@ -574,9 +574,8 @@ public class DocDBRecordHandlerTest
     @Test
     public void testReadWithLimitAndOrderByFromQueryPlan() throws Exception
     {
-        // SELECT * FROM test_table ORDER BY col0 LIMIT 3
-        QueryPlan queryPlan = getQueryPlan(
-                buildBase64SubstraitPlan(3, true, 0));
+        // SELECT * FROM test_table ORDER BY col1 DESC LIMIT 5
+        QueryPlan queryPlan = getQueryPlan("GqgBEqUBCpABGo0BCgIKABKEASqBAQoCCgASbTprCgcSBQoDAwQFEj4KPAoCCgASKAoEQ09MMQoEQ09MMgoEQ09MMxIUCgQqAhABCgRiAhABCgRaAhABGAI6DAoKVEVTVF9UQUJMRRoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaDAoIEgYKAhIAIgAQAyAFEgRDT0wxEgRDT0wyEgRDT0wz");
 
         List<Document> documents = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
@@ -617,8 +616,7 @@ public class DocDBRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
 
-        // Limit not applicable if order by present
-        assertEquals(10, response.getRecords().getRowCount());
+        assertEquals(5, response.getRecords().getRowCount());
     }
 
     @Test
@@ -739,7 +737,7 @@ public class DocDBRecordHandlerTest
 
     private QueryPlan getQueryPlan(String base64Plan)
     {
-        return new QueryPlan("", base64Plan);
+        return new QueryPlan("1.0", base64Plan);
     }
 
 }

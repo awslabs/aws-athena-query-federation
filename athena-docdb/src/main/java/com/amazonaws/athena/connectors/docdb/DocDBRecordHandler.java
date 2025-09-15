@@ -30,7 +30,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
-
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
 import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
@@ -182,7 +181,8 @@ public class DocDBRecordHandler
             Map<String, List<ColumnPredicate>> columnPredicateMap = QueryUtils.buildFilterPredicatesFromPlan(plan);
             if (!columnPredicateMap.isEmpty()) {
                 query = QueryUtils.makeQueryFromPlan(columnPredicateMap);
-            } else {
+            }
+            else {
                 query = QueryUtils.makeQuery(recordsRequest.getSchema(), recordsRequest.getConstraints().getSummary());
             }
         }
@@ -270,13 +270,12 @@ public class DocDBRecordHandler
                                   boolean useQueryPlan)
     {
         if (useQueryPlan) {
-            if (substraitRelModel.getSortRel() == null && substraitRelModel.getFetchRel() != null) {
-                int limit = getLimit(substraitRelModel);
-                return limit > 0;
+            if (substraitRelModel.getFetchRel() != null) {
+                return getLimit(substraitRelModel) > 0;
             }
             return false;
         }
-        return constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause();
+        return constraints.hasLimit();
     }
 
     private int getLimit(SubstraitRelModel substraitRelModel)
