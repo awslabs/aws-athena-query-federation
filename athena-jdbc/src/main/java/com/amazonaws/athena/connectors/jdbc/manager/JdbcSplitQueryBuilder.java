@@ -26,6 +26,9 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
+import com.amazonaws.athena.connectors.jdbc.visitor.FilterRemovalVisitor;
+import com.amazonaws.athena.connectors.jdbc.visitor.SubstraitAccumulatorVisitor;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -35,6 +38,10 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
@@ -130,6 +137,11 @@ public abstract class JdbcSplitQueryBuilder
             final String columnNames)
             throws SQLException
     {
+        if (constraints.getQueryPlan() != null) {
+            SqlDialect sqlDialect = getSqlDialect();
+            return prepareStatementWithSqlDialect(jdbcConnection, constraints, sqlDialect, split, catalog, schema, table, columnNames);
+        }
+
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT ");
         sql.append(columnNames);
@@ -366,5 +378,145 @@ public abstract class JdbcSplitQueryBuilder
     protected String appendLimitOffset(Split split, Constraints constraints)
     {
         return " LIMIT " + constraints.getLimit();
+    }
+
+    protected String appendLimitOffsetWithValue(String limit, String offset)
+    {
+        return "LIMIT " + limit;
+    }
+
+    protected SqlDialect getSqlDialect()
+    {
+        return AnsiSqlDialect.DEFAULT;
+    }
+
+    protected PreparedStatement prepareStatementWithSqlDialect(Connection jdbcConnection, Constraints constraints, SqlDialect sqlDialect,
+                                                        Split split, final String catalog,
+                                                        final String schema,
+                                                        final String table, final String columnNames)
+    {
+        try {
+            String base64EncodedPlan = constraints.getQueryPlan().getSubstraitPlan();
+
+            SqlNode sqlNode = SubstraitSqlUtils.deserializeSubstraitPlan(base64EncodedPlan, sqlDialect);
+            List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
+
+            SqlSelect select;
+
+            if (!(sqlNode instanceof SqlSelect)) {
+                throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
+            }
+
+            select = (SqlSelect) sqlNode;
+
+            StringBuilder sql = new StringBuilder();
+            sql.append("SELECT ");
+            sql.append(columnNames);
+
+            if (columnNames.isEmpty()) {
+                sql.append("null");
+            }
+
+            sql.append(getFromClauseWithSplit(catalog, schema, table, split));
+
+            SqlNode whereClause = select.getWhere();
+
+            List<String> clauses = new ArrayList<>();
+            List<String> partitionWhereClauses = getPartitionWhereClauses(split);
+
+            if (partitionWhereClauses != null && !partitionWhereClauses.isEmpty()) {
+                clauses.addAll(partitionWhereClauses);
+            }
+
+            if (whereClause != null) {
+                whereClause.accept(new FilterRemovalVisitor(split.getProperties().keySet()));
+                whereClause.accept(new SubstraitAccumulatorVisitor(accumulator, split.getProperties()));
+                clauses.add(whereClause.toSqlString(sqlDialect).getSql());
+            }
+
+            if (!clauses.isEmpty()) {
+                sql.append(" WHERE ");
+                sql.append(String.join(" AND ", clauses));
+            }
+
+            if (select.getOrderList() != null) {
+                List<String> orderParts = new ArrayList<>();
+                for (SqlNode orderExpr : select.getOrderList()) {
+                    String part = orderExpr.toSqlString(sqlDialect).getSql();
+                    orderParts.add(part);
+                }
+                String orderByClause = " ORDER BY " + String.join(", ", orderParts);
+                sql.append(orderByClause);
+            }
+
+            String limit = select.getFetch() == null ? null : select.getFetch().toSqlString(sqlDialect).getSql();
+            String offset = select.getOffset() == null ? null : select.getOffset().toSqlString(sqlDialect).getSql();
+
+            if (limit != null) {
+                sql.append(appendLimitOffsetWithValue(limit, offset));
+            }
+
+            LOGGER.info("Generated SQL from Substrait: {}", sql);
+
+            PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
+
+            for (int i = 0; i < accumulator.size(); i++) {
+                SubstraitTypeAndValue typeAndValue = accumulator.get(i);
+                System.out.println(typeAndValue.getType());
+                switch (typeAndValue.getType()) {
+                    case BIGINT:
+                        statement.setLong(i + 1, (long) typeAndValue.getValue());
+                        break;
+                    case INTEGER:
+                        statement.setInt(i + 1, ((Number) typeAndValue.getValue()).intValue());
+                        break;
+                    case SMALLINT:
+                        statement.setShort(i + 1, ((Number) typeAndValue.getValue()).shortValue());
+                        break;
+                    case TINYINT:
+                        statement.setByte(i + 1, ((Number) typeAndValue.getValue()).byteValue());
+                        break;
+                    case CHAR:
+                    case FLOAT:
+                        // ToDo: ^ this is not correct
+                    case VARCHAR:
+                        statement.setString(i + 1, String.valueOf(typeAndValue.getValue()));
+                        break;
+                    case VARBINARY:
+                        statement.setBytes(i + 1, (byte[]) typeAndValue.getValue());
+                        break;
+                    case DECIMAL:
+                        statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
+                        break;
+                    case DATE:
+                        if (typeAndValue.getType().getStartUnit() == org.apache.calcite.avatica.util.TimeUnit.DAY) {
+                            long days = ((Number) typeAndValue.getValue()).longValue();
+                            long utcMillis = days * org.apache.calcite.avatica.util.TimeUnit.DAY.multiplier.longValue();
+                            TimeZone aDefault = TimeZone.getDefault();
+                            int timeoffset = aDefault.getOffset(utcMillis);
+                            utcMillis -= timeoffset;
+                            statement.setDate(i + 1, new Date(utcMillis));
+                            // ToDo: ^ this needs to be tested
+                        }
+                        else if (typeAndValue.getType().getStartUnit() == org.apache.calcite.avatica.util.TimeUnit.MILLISECOND) {
+                            long millis = ((Number) typeAndValue.getValue()).longValue();
+                            statement.setTimestamp(i + 1, new Timestamp(millis));
+                        }
+                        else {
+                            throw new AthenaConnectorException(String.format("Can't handle date format: %s, %s", typeAndValue.getType(), typeAndValue.getType()),
+                                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+                        }
+                        break;
+                    default:
+                        throw new AthenaConnectorException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), typeAndValue.getType()),
+                                ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+                }
+            }
+            return statement;
+        }
+        catch (Exception e) {
+            LOGGER.error("prepareStatementWithSqlDialect failed", e);
+            throw new RuntimeException("prepareStatementWithSqlDialect Error", e);
+        }
     }
 }

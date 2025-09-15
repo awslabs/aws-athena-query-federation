@@ -60,6 +60,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
 import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_VERSION;
@@ -77,7 +78,7 @@ public abstract class RecordHandler
     protected final java.util.Map<String, String> configOptions;
     private final S3Client amazonS3;
     private final String sourceType;
-    private final CachableSecretsManager secretsManager;
+    private CachableSecretsManager secretsManager;
     private final AthenaClient athena;
     private final ThrottlingInvoker athenaInvoker;
     private final KmsEncryptionProvider kmsEncryptionProvider;
@@ -130,19 +131,14 @@ public abstract class RecordHandler
         return secretsManager.resolveWithDefaultCredentials(rawString);
     }
 
+    protected CachableSecretsManager getSecretsManager()
+    {
+        return secretsManager;
+    }
+
     protected String getSecret(String secretName)
     {
         return secretsManager.getSecret(secretName);
-    }
-
-    /**
-     * Gets the CachableSecretsManager instance used by this handler.
-     * This is used by credential providers to reuse the same secrets manager instance.
-     * @return The CachableSecretsManager instance
-     */
-    protected CachableSecretsManager getCachableSecretsManager()
-    {
-        return secretsManager;
     }
 
     public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
@@ -182,6 +178,12 @@ public abstract class RecordHandler
         RecordRequestType type = req.getRequestType();
         switch (type) {
             case READ_RECORDS:
+                FederatedIdentity federatedIdentity = req.getIdentity();
+                Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
+                if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
+                    AwsRequestOverrideConfiguration awsRequestOverrideConfiguration = getRequestOverrideConfig(connectorRequestOptions);
+                    secretsManager = new CachableSecretsManager(getSecretsManagerClient(awsRequestOverrideConfiguration, SecretsManagerClient.create()));
+                }
                 try (RecordResponse response = doReadRecords(allocator, (ReadRecordsRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);

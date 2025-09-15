@@ -74,9 +74,15 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
 
     @VisibleForTesting
     public SnowflakeCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient)
+
+    {
+        this(oauthSecretName, new CachableSecretsManager(secretsClient));
+    }
+
+    public SnowflakeCredentialsProvider(String oauthSecretName, CachableSecretsManager secretsManager)
     {
         this.oauthSecretName = Validate.notNull(oauthSecretName, "oauthSecretName must not be null");
-        this.secretsManager = new CachableSecretsManager(secretsClient);
+        this.secretsManager = secretsManager;
         this.objectMapper = new ObjectMapper();
     }
 
