@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -91,7 +92,26 @@ public class PostGreSqlRecordHandlerTest extends TestBase
     private static final String COL="col1";
     private static final String PARTITION_SCHEMA_NAME = "partition_schema_name";
     private static final String PARTITION_NAME_COL = "partition_name";
-
+    private static final String COL_ID = "id";
+    private static final String COL_NAME = "name";
+    private static final String COL_CATEGORY = "category";
+    private static final String COL_PRICE = "price";
+    private static final String COL_RATING = "rating";
+    private static final String COL_ACTIVE = "active";
+    private static final String COL_INT = "intCol";
+    private static final String COL_STRING = "stringCol";
+    private static final String COL_FLOAT = "floatCol";
+    private static final String COL_BOOL = "boolCol";
+    private static final String COL_NULLABLE = "nullableCol";
+    private static final String COL_REQUIRED = "requiredCol";
+    private static final String COL_DATE = "dateCol";
+    private static final String COL_SCORE = "scoreCol";
+    private static final long LIMIT_5 = 5L;
+    private static final long LIMIT_20 = 20L;
+    private static final long LIMIT_25 = 25L;
+    private static final long LIMIT_100 = 100L;
+    private static final String STATUS_ACTIVE = "ACTIVE";
+    private static final String STATUS_PENDING = "PENDING";
     private PostGreSqlRecordHandler postGreSqlRecordHandler;
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
@@ -580,11 +600,531 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         }
     }
 
-    /**
-     * Utility method to create Constraints with empty lists and default values
-     * @param valueSetMap Map of column names to their ValueSets
-     * @return Constraints object
-     */
+    @Test
+    public void buildSqlWithComplexExpressionsTest()
+            throws SQLException
+    {
+        Map<String, ArrowType> fieldTypes = new ImmutableMap.Builder<String, ArrowType>()
+                .put(COL_INT, Types.MinorType.INT.getType())
+                .put(COL_STRING, Types.MinorType.VARCHAR.getType())
+                .put(COL_FLOAT, Types.MinorType.FLOAT8.getType())
+                .put(COL_BOOL, Types.MinorType.BIT.getType())
+                .build();
+        
+        Schema schema = createTypedSchema(fieldTypes);
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        ValueSet intMultiValues = createMultiValueSet(Arrays.asList(1, 2, 3, 5, 8));
+        ValueSet stringLikeValue = getSingleValueSet("test%");
+        ValueSet floatRangeValue = getRangeSet(Marker.Bound.ABOVE, 1.5, Marker.Bound.EXACTLY, 10.0);
+        ValueSet boolValue = getSingleValueSet(true);
+
+        Map<String, ValueSet> constraints = new ImmutableMap.Builder<String, ValueSet>()
+                .put(COL_INT, intMultiValues)
+                .put(COL_STRING, stringLikeValue)
+                .put(COL_FLOAT, floatRangeValue)
+                .put(COL_BOOL, boolValue)
+                .build();
+
+        String expectedSql = String.format("SELECT \"%s\", \"%s\", \"%s\", \"%s\" FROM \"%s\".\"%s\"  WHERE (\"%s\" IN (?,?,?,?,?)) AND (\"%s\" = ?) AND ((\"%s\" > ? AND \"%s\" <= ?)) AND (\"%s\" = ?)",
+                COL_INT, COL_STRING, COL_FLOAT, COL_BOOL, PARTITION_SCHEMA, PARTITION_NAME,
+                COL_INT, COL_STRING, COL_FLOAT, COL_FLOAT, COL_BOOL);
+        
+        PreparedStatement preparedStatement = executeAndVerifySqlGeneration(
+                tableName, schema, createConstraints(constraints), expectedSql);
+
+        // Verify all parameters are set correctly
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(3, 3);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(4, 5);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(5, 8);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(6, "test%");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(7, 1.5);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(8, 10.0);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(9, true);
+    }
+
+    @Test
+    public void buildSqlWithRangeAndInPredicatesTest()
+            throws SQLException
+    {
+        logger.info("testComplexExpressionWithRangeAndInPredicates - enter");
+
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(COL_DATE, Types.MinorType.DATEDAY.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(COL_CATEGORY, Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(COL_SCORE, new ArrowType.Decimal(10, 2, 128)).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+
+        // Complex constraints: date range, multiple categories, score bounds  
+        final long dateStart = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2022-12-31").getTime());
+        final long dateEnd = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2023-12-30").getTime());
+        ValueSet dateRange = getRangeSet(Marker.Bound.EXACTLY, dateStart, Marker.Bound.EXACTLY, dateEnd);
+        ValueSet categories = createMultiValueSet(Arrays.asList("A", "B", "Premium"));
+        ValueSet scoreRange = getRangeSet(Marker.Bound.EXACTLY, BigDecimal.valueOf(85.0), Marker.Bound.BELOW, BigDecimal.valueOf(100.0));
+
+        Constraints constraints = createConstraints(new ImmutableMap.Builder<String, ValueSet>()
+                .put(COL_DATE, dateRange)
+                .put(COL_CATEGORY, categories)
+                .put(COL_SCORE, scoreRange)
+                .build());
+
+        String expectedSql = String.format("SELECT \"%s\", \"%s\", \"%s\" FROM \"%s\".\"%s\"  WHERE ((\"%s\" >= ? AND \"%s\" <= ?)) AND (\"%s\" IN (?,?,?)) AND ((\"%s\" >= ? AND \"%s\" < ?))",
+                COL_DATE, COL_CATEGORY, COL_SCORE, PARTITION_SCHEMA, PARTITION_NAME,
+                COL_DATE, COL_DATE, COL_CATEGORY, COL_SCORE, COL_SCORE);
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+
+        // Verify complex parameter setting
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDate(1, Date.valueOf("2022-12-31"));
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDate(2, Date.valueOf("2023-12-30"));
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "A");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "B");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(5, "Premium");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(6, BigDecimal.valueOf(85.0));
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(7, BigDecimal.valueOf(100.0));
+
+        logger.info("testComplexExpressionWithRangeAndInPredicates - exit");
+    }
+
+    @Test
+    public void buildSqlWithNullableComparisonsTest()
+            throws SQLException
+    {
+        logger.info("testComplexExpressionWithNullableComparisons - enter");
+
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(COL_NULLABLE, Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(COL_REQUIRED, Types.MinorType.INT.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+
+        ValueSet stringValue = getSingleValueSet("test");
+        ValueSet requiredValue = getSingleValueSet(42);
+
+        Constraints constraints = createConstraints(new ImmutableMap.Builder<String, ValueSet>()
+                .put(COL_NULLABLE, stringValue)
+                .put(COL_REQUIRED, requiredValue)
+                .build());
+
+        String expectedSql = String.format("SELECT \"%s\", \"%s\" FROM \"%s\".\"%s\"  WHERE (\"%s\" = ?) AND (\"%s\" = ?)",
+                COL_NULLABLE, COL_REQUIRED, PARTITION_SCHEMA, PARTITION_NAME, COL_NULLABLE, COL_REQUIRED);
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+
+        // Verify parameters are set correctly
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "test");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 42);
+
+        logger.info("testComplexExpressionWithNullableComparisons - exit");
+    }
+
+    @Test
+    public void testComplexExpressionWithDifferentDataTypes()
+            throws SQLException
+    {
+        logger.info("testComplexExpressionWithDifferentDataTypes - enter");
+
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder("tinyintCol", Types.MinorType.TINYINT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("smallintCol", Types.MinorType.SMALLINT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("bigintCol", Types.MinorType.BIGINT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("float4Col", Types.MinorType.FLOAT4.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("float8Col", Types.MinorType.FLOAT8.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("decimalCol", new ArrowType.Decimal(10, 2, 128)).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+
+        ValueSet tinyintRange = getRangeSet(Marker.Bound.EXACTLY, (byte) 1, Marker.Bound.BELOW, (byte) 100);
+        ValueSet smallintRange = getRangeSet(Marker.Bound.ABOVE, (short) 1000, Marker.Bound.EXACTLY, (short) 5000);
+        ValueSet bigintRange = getRangeSet(Marker.Bound.EXACTLY, 1000000L, Marker.Bound.BELOW, 2000000L);
+        ValueSet float4Range = getRangeSet(Marker.Bound.ABOVE, 1.5f, Marker.Bound.EXACTLY, 99.9f);
+        ValueSet float8Range = getRangeSet(Marker.Bound.EXACTLY, 100.001, Marker.Bound.BELOW, 999.999);
+        ValueSet decimalValue = getSingleValueSet(BigDecimal.valueOf(123.45));
+
+        Constraints constraints = createConstraints(new ImmutableMap.Builder<String, ValueSet>()
+                .put("tinyintCol", tinyintRange)
+                .put("smallintCol", smallintRange)
+                .put("bigintCol", bigintRange)
+                .put("float4Col", float4Range)
+                .put("float8Col", float8Range)
+                .put("decimalCol", decimalValue)
+                .build());
+
+        String expectedSql = "SELECT \"tinyintCol\", \"smallintCol\", \"bigintCol\", \"float4Col\", \"float8Col\", \"decimalCol\" FROM \"s0\".\"p0\"  WHERE ((\"tinyintCol\" >= ? AND \"tinyintCol\" < ?)) AND ((\"smallintCol\" > ? AND \"smallintCol\" <= ?)) AND ((\"bigintCol\" >= ? AND \"bigintCol\" < ?)) AND ((\"float4Col\" > ? AND \"float4Col\" <= ?)) AND ((\"float8Col\" >= ? AND \"float8Col\" < ?)) AND (\"decimalCol\" = ?)";
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+
+        // Verify different data type parameter setting
+        Mockito.verify(preparedStatement, Mockito.times(1)).setByte(1, (byte) 1);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setByte(2, (byte) 100);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setShort(3, (short) 1000);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setShort(4, (short) 5000);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(5, 1000000L);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(6, 2000000L);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setFloat(7, 1.5f);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setFloat(8, 99.9f);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(9, 100.001);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(10, 999.999);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(11, BigDecimal.valueOf(123.45));
+
+        logger.info("testComplexExpressionWithDifferentDataTypes - exit");
+    }
+
+    @Test
+    public void buildSqlWithLimitTest()
+            throws SQLException
+    {
+        Schema schema = createSqlTestSchema(COL_ID, COL_NAME);
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                LIMIT_100,
+                Collections.emptyMap(),
+                null
+        );
+
+        String expectedSql = String.format("SELECT \"%s\", \"%s\" FROM \"%s\".\"%s\"  LIMIT %d", 
+                COL_ID, COL_NAME, PARTITION_SCHEMA, PARTITION_NAME, LIMIT_100);
+        
+        executeAndVerifySqlGeneration(tableName, schema, constraints, expectedSql);
+    }
+
+    @Test
+    public void testLimitWithDifferentValues()
+            throws SQLException
+    {
+        logger.info("testLimitWithDifferentValues - enter");
+
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder("col1", Types.MinorType.INT.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+
+        long[] limitValues = {1L, 10L, 50L, 1000L, 10000L};
+
+        for (long limitValue : limitValues) {
+            Constraints constraints = new Constraints(
+                    Collections.emptyMap(),
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    limitValue,
+                    Collections.emptyMap(),
+                    null
+            );
+
+            String expectedSql = "SELECT \"col1\" FROM \"s0\".\"p0\"  LIMIT " + limitValue;
+            PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+            PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+            Assert.assertEquals("Failed for LIMIT " + limitValue, expectedPreparedStatement, preparedStatement);
+        }
+
+        logger.info("testLimitWithDifferentValues - exit");
+    }
+
+    @Test
+    public void testLimitWithConstraints()
+            throws SQLException
+    {
+        logger.info("testLimitWithConstraints - enter");
+
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(COL_ID, Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("status", Types.MinorType.VARCHAR.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+
+        // Create constraints with both WHERE conditions and LIMIT
+        ValueSet idRange = getRangeSet(Marker.Bound.EXACTLY, 1, Marker.Bound.BELOW, 1000);
+        ValueSet statusValues = createMultiValueSet(Arrays.asList("ACTIVE", "PENDING"));
+
+        Constraints constraints = new Constraints(
+                new ImmutableMap.Builder<String, ValueSet>()
+                        .put(COL_ID, idRange)
+                        .put("status", statusValues)
+                        .build(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                LIMIT_25,
+                Collections.emptyMap(),
+                null
+        );
+
+        String expectedSql = String.format("SELECT \"id\", \"status\" FROM \"s0\".\"p0\"  WHERE ((\"id\" >= ? AND \"id\" < ?)) AND (\"status\" IN (?,?)) LIMIT %d", LIMIT_25);
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+
+        // Verify parameters
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 1000);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "ACTIVE");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "PENDING");
+
+        logger.info("testLimitWithConstraints - exit");
+    }
+
+    @Test
+    public void buildSqlWithOrderByTest()
+            throws SQLException
+    {
+        Schema schema = createSqlTestSchema(COL_ID, COL_NAME);
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+        
+        List<OrderByField> orderByFields = List.of(
+                new OrderByField(COL_NAME, OrderByField.Direction.ASC_NULLS_FIRST)
+        );
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                orderByFields,
+                Constraints.DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                null
+        );
+
+        String expectedSql = String.format("SELECT \"%s\", \"%s\" FROM \"%s\".\"%s\"  ORDER BY \"%s\" ASC NULLS FIRST",
+                COL_ID, COL_NAME, PARTITION_SCHEMA, PARTITION_NAME, COL_NAME);
+        
+        executeAndVerifySqlGeneration(tableName, schema, constraints, expectedSql);
+    }
+
+    @Test
+    public void buildSqlWithMultipleOrderByColumnsTest()
+            throws SQLException
+    {
+        logger.info("testOrderByMultipleColumns - enter");
+
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder("category", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("priority", Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("created_date", Types.MinorType.DATEDAY.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+
+        List<OrderByField> orderByFields = Arrays.asList(
+                new OrderByField("category", OrderByField.Direction.ASC_NULLS_FIRST),
+                new OrderByField("priority", OrderByField.Direction.DESC_NULLS_LAST),
+                new OrderByField("created_date", OrderByField.Direction.DESC_NULLS_FIRST)
+        );
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                orderByFields,
+                Constraints.DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                null
+        );
+
+        String expectedSql = "SELECT \"category\", \"priority\", \"created_date\" FROM \"s0\".\"p0\"  ORDER BY \"category\" ASC NULLS FIRST, \"priority\" DESC NULLS LAST, \"created_date\" DESC NULLS FIRST";
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+
+        logger.info("testOrderByMultipleColumns - exit");
+    }
+
+    @Test
+    public void testOrderByWithConstraints()
+            throws SQLException
+    {
+        logger.info("testOrderByWithConstraints - enter");
+
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder(COL_ID, Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("status", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("score", Types.MinorType.FLOAT8.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+
+        // Create constraints with both WHERE conditions and ORDER BY
+        ValueSet idRange = getRangeSet(Marker.Bound.EXACTLY, 1, Marker.Bound.BELOW, 1000);
+        ValueSet statusValues = createMultiValueSet(Arrays.asList(STATUS_ACTIVE, STATUS_PENDING));
+
+        List<OrderByField> orderByFields = Arrays.asList(
+                new OrderByField("score", OrderByField.Direction.DESC_NULLS_LAST),
+                new OrderByField(COL_ID, OrderByField.Direction.ASC_NULLS_FIRST)
+        );
+
+        Constraints constraints = new Constraints(
+                new ImmutableMap.Builder<String, ValueSet>()
+                        .put(COL_ID, idRange)
+                        .put("status", statusValues)
+                        .build(),
+                Collections.emptyList(),
+                orderByFields,
+                Constraints.DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                null
+        );
+
+        String expectedSql = "SELECT \"id\", \"status\", \"score\" FROM \"s0\".\"p0\"  WHERE ((\"id\" >= ? AND \"id\" < ?)) AND (\"status\" IN (?,?)) ORDER BY \"score\" DESC NULLS LAST, \"id\" ASC NULLS FIRST";
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+
+        // Verify parameters
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 1000);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, STATUS_ACTIVE);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, STATUS_PENDING);
+
+        logger.info("testOrderByWithConstraints - exit");
+    }
+
+    @Test
+    public void buildSqlWithAllFeaturesTest()
+            throws SQLException
+    {
+        Map<String, ArrowType> fieldTypes = new ImmutableMap.Builder<String, ArrowType>()
+                .put(COL_ID, Types.MinorType.INT.getType())
+                .put(COL_CATEGORY, Types.MinorType.VARCHAR.getType())
+                .put(COL_PRICE, new ArrowType.Decimal(10, 2, 128))
+                .put(COL_RATING, Types.MinorType.FLOAT8.getType())
+                .put(COL_ACTIVE, Types.MinorType.BIT.getType())
+                .build();
+        
+        Schema schema = createTypedSchema(fieldTypes);
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        Map<String, ValueSet> whereConstraints = new ImmutableMap.Builder<String, ValueSet>()
+                .put(COL_ID, getRangeSet(Marker.Bound.EXACTLY, 100, Marker.Bound.BELOW, 50000))
+                .put(COL_CATEGORY, createMultiValueSet(Arrays.asList("Electronics", "Books", "Clothing")))
+                .put(COL_PRICE, getRangeSet(Marker.Bound.ABOVE, BigDecimal.valueOf(10.00), Marker.Bound.EXACTLY, BigDecimal.valueOf(500.00)))
+                .put(COL_RATING, getRangeSet(Marker.Bound.EXACTLY, 4.0, Marker.Bound.BELOW, 5.0))
+                .put(COL_ACTIVE, getSingleValueSet(true))
+                .build();
+                
+        List<OrderByField> orderByFields = Arrays.asList(
+                new OrderByField(COL_CATEGORY, OrderByField.Direction.ASC_NULLS_FIRST),
+                new OrderByField(COL_RATING, OrderByField.Direction.DESC_NULLS_LAST),
+                new OrderByField(COL_PRICE, OrderByField.Direction.ASC_NULLS_LAST)
+        );
+
+        Constraints constraints = new Constraints(
+                whereConstraints,
+                Collections.emptyList(),
+                orderByFields,
+                LIMIT_20,
+                Collections.emptyMap(),
+                null
+        );
+
+        String expectedSql = String.format("SELECT \"%s\", \"%s\", \"%s\", \"%s\", \"%s\" FROM \"%s\".\"%s\"  WHERE ((\"%s\" >= ? AND \"%s\" < ?)) AND (\"%s\" IN (?,?,?)) AND ((\"%s\" > ? AND \"%s\" <= ?)) AND ((\"%s\" >= ? AND \"%s\" < ?)) AND (\"%s\" = ?) ORDER BY \"%s\" ASC NULLS FIRST, \"%s\" DESC NULLS LAST, \"%s\" ASC NULLS LAST LIMIT %d",
+                COL_ID, COL_CATEGORY, COL_PRICE, COL_RATING, COL_ACTIVE, PARTITION_SCHEMA, PARTITION_NAME,
+                COL_ID, COL_ID, COL_CATEGORY, COL_PRICE, COL_PRICE, COL_RATING, COL_RATING, COL_ACTIVE,
+                COL_CATEGORY, COL_RATING, COL_PRICE, LIMIT_20);
+        
+        PreparedStatement preparedStatement = executeAndVerifySqlGeneration(
+                tableName, schema, constraints, expectedSql);
+
+        // Verify all parameters are set correctly with proper types
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 100);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 50000);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "Electronics");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "Books");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(5, "Clothing");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(6, BigDecimal.valueOf(10.00));
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(7, BigDecimal.valueOf(500.00));
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(8, 4.0);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(9, 5.0);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(10, true);
+    }
+
+    @Test
+    public void testTopNWithOrderByScenario()
+            throws SQLException
+    {
+        logger.info("testTopNWithOrderByScenario - enter");
+
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
+
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+        schemaBuilder.addField(FieldBuilder.newBuilder("employee_id", Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("department", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("salary", new ArrowType.Decimal(10, 2, 128)).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder("hire_date", Types.MinorType.DATEDAY.getType()).build());
+        Schema schema = schemaBuilder.build();
+
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+        ValueSet deptFilter = getSingleValueSet("Engineering");
+        ValueSet salaryRange = getRangeSet(Marker.Bound.EXACTLY, BigDecimal.valueOf(50000), Marker.Bound.BELOW, BigDecimal.valueOf(200000));
+
+        List<OrderByField> orderByFields = Arrays.asList(
+                new OrderByField("salary", OrderByField.Direction.DESC_NULLS_LAST),
+                new OrderByField("hire_date", OrderByField.Direction.ASC_NULLS_FIRST)
+        );
+
+        Constraints constraints = new Constraints(
+                new ImmutableMap.Builder<String, ValueSet>()
+                        .put("department", deptFilter)
+                        .put("salary", salaryRange)
+                        .build(),
+                Collections.emptyList(),
+                orderByFields,
+                LIMIT_5,
+                Collections.emptyMap(),
+                null
+        );
+
+        String expectedSql = String.format("SELECT \"employee_id\", \"department\", \"salary\", \"hire_date\" FROM \"s0\".\"p0\"  WHERE (\"department\" = ?) AND ((\"salary\" >= ? AND \"salary\" < ?)) ORDER BY \"salary\" DESC NULLS LAST, \"hire_date\" ASC NULLS FIRST LIMIT %d", LIMIT_5);
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+
+        // Verify parameters
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "Engineering");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(2, BigDecimal.valueOf(50000));
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBigDecimal(3, BigDecimal.valueOf(200000));
+
+        logger.info("testTopNWithOrderByScenario - exit");
+    }
+
     private Constraints createConstraints(Map<String, ValueSet> valueSetMap) {
         return new Constraints(
                 valueSetMap,
@@ -596,22 +1136,10 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         );
     }
 
-    /**
-     * Utility method to create Constraints with a single column constraint
-     * @param columnName Name of the column
-     * @param valueSet ValueSet for the column
-     * @return Constraints object
-     */
     private Constraints createConstraints(String columnName, ValueSet valueSet) {
         return createConstraints(Collections.singletonMap(columnName, valueSet));
     }
 
-    /**
-     * Creates a mock Split with standard properties
-     * @param partitionSchema Schema name for partition
-     * @param partitionName Partition name
-     * @return Mocked Split object
-     */
     private Split createMockSplit(String partitionSchema, String partitionName) {
         Split split = Mockito.mock(Split.class);
         Mockito.when(split.getProperties()).thenReturn(ImmutableMap.of(
@@ -624,12 +1152,6 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         return split;
     }
 
-    /**
-     * Creates a mock PreparedStatement that expects a specific SQL
-     * @param expectedSql Expected SQL string
-     * @return Mocked PreparedStatement
-     * @throws SQLException if mock setup fails
-     */
     private PreparedStatement createMockPreparedStatement(String expectedSql) throws SQLException {
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql)))
@@ -637,20 +1159,11 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         return preparedStatement;
     }
 
-    /**
-     * Creates a mock PreparedStatement that throws an exception
-     * @param errorMessage Error message for the SQLException
-     * @throws SQLException always
-     */
     private void createMockPreparedStatementWithError(String errorMessage) throws SQLException {
         Mockito.when(this.connection.prepareStatement(Mockito.anyString()))
                 .thenThrow(new SQLException(errorMessage));
     }
 
-    /**
-     * Creates a SchemaBuilder with common test fields
-     * @return SchemaBuilder with basic fields added
-     */
     private SchemaBuilder createTestSchemaBuilder() {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_SCHEMA_NAME, Types.MinorType.VARCHAR.getType()).build());
@@ -658,11 +1171,6 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         return schemaBuilder;
     }
 
-    /**
-     * Creates a ValueSet containing multiple single values
-     * @param values List of values to include in the set
-     * @return ValueSet containing all the values
-     */
     private ValueSet createMultiValueSet(List<?> values) {
         List<Range> ranges = values.stream().map(value -> {
             Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
@@ -674,5 +1182,37 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
         return valueSet;
+    }
+
+    private Schema createSqlTestSchema(String... additionalFields) {
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+
+        for (String field : additionalFields) {
+            schemaBuilder.addField(FieldBuilder.newBuilder(field, Types.MinorType.VARCHAR.getType()).build());
+        }
+
+        return schemaBuilder.build();
+    }
+
+    private Schema createTypedSchema(Map<String, ArrowType> fieldDefinitions) {
+        SchemaBuilder schemaBuilder = createTestSchemaBuilder();
+
+        fieldDefinitions.forEach((fieldName, arrowType) -> schemaBuilder.addField(FieldBuilder.newBuilder(fieldName, arrowType).build()));
+
+        return schemaBuilder.build();
+    }
+
+    private PreparedStatement executeAndVerifySqlGeneration(TableName tableName,
+                                                            Schema schema,
+                                                            Constraints constraints,
+                                                            String expectedSql) throws SQLException {
+        Split split = createMockSplit(PARTITION_SCHEMA, PARTITION_NAME);
+        PreparedStatement expectedPreparedStatement = createMockPreparedStatement(expectedSql);
+
+        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(
+                this.connection, TEST_CATALOG, tableName, schema, constraints, split);
+
+        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        return preparedStatement;
     }
 }
