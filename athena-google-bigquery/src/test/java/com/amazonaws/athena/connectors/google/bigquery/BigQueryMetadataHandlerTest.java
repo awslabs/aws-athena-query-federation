@@ -24,6 +24,9 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -32,9 +35,11 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
@@ -42,6 +47,8 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.JobStatus;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
@@ -68,11 +75,22 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.ENABLE_QUERY_PASSTHROUGH;
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
+import static com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough.NAME;
+import static com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough.QUERY;
+import static com.amazonaws.athena.connectors.google.bigquery.qpt.BigQueryQueryPassthrough.SCHEMA_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -80,6 +98,8 @@ public class BigQueryMetadataHandlerTest
 {
     private static final String QUERY_ID = "queryId";
     private static final String CATALOG = "catalog";
+    private static final String SCHEMA = "testSchema";
+    private static final String TABLE = "testTable";
     private static final TableName TABLE_NAME = new TableName("dataset1", "table1");
 
     @Mock
@@ -257,5 +277,132 @@ public class BigQueryMetadataHandlerTest
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());
         when(bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request)).thenThrow(new BigQueryExceptions.TooManyTablesException());
         bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
+    }
+
+    @Test
+    public void testDoGetDataSourceCapabilities()
+    {
+        GetDataSourceCapabilitiesRequest request =
+                new GetDataSourceCapabilitiesRequest(federatedIdentity, QUERY_ID, CATALOG);
+
+        GetDataSourceCapabilitiesResponse response =
+                bigQueryMetadataHandler.doGetDataSourceCapabilities(blockAllocator, request);
+
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+        assertEquals(CATALOG, response.getCatalogName());
+
+        // Filter pushdown
+        List<OptimizationSubType> filterPushdown = capabilities.get("supports_filter_pushdown");
+        assertNotNull("Expected supports_filter_pushdown capability to be present", filterPushdown);
+        assertEquals(2, filterPushdown.size());
+        assertTrue(filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals("sorted_range_set")));
+        assertTrue(filterPushdown.stream().anyMatch(subType -> subType.getSubType().equals("nullable_comparison")));
+
+        // Complex expression pushdown
+        List<OptimizationSubType> complexPushdown = capabilities.get("supports_complex_expression_pushdown");
+        assertNotNull("Expected supports_complex_expression_pushdown capability to be present", complexPushdown);
+        assertEquals(1, complexPushdown.size());
+        OptimizationSubType complexSubType = complexPushdown.get(0);
+        assertEquals("supported_function_expression_types", complexSubType.getSubType());
+        assertNotNull("Expected function expression types to be present", complexSubType.getProperties());
+        assertFalse("Expected function expression types to be non-empty", complexSubType.getProperties().isEmpty());
+
+        // Top-N pushdown
+        List<OptimizationSubType> topNPushdown = capabilities.get("supports_top_n_pushdown");
+        assertNotNull("Expected supports_top_n_pushdown capability to be present", topNPushdown);
+        assertEquals(1, topNPushdown.size());
+        assertEquals("SUPPORTS_ORDER_BY", topNPushdown.get(0).getSubType());
+    }
+
+    @Test
+    public void testDoGetQueryPassthroughSchema_WhenEnabled_ShouldGetSucceeded() throws Exception {
+        Map<String, String> queryPassthroughParameters = Map.of(
+                SCHEMA_FUNCTION_NAME, "system.query",
+                ENABLE_QUERY_PASSTHROUGH, "true",
+                NAME, "query",
+                SCHEMA_NAME, "system",
+                QUERY, "select col1 from testTable");
+
+        GetTableRequest getTableRequest = getTableRequest(queryPassthroughParameters);
+
+        try (MockedStatic<BigQueryOptions> mockBigQueryOptions = mockStatic(BigQueryOptions.class)) {
+            BigQueryOptions options = mock(BigQueryOptions.class);
+            mockBigQueryOptions.when(BigQueryOptions::getDefaultInstance).thenReturn(options);
+            when(options.getService()).thenReturn(bigQuery);
+
+            Field field = Field.of("column1", LegacySQLTypeName.STRING);
+            com.google.cloud.bigquery.Schema schema = com.google.cloud.bigquery.Schema.of(field);
+
+            JobStatistics.QueryStatistics stats = mock(JobStatistics.QueryStatistics.class);
+            when(stats.getStatementType()).thenReturn(JobStatistics.QueryStatistics.StatementType.SELECT);
+            when(stats.getSchema()).thenReturn(schema);
+            when(bigQuery.create(any(JobInfo.class))).thenReturn(job);
+            when(job.getStatistics()).thenReturn(stats);
+
+            GetTableResponse response = bigQueryMetadataHandler.doGetQueryPassthroughSchema(blockAllocator, getTableRequest);
+            assertNotNull(response);
+            assertEquals(CATALOG, response.getCatalogName());
+            assertEquals(1, response.getSchema().getFields().size());
+            verify(bigQuery).create(any(JobInfo.class));
+        }
+    }
+
+    @Test
+    public void testDoGetQueryPassthroughSchema_WithMissingQueryArg() {
+        // Required QUERY parameter is missing
+        Map<String, String> queryPassthroughParameters = Map.of(
+                SCHEMA_FUNCTION_NAME, "system.query",
+                ENABLE_QUERY_PASSTHROUGH, "true",
+                NAME, "query",
+                SCHEMA_NAME, "system");
+
+        executeAndAssertTest(queryPassthroughParameters, "Missing Query Passthrough Argument: QUERY");
+    }
+
+    @Test
+    public void testDoGetQueryPassthroughSchema_WithMissingQueryValue() {
+        // Required QUERY parameter value is missing
+        Map<String, String> queryPassthroughParameters = Map.of(
+                SCHEMA_FUNCTION_NAME, "system.query",
+                ENABLE_QUERY_PASSTHROUGH, "true",
+                NAME, "query",
+                SCHEMA_NAME, "system",
+                QUERY, "");
+        executeAndAssertTest(queryPassthroughParameters, "Missing Query Passthrough Value for Argument: QUERY");
+    }
+
+    @Test
+    public void testDoGetQueryPassthroughSchema_WithWrongSchemaNameArg() {
+        // Schema function name is incorrect
+        Map<String, String> queryPassthroughParameters = Map.of(
+                SCHEMA_FUNCTION_NAME, "wrong.query",
+                ENABLE_QUERY_PASSTHROUGH, "true",
+                NAME, "query",
+                SCHEMA_NAME, "system",
+                QUERY, "select col1 from testTable");
+        executeAndAssertTest(queryPassthroughParameters, "Function Signature doesn't match implementation's");
+    }
+
+    private void executeAndAssertTest(Map<String, String> queryPassthroughParameters, String errorMessage) {
+        GetTableRequest getTableRequest = getTableRequest(queryPassthroughParameters);
+
+        Exception e = assertThrows(AthenaConnectorException.class, () ->
+                bigQueryMetadataHandler.doGetQueryPassthroughSchema(blockAllocator, getTableRequest));
+        assertTrue(e.getMessage().contains(errorMessage));
+    }
+
+    private GetTableRequest getTableRequest(Map<String, String> queryPassthroughParameters) {
+        return new GetTableRequest(federatedIdentity,
+                QUERY_ID, CATALOG,
+                new TableName(SCHEMA, TABLE), queryPassthroughParameters);
+    }
+
+    @Test
+    public void testDoGetQueryPassthroughSchema_WhenDisabled_ShouldThrowException() {
+        GetTableRequest getTableRequest = getTableRequest(Collections.emptyMap());
+            Exception e = assertThrows(IllegalArgumentException.class, () ->
+                    bigQueryMetadataHandler.doGetQueryPassthroughSchema(blockAllocator, getTableRequest));
+            assertTrue(e.getMessage().contains("No Query passed through"));
     }
 }
