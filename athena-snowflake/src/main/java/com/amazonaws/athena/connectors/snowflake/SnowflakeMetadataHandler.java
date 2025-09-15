@@ -178,7 +178,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
 
     @VisibleForTesting
-    protected SnowflakeMetadataHandler(
+    public SnowflakeMetadataHandler(
             DatabaseConnectionConfig databaseConnectionConfig,
             SecretsManagerClient secretsManager,
             AthenaClient athena,
