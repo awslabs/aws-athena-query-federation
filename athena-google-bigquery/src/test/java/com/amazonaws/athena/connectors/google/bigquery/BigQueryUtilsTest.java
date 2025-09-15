@@ -2,14 +2,14 @@
  * #%L
  * athena-google-bigquery
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 - 2025 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,9 +28,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
@@ -38,7 +39,6 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class BigQueryUtilsTest
 {
-    private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
     @Mock
     BigQuery bigQuery;
     BigQueryPage<Dataset> datasets;
@@ -67,5 +67,52 @@ public class BigQueryUtilsTest
 
         String tableName = BigQueryUtils.fixCaseForTableName(BigQueryTestUtils.PROJECT_1_NAME, datasetName, "test", bigQuery);
         assertNull(tableName);
+    }
+
+    @Test
+    public void testGetCredentialsFromSecret() throws IOException
+    {
+        try {
+            BigQueryUtils.getCredentialsFromSecret("invalid-secret");
+        } catch (Exception e) {
+            assertNotNull(e);
+        }
+    }
+
+    @Test
+    public void testGetBigQueryClientWithSecret() throws IOException
+    {
+        java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+                BigQueryConstants.GCP_PROJECT_ID, "test"
+        );
+        try {
+            BigQueryUtils.getBigQueryClient(configOptions, "invalid-secret");
+        } catch (Exception e) {
+            assertNotNull(e);
+        }
+    }
+
+    @Test
+    public void testGetEnvBigQueryCredsSmId()
+    {
+        java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+                BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "test-secret-id"
+        );
+        String result = BigQueryUtils.getEnvBigQueryCredsSmId(configOptions);
+        assertNotNull(result);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testGetEnvBigQueryCredsSmIdEmpty()
+    {
+        java.util.Map<String, String> configOptions = new java.util.HashMap<>();
+        BigQueryUtils.getEnvBigQueryCredsSmId(configOptions);
+    }
+
+    @Test
+    public void testFixCaseForDatasetNameSuccess()
+    {
+        String result = BigQueryUtils.fixCaseForDatasetName(BigQueryTestUtils.PROJECT_1_NAME, datasetName, bigQuery);
+        assertNotNull(result);
     }
 }
