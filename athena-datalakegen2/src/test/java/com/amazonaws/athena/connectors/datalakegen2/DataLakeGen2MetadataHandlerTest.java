@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -40,7 +41,6 @@ import com.amazonaws.athena.connectors.datalakegen2.resolver.DataLakeGen2CaseRes
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -57,7 +57,6 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -70,6 +69,8 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2MetadataHandler.PARTITION_NUMBER;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -194,8 +195,8 @@ public class DataLakeGen2MetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
-        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
-                {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        Object[][] values = {{java.sql.Types.INTEGER, 12, "testCol1", 0, 0}, {java.sql.Types.VARCHAR, 25, "testCol2", 0, 0},
+                {java.sql.Types.TIMESTAMP, 93, "testCol3", 0, 0}, {java.sql.Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
@@ -210,10 +211,185 @@ public class DataLakeGen2MetadataHandlerTest
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
         when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
         when(connection.getCatalog()).thenReturn("testCatalog");
+        when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname;databaseName=fakedatabase");
+        
+        // Mock the connection's setAutoCommit method
+        when(connection.getAutoCommit()).thenReturn(true);
+        
+        // Mock the data type query result set
+        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE", "PRECISION", "SCALE"};
+        Object[][] dataTypeValues = {{"testCol1", "int", 10, 0}, {"testCol2", "varchar", 255, 0}, {"testCol3", "datetime", 23, 3}, {"testCol4", "datetimeoffset", 34, 7}};
+        AtomicInteger dataTypeRowNumber = new AtomicInteger(-1);
+        ResultSet dataTypeResultSet = mockResultSet(dataTypeSchema, dataTypeValues, dataTypeRowNumber);
+        
+        // Mock the prepared statement and its execution
+        java.sql.PreparedStatement mockPreparedStatement = mock(java.sql.PreparedStatement.class);
+        when(connection.prepareStatement(any(String.class))).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(dataTypeResultSet);
         GetTableResponse getTableResponse = this.dataLakeGen2MetadataHandler.doGetTable(
                 blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
 
         assertEquals(expected, getTableResponse.getSchema());
+        assertEquals(inputTableName, getTableResponse.getTableName());
+        assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void testGetSchemaWithAzureServerlessEnvironment()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+
+        // Mock the data type query result set for Azure serverless with all supported data types
+        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE", "PRECISION", "SCALE"};
+        Object[][] dataTypeValues = {
+            // Primary Key
+            {"id", "int", 10, 0},
+            
+            // Integer Types
+            {"small_int_col", "smallint", 5, 0},
+            {"tiny_int_col", "tinyint", 3, 0},
+            {"big_int_col", "bigint", 19, 0},
+            
+            // Decimal/Numeric Types
+            {"decimal_col", "decimal", 18, 2},
+            {"numeric_col", "numeric", 18, 2},
+            {"money_col", "money", 19, 4},
+            {"small_money_col", "smallmoney", 10, 4},
+            
+            // Floating Point Types
+            {"float_col", "float", 53, 0},
+            {"real_col", "real", 24, 0},
+            
+            // Character Types
+            {"char_col", "char", 10, 0},
+            {"varchar_col", "varchar", 255, 0},
+            {"nchar_col", "nchar", 10, 0},
+            {"nvarchar_col", "nvarchar", 255, 0},
+            
+            // Binary Types
+            {"binary_col", "binary", 16, 0},
+            {"varbinary_col", "varbinary", 255, 0},
+            
+            // Date and Time Types
+            {"date_col", "date", 10, 0},
+            {"time_col", "time", 16, 7},
+            {"datetime_col", "datetime", 23, 3},
+            {"datetime2_col", "datetime2", 27, 7},
+            {"smalldatetime_col", "smalldatetime", 16, 0},
+            {"datetimeoffset_col", "datetimeoffset", 34, 7},
+            
+            // Special Types
+            {"uniqueidentifier_col", "uniqueidentifier", 36, 0},
+            
+            // Boolean
+            {"bit_col", "bit", 1, 0}
+        };
+        AtomicInteger dataTypeRowNumber = new AtomicInteger(-1);
+        ResultSet dataTypeResultSet = mockResultSet(dataTypeSchema, dataTypeValues, dataTypeRowNumber);
+
+        // Mock the prepared statement and its execution
+        java.sql.PreparedStatement mockPreparedStatement = mock(java.sql.PreparedStatement.class);
+        when(connection.prepareStatement(any(String.class))).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(dataTypeResultSet);
+
+        // Mock Azure serverless URL
+        when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://myworkspace-ondemand.sql.azuresynapse.net:1433;database=mydatabase;");
+        when(connection.getCatalog()).thenReturn("testCatalog");
+
+        TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
+        GetTableResponse getTableResponse = this.dataLakeGen2MetadataHandler.doGetTable(
+                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        // Verify the response
+        assertNotNull(getTableResponse);
+        assertEquals(inputTableName, getTableResponse.getTableName());
+        assertEquals("testCatalog", getTableResponse.getCatalogName());
+        
+        // Verify that the schema was built using the direct SQL query approach (Azure serverless path)
+        Schema responseSchema = getTableResponse.getSchema();
+        assertNotNull(responseSchema);
+        assertEquals(25, responseSchema.getFields().size()); // 24 columns from our mock data + 1 partition field
+        
+        // Verify specific data types are correctly mapped
+        List<Field> fields = responseSchema.getFields();
+        
+        // Verify integer types (based on actual DataLakeGen2MetadataHandler mappings)
+        assertTrue("Should contain INT field", fields.stream().anyMatch(f -> f.getName().equals("id") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.INT.getType())));
+        assertTrue("Should contain SMALLINT field", fields.stream().anyMatch(f -> f.getName().equals("small_int_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.SMALLINT.getType())));
+        assertTrue("Should contain TINYINT field", fields.stream().anyMatch(f -> f.getName().equals("tiny_int_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.TINYINT.getType())));
+        assertTrue("Should contain BIGINT field", fields.stream().anyMatch(f -> f.getName().equals("big_int_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType())));
+        
+        // Verify decimal types (mapped to DECIMAL in DataLakeGen2MetadataHandler)
+        assertTrue("Should contain DECIMAL field", fields.stream().anyMatch(f -> f.getName().equals("decimal_col") && f.getType() instanceof org.apache.arrow.vector.types.pojo.ArrowType.Decimal));
+        assertTrue("Should contain NUMERIC field (mapped to FLOAT8)", fields.stream().anyMatch(f -> f.getName().equals("numeric_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType())));
+        
+        // Verify floating point types
+        assertTrue("Should contain FLOAT field", fields.stream().anyMatch(f -> f.getName().equals("float_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType())));
+        assertTrue("Should contain REAL field", fields.stream().anyMatch(f -> f.getName().equals("real_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.FLOAT4.getType())));
+        
+        // Verify character types (all mapped to VARCHAR)
+        assertTrue("Should contain CHAR field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("char_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
+        assertTrue("Should contain VARCHAR field", fields.stream().anyMatch(f -> f.getName().equals("varchar_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
+        assertTrue("Should contain NCHAR field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("nchar_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
+        assertTrue("Should contain NVARCHAR field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("nvarchar_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
+        
+        // Verify binary types (mapped to VARBINARY in DataLakeGen2MetadataHandler)
+        assertTrue("Should contain BINARY field (mapped to VARBINARY)", fields.stream().anyMatch(f -> f.getName().equals("binary_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType())));
+        assertTrue("Should contain VARBINARY field", fields.stream().anyMatch(f -> f.getName().equals("varbinary_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType())));
+        
+        
+        // Verify date/time types (based on actual mappings)
+        assertTrue("Should contain DATE field", fields.stream().anyMatch(f -> f.getName().equals("date_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.DATEDAY.getType())));
+        assertTrue("Should contain TIME field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("time_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
+        assertTrue("Should contain DATETIME field (mapped to DATEMILLI)", fields.stream().anyMatch(f -> f.getName().equals("datetime_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType())));
+        assertTrue("Should contain DATETIME2 field (mapped to DATEMILLI)", fields.stream().anyMatch(f -> f.getName().equals("datetime2_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType())));
+        assertTrue("Should contain SMALLDATETIME field (mapped to DATEMILLI)", fields.stream().anyMatch(f -> f.getName().equals("smalldatetime_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType())));
+        assertTrue("Should contain DATETIMEOFFSET field (mapped to DATEMILLI)", fields.stream().anyMatch(f -> f.getName().equals("datetimeoffset_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType())));
+        
+        // Verify special types
+        assertTrue("Should contain UNIQUEIDENTIFIER field (mapped to VARCHAR)", fields.stream().anyMatch(f -> f.getName().equals("uniqueidentifier_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())));
+        assertTrue("Should contain BIT field (mapped to BIT)", fields.stream().anyMatch(f -> f.getName().equals("bit_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.BIT.getType())));
+        
+        // Verify money types (mapped to FLOAT8 in DataLakeGen2MetadataHandler)
+        assertTrue("Should contain MONEY field (mapped to FLOAT8)", fields.stream().anyMatch(f -> f.getName().equals("money_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType())));
+        assertTrue("Should contain SMALLMONEY field (mapped to FLOAT8)", fields.stream().anyMatch(f -> f.getName().equals("small_money_col") && f.getType().equals(org.apache.arrow.vector.types.Types.MinorType.FLOAT8.getType())));
+    }
+
+    @Test
+    public void testGetSchemaWithStandardEnvironment()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+
+        // Mock the data type query result set
+        String[] dataTypeSchema = {"COLUMN_NAME", "DATA_TYPE", "PRECISION", "SCALE"};
+        Object[][] dataTypeValues = {{"testCol1", "int", 10, 0}, {"testCol2", "varchar", 255, 0}};
+        AtomicInteger dataTypeRowNumber = new AtomicInteger(-1);
+        ResultSet dataTypeResultSet = mockResultSet(dataTypeSchema, dataTypeValues, dataTypeRowNumber);
+
+        // Mock the prepared statement and its execution
+        java.sql.PreparedStatement mockPreparedStatement = mock(java.sql.PreparedStatement.class);
+        when(connection.prepareStatement(any(String.class))).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(dataTypeResultSet);
+
+        // Mock standard SQL Server URL (non-serverless)
+        when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://myserver.database.windows.net:1433;database=mydatabase;");
+        when(connection.getCatalog()).thenReturn("testCatalog");
+
+        // Mock the getColumns result set for standard environment
+        String[] schema = {"TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "TYPE_NAME", "COLUMN_SIZE", "BUFFER_LENGTH", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "NULLABLE", "REMARKS", "COLUMN_DEF", "SQL_DATA_TYPE", "SQL_DATETIME_SUB", "CHAR_OCTET_LENGTH", "ORDINAL_POSITION", "IS_NULLABLE"};
+        Object[][] values = {{"testCatalog", "TESTSCHEMA", "TESTTABLE", "testCol1", java.sql.Types.INTEGER, "int", 10, 4, 0, 10, 1, "", "", java.sql.Types.INTEGER, 0, 4, 1, "YES"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet getColumnsResultSet = mockResultSet(schema, values, rowNumber);
+        when(connection.getMetaData().getColumns("testCatalog", "TESTSCHEMA", "TESTTABLE", null)).thenReturn(getColumnsResultSet);
+
+        TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
+        GetTableResponse getTableResponse = this.dataLakeGen2MetadataHandler.doGetTable(
+                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        // Verify the response
+        assertNotNull(getTableResponse);
         assertEquals(inputTableName, getTableResponse.getTableName());
         assertEquals("testCatalog", getTableResponse.getCatalogName());
     }

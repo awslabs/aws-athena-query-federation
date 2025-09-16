@@ -135,6 +135,16 @@ public abstract class RecordHandler
         return secretsManager.getSecret(secretName);
     }
 
+    /**
+     * Gets the CachableSecretsManager instance used by this handler.
+     * This is used by credential providers to reuse the same secrets manager instance.
+     * @return The CachableSecretsManager instance
+     */
+    protected CachableSecretsManager getCachableSecretsManager()
+    {
+        return secretsManager;
+    }
+
     public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
             throws IOException
     {
