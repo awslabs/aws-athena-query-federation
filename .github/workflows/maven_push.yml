@@ -20,19 +20,21 @@ jobs:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: aws-athena-query-federation_ubuntu-latest_16-core
+    strategy:
+      matrix:
+        java-version: ['11', '17']
     steps:
       - uses: actions/checkout@v5
-      - name: Set up JDK 11
+      - name: Set up JDK ${{ matrix.java-version }}
         uses: actions/setup-java@v5
         with:
           distribution: 'corretto'
-          java-version: '11'
-      # Target java 8 to ensure that the source is compatible with java 8
+          java-version: ${{ matrix.java-version }}
       - name: Build with Maven
         env:
           AWS_DEFAULT_REGION: us-east-1
           AWS_REGION: us-east-1
-        run: mvn -B clean package -T 1C --file pom.xml -Dmaven.compiler.release=11 -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
+        run: mvn -B clean package -T 1C --file pom.xml -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN --no-transfer-progress
       # Identify if any files were modified as a result of running maven build.
       - name: Identify any Maven Build changes
         run: >
@@ -41,12 +43,12 @@ jobs:
       # -------- Codecov coverage upload --------
       # Fork PRs: upload WITHOUT token
       - name: Upload coverage reports to Codecov (fork PRs, no token)
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && matrix.java-version == '17' }}
         uses: codecov/codecov-action@v5
 
       # Pushes & same-repo PRs: upload WITH token
       - name: Upload coverage reports to Codecov (internal only)
-        if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) }}
+        if: ${{ (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)) && matrix.java-version == '17' }}
         uses: codecov/codecov-action@v5
         with:
           slug: awslabs/aws-athena-query-federation
@@ -54,14 +56,14 @@ jobs:
       # -------- Codecov test results --------
       # Fork PRs: no token
       - name: Upload test results to Codecov (fork PRs, no token)
-        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && matrix.java-version == '17' }}
         uses: codecov/test-results-action@v1
         with:
           slug: awslabs/aws-athena-query-federation
 
       # Pushes & same-repo PRs: with token
       - name: Upload test results to Codecov (internal only)
-        if: ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)) }}
+        if: ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)) && matrix.java-version == '17' }}
         uses: codecov/test-results-action@v1
         with:
           slug: awslabs/aws-athena-query-federation

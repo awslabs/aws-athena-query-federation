@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
@@ -71,8 +72,17 @@ public class MetricUtils
      */
     private static boolean shouldIncludeLinkedAccounts()
     {
-        String includeLinkedAccounts = System.getenv(INCLUDE_LINKED_ACCOUNTS_ENV_VAR);
+        String includeLinkedAccounts = getEnv();
         return Boolean.parseBoolean(includeLinkedAccounts);
+    }
+
+    /**
+     * Extracted method for environment variables to allow mocking in tests.
+     */
+    @VisibleForTesting
+    protected static String getEnv()
+    {
+        return System.getenv(INCLUDE_LINKED_ACCOUNTS_ENV_VAR);
     }
 
     /**
