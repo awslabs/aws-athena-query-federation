@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.snowflake.utils;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.snowflake.SnowflakeConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -30,6 +31,8 @@ import org.bouncycastle.operator.InputDecryptorProvider;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.StringReader;
 import java.security.PrivateKey;
@@ -105,8 +108,8 @@ public class SnowflakeAuthUtils
             return converter.getPrivateKey(privateKeyInfo);
         }
         catch (Exception e) {
-            LOGGER.error("Failed to create private key from string: ", e);
-            throw new Exception("Invalid private key format: " + e.getMessage(), e);
+            LOGGER.error("Private key parsing failed: {}", e.getMessage());
+            throw new AthenaConnectorException("Invalid private key format", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
