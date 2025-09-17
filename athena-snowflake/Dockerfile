@@ -9,9 +9,8 @@ ARG JAVA_TOOL_OPTIONS=""
 ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
 
 # Copy function code and runtime dependencies from Maven layout
-COPY target/athena-snowflake.zip ${LAMBDA_TASK_ROOT}
-# Unpack the jar
-RUN jar xf athena-snowflake.zip
+COPY target/athena-snowflake-2022.47.1.jar ${LAMBDA_TASK_ROOT}
 
+RUN jar xf athena-snowflake-2022.47.1.jar
 # Command can be overwritten by providing a different command in the template directly.
 # No need to specify here (already defined in .yaml file because legacy and connections use different)
