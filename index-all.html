@@ -2710,9 +2710,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="deprecationBlock"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Attempts to deserialize a Schema from the provided InputStream.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#deserialize(java.lang.String)">deserialize(String)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricDataQuerySerDe.html#deserialize(java.lang.String)">deserialize(String)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricDataQuerySerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricDataQuerySerDe</a></dt>
 <dd>
-<div class="block">Deserializes the provided String into a List of MetricStats.</div>
+<div class="block">Deserializes the provided String into a List of MetricDataQueries.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/kafka/serde/KafkaCsvDeserializer.html#deserialize(java.lang.String,byte%5B%5D)">deserialize(String, byte[])</a></span> - Method in class com.amazonaws.athena.connectors.kafka.serde.<a href="com/amazonaws/athena/connectors/kafka/serde/KafkaCsvDeserializer.html" title="class in com.amazonaws.athena.connectors.kafka.serde">KafkaCsvDeserializer</a></dt>
 <dd>&nbsp;</dd>
@@ -8640,6 +8640,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#METRIC_NAME_FIELD">METRIC_NAME_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricDataQuerySerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics"><span class="typeNameLink">MetricDataQuerySerDe</span></a> - Class in <a href="com/amazonaws/athena/connectors/cloudwatch/metrics/package-summary.html">com.amazonaws.athena.connectors.cloudwatch.metrics</a></dt>
+<dd>
+<div class="block">Used to serialize and deserialize Cloudwatch Metrics MetricDataQuery objects.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricSamplesTable.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables"><span class="typeNameLink">MetricSamplesTable</span></a> - Class in <a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/package-summary.html">com.amazonaws.athena.connectors.cloudwatch.metrics.tables</a></dt>
 <dd>
 <div class="block">Defines the metadata associated with our static metric_samples table.</div>
@@ -8679,10 +8683,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricsTable.html#%3Cinit%3E()">MetricsTable()</a></span> - Constructor for class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricsTable.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">MetricsTable</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics"><span class="typeNameLink">MetricStatSerDe</span></a> - Class in <a href="com/amazonaws/athena/connectors/cloudwatch/metrics/package-summary.html">com.amazonaws.athena.connectors.cloudwatch.metrics</a></dt>
-<dd>
-<div class="block">Used to serialize and deserialize Cloudwatch Metrics MetricStat objects.</div>
-</dd>
 <dt><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricUtils.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics"><span class="typeNameLink">MetricUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/cloudwatch/metrics/package-summary.html">com.amazonaws.athena.connectors.cloudwatch.metrics</a></dt>
 <dd>
 <div class="block">Helper which prepares and filters Cloudwatch Metrics requests.</div>
@@ -10516,9 +10516,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="deprecationBlock"><span class="deprecatedLabel">Deprecated.</span></div>
 &nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#serialize(java.util.List)">serialize(List&lt;MetricStat&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricDataQuerySerDe.html#serialize(java.util.List)">serialize(List&lt;MetricDataQuery&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricDataQuerySerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricDataQuerySerDe</a></dt>
 <dd>
-<div class="block">Serializes the provided List of MetricStats.</div>
+<div class="block">Serializes the provided List of MetricDataQueries.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#serialize(org.apache.arrow.vector.ipc.message.ArrowRecordBatch,java.io.OutputStream)">serialize(ArrowRecordBatch, OutputStream)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">RecordBatchSerDe</a></dt>
 <dd>
@@ -10547,7 +10547,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html#serialize(T,com.fasterxml.jackson.core.JsonGenerator,com.fasterxml.jackson.databind.SerializerProvider)">serialize(T, JsonGenerator, SerializerProvider)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#SERIALIZED_METRIC_STATS_FIELD_NAME">SERIALIZED_METRIC_STATS_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricDataQuerySerDe.html#SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME">SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricDataQuerySerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricDataQuerySerDe</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html#%3Cinit%3E()">Serializer()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a></dt>
 <dd>&nbsp;</dd>
