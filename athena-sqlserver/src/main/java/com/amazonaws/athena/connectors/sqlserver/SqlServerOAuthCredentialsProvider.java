@@ -37,6 +37,7 @@ public class SqlServerOAuthCredentialsProvider extends OAuthCredentialsProvider
 
     private static final String SCOPE = "https://database.windows.net/.default";
     private static final String TOKEN_ENDPOINT_FORMAT = "https://login.microsoftonline.com/%s/oauth2/v2.0/token";
+    public static final String CONNECTION_PARAMS = "grant_type=client_credentials&scope=%s&client_id=%s&client_secret=%s";
 
     public SqlServerOAuthCredentialsProvider()
     {
@@ -69,7 +70,7 @@ public class SqlServerOAuthCredentialsProvider extends OAuthCredentialsProvider
         String tokenEndpoint = String.format(TOKEN_ENDPOINT_FORMAT, tenantId);
 
         String formData = String.format(
-                "grant_type=client_credentials&scope=%s&client_id=%s&client_secret=%s",
+                CONNECTION_PARAMS,
                 SCOPE, clientId, clientSecret);
 
         return HttpRequest.newBuilder()
