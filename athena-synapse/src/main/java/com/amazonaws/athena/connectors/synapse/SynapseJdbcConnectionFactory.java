@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.synapse;
 
 import com.amazonaws.athena.connector.credentials.CredentialsConstants;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
-import com.amazonaws.athena.connector.credentials.OAuthAccessTokenCredentials;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -79,21 +78,9 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     );
                 }
                 else {
-                    // Check if this is OAuth credentials
-                    if (credentialsProvider.getCredential() instanceof OAuthAccessTokenCredentials) {
-                        // OAuth token
-                        OAuthAccessTokenCredentials oauthCreds = (OAuthAccessTokenCredentials) credentialsProvider.getCredential();
-                        connectionProps.setProperty(CredentialsConstants.ACCESS_TOKEN_PROPERTY, oauthCreds.getAccessToken());
-                        secretReplacement = "";
-                    }
-                    else {
-                        // replace aws secret value with credentials and change username as user
-                        secretReplacement = String.format(
-                                "%s;%s",
-                                "user=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.USER),
-                                "password=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.PASSWORD)
-                        );
-                    }
+                    Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
+                    connectionProps.putAll(credentialMap);
+                    secretReplacement = "";
                 }
 
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));

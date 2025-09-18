@@ -119,7 +119,6 @@ public class SynapseJdbcConnectionFactoryTest
         credentialMap.put(CredentialsConstants.PASSWORD, TEST_PASSWORD);
         
         when(mockCredentialsProvider.getCredentialMap()).thenReturn(credentialMap);
-        when(mockCredentialsProvider.getCredential()).thenReturn(null);
 
         connectionFactory = new SynapseJdbcConnectionFactory(
             mockDatabaseConnectionConfig, 
@@ -138,9 +137,11 @@ public class SynapseJdbcConnectionFactoryTest
     public void testGetConnectionWithOAuthCredentialsSuccess()
     {
         when(mockDatabaseConnectionConfig.getJdbcConnectionString()).thenReturn(TEST_JDBC_URL_WITH_SECRET);
-        
-        when(mockCredentialsProvider.getCredential()).thenReturn(mockOAuthCredentials);
-        when(mockOAuthCredentials.getAccessToken()).thenReturn(TEST_ACCESS_TOKEN);
+
+        Map<String, String> credentialMap = new HashMap<>();
+        credentialMap.put(CredentialsConstants.ACCESS_TOKEN_PROPERTY, TEST_ACCESS_TOKEN);
+
+        when(mockCredentialsProvider.getCredentialMap()).thenReturn(credentialMap);
 
         connectionFactory = new SynapseJdbcConnectionFactory(
             mockDatabaseConnectionConfig, 
@@ -186,7 +187,6 @@ public class SynapseJdbcConnectionFactoryTest
         when(mockDatabaseConnectionConfig.getJdbcConnectionString()).thenReturn(TEST_JDBC_URL_WITH_SECRET);
         
         when(mockCredentialsProvider.getCredentialMap()).thenReturn(null);
-        when(mockCredentialsProvider.getCredential()).thenReturn(null);
 
         connectionFactory = new SynapseJdbcConnectionFactory(
             mockDatabaseConnectionConfig, 
