@@ -60,11 +60,17 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
     {
         try {
             final String derivedJdbcString;
-            if (null != credentialsProvider) {
+            final Properties connectionProps = new Properties();
+            connectionProps.putAll(this.jdbcProperties);
+
+            if (credentialsProvider != null) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement;
-                if (databaseConnectionConfig.getJdbcConnectionString().contains("authentication=ActiveDirectoryServicePrincipal")) {
-                    // Set AADSecurePrincipal credentials
+
+                String connectionString = databaseConnectionConfig.getJdbcConnectionString();
+
+                if (connectionString.contains("authentication=ActiveDirectoryServicePrincipal")) {
+                    // AAD Service Principal credentials
                     secretReplacement = String.format(
                         "%s;%s",
                         "AADSecurePrincipalId=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.USER),
@@ -72,13 +78,11 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     );
                 }
                 else {
-                    // replace aws secret value with credentials and change username as user
-                    secretReplacement = String.format(
-                        "%s;%s",
-                        "user=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.USER),
-                        "password=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.PASSWORD)
-                    );
+                    Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
+                    connectionProps.putAll(credentialMap);
+                    secretReplacement = "";
                 }
+
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {
@@ -87,7 +91,7 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
             // register driver
             Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
             // create connection
-            return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+            return DriverManager.getConnection(derivedJdbcString, connectionProps);
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
