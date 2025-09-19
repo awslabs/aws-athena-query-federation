@@ -127,10 +127,14 @@ public class PredicateBuilder {
             if (singleValues.size() == 1) {
                 disjuncts.add(toPredicate(columnName, "=", Iterables.getOnlyElement(singleValues), type, accumulator));
             } else if (singleValues.size() > 1) {
-                for (Object value : singleValues) {
-                    accumulator.put(columnName, new PredicateBuilder.TypeAndValue(type, value));
+                // Create unique placeholders for each value to avoid overwriting in accumulator
+                List<String> placeholders = new ArrayList<>();
+                for (int i = 0; i < singleValues.size(); i++) {
+                    String indexedKey = columnName + "_" + i;
+                    accumulator.put(indexedKey, new PredicateBuilder.TypeAndValue(type, singleValues.get(i)));
+                    placeholders.add("<" + indexedKey + ">");
                 }
-                String values = Joiner.on(",").join(Collections.nCopies(singleValues.size(), "<"+columnName+">"));
+                String values = Joiner.on(",").join(placeholders);
                 disjuncts.add(quote(columnName) + " IN (" + values + ")");
             }
         }
@@ -147,8 +151,16 @@ public class PredicateBuilder {
             operator = "\\" + operator;
         }
 
-        accumulator.put(columnName, new PredicateBuilder.TypeAndValue(type, value));
-        return quote(columnName) + " " + operator + " <" + columnName + "> ";
+        String key;
+        // Check if this column name is already in use - if so, create unique key
+        if (accumulator.containsKey(columnName)) {
+            key = columnName + "Pred" + accumulator.size();
+        } else {
+            key = columnName;
+        }
+
+        accumulator.put(key, new PredicateBuilder.TypeAndValue(type, value));
+        return quote(columnName) + " " + operator + " <" + key + "> ";
     }
     protected static String quote(String name)
     {
