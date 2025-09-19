@@ -8,9 +8,13 @@ ARG JAVA_TOOL_OPTIONS=""
 # Set the JAVA_TOOL_OPTIONS environment variable for Java 17
 ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
 
-# Copy function code and runtime dependencies from Maven layout
-COPY target/athena-snowflake-2022.47.1.jar ${LAMBDA_TASK_ROOT}
+# Copy pom.xml and JAR file
+COPY pom.xml target/athena-snowflake-*.jar /tmp/
 
-RUN jar xf athena-snowflake-2022.47.1.jar
+# Extract version and setup (remove JAR after extraction)
+RUN VERSION=$(grep -oP '(?<=<version>)[^<]+' /tmp/pom.xml | head -1) && \
+    echo "Extracted version: $VERSION" && \
+    jar xf /tmp/athena-snowflake-${VERSION}.jar && \
+    rm -f /tmp/pom.xml
 # Command can be overwritten by providing a different command in the template directly.
 # No need to specify here (already defined in .yaml file because legacy and connections use different)
