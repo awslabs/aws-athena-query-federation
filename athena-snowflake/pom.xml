@@ -19,22 +19,152 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
             <version>2022.47.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-dataset</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>rds</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>ec2</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-math3</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-dbcp2</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-io</groupId>
+                    <artifactId>commons-io</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.minidev</groupId>
+                    <artifactId>json-smart</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.minidev</groupId>
+                    <artifactId>accessors-smart</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.reflections</groupId>
+                    <artifactId>reflections</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.javassist</groupId>
+                    <artifactId>javassist</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.github.ben-manes.caffeine</groupId>
+                    <artifactId>caffeine</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.immutables</groupId>
+                    <artifactId>value-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java-util</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.code.gson</groupId>
+                    <artifactId>gson</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>jsr305</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.errorprone</groupId>
+                    <artifactId>error_prone_annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.j2objc</groupId>
+                    <artifactId>j2objc-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.checkerframework</groupId>
+                    <artifactId>checker-qual</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.googlecode.json-simple</groupId>
+                    <artifactId>json-simple</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.uzaygezen</groupId>
+                    <artifactId>uzaygezen-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.jayway.jsonpath</groupId>
+                    <artifactId>json-path</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.yahoo.datasketches</groupId>
+                    <artifactId>sketches-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.yahoo.datasketches</groupId>
+                    <artifactId>memory</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.hydromatic</groupId>
+                    <artifactId>aggdesigner-algorithm</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-lang</groupId>
+                    <artifactId>commons-lang</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents.client5</groupId>
+                    <artifactId>httpclient5</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents.core5</groupId>
+                    <artifactId>httpcore5</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents.core5</groupId>
+                    <artifactId>httpcore5-h2</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jakarta.transaction</groupId>
+                    <artifactId>jakarta.transaction-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-pool2</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.datatype</groupId>
+                    <artifactId>jackson-datatype-jdk8</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.dataformat</groupId>
+                    <artifactId>jackson-dataformat-yaml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.yaml</groupId>
+                    <artifactId>snakeyaml</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-dataset</artifactId>
-            <version>${apache.arrow.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-c-data</artifactId>
-            <version>${apache.arrow.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-memory-core</artifactId>
             <version>${apache.arrow.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -66,6 +196,56 @@
             <groupId>net.snowflake</groupId>
             <artifactId>snowflake-jdbc</artifactId>
             <version>3.26.1</version>
+            <exclusions>
+                <!-- Exclude large unused transitive dependencies from Snowflake JDBC driver -->
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-dataset</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-c-data</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-memory-core</artifactId>
+                </exclusion>
+                <!-- Exclude AWS SDK dependencies that are not needed -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>s3</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>sts</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>kms</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>secretsmanager</artifactId>
+                </exclusion>
+                <!-- Exclude large HTTP client dependencies -->
+                <exclusion>
+                    <groupId>org.apache.httpcomponents</groupId>
+                    <artifactId>httpclient</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents</groupId>
+                    <artifactId>httpcore</artifactId>
+                </exclusion>
+                <!-- Exclude large Jackson dependencies -->
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.dataformat</groupId>
+                    <artifactId>jackson-dataformat-cbor</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.datatype</groupId>
+                    <artifactId>jackson-datatype-jsr310</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
@@ -96,6 +276,22 @@
                     <groupId>software.amazon.awssdk</groupId>
                     <artifactId>netty-nio-client</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents</groupId>
+                    <artifactId>httpclient</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents</groupId>
+                    <artifactId>httpcore</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
@@ -104,6 +300,105 @@
             <artifactId>rds</artifactId>
             <version>${aws-cdk.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <!-- Exclude large transitive dependencies from AWS CDK that are not needed for tests -->
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>cloudwatch</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>ec2</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>events</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>kms</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>logs</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>s3</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>secretsmanager</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>lambda</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>cdk-assets</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>s3-assets</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>ssm</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>applicationautoscaling</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>autoscaling-common</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>codeguruprofiler</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>ecr</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>ecr-assets</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>efs</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>signer</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>sns</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>sqs</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>sam</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awscdk</groupId>
+                    <artifactId>codestarnotifications</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.jetbrains</groupId>
+                    <artifactId>annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!--
           This is purposefully using a legacy version because these tests
@@ -127,21 +422,47 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.7.1</version>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                        <!-- Conservative exclusions - only exclude very large unused packages -->
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <!-- Only exclude the largest unused packages -->
+                                <exclude>software/amazon/awssdk/services/rds/**</exclude>
+                                <exclude>software/amazon/awssdk/services/ec2/**</exclude>
+                                <exclude>software/amazon/awssdk/services/sts/**</exclude>
+                                <exclude>org/apache/httpcomponents/**</exclude>
+                                <exclude>com/yahoo/datasketches/**</exclude>
+                                <exclude>net/hydromatic/**</exclude>
+                                <exclude>jakarta/transaction/**</exclude>
+                                <exclude>org/yaml/snakeyaml/**</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                            <mainClass>com.amazonaws.athena.connectors.snowflake.SnowflakeMuxCompositeHandler</mainClass>
+                        </transformer>
+                    </transformers>
+                </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>
                         <goals>
-                            <goal>single</goal>
+                            <goal>shade</goal>
                         </goals>
-                        <configuration>
-                            <appendAssemblyId>false</appendAssemblyId>
-                            <descriptors>
-                                <descriptor>assembly.xml</descriptor>
-                            </descriptors>
-                            <finalName>${project.artifactId}</finalName>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>

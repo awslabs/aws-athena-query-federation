@@ -118,7 +118,7 @@ public class SnowflakeRecordHandlerTest
     private BlockAllocator allocator;
     private S3BlockSpillReader spillReader;
     private JdbcConnectionFactory jdbcConnectionFactory;
-    private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
+    private SnowflakeQueryStringBuilder jdbcSplitQueryBuilder;
     private S3Client amazonS3;
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
