@@ -42,7 +42,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.substrait.SubstraitFunctionParser;
 import com.amazonaws.athena.connector.substrait.SubstraitMetadataParser;
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
-import com.amazonaws.athena.connector.substrait.model.Operator;
+import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
 import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import io.substrait.proto.Plan;
 import io.substrait.proto.SimpleExtensionDeclaration;
@@ -54,7 +54,11 @@ import org.bson.Document;
 import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -300,12 +304,23 @@ public final class QueryUtils
      */
     private static Document convertColumnPredicatesToDoc(String column, List<ColumnPredicate> colPreds)
     {
-        // Separate EQUAL predicates from others
+        if (colPreds == null || colPreds.isEmpty()) {
+            return new Document();
+        }
+        // Special handling for universal constraints (none / all)
+        for (ColumnPredicate pred : colPreds) {
+            if (pred.getOperator() == SubstraitOperator.IS_NULL) {
+                return documentOf(column, isNullPredicate());
+            }
+            if (pred.getOperator() == SubstraitOperator.IS_NOT_NULL) {
+                return documentOf(column, isNotNullPredicate());
+            }
+        }
         List<Object> equalValues = new ArrayList<>();
         List<Document> otherPredicates = new ArrayList<>();
         for (ColumnPredicate pred : colPreds) {
             Object value = pred.getValue();
-            Operator op = pred.getOperator();
+            SubstraitOperator op = pred.getOperator();
             switch (op) {
                 case EQUAL:
                     equalValues.add(value);
@@ -325,22 +340,25 @@ public final class QueryUtils
                 case LESS_THAN_OR_EQUAL_TO:
                     otherPredicates.add(new Document(LTE_OP, value));
                     break;
-                case IS_NULL:
-                    return documentOf(column, isNullPredicate());
-                case IS_NOT_NULL:
-                    return documentOf(column, isNotNullPredicate());
                 default:
                     throw new UnsupportedOperationException("Unsupported operator: " + op);
             }
         }
-        // Handle multiple EQUAL values with $in (like the makePredicate method does)
+        // Handle multiple EQUAL values -> $in
         if (equalValues.size() > 1) {
-            Document inPredicate = new Document(IN_OP, equalValues);
-            // If there are other predicates, we need to combine with $and
+            Document inPredicate;
+            if (column.equals(COLUMN_NAME_ID)) {
+                List<ObjectId> objectIdList = equalValues.stream()
+                        .map(v -> new ObjectId(v.toString()))
+                        .collect(Collectors.toList());
+                inPredicate = new Document(IN_OP, objectIdList);
+            }
+            else {
+                inPredicate = new Document(IN_OP, equalValues);
+            }
             if (!otherPredicates.isEmpty()) {
                 List<Document> andConditions = new ArrayList<>();
                 andConditions.add(new Document(column, inPredicate));
-                // Add other predicates as individual conditions
                 for (Document otherPred : otherPredicates) {
                     andConditions.add(new Document(column, otherPred));
                 }
@@ -348,10 +366,16 @@ public final class QueryUtils
             }
             return documentOf(column, inPredicate);
         }
-        // Single EQUAL value
+        // Single EQUAL
         else if (equalValues.size() == 1) {
-            Document equalPredicate = new Document(EQ_OP, equalValues.get(0));
-            // If there are other predicates, combine with $and
+            Object eqValue = equalValues.get(0);
+            Document equalPredicate;
+            if (column.equals(COLUMN_NAME_ID)) {
+                equalPredicate = new Document(EQ_OP, new ObjectId(eqValue.toString()));
+            }
+            else {
+                equalPredicate = new Document(EQ_OP, eqValue);
+            }
             if (!otherPredicates.isEmpty()) {
                 List<Document> andConditions = new ArrayList<>();
                 andConditions.add(new Document(column, equalPredicate));
@@ -364,7 +388,6 @@ public final class QueryUtils
         }
         // Only non-EQUAL predicates
         else if (!otherPredicates.isEmpty()) {
-            // For multiple conditions, use OR (like makePredicate does with orPredicate)
             if (otherPredicates.size() > 1) {
                 List<Document> orConditions = new ArrayList<>();
                 for (Document predicate : otherPredicates) {
@@ -372,7 +395,6 @@ public final class QueryUtils
                 }
                 return new Document(OR_OP, orConditions);
             }
-            // Single non-EQUAL predicate
             else {
                 return documentOf(column, otherPredicates.get(0));
             }

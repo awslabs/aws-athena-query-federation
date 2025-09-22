@@ -220,6 +220,8 @@ public class DocDBRecordHandlerTest
                     return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
                 });
 
+
+
         handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, mockAthena, connectionFactory, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
         mdHandler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
@@ -534,8 +536,8 @@ public class DocDBRecordHandlerTest
         }
 
         // Mock Mongo iterable
-        when(mockCollection.find(nullable(Document.class))).thenReturn(mockIterable);
-        when(mockIterable.projection(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockCollection.find(any(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.projection(any(Document.class))).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 

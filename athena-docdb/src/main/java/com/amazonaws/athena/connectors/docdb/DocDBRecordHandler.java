@@ -29,16 +29,21 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.substrait.SubstraitMetadataParser;
 import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
 import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
+import io.substrait.proto.Expression;
 import io.substrait.proto.FetchRel;
 import io.substrait.proto.Plan;
+import io.substrait.proto.SortField;
+import io.substrait.proto.SortRel;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -50,6 +55,7 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -163,10 +169,15 @@ public class DocDBRecordHandler
             plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
         }
 
-        // ---------------------- LIMIT pushdown support ----------------------
+        // LIMIT pushdown support
         Pair<Boolean, Integer> limitPair = getLimit(plan, recordsRequest.getConstraints());
         boolean hasLimit = limitPair.getLeft();
         int limit = limitPair.getRight();
+
+        // ORDER BY pushdown support
+        Pair<Boolean, Document> sortPair = getSortFromPlan(plan);
+        boolean hasSort = sortPair.getLeft();
+        Document sortDoc = sortPair.getRight();
 
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
@@ -199,9 +210,19 @@ public class DocDBRecordHandler
         Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
         logger.info("readWithConstraint: query[{}] projection[{}]", query, projection);
 
-        final MongoCursor<Document> iterable = table
-                .find(query)
-                .projection(projection)
+        // Build the find operation with a maintained pushdown order
+        FindIterable<Document> findIterable = table.find(query).projection(projection);
+        // Apply SORT pushdown first (should be before LIMIT for correct semantics)
+        if (hasSort && !sortDoc.isEmpty()) {
+            findIterable = findIterable.sort(sortDoc);
+        }
+        // Apply LIMIT pushdown after SORT
+        if (hasLimit) {
+            findIterable = findIterable.limit(limit);
+            logger.info("Applying LIMIT pushdown in ordered result set: {}", limit);
+        }
+
+        final MongoCursor<Document> iterable = findIterable
                 .batchSize(MONGO_QUERY_BATCH_SIZE).iterator();
 
         long numRows = 0;
@@ -282,5 +303,69 @@ public class DocDBRecordHandler
     {
         FetchRel fetchRel = substraitRelModel.getFetchRel();
         return (int) fetchRel.getCount();
+    }
+
+    /**
+     * Extracts sort information from Substrait plan for ORDER BY pushdown
+     */
+    private Pair<Boolean, Document> getSortFromPlan(Plan plan)
+    {
+        if (plan == null || plan.getRelationsList().isEmpty()) {
+            return Pair.of(false, new Document());
+        }
+        try {
+            SubstraitRelModel substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(
+                    plan.getRelations(0).getRoot().getInput());
+            if (substraitRelModel.getSortRel() == null) {
+                return Pair.of(false, new Document());
+            }
+            // Use the same column resolution as filter predicates
+            List<String> tableColumns = SubstraitMetadataParser.getTableColumns(substraitRelModel);
+            Document sortDoc = extractSortFields(substraitRelModel.getSortRel(), tableColumns);
+            return Pair.of(true, sortDoc);
+        }
+        catch (Exception e) {
+            logger.warn("Failed to extract sort from plan{}", e);
+            return Pair.of(false, new Document());
+        }
+    }
+
+    private Document extractSortFields(SortRel sortRel, List<String> tableColumns)
+    {
+        Document sortDoc = new Document();
+        if (sortRel == null || sortRel.getSortsCount() == 0) {
+            return sortDoc;
+        }
+        for (SortField sortField : sortRel.getSortsList()) {
+            try {
+                int fieldIndex = extractFieldIndexFromExpression(sortField.getExpr());
+                if (fieldIndex >= 0 && fieldIndex < tableColumns.size()) {
+                    String columnName = tableColumns.get(fieldIndex).toLowerCase();
+                    int direction = isAscending(sortField) ? 1 : -1;
+                    sortDoc.put(columnName, direction);
+                }
+            }
+            catch (Exception e) {
+                logger.warn("Failed to extract sort field, skipping: {}", e.getMessage());
+            }
+        }
+        return sortDoc;
+    }
+
+    private int extractFieldIndexFromExpression(Expression expression)
+    {
+        if (expression.hasSelection() && expression.getSelection().hasDirectReference()) {
+            Expression.ReferenceSegment segment = expression.getSelection().getDirectReference();
+            if (segment.hasStructField()) {
+                return segment.getStructField().getField();
+            }
+        }
+        throw new IllegalArgumentException("Cannot extract field index from expression");
+    }
+
+    private boolean isAscending(SortField sortField)
+    {
+        return sortField.getDirection() == SortField.SortDirection.SORT_DIRECTION_ASC_NULLS_LAST ||
+                sortField.getDirection() == SortField.SortDirection.SORT_DIRECTION_ASC_NULLS_FIRST;
     }
 }
