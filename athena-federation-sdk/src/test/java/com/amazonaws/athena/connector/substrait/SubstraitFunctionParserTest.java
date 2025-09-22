@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connector.substrait;
 
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
-import com.amazonaws.athena.connector.substrait.model.Operator;
+import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
 import io.substrait.proto.SimpleExtensionDeclaration;
@@ -52,7 +52,7 @@ class SubstraitFunctionParserTest
         
         ColumnPredicate predicate = result.get("id").get(0);
         assertEquals("id", predicate.getColumn());
-        assertEquals(Operator.EQUAL, predicate.getOperator());
+        assertEquals(SubstraitOperator.EQUAL, predicate.getOperator());
         assertEquals(123, predicate.getValue());
     }
 
@@ -75,11 +75,11 @@ class SubstraitFunctionParserTest
         assertTrue(result.containsKey("age"));
         
         ColumnPredicate idPredicate = result.get("id").get(0);
-        assertEquals(Operator.EQUAL, idPredicate.getOperator());
+        assertEquals(SubstraitOperator.EQUAL, idPredicate.getOperator());
         assertEquals(123, idPredicate.getValue());
         
         ColumnPredicate agePredicate = result.get("age").get(0);
-        assertEquals(Operator.GREATER_THAN, agePredicate.getOperator());
+        assertEquals(SubstraitOperator.GREATER_THAN, agePredicate.getOperator());
         assertEquals(18, agePredicate.getValue());
     }
 
@@ -95,7 +95,7 @@ class SubstraitFunctionParserTest
         assertEquals(1, result.size());
         ColumnPredicate predicate = result.get(0);
         assertEquals("name", predicate.getColumn());
-        assertEquals(Operator.IS_NULL, predicate.getOperator());
+        assertEquals(SubstraitOperator.IS_NULL, predicate.getOperator());
         assertNull(predicate.getValue());
     }
 
@@ -111,7 +111,7 @@ class SubstraitFunctionParserTest
         assertEquals(1, result.size());
         ColumnPredicate predicate = result.get(0);
         assertEquals("name", predicate.getColumn());
-        assertEquals(Operator.EQUAL, predicate.getOperator());
+        assertEquals(SubstraitOperator.EQUAL, predicate.getOperator());
         assertEquals("John", predicate.getValue());
         assertInstanceOf(ArrowType.Utf8.class, predicate.getArrowType());
     }
@@ -128,7 +128,7 @@ class SubstraitFunctionParserTest
         assertEquals(1, result.size());
         ColumnPredicate predicate = result.get(0);
         assertEquals("active", predicate.getColumn());
-        assertEquals(Operator.EQUAL, predicate.getOperator());
+        assertEquals(SubstraitOperator.EQUAL, predicate.getOperator());
         assertEquals(true, predicate.getValue());
         assertInstanceOf(ArrowType.Bool.class, predicate.getArrowType());
     }

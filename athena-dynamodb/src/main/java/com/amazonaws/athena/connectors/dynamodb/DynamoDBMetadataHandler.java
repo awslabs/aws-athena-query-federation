@@ -655,6 +655,84 @@ public class DynamoDBMetadataHandler
     {
         return String.valueOf(partition);
     }
+    
+    /**
+     * Extracts hash key values and type information from constraints.
+     */
+    private HashKeyPredicateInfo extractHashKeyInfo(String hashKeyName, Map<String, ValueSet> summary,
+                                                    Map<String, List<ColumnPredicate>> filterPredicates, boolean useQueryPlan)
+    {
+        if (useQueryPlan) {
+            List<ColumnPredicate> predicates = filterPredicates.get(hashKeyName);
+            if (predicates != null) {
+                List<ColumnPredicate> hashKeyPredicates = DDBPredicateUtils.getHashKeyAttributeValues(predicates);
+                if (!hashKeyPredicates.isEmpty()) {
+                    return new HashKeyPredicateInfo(
+                        Collections.singletonList(hashKeyPredicates),
+                        hashKeyPredicates.get(0).getArrowType()
+                    );
+                }
+            }
+            return new HashKeyPredicateInfo(Collections.emptyList(), null);
+        }
+        else {
+            ValueSet hashKeyValueSet = summary.get(hashKeyName);
+            ArrowType arrowType = (hashKeyValueSet != null) ? hashKeyValueSet.getType() : null;
+            List<Object> hashKeyValues = (hashKeyValueSet != null) ? 
+                DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+            return new HashKeyPredicateInfo(hashKeyValues, arrowType);
+        }
+    }
+    
+    /**
+     * Sets up query partition metadata in the schema builder.
+     */
+    private void setupQueryPartition(SchemaBuilder partitionSchemaBuilder, String hashKeyName, ArrowType arrowType,
+                                   DynamoDBTable table, DynamoDBIndex index, Set<String> columnsToIgnore)
+    {
+        partitionSchemaBuilder.addField(hashKeyName, arrowType);
+        partitionSchemaBuilder.addMetadata(HASH_KEY_NAME_METADATA, hashKeyName);
+        columnsToIgnore.add(hashKeyName);
+        partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, QUERY_PARTITION_TYPE);
+        
+        if (!table.getName().equals(index.getName())) {
+            partitionSchemaBuilder.addMetadata(INDEX_METADATA, index.getName());
+        }
+    }
+    
+    /**
+     * Sets up range key filter if applicable.
+     */
+    private void setupRangeKeyFilter(SchemaBuilder partitionSchemaBuilder, DynamoDBIndex index,
+                                   Map<String, ValueSet> summary, Map<String, List<ColumnPredicate>> filterPredicates,
+                                   boolean useQueryPlan, List<AttributeValue> valueAccumulator,
+                                   IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata,
+                                   Set<String> columnsToIgnore)
+    {
+        Optional<String> rangeKey = index.getRangeKey();
+        if (rangeKey.isEmpty()) {
+            return;
+        }
+        
+        String rangeKeyName = rangeKey.get();
+        String rangeKeyFilter = null;
+        
+        if (!useQueryPlan && summary.containsKey(rangeKeyName)) {
+            rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(
+                rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true);
+        }
+        else if (useQueryPlan && filterPredicates.containsKey(rangeKeyName)) {
+            rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(
+                rangeKeyName, filterPredicates.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true);
+        }
+        
+        if (rangeKeyFilter != null) {
+            logger.info("filter on range key is: {}", rangeKeyFilter);
+            partitionSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName);
+            partitionSchemaBuilder.addMetadata(RANGE_KEY_FILTER_METADATA, rangeKeyFilter);
+            columnsToIgnore.add(rangeKeyName);
+        }
+    }
 
     /**
      * Helper class to encapsulate hash key information.
@@ -760,5 +838,35 @@ public class DynamoDBMetadataHandler
                 Split.newBuilder(spillLocation, makeEncryptionKey())
                         .applyProperties(qptArguments)
                         .build());
+    }
+
+    /**
+     * Helper class to encapsulate hash key information.
+     */
+    private static final class HashKeyPredicateInfo
+    {
+        private final List<Object> values;
+        private final ArrowType arrowType;
+
+        HashKeyPredicateInfo(List<Object> values, ArrowType arrowType)
+        {
+            this.values = values;
+            this.arrowType = arrowType;
+        }
+
+        List<Object> values()
+        {
+            return values;
+        }
+
+        ArrowType arrowType()
+        {
+            return arrowType;
+        }
+
+        boolean isEmpty()
+        {
+            return values.isEmpty();
+        }
     }
 }

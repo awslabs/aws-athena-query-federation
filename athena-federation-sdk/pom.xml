@@ -278,12 +278,12 @@
         <dependency>
             <groupId>io.substrait</groupId>
             <artifactId>isthmus</artifactId>
-            <version>0.52.0</version>
+            <version>${io.substrait.version}</version>
         </dependency>
         <dependency>
             <groupId>io.substrait</groupId>
             <artifactId>core</artifactId>
-            <version>0.52.0</version>
+            <version>${io.substrait.version}</version>
         </dependency>
     </dependencies>
     <build>

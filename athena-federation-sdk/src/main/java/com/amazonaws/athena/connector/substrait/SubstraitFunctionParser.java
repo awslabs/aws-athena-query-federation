@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connector.substrait;
 
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
-import com.amazonaws.athena.connector.substrait.model.Operator;
+import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
 import io.substrait.proto.SimpleExtensionDeclaration;
@@ -86,8 +86,8 @@ public final class SubstraitFunctionParser
         }
 
         // Handle logical operators by flattening
-        if (isLogicalOperator(functionInfo.functionName)) {
-            for (FunctionArgument argument : functionInfo.arguments) {
+        if (isLogicalOperator(functionInfo.getFunctionName())) {
+            for (FunctionArgument argument : functionInfo.getArguments()) {
                 columnPredicates.addAll(
                         parseColumnPredicates(extensionDeclarationList, argument.getValue(), columnNames));
             }
@@ -95,13 +95,13 @@ public final class SubstraitFunctionParser
         }
 
         // Handle binary comparison operations
-        if (functionInfo.arguments.size() == 2) {
+        if (functionInfo.getArguments().size() == 2) {
             ColumnPredicate predicate = createBinaryColumnPredicate(functionInfo, columnNames);
             columnPredicates.add(predicate);
         }
 
         // Handle unary operations
-        if (functionInfo.arguments.size() == 1) {
+        if (functionInfo.getArguments().size() == 1) {
             ColumnPredicate predicate = createUnaryColumnPredicate(functionInfo, columnNames);
             columnPredicates.add(predicate);
         }
@@ -175,9 +175,9 @@ public final class SubstraitFunctionParser
      */
     private static ColumnPredicate createUnaryColumnPredicate(ScalarFunctionInfo functionInfo, List<String> columnNames)
     {
-        String columnName = extractColumnName(functionInfo.arguments.get(0).getValue(), columnNames);
-        Operator operator = mapToOperator(functionInfo.functionName);
-        return new ColumnPredicate(columnName, operator, null, null);
+        String columnName = extractColumnName(functionInfo.getArguments().get(0).getValue(), columnNames);
+        SubstraitOperator substraitOperator = mapToOperator(functionInfo.getFunctionName());
+        return new ColumnPredicate(columnName, substraitOperator, null, null);
     }
     
     /**
@@ -185,10 +185,10 @@ public final class SubstraitFunctionParser
      */
     private static ColumnPredicate createBinaryColumnPredicate(ScalarFunctionInfo functionInfo, List<String> columnNames)
     {
-        String columnName = extractColumnName(functionInfo.arguments.get(0).getValue(), columnNames);
-        Pair<Object, ArrowType> value = extractValueWithPossibleCast(functionInfo.arguments.get(1).getValue());
-        Operator operator = mapToOperator(functionInfo.functionName);
-        return new ColumnPredicate(columnName, operator, value.getLeft(), value.getRight());
+        String columnName = extractColumnName(functionInfo.getArguments().get(0).getValue(), columnNames);
+        Pair<Object, ArrowType> value = extractValueWithPossibleCast(functionInfo.getArguments().get(1).getValue());
+        SubstraitOperator substraitOperator = mapToOperator(functionInfo.getFunctionName());
+        return new ColumnPredicate(columnName, substraitOperator, value.getLeft(), value.getRight());
     }
     
     /**
@@ -200,13 +200,6 @@ public final class SubstraitFunctionParser
     }
 
     /**
-     * Helper class to hold scalar function information.
-     */
-    private record ScalarFunctionInfo(String functionName, List<FunctionArgument> arguments)
-    {
-    }
-
-    /**
      * Maps Substrait function names to corresponding Operator enum values.
      * This method is mapping only small set of operators, and we will extend this as we need.
      * 
@@ -214,31 +207,56 @@ public final class SubstraitFunctionParser
      * @return The corresponding Operator enum value
      * @throws UnsupportedOperationException if the function name is not supported
      */
-    private static Operator mapToOperator(String functionName)
+    private static SubstraitOperator mapToOperator(String functionName)
     {
         switch (functionName) {
             case "gt:any_any":
-                return Operator.GREATER_THAN;
+                return SubstraitOperator.GREATER_THAN;
             case "gte:any_any":
-                return Operator.GREATER_THAN_OR_EQUAL_TO;
+                return SubstraitOperator.GREATER_THAN_OR_EQUAL_TO;
             case "lt:any_any":
-                return Operator.LESS_THAN;
+                return SubstraitOperator.LESS_THAN;
             case "lte:any_any":
-                return Operator.LESS_THAN_OR_EQUAL_TO;
+                return SubstraitOperator.LESS_THAN_OR_EQUAL_TO;
             case "equal:any_any":
-                return Operator.EQUAL;
+                return SubstraitOperator.EQUAL;
             case "not_equal:any_any":
-                return Operator.NOT_EQUAL;
+                return SubstraitOperator.NOT_EQUAL;
             case "is_null:any":
-                return Operator.IS_NULL;
+                return SubstraitOperator.IS_NULL;
             case "is_not_null:any":
-                return Operator.IS_NOT_NULL;
+                return SubstraitOperator.IS_NOT_NULL;
             case "and:bool":
-                return Operator.AND;
+                return SubstraitOperator.AND;
             case "or:bool":
-                return Operator.OR;
+                return SubstraitOperator.OR;
             default:
                 throw new UnsupportedOperationException("Unsupported operator function: " + functionName);
+        }
+    }
+
+    /**
+     * Helper class to hold scalar function information.
+     */
+    private static final class ScalarFunctionInfo
+    {
+        private final String functionName;
+        private final List<FunctionArgument> arguments;
+
+        public ScalarFunctionInfo(String functionName, List<FunctionArgument> arguments)
+        {
+            this.functionName = functionName;
+            this.arguments = arguments;
+        }
+
+        public String getFunctionName()
+        {
+            return functionName;
+        }
+
+        public List<FunctionArgument> getArguments()
+        {
+            return arguments;
         }
     }
 }
