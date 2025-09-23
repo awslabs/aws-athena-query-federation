@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
+import static com.amazonaws.athena.connector.credentials.CredentialsProvider.SECRET_NAME_PATTERN;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.AUTHENTICATOR;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PRIVATE_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.USER;

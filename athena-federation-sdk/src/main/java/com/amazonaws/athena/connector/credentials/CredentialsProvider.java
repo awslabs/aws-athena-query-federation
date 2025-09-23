@@ -20,12 +20,17 @@
 package com.amazonaws.athena.connector.credentials;
 
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Provider interface for database credentials.
  */
 public interface CredentialsProvider
 {
+    String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@!-]+})";
+    Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
+
     /**
      * Retrieves credentials for database connection.
      * @return Credentials object (username/password or OAuth)
@@ -41,5 +46,20 @@ public interface CredentialsProvider
     default Map<String, String> getCredentialMap()
     {
         return getCredential().getProperties();
+    }
+
+    /**
+     * Transforms the connection string based on the credential type and authentication method.
+     * This method allows credential providers to modify the connection string according to their
+     * specific authentication requirements and removes any secret name placeholders.
+     *
+     * @param connectionString The original connection string
+     * @return The transformed connection string with authentication details applied and placeholders removed
+     */
+    default String transformSecretString(String connectionString)
+    {
+        // Remove secret name placeholder by default
+        Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(connectionString);
+        return secretMatcher.replaceAll(Matcher.quoteReplacement(""));
     }
 }

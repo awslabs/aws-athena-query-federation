@@ -24,7 +24,7 @@ import org.junit.Test;
 
 import java.util.regex.Matcher;
 
-import static com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory.SECRET_NAME_PATTERN;
+import static com.amazonaws.athena.connector.credentials.CredentialsProvider.SECRET_NAME_PATTERN;
 
 public class GenericJdbcConnectionFactoryTest
 {

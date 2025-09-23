@@ -35,6 +35,8 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
+import static com.amazonaws.athena.connector.credentials.CredentialsProvider.SECRET_NAME_PATTERN;
+
 public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
 {
     public static final String IS_FIPS_ENABLED = "is_fips_enabled";

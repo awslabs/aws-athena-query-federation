@@ -36,8 +36,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Provides a generic jdbc connection factory that can be used to connect to standard databases. Configures following
@@ -50,9 +48,6 @@ public class GenericJdbcConnectionFactory
         implements JdbcConnectionFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericJdbcConnectionFactory.class);
-
-    private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@!-]+})";
-    public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
@@ -80,8 +75,10 @@ public class GenericJdbcConnectionFactory
     {
         final String derivedJdbcString;
         if (credentialsProvider != null) {
-            Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-            derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
+            // Transform the connection string using the credentials provider
+            derivedJdbcString = credentialsProvider.transformSecretString(
+                databaseConnectionConfig.getJdbcConnectionString()
+            );
 
             jdbcProperties.putAll(credentialsProvider.getCredentialMap());
         }
