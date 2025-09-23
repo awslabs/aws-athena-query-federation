@@ -30,9 +30,10 @@ import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
-import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -68,47 +69,54 @@ public class OracleJdbcConnectionFactoryTest
     public void testGetConnection_withSsl() throws Exception {
         Driver mockDriver = mock(Driver.class);
 
-            withEnvironmentVariable("is_fips_enabled", "true").execute(() -> {
-                DefaultCredentials expectedCredential = new DefaultCredentials(USERNAME, PASSWORD);
-                CredentialsProvider credentialsProvider = new StaticCredentialsProvider(expectedCredential);
+        DefaultCredentials expectedCredential = new DefaultCredentials(USERNAME, PASSWORD);
+        CredentialsProvider credentialsProvider = new StaticCredentialsProvider(expectedCredential);
 
-                DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(
-                        TEST_CATALOG,
-                        OracleConstants.ORACLE_NAME,
-                        "oracle://jdbc:oracle:thin:username/password@tcps://test.oracle.com:1521/orcl",
-                        TEST_SECRET
-                );
+        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(
+                TEST_CATALOG,
+                OracleConstants.ORACLE_NAME,
+                "oracle://jdbc:oracle:thin:username/password@tcps://test.oracle.com:1521/orcl",
+                TEST_SECRET
+        );
 
-                DatabaseConnectionInfo databaseConnectionInfo = new DatabaseConnectionInfo(
-                        OracleConstants.ORACLE_DRIVER_CLASS,
-                        OracleConstants.ORACLE_DEFAULT_PORT
-                );
+        DatabaseConnectionInfo databaseConnectionInfo = new DatabaseConnectionInfo(
+                OracleConstants.ORACLE_DRIVER_CLASS,
+                OracleConstants.ORACLE_DEFAULT_PORT
+        );
 
-                Properties[] capturedProps = new Properties[1];
+        Properties[] capturedProps = new Properties[1];
 
-                when(mockDriver.acceptsURL(anyString())).thenReturn(true);
-                when(mockDriver.connect(anyString(), any(Properties.class)))
-                        .thenAnswer(invocation -> {
-                            capturedProps[0] = invocation.getArgument(1);
-                            return mock(Connection.class);
-                        });
+        when(mockDriver.acceptsURL(anyString())).thenReturn(true);
+        when(mockDriver.connect(anyString(), any(Properties.class)))
+                .thenAnswer(invocation -> {
+                    capturedProps[0] = invocation.getArgument(1);
+                    return mock(Connection.class);
+                });
 
-                DriverManager.registerDriver(mockDriver);
+        DriverManager.registerDriver(mockDriver);
 
-                new OracleJdbcConnectionFactory(databaseConnectionConfig, databaseConnectionInfo)
-                        .getConnection(credentialsProvider);
+        // Create a test connection factory with custom environment
+        OracleJdbcConnectionFactory connectionFactory = new OracleJdbcConnectionFactory(databaseConnectionConfig, databaseConnectionInfo) {
+            @Override
+            protected Map<String, String> getEnvMap() {
+                Map<String, String> env = new HashMap<>();
+                env.put(IS_FIPS_ENABLED, "true");
+                return env;
+            }
+        };
 
-                Properties sslProps = capturedProps[0];
-                assertEquals("JKS", sslProps.getProperty("javax.net.ssl.trustStoreType"));
-                assertEquals("changeit", sslProps.getProperty("javax.net.ssl.trustStorePassword"));
-                assertEquals("true", sslProps.getProperty("oracle.net.ssl_server_dn_match"));
-                assertEquals(
-                        "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)",
-                        sslProps.getProperty("oracle.net.ssl_cipher_suites")
-                );
-            });
+        connectionFactory.getConnection(credentialsProvider);
 
-                DriverManager.deregisterDriver(mockDriver);
+        Properties sslProps = capturedProps[0];
+        assertEquals("JKS", sslProps.getProperty("javax.net.ssl.trustStoreType"));
+        assertEquals("changeit", sslProps.getProperty("javax.net.ssl.trustStorePassword"));
+        assertEquals("true", sslProps.getProperty("oracle.net.ssl_server_dn_match"));
+        assertEquals(
+                "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)",
+                sslProps.getProperty("oracle.net.ssl_cipher_suites")
+        );
+
+        DriverManager.deregisterDriver(mockDriver);
     }
 
     @Test(expected = RuntimeException.class)
