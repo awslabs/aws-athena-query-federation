@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
@@ -70,7 +72,7 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
                     // By default; Oracle RDS uses SSL_RSA_WITH_AES_256_CBC_SHA
                     // Adding the following cipher suits to support others listed in Doc
                     // https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Appendix.Oracle.Options.SSL.html#Appendix.Oracle.Options.SSL.CipherSuites
-                    if (System.getenv().getOrDefault(IS_FIPS_ENABLED, "false").equalsIgnoreCase("true") || System.getenv().getOrDefault(IS_FIPS_ENABLED_LEGACY, "false").equalsIgnoreCase("true")) {
+                    if (getEnvMap().getOrDefault(IS_FIPS_ENABLED, "false").equalsIgnoreCase("true") || getEnvMap().getOrDefault(IS_FIPS_ENABLED_LEGACY, "false").equalsIgnoreCase("true")) {
                         properties.put("oracle.net.ssl_cipher_suites", "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)");
                     }
                 }
@@ -99,5 +101,14 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
         catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    /**
+     * Extracted method for environment variables to allow overriding in tests.
+     */
+    @VisibleForTesting
+    protected Map<String, String> getEnvMap()
+    {
+        return System.getenv();
     }
 }
