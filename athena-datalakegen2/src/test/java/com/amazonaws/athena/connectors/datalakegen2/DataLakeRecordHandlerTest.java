@@ -43,6 +43,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -119,4 +120,93 @@ public class DataLakeRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "varcharTest");
     }
 
+    @Test
+    public void testReadWithConstraintWithAzureServerlessEnvironment()
+            throws Exception
+    {
+        // Mock Azure serverless URL
+        DatabaseMetaData mockDatabaseMetaData = Mockito.mock(DatabaseMetaData.class);
+        Mockito.when(connection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        Mockito.when(mockDatabaseMetaData.getURL()).thenReturn("datalakegentwo://jdbc:sqlserver://myworkspace-ondemand.sql.azuresynapse.net:1433;database=mydatabase;");
+
+        // Mock the prepared statement and result set
+        PreparedStatement mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        java.sql.ResultSet mockResultSet = Mockito.mock(java.sql.ResultSet.class);
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(mockPreparedStatement);
+        Mockito.when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        Mockito.when(mockResultSet.next()).thenReturn(false); // No rows
+
+        // Mock the query status checker
+        com.amazonaws.athena.connector.lambda.QueryStatusChecker mockQueryStatusChecker = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.QueryStatusChecker.class);
+        Mockito.when(mockQueryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        // Mock the block spiller
+        com.amazonaws.athena.connector.lambda.data.BlockSpiller mockBlockSpiller = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.data.BlockSpiller.class);
+
+        // Create the read records request
+        com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest mockReadRecordsRequest = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest.class);
+        Mockito.when(mockReadRecordsRequest.getQueryId()).thenReturn("testQueryId");
+        Mockito.when(mockReadRecordsRequest.getCatalogName()).thenReturn("testCatalog");
+        Mockito.when(mockReadRecordsRequest.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        Mockito.when(mockReadRecordsRequest.getSchema()).thenReturn(SchemaBuilder.newBuilder().build());
+        Mockito.when(mockReadRecordsRequest.getConstraints()).thenReturn(Mockito.mock(Constraints.class));
+        Mockito.when(mockReadRecordsRequest.getSplit()).thenReturn(Mockito.mock(Split.class));
+
+        // Execute the method
+        dataLakeGen2RecordHandler.readWithConstraint(mockBlockSpiller, mockReadRecordsRequest, mockQueryStatusChecker);
+
+        // Verify that setAutoCommit(false) was NOT called for Azure serverless environment
+        Mockito.verify(connection, Mockito.never()).setAutoCommit(false);
+        
+        // Verify that commit() was NOT called for Azure serverless environment
+        Mockito.verify(connection, Mockito.never()).commit();
+    }
+
+    @Test
+    public void testReadWithConstraintWithStandardEnvironment()
+            throws Exception
+    {
+        // Mock standard SQL Server URL (non-serverless)
+        DatabaseMetaData mockDatabaseMetaData = Mockito.mock(DatabaseMetaData.class);
+        Mockito.when(connection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        Mockito.when(mockDatabaseMetaData.getURL()).thenReturn("datalakegentwo://jdbc:sqlserver://myserver.database.windows.net:1433;database=mydatabase;");
+
+        // Mock the prepared statement and result set
+        PreparedStatement mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        java.sql.ResultSet mockResultSet = Mockito.mock(java.sql.ResultSet.class);
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(mockPreparedStatement);
+        Mockito.when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        Mockito.when(mockResultSet.next()).thenReturn(false); // No rows
+
+        // Mock the query status checker
+        com.amazonaws.athena.connector.lambda.QueryStatusChecker mockQueryStatusChecker = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.QueryStatusChecker.class);
+        Mockito.when(mockQueryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        // Mock the block spiller
+        com.amazonaws.athena.connector.lambda.data.BlockSpiller mockBlockSpiller = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.data.BlockSpiller.class);
+
+        // Create the read records request
+        com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest mockReadRecordsRequest = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest.class);
+        Mockito.when(mockReadRecordsRequest.getQueryId()).thenReturn("testQueryId");
+        Mockito.when(mockReadRecordsRequest.getCatalogName()).thenReturn("testCatalog");
+        Mockito.when(mockReadRecordsRequest.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        Mockito.when(mockReadRecordsRequest.getSchema()).thenReturn(SchemaBuilder.newBuilder().build());
+        Mockito.when(mockReadRecordsRequest.getConstraints()).thenReturn(Mockito.mock(Constraints.class));
+        Mockito.when(mockReadRecordsRequest.getSplit()).thenReturn(Mockito.mock(Split.class));
+
+        // Execute the method
+        dataLakeGen2RecordHandler.readWithConstraint(mockBlockSpiller, mockReadRecordsRequest, mockQueryStatusChecker);
+
+        // Verify that setAutoCommit(false) WAS called for standard environment
+        Mockito.verify(connection, Mockito.times(1)).setAutoCommit(false);
+        
+        // Verify that commit() WAS called for standard environment
+        Mockito.verify(connection, Mockito.times(1)).commit();
+    }
 }

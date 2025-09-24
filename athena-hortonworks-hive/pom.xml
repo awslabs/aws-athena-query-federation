@@ -27,6 +27,17 @@
             <groupId>Hive</groupId>
             <artifactId>HiveJDBC42</artifactId>
             <version>${clouderaVersion}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.zookeeper</groupId>
+                    <artifactId>zookeeper</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>3.9.4</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -83,6 +94,14 @@
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                        <filter>
+                            <artifact>Hive:HiveJDBC42</artifact>
+                            <excludes>
+                                <exclude>org/apache/zookeeper/**</exclude>
+                                <exclude>com/cloudera/hive/jdbc42/internal/apache/zookeeper/**</exclude>
+                                <exclude>META-INF/maven/org.apache.zookeeper/**</exclude>
                             </excludes>
                         </filter>
                     </filters>

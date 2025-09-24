@@ -38,12 +38,12 @@
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
-            <version>5.16.0</version>
+            <version>5.17.0</version>
         </dependency>
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
-            <version>5.16.0</version>
+            <version>5.17.0</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -55,7 +55,7 @@
         <dependency>
             <groupId>net.snowflake</groupId>
             <artifactId>snowflake-jdbc</artifactId>
-            <version>3.25.1</version>
+            <version>3.26.0</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
@@ -65,12 +65,12 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>1.81</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcutil-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>1.81</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/rds -->
         <dependency>

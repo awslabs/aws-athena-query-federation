@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -42,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Top
 import com.amazonaws.athena.connectors.datalakegen2.resolver.DataLakeGen2CaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
@@ -96,7 +99,7 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     public DataLakeGen2MetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig,
-                new DataLakeGen2JdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES,
                 new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)),
                 configOptions);
     }
@@ -218,7 +221,8 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("Inside getSchema");
 
-        String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
+        String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE, " +
+                "C.PRECISION, C.SCALE " +
                 "FROM sys.columns C " +
                 "JOIN sys.types T " +
                 "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
@@ -226,12 +230,12 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
 
         String dataType;
         String columnName;
-        HashMap<String, String> hashMap = new HashMap<>();
-        boolean found = false;
+        int precision;
+        int scale;
+        HashMap<String, ColumnInfo> hashMap = new HashMap<>();
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             // fetch data types of columns and prepare map with column name and datatype.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
@@ -239,24 +243,111 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                 while (dataTypeResultSet.next()) {
                     dataType = dataTypeResultSet.getString("DATA_TYPE");
                     columnName = dataTypeResultSet.getString("COLUMN_NAME");
-                    hashMap.put(columnName.trim(), dataType.trim());
+                    precision = dataTypeResultSet.getInt("PRECISION");
+                    scale = dataTypeResultSet.getInt("SCALE");
+                    hashMap.put(columnName.trim(), new ColumnInfo(dataType.trim(), precision, scale));
                 }
             }
+        }
 
+        String environment = DataLakeGen2Util.checkEnvironment(jdbcConnection.getMetaData().getURL());
+        
+        if (DataLakeGen2Constants.SQL_POOL.equalsIgnoreCase(environment)) {
+            // getColumns() method from SQL Server driver is causing an exception in case of Azure Serverless environment.
+            // so doing explicit data type conversion
+            schemaBuilder = doDataTypeConversion(hashMap);
+        }
+        else {
+            schemaBuilder = doDataTypeConversionForNonCompatible(jdbcConnection, tableName, hashMap);
+        }
+        // add partition columns
+        partitionSchema.getFields().forEach(schemaBuilder::addField);
+        return schemaBuilder.build();
+    }
+
+    private SchemaBuilder doDataTypeConversion(HashMap<String, ColumnInfo> columnNameAndDataTypeMap)
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+        for (Map.Entry<String, ColumnInfo> entry : columnNameAndDataTypeMap.entrySet()) {
+            String columnName = entry.getKey();
+            ColumnInfo columnInfo = entry.getValue();
+            String dataType = columnInfo.getDataType();
+            ArrowType columnType = Types.MinorType.VARCHAR.getType();
+
+            if ("char".equalsIgnoreCase(dataType) || "varchar".equalsIgnoreCase(dataType) ||
+                    "nchar".equalsIgnoreCase(dataType) || "nvarchar".equalsIgnoreCase(dataType)
+                    || "time".equalsIgnoreCase(dataType) || "uniqueidentifier".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.VARCHAR.getType();
+            }
+
+            if ("binary".equalsIgnoreCase(dataType) || "varbinary".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.VARBINARY.getType();
+            }
+
+            if ("bit".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.BIT.getType();
+            }
+
+            if ("tinyint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.TINYINT.getType();
+            }
+
+            if ("smallint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.SMALLINT.getType();
+            }
+
+            if ("int".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.INT.getType();
+            }
+
+            if ("bigint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.BIGINT.getType();
+            }
+
+            if ("decimal".equalsIgnoreCase(dataType)) {
+                columnType = new ArrowType.Decimal(columnInfo.getPrecision(), columnInfo.getScale(), 128);
+            }
+
+            if ("numeric".equalsIgnoreCase(dataType) || "float".equalsIgnoreCase(dataType) || "smallmoney".equalsIgnoreCase(dataType) || "money".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT8.getType();
+            }
+
+            if ("real".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT4.getType();
+            }
+
+            if ("date".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.DATEDAY.getType();
+            }
+
+            if ("datetime".equalsIgnoreCase(dataType) || "datetime2".equalsIgnoreCase(dataType)
+                    || "smalldatetime".equalsIgnoreCase(dataType) || "datetimeoffset".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.DATEMILLI.getType();
+            }
+
+            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+        }
+        return schemaBuilder;
+    }
+
+    private SchemaBuilder doDataTypeConversionForNonCompatible(Connection jdbcConnection, TableName tableName, HashMap<String, ColumnInfo> columnNameAndDataTypeMap) throws SQLException
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
+            boolean found = false;
             while (resultSet.next()) {
                 Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
                         configOptions);
-                columnName = resultSet.getString("COLUMN_NAME");
+                String columnName = resultSet.getString("COLUMN_NAME");
+                ColumnInfo columnInfo = columnNameAndDataTypeMap.get(columnName);
 
-                dataType = hashMap.get(columnName);
-                LOGGER.debug("columnName: " + columnName);
-                LOGGER.debug("dataType: " + dataType);
-
-                if (dataType != null && DataLakeGen2DataType.isSupported(dataType)) {
-                    columnType = Optional.of(DataLakeGen2DataType.fromType(dataType));
+                if (columnInfo != null && DataLakeGen2DataType.isSupported(columnInfo.getDataType())) {
+                    columnType = Optional.of(DataLakeGen2DataType.fromType(columnInfo.getDataType()));
                 }
 
                 /**
@@ -266,21 +357,58 @@ public class DataLakeGen2MetadataHandler extends JdbcMetadataHandler
                     columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                LOGGER.debug("columnType: " + columnType);
                 if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
                     schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                     found = true;
                 }
                 else {
-                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                    LOGGER.error("getSchema: Unable to map type for column[{}] to a supported type, attempted {}", columnName, columnType);
                 }
             }
             if (!found) {
+                LOGGER.error("Could not find any supported columns in table: {}.{}", tableName.getSchemaName(), tableName.getTableName());
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
-
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
-            return schemaBuilder.build();
         }
+        return schemaBuilder;
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new DataLakeGen2OAuthCredentialsProvider()
+        );
+    }
+}
+
+class ColumnInfo
+{
+    private final String dataType;
+    private final int precision;
+    private final int scale;
+
+    public ColumnInfo(String dataType, int precision, int scale)
+    {
+        this.dataType = dataType;
+        this.precision = precision;
+        this.scale = scale;
+    }
+
+    public String getDataType()
+    {
+        return dataType;
+    }
+
+    public int getPrecision()
+    {
+        return precision;
+    }
+
+    public int getScale()
+    {
+        return scale;
     }
 }

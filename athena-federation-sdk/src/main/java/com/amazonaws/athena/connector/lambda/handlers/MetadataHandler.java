@@ -75,13 +75,12 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.utils.CollectionUtils;
+import software.amazon.awssdk.utils.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -219,6 +218,16 @@ public abstract class MetadataHandler
         return secretsManager.getSecret(secretName);
     }
 
+    /**
+     * Gets the CachableSecretsManager instance used by this handler.
+     * This is used by credential providers to reuse the same secrets manager instance.
+     * @return The CachableSecretsManager instance
+     */
+    protected CachableSecretsManager getCachableSecretsManager()
+    {
+        return secretsManager;
+    }
+
     protected EncryptionKey makeEncryptionKey()
     {
         return (encryptionKeyFactory != null) ? encryptionKeyFactory.create() : null;
@@ -235,15 +244,16 @@ public abstract class MetadataHandler
         FederatedIdentity federatedIdentity = request.getIdentity();
         Map<String, String> configOptions = federatedIdentity.getConfigOptions();
         String queryId = request.getQueryId();
-        if (Objects.nonNull(spillPrefix) && spillPrefix.contains(request.getQueryId())) {
+        String prefix = StringUtils.isBlank(configOptions.get(SPILL_PREFIX_ENV))
+                ? spillPrefix : configOptions.get(SPILL_PREFIX_ENV);
+        String bucket = StringUtils.isBlank(configOptions.get(SPILL_BUCKET_ENV))
+                ? spillBucket : configOptions.get(SPILL_BUCKET_ENV);
+        if (Objects.nonNull(prefix) && prefix.contains(request.getQueryId())) {
             queryId = "";
         }
-        if (CollectionUtils.isNullOrEmpty(configOptions)) {
-            configOptions = new HashMap<>(this.configOptions);
-        }
         return S3SpillLocation.newBuilder()
-                .withBucket(configOptions.get(SPILL_BUCKET_ENV))
-                .withPrefix(configOptions.get(SPILL_PREFIX_ENV))
+                .withBucket(bucket)
+                .withPrefix(prefix)
                 .withQueryId(queryId)
                 .withSplitId(UUID.randomUUID().toString())
                 .build();
