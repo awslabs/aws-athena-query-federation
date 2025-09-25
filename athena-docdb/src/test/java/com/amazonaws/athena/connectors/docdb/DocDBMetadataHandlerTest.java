@@ -103,6 +103,9 @@ public class DocDBMetadataHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
+        // Set AWS region for tests to avoid SdkClientException
+        System.setProperty("aws.region", "us-east-1");
+
         when(connectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
         handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());

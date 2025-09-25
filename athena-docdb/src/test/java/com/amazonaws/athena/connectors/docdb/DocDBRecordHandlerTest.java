@@ -48,8 +48,15 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import io.substrait.plan.Plan.Root;
-import io.substrait.proto.*;
+import io.substrait.proto.Expression;
+import io.substrait.proto.FetchRel;
+import io.substrait.proto.Plan;
+import io.substrait.proto.PlanRel;
+import io.substrait.proto.ReadRel;
+import io.substrait.proto.Rel;
+import io.substrait.proto.RelRoot;
+import io.substrait.proto.SortField;
+import io.substrait.proto.SortRel;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -158,6 +165,9 @@ public class DocDBRecordHandlerTest
     public void setUp()
     {
         logger.info("{}: enter", testName.getMethodName());
+
+        // Set AWS region for tests to avoid SdkClientException
+        System.setProperty("aws.region", "us-east-1");
 
         schemaForRead = SchemaBuilder.newBuilder()
                 .addField("col1", new ArrowType.Int(32, true))
@@ -538,6 +548,7 @@ public class DocDBRecordHandlerTest
         // Mock Mongo iterable
         when(mockCollection.find(any(Document.class))).thenReturn(mockIterable);
         when(mockIterable.projection(any(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
@@ -586,6 +597,8 @@ public class DocDBRecordHandlerTest
 
         when(mockCollection.find(nullable(Document.class))).thenReturn(mockIterable);
         when(mockIterable.projection(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.sort(any(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
@@ -633,6 +646,7 @@ public class DocDBRecordHandlerTest
 
         when(mockCollection.find(nullable(Document.class))).thenReturn(mockIterable);
         when(mockIterable.projection(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 

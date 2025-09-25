@@ -288,6 +288,132 @@ public class QueryUtilsTest
         );
     }
 
+    @Test
+    public void testMakeQueryFromPlanWithNotOperator()
+    {
+        // NOT(col1 = 123)
+        ColumnPredicate innerPred = new ColumnPredicate("col1", SubstraitOperator.EQUAL, 123, new ArrowType.Int(32, true));
+        ColumnPredicate notPred = new ColumnPredicate(null, SubstraitOperator.NOT, innerPred, null);
+        
+        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("col1", Collections.singletonList(notPred));
+        Document result = QueryUtils.makeQueryFromPlan(predicates);
+        
+        assertNotNull(result);
+        assertTrue(result.containsKey("$nor"));
+        List<Document> norConditions = (List<Document>) result.get("$nor");
+        assertEquals(1, norConditions.size());
+        
+        Document innerDoc = norConditions.get(0);
+        assertTrue(innerDoc.containsKey("col1"));
+        Document col1Doc = (Document) innerDoc.get("col1");
+        assertTrue(col1Doc.containsKey("$eq"));
+        assertEquals(123, col1Doc.get("$eq"));
+    }
+
+    @Test
+    public void testMakeQueryFromPlanWithNandOperator()
+    {
+        // NAND(col1 = 123, col2 = 456) -> $nor: [{ $and: [{ col1: { $eq: 123 }}, { col2: { $eq: 456 }}] }]
+        ColumnPredicate pred1 = new ColumnPredicate("col1", SubstraitOperator.EQUAL, 123, new ArrowType.Int(32, true));
+        ColumnPredicate pred2 = new ColumnPredicate("col2", SubstraitOperator.EQUAL, 456, new ArrowType.Int(32, true));
+        List<ColumnPredicate> childPredicates = Arrays.asList(pred1, pred2);
+        
+        ColumnPredicate nandPred = new ColumnPredicate(null, SubstraitOperator.NAND, childPredicates, null);
+        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("combined", Collections.singletonList(nandPred));
+        
+        Document result = QueryUtils.makeQueryFromPlan(predicates);
+        
+        assertNotNull(result);
+        assertTrue(result.containsKey("$nor"));
+        List<Document> norConditions = (List<Document>) result.get("$nor");
+        assertEquals(1, norConditions.size());
+        
+        Document andDoc = norConditions.get(0);
+        assertTrue(andDoc.containsKey("$and"));
+        List<Document> andConditions = (List<Document>) andDoc.get("$and");
+        assertEquals(2, andConditions.size());
+        
+        // Verify first condition: col1 = 123
+        Document col1Condition = andConditions.get(0);
+        assertTrue(col1Condition.containsKey("col1"));
+        Document col1Doc = (Document) col1Condition.get("col1");
+        assertTrue(col1Doc.containsKey("$eq"));
+        assertEquals(123, col1Doc.get("$eq"));
+        
+        // Verify second condition: col2 = 456
+        Document col2Condition = andConditions.get(1);
+        assertTrue(col2Condition.containsKey("col2"));
+        Document col2Doc = (Document) col2Condition.get("col2");
+        assertTrue(col2Doc.containsKey("$eq"));
+        assertEquals(456, col2Doc.get("$eq"));
+    }
+
+    @Test
+    public void testMakeQueryFromPlanWithNorOperator()
+    {
+        // NOR(col1 = 123, col2 = 456) -> $nor: [{ col1: { $eq: 123 }}, { col2: { $eq: 456 }}]
+        ColumnPredicate pred1 = new ColumnPredicate("col1", SubstraitOperator.EQUAL, 123, new ArrowType.Int(32, true));
+        ColumnPredicate pred2 = new ColumnPredicate("col2", SubstraitOperator.EQUAL, 456, new ArrowType.Int(32, true));
+        List<ColumnPredicate> childPredicates = Arrays.asList(pred1, pred2);
+        
+        ColumnPredicate norPred = new ColumnPredicate(null, SubstraitOperator.NOR, childPredicates, null);
+        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("combined", Collections.singletonList(norPred));
+        
+        Document result = QueryUtils.makeQueryFromPlan(predicates);
+        
+        assertNotNull(result);
+        assertTrue(result.containsKey("$nor"));
+        List<Document> norConditions = (List<Document>) result.get("$nor");
+        assertEquals(2, norConditions.size());
+        
+        // Verify first condition: col1 = 123
+        Document col1Condition = norConditions.get(0);
+        assertTrue(col1Condition.containsKey("col1"));
+        Document col1Doc = (Document) col1Condition.get("col1");
+        assertTrue(col1Doc.containsKey("$eq"));
+        assertEquals(123, col1Doc.get("$eq"));
+        
+        // Verify second condition: col2 = 456
+        Document col2Condition = norConditions.get(1);
+        assertTrue(col2Condition.containsKey("col2"));
+        Document col2Doc = (Document) col2Condition.get("col2");
+        assertTrue(col2Doc.containsKey("$eq"));
+        assertEquals(456, col2Doc.get("$eq"));
+    }
+
+    @Test
+    public void testMakeQueryFromPlanWithComplexNorOperator()
+    {
+        // NOR with different operators: NOR(col1 > 100, col2 < 50)
+        ColumnPredicate pred1 = new ColumnPredicate("col1", SubstraitOperator.GREATER_THAN, 100, new ArrowType.Int(32, true));
+        ColumnPredicate pred2 = new ColumnPredicate("col2", SubstraitOperator.LESS_THAN, 50, new ArrowType.Int(32, true));
+        List<ColumnPredicate> childPredicates = Arrays.asList(pred1, pred2);
+        
+        ColumnPredicate norPred = new ColumnPredicate(null, SubstraitOperator.NOR, childPredicates, null);
+        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("combined", Collections.singletonList(norPred));
+        
+        Document result = QueryUtils.makeQueryFromPlan(predicates);
+        
+        assertNotNull(result);
+        assertTrue(result.containsKey("$nor"));
+        List<Document> norConditions = (List<Document>) result.get("$nor");
+        assertEquals(2, norConditions.size());
+        
+        // Verify first condition: col1 > 100
+        Document col1Condition = norConditions.get(0);
+        assertTrue(col1Condition.containsKey("col1"));
+        Document col1Doc = (Document) col1Condition.get("col1");
+        assertTrue(col1Doc.containsKey("$gt"));
+        assertEquals(100, col1Doc.get("$gt"));
+        
+        // Verify second condition: col2 < 50
+        Document col2Condition = norConditions.get(1);
+        assertTrue(col2Condition.containsKey("col2"));
+        Document col2Doc = (Document) col2Condition.get("col2");
+        assertTrue(col2Doc.containsKey("$lt"));
+        assertEquals(50, col2Doc.get("$lt"));
+    }
+
     private static Stream<Arguments> inputTestMakeQueryFromPlanPredicateProvider()
     {
         return Stream.of(

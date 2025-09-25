@@ -55,7 +55,6 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -142,54 +141,73 @@ public class DocDBRecordHandler
     }
 
     /**
-     * Scans DocumentDB using the scan settings set on the requested Split by DocDBeMetadataHandler.
+     * Scans DocumentDB using the scan settings set on the requested Split by DocDBMetadataHandler.
+     * This method handles query execution with various optimizations including predicate pushdown,
+     * limit pushdown, sort pushdown, and projection optimization.
      *
+     * @param spiller The BlockSpiller to write results to
+     * @param recordsRequest The ReadRecordsRequest containing query details and constraints
+     * @param queryStatusChecker Used to check if the query is still running
      * @see RecordHandler
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        TableName tableNameObj = recordsRequest.getTableName();
-        String schemaName = tableNameObj.getSchemaName();
-        String tableName = recordsRequest.getSchema().getCustomMetadata().getOrDefault(
+        final TableName tableNameObj = recordsRequest.getTableName();
+        final String schemaName = tableNameObj.getSchemaName();
+        final String tableName = recordsRequest.getSchema().getCustomMetadata().getOrDefault(
             SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
 
-        logger.info("Resolved tableName to: {}", tableName);
-        Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
+        logger.info("Starting readWithConstraint for schema: {}, table: {}", schemaName, tableName);
+        
+        final Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
+        logger.info("Processing {} constraints", constraintSummary.size());
 
-        MongoClient client = getOrCreateConn(recordsRequest.getSplit());
-        MongoDatabase db;
-        MongoCollection<Document> table;
-        Document query;
+        final MongoClient client = getOrCreateConn(recordsRequest.getSplit());
+        final MongoDatabase db;
+        final MongoCollection<Document> table;
+        final Document query;
 
         // ---------------------- Substrait Plan extraction ----------------------
-        QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
-        Plan plan = null;
+        final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
+        final Plan plan;
+        final boolean hasQueryPlan;
         if (queryPlan != null) {
+            hasQueryPlan = true;
             plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+            logger.info("Using Substrait query plan for optimization");
+        }
+        else {
+            hasQueryPlan = false;
+            plan = null;
+            logger.info("No Substrait query plan available, using constraint-based filtering");
         }
 
-        // LIMIT pushdown support
-        Pair<Boolean, Integer> limitPair = getLimit(plan, recordsRequest.getConstraints());
-        boolean hasLimit = limitPair.getLeft();
-        int limit = limitPair.getRight();
+        // ---------------------- LIMIT pushdown support ----------------------
+        final Pair<Boolean, Integer> limitPair = getLimit(plan, recordsRequest.getConstraints());
+        final boolean hasLimit = limitPair.getLeft();
+        final int limit = limitPair.getRight();
+        if (hasLimit) {
+            logger.info("LIMIT pushdown enabled with limit: {}", limit);
+        }
 
-        // ORDER BY pushdown support
-        Pair<Boolean, Document> sortPair = getSortFromPlan(plan);
-        boolean hasSort = sortPair.getLeft();
-        Document sortDoc = sortPair.getRight();
+        // ---------------------- SORT pushdown support ----------------------
+        final Pair<Boolean, Document> sortPair = getSortFromPlan(plan);
+        final boolean hasSort = sortPair.getLeft();
+        final Document sortDoc = sortPair.getRight();
 
+        // ---------------------- Query construction ----------------------
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
-            Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
+            final Map<String, String> qptArguments = recordsRequest.getConstraints().getQueryPassthroughArguments();
             queryPassthrough.verify(qptArguments);
             db = client.getDatabase(qptArguments.get(DocDBQueryPassthrough.DATABASE));
             table = db.getCollection(qptArguments.get(DocDBQueryPassthrough.COLLECTION));
             query = QueryUtils.parseFilter(qptArguments.get(DocDBQueryPassthrough.FILTER));
         }
         else {
-            db =  client.getDatabase(schemaName);
+            db = client.getDatabase(schemaName);
             table = db.getCollection(tableName);
-            Map<String, List<ColumnPredicate>> columnPredicateMap = QueryUtils.buildFilterPredicatesFromPlan(plan);
+            final Map<String, List<ColumnPredicate>> columnPredicateMap = QueryUtils.buildFilterPredicatesFromPlan(plan);
             if (!columnPredicateMap.isEmpty()) {
                 query = QueryUtils.makeQueryFromPlan(columnPredicateMap);
             }
@@ -198,47 +216,54 @@ public class DocDBRecordHandler
             }
         }
 
-        String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
-        boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
-        logger.info("{} environment variable set to: {}. Resolved to: {}",
-            DISABLE_PROJECTION_AND_CASING_ENV, disableProjectionAndCasingEnvValue, disableProjectionAndCasing);
+        // ---------------------- Projection and casing configuration ----------------------
+        final String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
+        final boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
+        logger.info("Projection and casing configuration - environment value: {}, resolved: {}", 
+            disableProjectionAndCasingEnvValue, disableProjectionAndCasing);
 
         // TODO: Currently AWS DocumentDB does not support collation, which is required for case insensitive indexes:
         // https://www.mongodb.com/docs/manual/core/index-case-insensitive/
         // Once AWS DocumentDB supports collation, then projections do not have to be disabled anymore because case
         // insensitive indexes allows for case insensitive projections.
-        Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
+        final Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
         logger.info("readWithConstraint: query[{}] projection[{}]", query, projection);
 
-        // Build the find operation with a maintained pushdown order
+        // ---------------------- Build and execute query ----------------------
         FindIterable<Document> findIterable = table.find(query).projection(projection);
+        
         // Apply SORT pushdown first (should be before LIMIT for correct semantics)
         if (hasSort && !sortDoc.isEmpty()) {
             findIterable = findIterable.sort(sortDoc);
+            logger.info("Applied ORDER BY pushdown");
         }
+        
         // Apply LIMIT pushdown after SORT
         if (hasLimit) {
             findIterable = findIterable.limit(limit);
-            logger.info("Applying LIMIT pushdown in ordered result set: {}", limit);
+            logger.info("Applied LIMIT pushdown: {}", limit);
         }
 
-        final MongoCursor<Document> iterable = findIterable
-                .batchSize(MONGO_QUERY_BATCH_SIZE).iterator();
+        final MongoCursor<Document> iterable = findIterable.batchSize(MONGO_QUERY_BATCH_SIZE).iterator();
 
+        // ---------------------- Process results ----------------------
         long numRows = 0;
-        AtomicLong numResultRows = new AtomicLong(0);
+        final AtomicLong numResultRows = new AtomicLong(0);
         while (iterable.hasNext() && queryStatusChecker.isQueryRunning()) {
             if (hasLimit && numRows >= limit) {
-                logger.info("Reached limit of {} rows, exiting document iteration.", numRows);
+                logger.info("Reached configured limit of {} rows, stopping iteration", limit);
                 break;
             }
             numRows++;
+            
             spiller.writeRows((Block block, int rowNum) -> {
-                Map<String, Object> doc = documentAsMap(iterable.next(), disableProjectionAndCasing);
+                final Map<String, Object> doc = documentAsMap(iterable.next(), disableProjectionAndCasing);
                 boolean matched = true;
-                for (Field nextField : recordsRequest.getSchema().getFields()) {
-                    Object value = TypeUtils.coerce(nextField, doc.get(nextField.getName()));
-                    Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
+                
+                for (final Field nextField : recordsRequest.getSchema().getFields()) {
+                    final Object value = TypeUtils.coerce(nextField, doc.get(nextField.getName()));
+                    final Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
+                    
                     try {
                         switch (fieldType) {
                             case LIST:
@@ -246,7 +271,7 @@ public class DocDBRecordHandler
                                 matched &= block.offerComplexValue(nextField.getName(), rowNum, DEFAULT_FIELD_RESOLVER, value);
                                 break;
                             default:
-                                matched &= block.offerValue(nextField.getName(), rowNum, value);
+                                matched &= block.offerValue(nextField.getName(), rowNum, value, hasQueryPlan);
                                 break;
                         }
                         if (!matched) {
@@ -266,6 +291,14 @@ public class DocDBRecordHandler
         logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
     }
 
+    /**
+     * Determines if a LIMIT can be applied and extracts the limit value from either
+     * the Substrait plan or constraints.
+     *
+     * @param plan The Substrait plan containing potential limit information
+     * @param constraints The query constraints that may contain a limit
+     * @return Pair containing boolean (can apply limit) and Integer (limit value)
+     */
     Pair<Boolean, Integer> getLimit(Plan plan, Constraints constraints)
     {
         SubstraitRelModel substraitRelModel = null;
@@ -286,6 +319,14 @@ public class DocDBRecordHandler
         return Pair.of(false, -1);
     }
 
+    /**
+     * Checks whether a LIMIT operation can be applied based on the available query plan or constraints.
+     *
+     * @param constraints The query constraints to check for limit availability
+     * @param substraitRelModel The Substrait relation model containing fetch information
+     * @param useQueryPlan Flag indicating whether to use query plan or constraints
+     * @return true if limit can be applied, false otherwise
+     */
     private boolean canApplyLimit(Constraints constraints,
                                   SubstraitRelModel substraitRelModel,
                                   boolean useQueryPlan)
@@ -299,6 +340,12 @@ public class DocDBRecordHandler
         return constraints.hasLimit();
     }
 
+    /**
+     * Extracts the limit value from a Substrait relation model's fetch relation.
+     *
+     * @param substraitRelModel The Substrait relation model containing fetch information
+     * @return The limit count as an integer
+     */
     private int getLimit(SubstraitRelModel substraitRelModel)
     {
         FetchRel fetchRel = substraitRelModel.getFetchRel();
@@ -306,7 +353,11 @@ public class DocDBRecordHandler
     }
 
     /**
-     * Extracts sort information from Substrait plan for ORDER BY pushdown
+     * Extracts sort information from Substrait plan for ORDER BY pushdown optimization.
+     * Parses the sort relation from the plan and converts it to MongoDB sort document format.
+     *
+     * @param plan The Substrait plan containing potential sort information
+     * @return Pair containing boolean (has sort) and Document (MongoDB sort specification)
      */
     private Pair<Boolean, Document> getSortFromPlan(Plan plan)
     {
@@ -330,6 +381,14 @@ public class DocDBRecordHandler
         }
     }
 
+    /**
+     * Converts Substrait sort fields to MongoDB sort document format.
+     * Maps field indices to column names and determines sort direction (1 for ASC, -1 for DESC).
+     *
+     * @param sortRel The Substrait sort relation containing sort field definitions
+     * @param tableColumns List of table column names for field index resolution
+     * @return MongoDB Document containing sort specifications
+     */
     private Document extractSortFields(SortRel sortRel, List<String> tableColumns)
     {
         Document sortDoc = new Document();
@@ -352,6 +411,14 @@ public class DocDBRecordHandler
         return sortDoc;
     }
 
+    /**
+     * Extracts the field index from a Substrait expression for column resolution.
+     * Navigates through the expression structure to find the struct field reference.
+     *
+     * @param expression The Substrait expression containing field reference
+     * @return The field index as an integer
+     * @throws IllegalArgumentException if field index cannot be extracted from expression
+     */
     private int extractFieldIndexFromExpression(Expression expression)
     {
         if (expression.hasSelection() && expression.getSelection().hasDirectReference()) {
@@ -363,6 +430,13 @@ public class DocDBRecordHandler
         throw new IllegalArgumentException("Cannot extract field index from expression");
     }
 
+    /**
+     * Determines if a sort field is in ascending order based on Substrait sort direction.
+     * Handles both NULLS_FIRST and NULLS_LAST variants of ascending sort.
+     *
+     * @param sortField The Substrait sort field to check
+     * @return true if sort direction is ascending, false if descending
+     */
     private boolean isAscending(SortField sortField)
     {
         return sortField.getDirection() == SortField.SortDirection.SORT_DIRECTION_ASC_NULLS_LAST ||

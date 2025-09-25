@@ -55,6 +55,7 @@ import org.bson.json.JsonParseException;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -304,101 +305,153 @@ public final class QueryUtils
      */
     private static Document convertColumnPredicatesToDoc(String column, List<ColumnPredicate> colPreds)
     {
+        // Return empty document if no predicates provided
         if (colPreds == null || colPreds.isEmpty()) {
             return new Document();
         }
-        // Special handling for universal constraints (none / all)
+        
+        // Handle NULL checks first - these take precedence and return immediately
         for (ColumnPredicate pred : colPreds) {
             if (pred.getOperator() == SubstraitOperator.IS_NULL) {
-                return documentOf(column, isNullPredicate());
+                return documentOf(column, isNullPredicate()); // { column: { $eq: null } }
             }
             if (pred.getOperator() == SubstraitOperator.IS_NOT_NULL) {
-                return documentOf(column, isNotNullPredicate());
+                return documentOf(column, isNotNullPredicate()); // { column: { $ne: null } }
             }
         }
-        List<Object> equalValues = new ArrayList<>();
-        List<Document> otherPredicates = new ArrayList<>();
+        
+        // Separate EQUAL values from other predicates for optimization
+        List<Object> equalValues = new ArrayList<>(); // Collect all EQUAL values for potential $in operation
+        List<Document> otherPredicates = new ArrayList<>(); // Collect non-EQUAL predicates
+        
         for (ColumnPredicate pred : colPreds) {
             Object value = pred.getValue();
             SubstraitOperator op = pred.getOperator();
             switch (op) {
                 case EQUAL:
-                    equalValues.add(value);
+                    equalValues.add(value); // Store for potential $in optimization
                     break;
                 case NOT_EQUAL:
-                    otherPredicates.add(new Document(NOT_EQ_OP, value));
+                    otherPredicates.add(new Document(NOT_EQ_OP, value)); // { $ne: value }
                     break;
                 case GREATER_THAN:
-                    otherPredicates.add(new Document(GT_OP, value));
+                    otherPredicates.add(new Document(GT_OP, value)); // { $gt: value }
                     break;
                 case GREATER_THAN_OR_EQUAL_TO:
-                    otherPredicates.add(new Document(GTE_OP, value));
+                    otherPredicates.add(new Document(GTE_OP, value)); // { $gte: value }
                     break;
                 case LESS_THAN:
-                    otherPredicates.add(new Document(LT_OP, value));
+                    otherPredicates.add(new Document(LT_OP, value)); // { $lt: value }
                     break;
                 case LESS_THAN_OR_EQUAL_TO:
-                    otherPredicates.add(new Document(LTE_OP, value));
+                    otherPredicates.add(new Document(LTE_OP, value)); // { $lte: value }
                     break;
+                case NAND:
+                    // NAND(A,B) = NOT(A AND B) = $nor: [{ $and: [A, B] }]
+                    List<Document> andConditions = new ArrayList<>();
+                    for (ColumnPredicate child : (List<ColumnPredicate>) value) {
+                        // Recursively convert each child predicate
+                        Document childDoc = convertColumnPredicatesToDoc(
+                                child.getColumn(),
+                                Collections.singletonList(child)
+                        );
+                        andConditions.add(childDoc);
+                    }
+                    // Wrap AND conditions in NOR to create NAND
+                    return new Document(NOR_OP, Collections.singletonList(new Document(AND_OP, andConditions)));
+                case NOR:
+                    // NOR(A,B) = NOT(A OR B) = $nor: [A, B]
+                    List<Document> orConditions = new ArrayList<>();
+                    for (ColumnPredicate child : (List<ColumnPredicate>) value) {
+                        // Recursively convert each child predicate
+                        Document childDoc = convertColumnPredicatesToDoc(
+                                child.getColumn(),
+                                Collections.singletonList(child)
+                        );
+                        orConditions.add(childDoc);
+                    }
+                    // Apply NOR directly on child conditions
+                    return new Document(NOR_OP, orConditions);
+                case NOT:
+                    // NOT(A) = $nor: [A] - negate single predicate using NOR
+                    if (value instanceof ColumnPredicate) {
+                        ColumnPredicate childPred = (ColumnPredicate) value;
+                        // Recursively convert the child predicate
+                        Document childDoc = convertColumnPredicatesToDoc(
+                                childPred.getColumn(),
+                                Collections.singletonList(childPred)
+                        );
+                        // Wrap in NOR to negate
+                        return new Document(NOR_OP, Collections.singletonList(childDoc));
+                    }
+                    throw new IllegalArgumentException("NOT operator requires a ColumnPredicate as value");
                 default:
                     throw new UnsupportedOperationException("Unsupported operator: " + op);
             }
         }
-        // Handle multiple EQUAL values -> $in
+        
+        // Optimize multiple EQUAL values into $in operation
         if (equalValues.size() > 1) {
             Document inPredicate;
+            // Special handling for _id field - convert to ObjectId
             if (column.equals(COLUMN_NAME_ID)) {
                 List<ObjectId> objectIdList = equalValues.stream()
                         .map(v -> new ObjectId(v.toString()))
                         .collect(Collectors.toList());
-                inPredicate = new Document(IN_OP, objectIdList);
+                inPredicate = new Document(IN_OP, objectIdList); // { $in: [ObjectId(...), ...] }
             }
             else {
-                inPredicate = new Document(IN_OP, equalValues);
+                inPredicate = new Document(IN_OP, equalValues); // { $in: [val1, val2, ...] }
             }
+            // Combine $in with other predicates using $and if needed
             if (!otherPredicates.isEmpty()) {
                 List<Document> andConditions = new ArrayList<>();
-                andConditions.add(new Document(column, inPredicate));
+                andConditions.add(new Document(column, inPredicate)); // Add $in condition
                 for (Document otherPred : otherPredicates) {
-                    andConditions.add(new Document(column, otherPred));
+                    andConditions.add(new Document(column, otherPred)); // Add other conditions
                 }
-                return new Document(AND_OP, andConditions);
+                return new Document(AND_OP, andConditions); // { $and: [{ column: { $in: [...] }}, ...] }
             }
-            return documentOf(column, inPredicate);
+            return documentOf(column, inPredicate); // { column: { $in: [...] } }
         }
-        // Single EQUAL
+        // Handle single EQUAL value
         else if (equalValues.size() == 1) {
             Object eqValue = equalValues.get(0);
             Document equalPredicate;
+            // Special handling for _id field - convert to ObjectId
             if (column.equals(COLUMN_NAME_ID)) {
-                equalPredicate = new Document(EQ_OP, new ObjectId(eqValue.toString()));
+                equalPredicate = new Document(EQ_OP, new ObjectId(eqValue.toString())); // { $eq: ObjectId(...) }
             }
             else {
-                equalPredicate = new Document(EQ_OP, eqValue);
+                equalPredicate = new Document(EQ_OP, eqValue); // { $eq: value }
             }
+            // Combine single EQUAL with other predicates using $and if needed
             if (!otherPredicates.isEmpty()) {
                 List<Document> andConditions = new ArrayList<>();
-                andConditions.add(new Document(column, equalPredicate));
+                andConditions.add(new Document(column, equalPredicate)); // Add equality condition
                 for (Document otherPred : otherPredicates) {
-                    andConditions.add(new Document(column, otherPred));
+                    andConditions.add(new Document(column, otherPred)); // Add other conditions
                 }
-                return new Document(AND_OP, andConditions);
+                return new Document(AND_OP, andConditions); // { $and: [{ column: { $eq: val }}, ...] }
             }
-            return documentOf(column, equalPredicate);
+            return documentOf(column, equalPredicate); // { column: { $eq: value } }
         }
-        // Only non-EQUAL predicates
+        // Handle only non-EQUAL predicates (no EQUAL values present)
         else if (!otherPredicates.isEmpty()) {
+            // Multiple non-EQUAL predicates use $or (e.g., col > 5 OR col < 10)
             if (otherPredicates.size() > 1) {
                 List<Document> orConditions = new ArrayList<>();
                 for (Document predicate : otherPredicates) {
-                    orConditions.add(new Document(column, predicate));
+                    orConditions.add(new Document(column, predicate)); // Wrap each predicate with column
                 }
-                return new Document(OR_OP, orConditions);
+                return new Document(OR_OP, orConditions); // { $or: [{ column: pred1 }, { column: pred2 }] }
             }
             else {
-                return documentOf(column, otherPredicates.get(0));
+                // Single non-EQUAL predicate
+                return documentOf(column, otherPredicates.get(0)); // { column: predicate }
             }
         }
+        // No predicates to process - return empty document
         return new Document();
     }
 
