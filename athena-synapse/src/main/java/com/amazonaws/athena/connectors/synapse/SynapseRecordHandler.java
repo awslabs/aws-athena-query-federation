@@ -31,7 +31,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
-import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
@@ -67,7 +66,7 @@ public class SynapseRecordHandler extends JdbcRecordHandler
     public SynapseRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(),
-                AthenaClient.create(), new GenericJdbcConnectionFactory(databaseConnectionConfig,
+                AthenaClient.create(), new SynapseJdbcConnectionFactory(databaseConnectionConfig,
                         SynapseMetadataHandler.JDBC_PROPERTIES, new DatabaseConnectionInfo(SynapseConstants.DRIVER_CLASS, SynapseConstants.DEFAULT_PORT)),
                 new SynapseQueryStringBuilder(QUOTE_CHARACTER, new SynapseFederationExpressionParser(QUOTE_CHARACTER)), configOptions);
     }

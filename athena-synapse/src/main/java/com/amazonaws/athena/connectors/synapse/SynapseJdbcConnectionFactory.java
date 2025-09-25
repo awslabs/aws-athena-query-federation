@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-cloudera-impala
+ * athena-synapse
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
@@ -17,8 +17,7 @@
  * limitations under the License.
  * #L%
  */
-
-package com.amazonaws.athena.connectors.cloudera;
+package com.amazonaws.athena.connectors.synapse;
 
 import com.amazonaws.athena.connector.credentials.CredentialsConstants;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
@@ -34,7 +33,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
-public class ImpalaJdbcConnectionFactory extends GenericJdbcConnectionFactory
+public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
 {
     private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
@@ -43,9 +42,9 @@ public class ImpalaJdbcConnectionFactory extends GenericJdbcConnectionFactory
     /**
      * @param databaseConnectionConfig database connection configuration {@link DatabaseConnectionConfig}
      * @param properties               JDBC connection properties.
-     * @param databaseConnectionInfo   Contains JDBC driver and default port details.
+     * @param databaseConnectionInfo
      */
-    public ImpalaJdbcConnectionFactory(DatabaseConnectionConfig databaseConnectionConfig, Map<String, String> properties, DatabaseConnectionInfo databaseConnectionInfo)
+    public SynapseJdbcConnectionFactory(DatabaseConnectionConfig databaseConnectionConfig, Map<String, String> properties, DatabaseConnectionInfo databaseConnectionInfo)
     {
         super(databaseConnectionConfig, properties, databaseConnectionInfo);
         this.databaseConnectionInfo = Validate.notNull(databaseConnectionInfo, "databaseConnectionInfo must not be null");
@@ -60,18 +59,39 @@ public class ImpalaJdbcConnectionFactory extends GenericJdbcConnectionFactory
     public Connection getConnection(final CredentialsProvider credentialsProvider)
     {
         try {
-           final  String derivedJdbcString;
-            if (null != credentialsProvider) {
+            final String derivedJdbcString;
+            final Properties connectionProps = new Properties();
+            connectionProps.putAll(this.jdbcProperties);
+
+            if (credentialsProvider != null) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                final String secretReplacement = String.format("UID=%s;PWD=%s",
-                        credentialsProvider.getCredentialMap().get(CredentialsConstants.USER), credentialsProvider.getCredentialMap().get(CredentialsConstants.PASSWORD));
+                final String secretReplacement;
+
+                String connectionString = databaseConnectionConfig.getJdbcConnectionString();
+
+                if (connectionString.contains("authentication=ActiveDirectoryServicePrincipal")) {
+                    // AAD Service Principal credentials
+                    secretReplacement = String.format(
+                        "%s;%s",
+                        "AADSecurePrincipalId=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.USER),
+                        "AADSecurePrincipalSecret=" + credentialsProvider.getCredentialMap().get(CredentialsConstants.PASSWORD)
+                    );
+                }
+                else {
+                    Map<String, String> credentialMap = credentialsProvider.getCredentialMap();
+                    connectionProps.putAll(credentialMap);
+                    secretReplacement = "";
+                }
+
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {
                 derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
             }
+            // register driver
             Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
-            return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+            // create connection
+            return DriverManager.getConnection(derivedJdbcString, connectionProps);
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);

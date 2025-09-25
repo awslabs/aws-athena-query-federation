@@ -34,8 +34,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
-import static com.amazonaws.athena.connector.credentials.CredentialsProvider.SECRET_NAME_PATTERN;
-
 public class SqlServerJdbcConnectionFactory extends GenericJdbcConnectionFactory
 {
     private final DatabaseConnectionInfo databaseConnectionInfo;
