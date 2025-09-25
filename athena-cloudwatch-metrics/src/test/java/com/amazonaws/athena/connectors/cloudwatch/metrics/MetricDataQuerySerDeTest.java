@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
 import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 
 import java.util.ArrayList;
@@ -31,40 +32,43 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 
-public class MetricStatSerDeTest
+public class MetricDataQuerySerDeTest
 {
-    private static final Logger logger = LoggerFactory.getLogger(MetricStatSerDeTest.class);
-    private static final String EXPECTED_SERIALIZATION = "[{\"metric\":{\"namespace\":\"namespace\",\"metricName\":\"metricName\",\"dimensions\":[" +
-             "{\"name\":\"dim_name1\",\"value\":\"dim_value1\"},{\"name\":\"dim_name2\",\"value\":\"dim_value2\"}]},\"period\":60,\"stat\":\"p90\",\"unit\":null}]";
+	private static final Logger logger = LoggerFactory.getLogger(MetricDataQuerySerDeTest.class);
+
+	private static final String EXPECTED_SERIALIZATION = "[{\"id\":\"m1\",\"metricStat\":{\"metric\":{\"namespace\":\"namespace\",\"metricName\":\"metricName\",\"dimensions\":[{\"name\":\"dim_name1\",\"value\":\"dim_value1\"},{\"name\":\"dim_name2\",\"value\":\"dim_value2\"}]},\"period\":60,\"stat\":\"p90\",\"unit\":null},\"expression\":null,\"label\":null,\"returnData\":null,\"period\":null,\"accountId\":null}]";
 
     @Test
     public void serializeTest()
     {
-        String schema = "schema";
-        String table = "table";
         Integer period = 60;
         String statistic = "p90";
         String metricName = "metricName";
         String namespace = "namespace";
+        String id = "m1";
 
         List<Dimension> dimensions = new ArrayList<>();
         dimensions.add(Dimension.builder().name("dim_name1").value("dim_value1").build());
         dimensions.add(Dimension.builder().name("dim_name2").value("dim_value2").build());
 
-        List<MetricStat> metricStats = new ArrayList<>();
-        metricStats.add(MetricStat.builder()
-                .metric(Metric.builder()
-                        .namespace(namespace)
-                        .metricName(metricName)
-                        .dimensions(dimensions)
+        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
+        metricDataQueries.add(MetricDataQuery.builder()
+                .metricStat(MetricStat.builder()
+                        .metric(Metric.builder()
+                                .namespace(namespace)
+                                .metricName(metricName)
+                                .dimensions(dimensions)
+                                .build())
+                        .period(period)
+                        .stat(statistic)
                         .build())
-                .period(60)
-                .stat(statistic)
+                .id(id)
                 .build());
-        String actualSerialization = MetricStatSerDe.serialize(metricStats);
+
+        String actualSerialization = MetricDataQuerySerDe.serialize(metricDataQueries);
         logger.info("serializeTest: {}", actualSerialization);
-        List<MetricStat> actual = MetricStatSerDe.deserialize(actualSerialization);
+        List<MetricDataQuery> actual = MetricDataQuerySerDe.deserialize(actualSerialization);
         assertEquals(EXPECTED_SERIALIZATION, actualSerialization);
-        assertEquals(metricStats, actual);
+		assertEquals(metricDataQueries, actual);
     }
 }
