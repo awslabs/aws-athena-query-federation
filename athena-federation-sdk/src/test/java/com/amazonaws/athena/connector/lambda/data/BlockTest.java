@@ -105,6 +105,37 @@ public class BlockTest
     }
 
     @Test
+    public void offerValueWithQueryPlanTest() throws Exception {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addIntField("col1")
+                .addStringField("col2")
+                .build();
+
+        Block block = allocator.createBlock(schema);
+
+        // Test with hasQueryPlan = true (should skip constraint validation)
+        ValueSet col1Constraint = EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(), true, false)
+                .add(10).build();
+        Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+        
+        try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, constraints)) {
+            block.constrain(constraintEvaluator);
+
+            assertTrue(block.offerValue("col1", 0, 11, true));
+            assertTrue(block.offerValue("col2", 0, "test", true));
+
+            assertFalse(block.offerValue("col1", 1, 11, false));
+            assertTrue(block.offerValue("col1", 1, 10, false));
+
+            IntVector col1Vector = (IntVector) block.getFieldVector("col1");
+            VarCharVector col2Vector = (VarCharVector) block.getFieldVector("col2");
+            
+            assertEquals(11, col1Vector.get(0));
+            assertEquals("test", new String(col2Vector.get(0)));
+        }
+    }
+
+    @Test
     public void constrainedBlockTest()
             throws Exception
     {
