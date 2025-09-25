@@ -32,6 +32,10 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -59,6 +63,7 @@ import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
@@ -98,6 +103,7 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWF
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -139,6 +145,35 @@ public class SnowflakeRecordHandlerTest
     private static final long TEST_NO_SPILL_SIZE = 100_000_000_000L; // 100GB
     private static final int TEST_FETCH_SIZE = 1000;
     private static final int TEST_VECTOR_SIZE = 2;
+
+    private static final String TEST_CATALOG_NAME = "catalog";
+    private static final String TEST_SCHEMA_NAME = "schema";
+    private static final String TEST_TABLE_NAME = "table";
+    private static final String TEST_BUCKET_NAME = "bucket";
+    private static final String TEST_SPLIT_ID = "split";
+    private static final String TEST_QUERY_ID_VALUE = "query";
+    private static final String TEST_FIELD_NAME = "test";
+    private static final String TEST_SQL_EXCEPTION_MESSAGE = "Test SQL exception";
+    private static final String EXPECTED_EXCEPTION_NOT_THROWN = "Expected exception was not thrown";
+    private static final String TEST_NAME_JOHN = "John";
+    private static final String TEST_NAME_JANE = "Jane";
+    
+    // Column Name Constants
+    private static final String COLUMN_ID = "id";
+    private static final String COLUMN_NAME = "name";
+    private static final String COLUMN_PRICE = "price";
+    private static final String COLUMN_AGE = "age";
+    private static final String COLUMN_SALARY = "salary";
+    private static final String COLUMN_SCORE = "score";
+    private static final String COLUMN_CREATED_DATE = "created_date";
+    private static final String COLUMN_DATE = "date";
+    private static final String COLUMN_STATUS = "status";
+    private static final String COLUMN_CATEGORY_ID = "category_id";
+    private static final String COLUMN_RATING = "rating";
+    private static final String COLUMN_IS_ACTIVE = "is_active";
+    private static final String COLUMN_HIRE_DATE = "hire_date";
+    private static final String COLUMN_IS_MANAGER = "is_manager";
+    private static final String COLUMN_VALUE = "value";
     
     // Vector Test Values
     private static final byte TEST_TINY_INT_1 = (byte) 10;
@@ -299,6 +334,225 @@ public class SnowflakeRecordHandlerTest
             return new DatabaseConnectionConfig(TEST_CATALOG, SnowflakeConstants.SNOWFLAKE_NAME, 
                 FULL_CONNECTION_STRING);
         }
+    }
+    
+    /**
+     * Creates a schema with specified fields
+     */
+    private Schema createSchema(String... fieldNames) {
+        SchemaBuilder builder = SchemaBuilder.newBuilder();
+        for (String fieldName : fieldNames) {
+            switch (fieldName.toLowerCase()) {
+                case COLUMN_ID:
+                    builder.addIntField(COLUMN_ID);
+                    break;
+                case COLUMN_NAME:
+                    builder.addStringField(COLUMN_NAME);
+                    break;
+                case COLUMN_AGE:
+                    builder.addIntField(COLUMN_AGE);
+                    break;
+                case COLUMN_PRICE:
+                    builder.addFloat8Field(COLUMN_PRICE);
+                    break;
+                case COLUMN_SALARY:
+                    builder.addFloat8Field(COLUMN_SALARY);
+                    break;
+                case COLUMN_SCORE:
+                    builder.addIntField(COLUMN_SCORE);
+                    break;
+                case COLUMN_STATUS:
+                    builder.addStringField(COLUMN_STATUS);
+                    break;
+                case COLUMN_CATEGORY_ID:
+                    builder.addIntField(COLUMN_CATEGORY_ID);
+                    break;
+                case COLUMN_RATING:
+                    builder.addFloat8Field(COLUMN_RATING);
+                    break;
+                case COLUMN_CREATED_DATE:
+                    builder.addDateDayField(COLUMN_CREATED_DATE);
+                    break;
+                case COLUMN_HIRE_DATE:
+                    builder.addDateDayField(COLUMN_HIRE_DATE);
+                    break;
+                case COLUMN_DATE:
+                    builder.addDateDayField(COLUMN_DATE);
+                    break;
+                case COLUMN_IS_ACTIVE:
+                    builder.addBitField(COLUMN_IS_ACTIVE);
+                    break;
+                case COLUMN_IS_MANAGER:
+                    builder.addBitField(COLUMN_IS_MANAGER);
+                    break;
+                case COLUMN_VALUE:
+                    builder.addFloat8Field(COLUMN_VALUE);
+                    break;
+                case TEST_FIELD_NAME:
+                    builder.addStringField(TEST_FIELD_NAME);
+                    break;
+                default:
+                    builder.addStringField(fieldName);
+                    break;
+            }
+        }
+        return builder.build();
+    }
+    
+    /**
+     * Creates a table name with default schema and table
+     */
+    private TableName createTableName() {
+        return new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME);
+    }
+    
+    /**
+     * Creates a basic split for testing
+     */
+    private Split createBasicSplit() {
+        return Split.newBuilder(S3SpillLocation.newBuilder()
+                .withBucket(TEST_BUCKET_NAME)
+                .withSplitId(TEST_SPLIT_ID)
+                .withQueryId(TEST_QUERY_ID_VALUE)
+                .build(), keyFactory.create()).build();
+    }
+    
+    /**
+     * Creates constraints with specified summary, order by, and limit
+     */
+    private Constraints createConstraints(Map<String, ValueSet> summary, List<OrderByField> orderBy, Long limit) {
+        return new Constraints(summary, Collections.emptyList(), orderBy, 
+                limit != null ? limit : DEFAULT_NO_LIMIT, Collections.emptyMap(), null);
+    }
+
+    /**
+     * Creates a mock connection and prepared statement setup
+     */
+    private PreparedStatement setupMockConnectionAndStatement(Connection mockConnection, String expectedSql) throws SQLException {
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(expectedSql)).thenReturn(mockPreparedStatement);
+        return mockPreparedStatement;
+    }
+    
+    /**
+     * Common test execution pattern for buildSplitSql tests
+     */
+    private void executeBuildSplitSqlTest(Connection mockConnection, TableName tableName, Schema schema, 
+                                        Constraints constraints, Split split, String expectedSql) throws Exception {
+        PreparedStatement mockPreparedStatement = setupMockConnectionAndStatement(mockConnection, expectedSql);
+        
+        PreparedStatement result = handler.buildSplitSql(mockConnection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+        
+        assertEquals(mockPreparedStatement, result);
+        Mockito.verify(mockPreparedStatement).setFetchSize(TEST_FETCH_SIZE);
+    }
+    
+    /**
+     * Common test execution pattern for buildSplitSql tests with any string matcher
+     */
+    private void executeBuildSplitSqlTestWithAnyString(Connection mockConnection, TableName tableName, Schema schema, 
+                                                     Constraints constraints, Split split) throws Exception {
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(any(String.class))).thenReturn(mockPreparedStatement);
+        
+        PreparedStatement result = handler.buildSplitSql(mockConnection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+        
+        assertEquals(mockPreparedStatement, result);
+        Mockito.verify(mockPreparedStatement).setFetchSize(TEST_FETCH_SIZE);
+    }
+    
+    /**
+     * Common test execution pattern for buildSplitSql tests with contains matcher
+     */
+    private void executeBuildSplitSqlTestWithContains(Connection mockConnection, TableName tableName, Schema schema, 
+                                                    Constraints constraints, Split split, String expectedSql) throws Exception {
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        when(mockConnection.prepareStatement(Mockito.contains(expectedSql))).thenReturn(mockPreparedStatement);
+        
+        PreparedStatement result = handler.buildSplitSql(mockConnection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+        
+        assertEquals(mockPreparedStatement, result);
+        Mockito.verify(mockPreparedStatement).setFetchSize(TEST_FETCH_SIZE);
+    }
+    
+    /**
+     * Creates a range constraint for integer values
+     */
+    private ValueSet createIntRangeConstraint(long min, boolean minInclusive, long max, boolean maxInclusive) {
+        return SortedRangeSet.copyOf(Types.MinorType.INT.getType(), 
+                List.of(Range.range(allocator, Types.MinorType.INT.getType(), min, minInclusive, max, maxInclusive)), false);
+    }
+    
+    /**
+     * Creates an IN constraint for string values
+     */
+    private ValueSet createStringInConstraint(String... values) {
+        List<Range> ranges = new ArrayList<>();
+        for (String value : values) {
+            ranges.add(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), value));
+        }
+        return SortedRangeSet.copyOf(Types.MinorType.VARCHAR.getType(), ranges, false);
+    }
+    
+    /**
+     * Creates an IN constraint for integer values
+     */
+    private ValueSet createIntInConstraint(Long... values) {
+        List<Range> ranges = new ArrayList<>();
+        for (Long value : values) {
+            ranges.add(Range.equal(allocator, Types.MinorType.INT.getType(), value));
+        }
+        return SortedRangeSet.copyOf(Types.MinorType.INT.getType(), ranges, false);
+    }
+    
+    /**
+     * Creates an IN constraint for float values
+     */
+    private ValueSet createFloatInConstraint(Double... values) {
+        List<Range> ranges = new ArrayList<>();
+        for (Double value : values) {
+            ranges.add(Range.equal(allocator, Types.MinorType.FLOAT8.getType(), value));
+        }
+        return SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(), ranges, false);
+    }
+    
+    /**
+     * Creates a greater than constraint for float values
+     */
+    private ValueSet createFloatGreaterThanConstraint(double value) {
+        return SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(), 
+                List.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), value)), false);
+    }
+    
+    /**
+     * Creates a range constraint for float values
+     */
+    private ValueSet createFloatRangeConstraint(double min, boolean minInclusive, double max, boolean maxInclusive) {
+        return SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(), 
+                List.of(Range.range(allocator, Types.MinorType.FLOAT8.getType(), min, minInclusive, max, maxInclusive)), false);
+    }
+    
+    /**
+     * Creates a boolean equality constraint
+     */
+    private ValueSet createBooleanConstraint(boolean value, boolean allowNull) {
+        return SortedRangeSet.copyOf(Types.MinorType.BIT.getType(), 
+                List.of(Range.equal(allocator, Types.MinorType.BIT.getType(), value)), allowNull);
+    }
+    
+    /**
+     * Creates a NULL constraint
+     */
+    private ValueSet createNullConstraint() {
+        return SortedRangeSet.copyOf(Types.MinorType.VARCHAR.getType(), Collections.emptyList(), true);
+    }
+    
+    /**
+     * Creates a NOT NULL constraint
+     */
+    private ValueSet createNotNullConstraint() {
+        return SortedRangeSet.copyOf(Types.MinorType.INT.getType(), 
+                List.of(Range.all(allocator, Types.MinorType.INT.getType())), false);
     }
 
     @Test
@@ -484,7 +738,7 @@ public class SnowflakeRecordHandlerTest
             // Should throw AthenaConnectorException
             try {
                 handlerSpy.readWithConstraint(mockSpiller, request, mockQueryStatusChecker);
-                fail("Expected exception was not thrown");
+                fail(EXPECTED_EXCEPTION_NOT_THROWN);
             } catch (Exception e) {
                 assertTrue(e.getMessage().contains("Error in object content for object : " + TEST_S3_OBJECT_KEY));
             }
@@ -496,18 +750,12 @@ public class SnowflakeRecordHandlerTest
             throws Exception
     {
         Connection mockConnection = mock(Connection.class);
-        TableName tableName = new TableName("schema", "table");
-        Schema schema = SchemaBuilder.newBuilder().addStringField("test").build();
+        TableName tableName = createTableName();
+        Schema schema = createSchema(TEST_FIELD_NAME);
         Constraints constraints = createTestConstraints();
-        Split split = Split.newBuilder(S3SpillLocation.newBuilder().withBucket("bucket").withSplitId("split").withQueryId("query").build(), keyFactory.create()).build();
+        Split split = createBasicSplit();
 
-        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(any(String.class))).thenReturn(mockPreparedStatement);
-
-        PreparedStatement result = handler.buildSplitSql(mockConnection, "catalog", tableName, schema, constraints, split);
-
-        assertNotNull(result);
-        Mockito.verify(mockPreparedStatement).setFetchSize(TEST_FETCH_SIZE);
+        executeBuildSplitSqlTestWithAnyString(mockConnection, tableName, schema, constraints, split);
     }
 
     @Test
@@ -515,18 +763,12 @@ public class SnowflakeRecordHandlerTest
             throws Exception
     {
         Connection mockConnection = mock(Connection.class);
-        TableName tableName = new TableName("schema", "table");
-        Schema schema = SchemaBuilder.newBuilder().addStringField("test").build();
+        TableName tableName = createTableName();
+        Schema schema = createSchema(TEST_FIELD_NAME);
         Constraints constraints = createTestConstraints();
-        Split split = Split.newBuilder(S3SpillLocation.newBuilder().withBucket("bucket").withSplitId("split").withQueryId("query").build(), keyFactory.create()).build();
+        Split split = createBasicSplit();
 
-        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(any(String.class))).thenReturn(mockPreparedStatement);
-
-        PreparedStatement result = handler.buildSplitSql(mockConnection, "catalog", tableName, schema, constraints, split);
-
-        assertNotNull(result);
-        Mockito.verify(mockPreparedStatement).setFetchSize(TEST_FETCH_SIZE);
+        executeBuildSplitSqlTestWithAnyString(mockConnection, tableName, schema, constraints, split);
     }
 
     @Test
@@ -534,18 +776,18 @@ public class SnowflakeRecordHandlerTest
             throws Exception
     {
         Connection mockConnection = mock(Connection.class);
-        TableName tableName = new TableName("schema", "table");
-        Schema schema = SchemaBuilder.newBuilder().addStringField("test").build();
+        TableName tableName = new TableName(TEST_SCHEMA_NAME, TEST_TABLE_NAME);
+        Schema schema = SchemaBuilder.newBuilder().addStringField(TEST_FIELD_NAME).build();
         Constraints constraints = createTestConstraints();
-        Split split = Split.newBuilder(S3SpillLocation.newBuilder().withBucket("bucket").withSplitId("split").withQueryId("query").build(), keyFactory.create()).build();
+        Split split = Split.newBuilder(S3SpillLocation.newBuilder().withBucket(TEST_BUCKET_NAME).withSplitId(TEST_SPLIT_ID).withQueryId(TEST_QUERY_ID_VALUE).build(), keyFactory.create()).build();
 
-        when(mockConnection.prepareStatement(any(String.class))).thenThrow(new SQLException("Test SQL exception"));
+        when(mockConnection.prepareStatement(any(String.class))).thenThrow(new SQLException(TEST_SQL_EXCEPTION_MESSAGE));
 
         try {
-            handler.buildSplitSql(mockConnection, "catalog", tableName, schema, constraints, split);
-            fail("Expected exception was not thrown");
+            handler.buildSplitSql(mockConnection, TEST_CATALOG_NAME, tableName, schema, constraints, split);
+            fail(EXPECTED_EXCEPTION_NOT_THROWN);
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Test SQL exception"));
+            assertTrue(e.getMessage().contains(TEST_SQL_EXCEPTION_MESSAGE));
         }
     }
 
@@ -634,6 +876,247 @@ public class SnowflakeRecordHandlerTest
         SnowflakeRecordHandler handlerWithFactory = new SnowflakeRecordHandler(databaseConnectionConfig, mockFactory, configOptions);
         
         assertNotNull(handlerWithFactory);
+    }
+
+    @Test
+    public void testBuildSplitSqlWithComplexRangePredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_ID, COLUMN_NAME, COLUMN_PRICE, COLUMN_CREATED_DATE);
+            
+            // Create constraints with complex range predicates
+            Map<String, ValueSet> summary = new HashMap<>();
+            summary.put(COLUMN_ID, createIntRangeConstraint(10L, true, 100L, false));
+            summary.put(COLUMN_PRICE, createFloatGreaterThanConstraint(50.0));
+            summary.put(COLUMN_NAME, createStringInConstraint(TEST_NAME_JOHN, TEST_NAME_JANE));
+            
+            Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
+            Split split = createBasicSplit();
+
+            String expectedSql = "SELECT \"id\", \"name\", \"price\", \"created_date\" FROM \"schema\".\"table\"  WHERE ((\"id\" >= ? AND \"id\" < ?)) AND (\"name\" IN (?,?)) AND ((\"price\" > ?))";
+            executeBuildSplitSqlTest(mockConnection, tableName, schema, constraints, split, expectedSql);
+        }
+    }
+
+    @Test
+    public void testBuildSplitSqlWithTopNPredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_NAME, COLUMN_SCORE);
+            
+            // Create constraints with Top N scenario (ORDER BY + LIMIT)
+            List<OrderByField> orderBy = List.of(new OrderByField(COLUMN_NAME, OrderByField.Direction.ASC_NULLS_FIRST));
+            Constraints constraints = createConstraints(Collections.emptyMap(), orderBy, 10L);
+            Split split = createBasicSplit();
+
+            String expectedSql = "SELECT \"name\", \"score\" FROM \"schema\".\"table\"  ORDER BY \"name\" ASC NULLS FIRST LIMIT 10";
+            executeBuildSplitSqlTest(mockConnection, tableName, schema, constraints, split, expectedSql);
+        }
+    }
+
+    @Test
+    public void testBuildSplitSqlWithLimitPredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_NAME);
+            
+            // Test limit values
+            long limitValues = 10L;
+
+            Constraints constraints = createConstraints(Collections.emptyMap(), Collections.emptyList(), limitValues);
+            Split split = createBasicSplit();
+
+            String expectedSql = "SELECT \"name\" FROM \"schema\".\"table\"  LIMIT 10";
+            executeBuildSplitSqlTestWithContains(mockConnection, tableName, schema, constraints, split, expectedSql);
+        }
+    }
+
+    @Test
+    public void testBuildSplitSqlWithOrderByPredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_NAME, COLUMN_AGE, COLUMN_SALARY);
+            
+            // Test different ORDER BY scenarios
+            List<List<OrderByField>> orderByScenarios = List.of(
+                    // Single column ASC
+                    List.of(new OrderByField(COLUMN_NAME, OrderByField.Direction.ASC_NULLS_FIRST)),
+                    // Single column DESC
+                    List.of(new OrderByField(COLUMN_AGE, OrderByField.Direction.DESC_NULLS_LAST)),
+                    // Multiple columns
+                    List.of(
+                            new OrderByField(COLUMN_SALARY, OrderByField.Direction.DESC_NULLS_LAST),
+                            new OrderByField(COLUMN_NAME, OrderByField.Direction.ASC_NULLS_FIRST)
+                    ),
+                    // Mixed nulls handling
+                    List.of(
+                            new OrderByField(COLUMN_AGE, OrderByField.Direction.ASC_NULLS_LAST),
+                            new OrderByField(COLUMN_SALARY, OrderByField.Direction.DESC_NULLS_FIRST)
+                    )
+            );
+            
+            for (List<OrderByField> orderByClause : orderByScenarios) {
+                Constraints constraints = createConstraints(Collections.emptyMap(), orderByClause, DEFAULT_NO_LIMIT);
+                Split split = createBasicSplit();
+
+                String expectedSql = "SELECT \"name\", \"age\", \"salary\" FROM \"schema\".\"table\"  ORDER BY";
+                executeBuildSplitSqlTestWithContains(mockConnection, tableName, schema, constraints, split, expectedSql);
+            }
+        }
+    }
+
+    @Test
+    public void testBuildSplitSqlWithBetweenPredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_ID, COLUMN_PRICE, COLUMN_DATE);
+            
+            // Test BETWEEN predicates for different data types
+            Map<String, ValueSet> summary = new HashMap<>();
+            summary.put(COLUMN_ID, createIntRangeConstraint(10L, true, 50L, true));
+            summary.put(COLUMN_PRICE, createFloatRangeConstraint(10.5, true, 99.9, true));
+            
+            Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
+            Split split = createBasicSplit();
+
+            String expectedSql = "SELECT \"id\", \"price\", \"date\" FROM \"schema\".\"table\"  WHERE ((\"id\" >= ? AND \"id\" <= ?)) AND ((\"price\" >= ? AND \"price\" <= ?))";
+            executeBuildSplitSqlTest(mockConnection, tableName, schema, constraints, split, expectedSql);
+        }
+    }
+
+    @Test
+    public void testBuildSplitSqlWithInPredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_STATUS, COLUMN_CATEGORY_ID, COLUMN_RATING);
+            
+            // Test IN predicates for different data types
+            Map<String, ValueSet> summary = new HashMap<>();
+            summary.put(COLUMN_STATUS, createStringInConstraint("ACTIVE", "PENDING", "COMPLETED"));
+            summary.put(COLUMN_CATEGORY_ID, createIntInConstraint(1L, 5L, 10L));
+            summary.put(COLUMN_RATING, createFloatInConstraint(4.5, 4.8, 5.0));
+            
+            Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
+            Split split = createBasicSplit();
+
+            String expectedSql = "SELECT \"status\", \"category_id\", \"rating\" FROM \"schema\".\"table\"  WHERE (\"status\" IN (?,?,?)) AND (\"category_id\" IN (?,?,?)) AND (\"rating\" IN (?,?,?))";
+            executeBuildSplitSqlTest(mockConnection, tableName, schema, constraints, split, expectedSql);
+        }
+    }
+
+    @Test
+    public void testBuildSplitSqlWithNullPredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_NAME, COLUMN_AGE, COLUMN_IS_ACTIVE);
+            
+            // Test NULL and NOT NULL predicates
+            Map<String, ValueSet> summary = new HashMap<>();
+            summary.put(COLUMN_NAME, createNullConstraint());
+            summary.put(COLUMN_AGE, createNotNullConstraint());
+            summary.put(COLUMN_IS_ACTIVE, createBooleanConstraint(true, true));
+            
+            Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
+            Split split = createBasicSplit();
+
+            String expectedSql = "SELECT \"name\", \"age\", \"is_active\" FROM \"schema\".\"table\"  WHERE (\"name\" IS NULL) AND (\"age\" IS NOT NULL) AND ((\"is_active\" IS NULL) OR \"is_active\" = ?)";
+            executeBuildSplitSqlTest(mockConnection, tableName, schema, constraints, split, expectedSql);
+        }
+    }
+
+    @Test
+    public void testBuildSplitSqlWithComplexCombinedPredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_NAME, COLUMN_AGE, COLUMN_SALARY, COLUMN_HIRE_DATE, COLUMN_IS_MANAGER);
+            
+            // Complex combined predicates
+            Map<String, ValueSet> summary = new HashMap<>();
+            summary.put(COLUMN_NAME, createStringInConstraint(TEST_NAME_JOHN, TEST_NAME_JANE, "Bob"));
+            summary.put(COLUMN_AGE, createIntRangeConstraint(25L, true, 65L, false));
+            summary.put(COLUMN_SALARY, createFloatGreaterThanConstraint(50000.0));
+            summary.put(COLUMN_IS_MANAGER, createBooleanConstraint(true, false));
+            
+            Constraints constraints = createConstraints(summary, Collections.emptyList(), 100L);
+            Split split = createBasicSplit();
+
+            String expectedSql = "SELECT \"name\", \"age\", \"salary\", \"hire_date\", \"is_manager\" FROM \"schema\".\"table\"  WHERE (\"name\" IN (?,?,?)) AND ((\"age\" >= ? AND \"age\" < ?)) AND ((\"salary\" > ?)) AND (\"is_manager\" = ?) LIMIT 100";
+            executeBuildSplitSqlTest(mockConnection, tableName, schema, constraints, split, expectedSql);
+        }
+    }
+
+    @Test
+    public void testBuildSplitSqlWithEdgeCasePredicates()
+            throws Exception
+    {
+        try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
+                SnowflakeEnvironmentProperties.class,
+                (mock, context) -> when(mock.isS3ExportEnabled()).thenReturn(false)
+        )) {
+            Connection mockConnection = mock(Connection.class);
+            TableName tableName = createTableName();
+            Schema schema = createSchema(COLUMN_NAME, COLUMN_ID, COLUMN_VALUE);
+            
+            // Edge cases: empty ranges, single values, boundary values
+            Map<String, ValueSet> summary = new HashMap<>();
+            summary.put(COLUMN_ID, createIntInConstraint(42L));
+            summary.put(COLUMN_VALUE, createFloatInConstraint(0.0, Double.MAX_VALUE));
+            summary.put(COLUMN_NAME, createStringInConstraint(""));
+            
+            Constraints constraints = createConstraints(summary, Collections.emptyList(), DEFAULT_NO_LIMIT);
+            Split split = createBasicSplit();
+
+            String expectedSql = "SELECT \"name\", \"id\", \"value\" FROM \"schema\".\"table\"  WHERE (\"name\" = ?) AND (\"id\" = ?) AND (\"value\" IN (?,?))";
+            executeBuildSplitSqlTest(mockConnection, tableName, schema, constraints, split, expectedSql);
+        }
     }
 
     private class ByteHolder
