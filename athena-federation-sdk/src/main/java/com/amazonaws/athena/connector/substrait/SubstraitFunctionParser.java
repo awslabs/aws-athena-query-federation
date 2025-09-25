@@ -210,9 +210,10 @@ public final class SubstraitFunctionParser
 
     /**
      * Maps Substrait function names to corresponding Operator enum values.
-     * This method is mapping only small set of operators, and we will extend this as we need.
+     * This method supports comparison operators, logical operators, null checks, and the NOT operator.
+     * The mapping will be extended as additional operators are needed.
      * 
-     * @param functionName The Substrait function name (e.g., "gt:any_any", "equal:any_any")
+     * @param functionName The Substrait function name (e.g., "gt:any_any", "equal:any_any", "not:bool")
      * @return The corresponding Operator enum value
      * @throws UnsupportedOperationException if the function name is not supported
      */
@@ -259,6 +260,15 @@ public final class SubstraitFunctionParser
         }
     }
 
+    /**
+     * Handles NOT operator expressions by analyzing the inner expression and applying appropriate negation logic.
+     * Supports various NOT patterns including NOT(AND), NOT(OR), NOT IN, and simple predicate negation.
+     *
+     * @param notFunctionInfo The scalar function info for the NOT operation
+     * @param extensionDeclarationList List of extension declarations for function mapping
+     * @param columnNames List of available column names
+     * @return ColumnPredicate representing the negated expression, or null if not supported
+     */
     private static ColumnPredicate handleNotOperator(
             ScalarFunctionInfo notFunctionInfo,
             List<SimpleExtensionDeclaration> extensionDeclarationList,
@@ -290,21 +300,26 @@ public final class SubstraitFunctionParser
                     null
             );
         }
-        // NOT IN pattern (same column OR of EQUALS)
+        // NOT IN pattern detection - reserved for future use cases
+        // NOTE: This handles scenarios where expressions other than direct OR operations
+        // may flatten to multiple EQUAL predicates on the same column. Currently, standard
+        // NOT(OR(...)) expressions are processed as NOR operations above.
         List<ColumnPredicate> innerPredicates = parseColumnPredicates(extensionDeclarationList, innerExpression, columnNames);
         if (isNotInPattern(innerPredicates)) {
             return createNotInPredicate(innerPredicates);
         }
-        // Simple NOT over a single predicate
         if (innerPredicates.size() == 1) {
             return createNegatedPredicate(innerPredicates.get(0));
         }
-        // Complex NOT operations not supported
         return null;
     }
 
     /**
-     * Check if this is a NOT IN pattern: multiple EQUAL predicates on the same column
+     * Determines if a list of predicates represents a NOT IN pattern.
+     * A NOT IN pattern consists of multiple EQUAL predicates on the same column.
+     *
+     * @param predicates List of column predicates to analyze
+     * @return true if the predicates form a NOT IN pattern, false otherwise
      */
     private static boolean isNotInPattern(List<ColumnPredicate> predicates)
     {
@@ -322,7 +337,11 @@ public final class SubstraitFunctionParser
     }
 
     /**
-     * Create a NOT_IN predicate from multiple EQUAL predicates
+     * Creates a NOT_IN predicate from a list of EQUAL predicates on the same column.
+     * Extracts all values from the EQUAL predicates and combines them into a single NOT_IN operation.
+     *
+     * @param equalPredicates List of EQUAL predicates on the same column
+     * @return ColumnPredicate with NOT_IN operator containing all excluded values, or null if input is empty
      */
     private static ColumnPredicate createNotInPredicate(List<ColumnPredicate> equalPredicates)
     {
@@ -338,11 +357,15 @@ public final class SubstraitFunctionParser
     }
 
     /**
-     * Create a negated version of a predicate
+     * Creates a negated version of a given predicate by applying logical negation rules.
+     * Maps operators to their logical opposites (e.g., EQUAL → NOT_EQUAL, GREATER_THAN → LESS_THAN_OR_EQUAL_TO).
+     * For operators that cannot be directly negated, returns a NOT operator predicate.
+     *
+     * @param predicate The original predicate to negate
+     * @return ColumnPredicate representing the negated form of the input predicate
      */
     private static ColumnPredicate createNegatedPredicate(ColumnPredicate predicate)
     {
-        // Simple negation mapping
         return switch (predicate.getOperator()) {
             case EQUAL ->
                     new ColumnPredicate(predicate.getColumn(), SubstraitOperator.NOT_EQUAL,
@@ -369,7 +392,6 @@ public final class SubstraitFunctionParser
                     new ColumnPredicate(predicate.getColumn(), SubstraitOperator.IS_NULL,
                             null, predicate.getArrowType());
             default ->
-                // For operators we can't simplify, return as NOT operator
                     new ColumnPredicate(predicate.getColumn(), SubstraitOperator.NOT,
                             predicate.getValue(), predicate.getArrowType());
         };
