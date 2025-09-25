@@ -2,7 +2,7 @@
  * #%L
  * athena-deltashare
  * %%
- * Copyright (C) 2019 - 2025 Amazon Web Services
+ * Copyright (C) 2019 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,6 +83,19 @@ public class ParquetReaderUtil
      */
     public static void streamParquetFromUrlWithRowGroup(String signedUrl, BlockSpiller spiller, Schema schema, int rowGroupIndex) throws IOException
     {
+        if (signedUrl == null) {
+            throw new IllegalArgumentException("Presigned URL cannot be null");
+        }
+        if (signedUrl.trim().isEmpty()) {
+            throw new IllegalArgumentException("Presigned URL cannot be empty");
+        }
+        if (spiller == null) {
+            throw new IllegalArgumentException("BlockSpiller cannot be null");
+        }
+        if (schema == null) {
+            throw new IllegalArgumentException("Schema cannot be null");
+        }
+        
         try {
             long fileSize = getFileSize(signedUrl);
             
@@ -94,7 +107,6 @@ public class ParquetReaderUtil
             }
             
             InputFile inputFile = new PresignedRangeInputFile(signedUrl, fileSize);
-            
             processSpecificRowGroup(inputFile, spiller, schema, metadata, rowGroupIndex);
             
         } catch (Exception e) {
@@ -108,6 +120,19 @@ public class ParquetReaderUtil
      */
     public static void streamParquetFromUrl(String signedUrl, BlockSpiller spiller, Schema schema) throws IOException
     {
+        if (signedUrl == null) {
+            throw new IllegalArgumentException("Presigned URL cannot be null");
+        }
+        if (signedUrl.trim().isEmpty()) {
+            throw new IllegalArgumentException("Presigned URL cannot be empty");
+        }
+        if (spiller == null) {
+            throw new IllegalArgumentException("BlockSpiller cannot be null");
+        }
+        if (schema == null) {
+            throw new IllegalArgumentException("Schema cannot be null");
+        }
+        
         try {
             long fileSize = getFileSize(signedUrl);
             
@@ -255,10 +280,8 @@ public class ParquetReaderUtil
                                               ParquetMetadata metadata, int targetRowGroupIndex) throws IOException
     {
         try (ParquetFileReader reader = ParquetFileReader.open(inputFile)) {
-            reader.setRequestedSchema(metadata.getFileMetaData().getSchema());
-            
             for (int i = 0; i < targetRowGroupIndex; i++) {
-                reader.skipNextRowGroup();
+                reader.readNextRowGroup();
             }
             
             org.apache.parquet.column.page.PageReadStore pages = reader.readNextRowGroup();
@@ -311,10 +334,9 @@ public class ParquetReaderUtil
                                                        ParquetMetadata metadata, long fileSize) throws IOException
     {
         List<BlockMetaData> rowGroups = metadata.getBlocks();
-        int failedGroups = 0;
-        
         InputFile inputFile = new PresignedRangeInputFile(signedUrl, fileSize);
         
+        int failedGroups = 0;
         for (int groupIndex = 0; groupIndex < rowGroups.size(); groupIndex++) {
             try {
                 processRowGroup(inputFile, spiller, schema, metadata, groupIndex);
@@ -336,11 +358,9 @@ public class ParquetReaderUtil
                                       ParquetMetadata metadata, int rowGroupIndex) throws IOException
     {
         try (ParquetFileReader reader = ParquetFileReader.open(inputFile)) {
-            reader.setRequestedSchema(metadata.getFileMetaData().getSchema());
-            
             for (int i = 0; i <= rowGroupIndex; i++) {
                 if (i < rowGroupIndex) {
-                    reader.skipNextRowGroup();
+                    reader.readNextRowGroup();
                 } else {
                     org.apache.parquet.column.page.PageReadStore pages = reader.readNextRowGroup();
                     
@@ -370,168 +390,6 @@ public class ParquetReaderUtil
     }
     
     /**
-     * Custom InputFile implementation for range-based HTTP reading
-     */
-    static class PresignedRangeInputFile implements InputFile
-    {
-        private final String url;
-        private final long fileSize;
-        
-        public PresignedRangeInputFile(String url, long fileSize)
-        {
-            this.url = url;
-            this.fileSize = fileSize;
-        }
-        
-        @Override
-        public long getLength() throws IOException
-        {
-            return fileSize;
-        }
-        
-        @Override
-        public SeekableInputStream newStream() throws IOException
-        {
-            return new HttpRangeSeekableInputStream(url, fileSize);
-        }
-    }
-    
-    /**
-     * Seekable input stream that uses HTTP range requests
-     */
-    static class HttpRangeSeekableInputStream extends SeekableInputStream
-    {
-        private final String url;
-        private final long fileSize;
-        private long position = 0;
-        
-        public HttpRangeSeekableInputStream(String url, long fileSize)
-        {
-            this.url = url;
-            this.fileSize = fileSize;
-        }
-        
-        @Override
-        public void seek(long newPos) throws IOException
-        {
-            if (newPos < 0 || newPos > fileSize) {
-                throw new IOException("Seek position out of bounds: " + newPos);
-            }
-            this.position = newPos;
-        }
-        
-        @Override
-        public long getPos() throws IOException
-        {
-            return position;
-        }
-        
-        @Override
-        public int read() throws IOException
-        {
-            byte[] b = new byte[1];
-            int r = read(b, 0, 1);
-            return (r == 1) ? (b[0] & 0xFF) : -1;
-        }
-        
-        @Override
-        public int read(byte[] buffer, int off, int len) throws IOException
-        {
-            if (position >= fileSize) {
-                return -1;
-            }
-            
-            long bytesToRead = Math.min(len, fileSize - position);
-            long endPos = position + bytesToRead - 1;
-            
-            
-            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setRequestMethod("GET");
-            conn.setRequestProperty("Range", "bytes=" + position + "-" + endPos);
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(60000);
-            
-            try {
-                int responseCode = conn.getResponseCode();
-                if (responseCode == 206) {
-                    try (InputStream in = conn.getInputStream()) {
-                        int totalRead = 0;
-                        int bytesRead;
-                        
-                        while (totalRead < bytesToRead && 
-                               (bytesRead = in.read(buffer, off + totalRead, (int)(bytesToRead - totalRead))) != -1) {
-                            totalRead += bytesRead;
-                        }
-                        
-                        position += totalRead;
-                        return totalRead;
-                    }
-                } else {
-                    throw new IOException("HTTP Range request failed with code: " + responseCode);
-                }
-            } finally {
-                conn.disconnect();
-            }
-        }
-        
-        @Override
-        public void readFully(byte[] bytes) throws IOException
-        {
-            readFully(bytes, 0, bytes.length);
-        }
-        
-        @Override
-        public void readFully(byte[] bytes, int start, int len) throws IOException
-        {
-            int totalRead = 0;
-            while (totalRead < len) {
-                int bytesRead = read(bytes, start + totalRead, len - totalRead);
-                if (bytesRead < 0) {
-                    throw new IOException("Unexpected end of stream");
-                }
-                totalRead += bytesRead;
-            }
-        }
-        
-        @Override
-        public void readFully(java.nio.ByteBuffer buffer) throws IOException
-        {
-            byte[] bytes = new byte[buffer.remaining()];
-            readFully(bytes);
-            buffer.put(bytes);
-        }
-        
-        @Override
-        public int read(java.nio.ByteBuffer buffer) throws IOException
-        {
-            if (buffer.remaining() == 0) {
-                return 0;
-            }
-            
-            byte[] bytes = new byte[buffer.remaining()];
-            int bytesRead = read(bytes, 0, bytes.length);
-            if (bytesRead > 0) {
-                buffer.put(bytes, 0, bytesRead);
-            }
-            return bytesRead;
-        }
-        
-        @Override
-        public long skip(long n) throws IOException
-        {
-            long newPos = Math.min(position + n, fileSize);
-            long skipped = newPos - position;
-            position = newPos;
-            return skipped;
-        }
-        
-        @Override
-        public void close() throws IOException
-        {
-        }
-    }
-
-    /**
      * Fetch byte range using HTTP Range request
      */
     private static byte[] fetchByteRange(String signedUrl, long startByte, long endByte) throws IOException
@@ -546,7 +404,13 @@ public class ParquetReaderUtil
             int responseCode = conn.getResponseCode();
             if (responseCode == 206) {
                 try (InputStream in = conn.getInputStream()) {
-                    return in.readAllBytes();
+                    java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+                    byte[] data = new byte[1024];
+                    int nRead;
+                    while ((nRead = in.read(data, 0, data.length)) != -1) {
+                        buffer.write(data, 0, nRead);
+                    }
+                    return buffer.toByteArray();
                 }
             } else {
                 throw new IOException("HTTP Range request failed with code: " + responseCode);
@@ -570,7 +434,7 @@ public class ParquetReaderUtil
             int responseCode = conn.getResponseCode();
             
             if (responseCode == 200) {
-                long fileSize = conn.getContentLengthLong();
+                long fileSize = conn.getContentLength();
                 
                 if (fileSize > 0) {
                     return fileSize;
@@ -677,209 +541,90 @@ public class ParquetReaderUtil
                         setNullValue(block, field, rowNum);
                     }
                 } else if (arrowType instanceof ArrowType.Timestamp) {
+                    ArrowType.Timestamp timestampType = (ArrowType.Timestamp) arrowType;
+                    
                     try {
-                        handleDateTimestamp(record, fieldIndex, block, fieldName, rowNum, null, false);
+                        handleDateTimestamp(record, fieldIndex, block, fieldName, rowNum, timestampType, false);
                     } catch (Exception e) {
                         logger.warn("Error processing timestamp field '{}': {}", fieldName, e.getMessage());
-                        try {
-                            block.setValue(fieldName, rowNum, record.getLong(fieldIndex, 0));
-                        } catch (Exception e2) {
-                            setNullValue(block, field, rowNum);
-                        }
+                        setNullValue(block, field, rowNum);
                     }
-                } else if (arrowType instanceof ArrowType.Binary) {
-                    Binary binary = record.getBinary(fieldIndex, 0);
-                    block.setValue(fieldName, rowNum, binary.getBytes());
                 } else {
-                    block.setValue(fieldName, rowNum, record.getValueToString(fieldIndex, 0));
+                    logger.warn("Unsupported Arrow type: {} for field: {}", arrowType, fieldName);
+                    setNullValue(block, field, rowNum);
                 }
                 
             } catch (Exception e) {
-                logger.warn("Error converting field '{}': {}", fieldName, e.getMessage());
+                logger.warn("Error processing field '{}': {}", fieldName, e.getMessage());
                 setNullValue(block, field, rowNum);
             }
         }
     }
 
     /**
-     * Handles date/timestamp fields with Int96 format support.
+     * Handles date and timestamp field conversion from Parquet to Arrow format.
      */
     private static void handleDateTimestamp(Group record, int fieldIndex, Block block, String fieldName, 
-                                          int rowNum, ArrowType.Date dateType, boolean isDateField) throws Exception
+                                          int rowNum, ArrowType type, boolean isDate) throws Exception
     {
         try {
-            String valueString = record.getValueToString(fieldIndex, 0);
-            
-            if (valueString.contains("Int96") && valueString.contains("Binary{")) {
+            if (isDate) {
+                ArrowType.Date dateType = (ArrowType.Date) type;
                 
-                int startIdx = valueString.indexOf('[');
-                int endIdx = valueString.indexOf(']');
-                
-                if (startIdx != -1 && endIdx != -1) {
-                    String bytesStr = valueString.substring(startIdx + 1, endIdx);
-                    String[] byteStrings = bytesStr.split(",\\s*");
-                    
-                    if (byteStrings.length == 12) {
-                        byte[] int96Bytes = new byte[12];
-                        for (int i = 0; i < 12; i++) {
-                            int96Bytes[i] = (byte) Integer.parseInt(byteStrings[i].trim());
-                        }
-                        
-                        long epochMillis = DateTimeConverter.convertInt96BytesToEpochMillis(int96Bytes);
-                        
-                        if (isDateField) {
-                            if (dateType.getUnit() == org.apache.arrow.vector.types.DateUnit.MILLISECOND) {
-                                ((DateMilliVector) block.getFieldVector(fieldName)).setSafe(rowNum, epochMillis);
-                            } else {
-                                int epochDays = (int) (epochMillis / (24 * 60 * 60 * 1000L));
-                                ((DateDayVector) block.getFieldVector(fieldName)).setSafe(rowNum, epochDays);
-                            }
-                        } else {
-                            block.setValue(fieldName, rowNum, epochMillis);
-                        }
-                        return;
-                    }
-                }
-                
-                logger.warn("Failed to parse Int96 binary data for field '{}' - setting null", fieldName);
-                if (isDateField) {
-                    setNullValueForDateField(block, fieldName, rowNum, dateType);
+                if (dateType.getUnit() == org.apache.arrow.vector.types.DateUnit.DAY) {
+                    int daysSinceEpoch = record.getInteger(fieldIndex, 0);
+                    block.setValue(fieldName, rowNum, daysSinceEpoch);
                 } else {
-                    block.setValue(fieldName, rowNum, null);
+                    long millisSinceEpoch = record.getLong(fieldIndex, 0);
+                    block.setValue(fieldName, rowNum, millisSinceEpoch);
                 }
-                return;
-            }
-            
-            if (isDateField) {
-                handleDateAsIntegerOrString(record, fieldIndex, block, fieldName, rowNum, dateType);
             } else {
-                block.setValue(fieldName, rowNum, record.getLong(fieldIndex, 0));
-            }
-            
-        } catch (ClassCastException e) {
-            logger.warn("ClassCastException for field '{}': {} - setting null", fieldName, e.getMessage());
-            if (isDateField) {
-                setNullValueForDateField(block, fieldName, rowNum, dateType);
-            } else {
-                block.setValue(fieldName, rowNum, null);
-            }
-        } catch (Exception e) {
-            logger.warn("Error processing field '{}': {} - setting null", fieldName, e.getMessage());
-            if (isDateField) {
-                setNullValueForDateField(block, fieldName, rowNum, dateType);
-            } else {
-                block.setValue(fieldName, rowNum, null);
-            }
-        }
-    }
-
-    /**
-     * Sets null value for date fields.
-     */
-    private static void setNullValueForDateField(Block block, String fieldName, int rowNum, ArrowType.Date dateType)
-    {
-        try {
-            if (dateType.getUnit() == org.apache.arrow.vector.types.DateUnit.MILLISECOND) {
-                ((DateMilliVector) block.getFieldVector(fieldName)).setNull(rowNum);
-            } else {
-                ((DateDayVector) block.getFieldVector(fieldName)).setNull(rowNum);
-            }
-        } catch (Exception e) {
-            logger.warn("Failed to set null value for date field '{}': {}", fieldName, e.getMessage());
-        }
-    }
-
-    /**
-     * Handles dates as integer (days since epoch) or string format.
-     */
-    private static void handleDateAsIntegerOrString(Group record, int fieldIndex, Block block, String fieldName, 
-                                                  int rowNum, ArrowType.Date dateType) throws Exception
-    {
-        try {
-            int epochDays = record.getInteger(fieldIndex, 0);
-            
-            if (dateType.getUnit() == org.apache.arrow.vector.types.DateUnit.MILLISECOND) {
-                long epochMillis = epochDays * 24L * 60 * 60 * 1000;
-                ((DateMilliVector) block.getFieldVector(fieldName)).setSafe(rowNum, epochMillis);
-            } else {
-                ((DateDayVector) block.getFieldVector(fieldName)).setSafe(rowNum, epochDays);
-            }
-        } catch (Exception e) {
-            try {
-                String dateStr = record.getString(fieldIndex, 0);
-                LocalDate date = LocalDate.parse(dateStr, DATE_FORMATTER);
+                ArrowType.Timestamp timestampType = (ArrowType.Timestamp) type;
                 
-                if (dateType.getUnit() == org.apache.arrow.vector.types.DateUnit.MILLISECOND) {
-                    long epochMillis = date.atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
-                    ((DateMilliVector) block.getFieldVector(fieldName)).setSafe(rowNum, epochMillis);
+                Binary timestampBinary = record.getBinary(fieldIndex, 0);
+                long timestampValue = DateTimeConverter.convertInt96BytesToEpochMillis(timestampBinary.getBytes());
+                
+                if (timestampType.getUnit() == org.apache.arrow.vector.types.TimeUnit.MILLISECOND) {
+                    block.setValue(fieldName, rowNum, timestampValue);
+                } else if (timestampType.getUnit() == org.apache.arrow.vector.types.TimeUnit.MICROSECOND) {
+                    block.setValue(fieldName, rowNum, timestampValue * 1000);
+                } else if (timestampType.getUnit() == org.apache.arrow.vector.types.TimeUnit.NANOSECOND) {
+                    block.setValue(fieldName, rowNum, timestampValue * 1000000);
                 } else {
-                    int epochDays = (int) date.toEpochDay();
-                    ((DateDayVector) block.getFieldVector(fieldName)).setSafe(rowNum, epochDays);
+                    block.setValue(fieldName, rowNum, timestampValue / 1000);
                 }
-            } catch (Exception e2) {
-                logger.warn("Failed to parse date field '{}' as integer or string: {}", fieldName, e2.getMessage());
-                throw e2;
             }
+        } catch (Exception e) {
+            logger.warn("Failed to convert date/timestamp for field '{}': {}", fieldName, e.getMessage());
+            throw e;
         }
     }
 
     /**
-     * Sets null value for a field based on its Arrow type.
+     * Sets null value for a field in the block based on Arrow type.
      */
     private static void setNullValue(Block block, Field field, int rowNum)
     {
         try {
             ArrowType arrowType = field.getType();
-            String fieldName = field.getName();
             
             if (arrowType instanceof ArrowType.Utf8) {
-                ((VarCharVector) block.getFieldVector(fieldName)).setNull(rowNum);
+                block.setValue(field.getName(), rowNum, null);
             } else if (arrowType instanceof ArrowType.Int) {
-                ArrowType.Int intType = (ArrowType.Int) arrowType;
-                if (intType.getBitWidth() == 32) {
-                    ((IntVector) block.getFieldVector(fieldName)).setNull(rowNum);
-                } else {
-                    ((BigIntVector) block.getFieldVector(fieldName)).setNull(rowNum);
-                }
+                block.setValue(field.getName(), rowNum, null);
             } else if (arrowType instanceof ArrowType.FloatingPoint) {
-                ArrowType.FloatingPoint floatType = (ArrowType.FloatingPoint) arrowType;
-                if (floatType.getPrecision() == org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE) {
-                    ((Float4Vector) block.getFieldVector(fieldName)).setNull(rowNum);
-                } else {
-                    ((Float8Vector) block.getFieldVector(fieldName)).setNull(rowNum);
-                }
+                block.setValue(field.getName(), rowNum, null);
+            } else if (arrowType instanceof ArrowType.Bool) {
+                block.setValue(field.getName(), rowNum, null);
             } else if (arrowType instanceof ArrowType.Date) {
-                ArrowType.Date dateType = (ArrowType.Date) arrowType;
-                if (dateType.getUnit() == org.apache.arrow.vector.types.DateUnit.MILLISECOND) {
-                    ((DateMilliVector) block.getFieldVector(fieldName)).setNull(rowNum);
-                } else {
-                    ((DateDayVector) block.getFieldVector(fieldName)).setNull(rowNum);
-                }
+                block.setValue(field.getName(), rowNum, null);
+            } else if (arrowType instanceof ArrowType.Timestamp) {
+                block.setValue(field.getName(), rowNum, null);
             } else {
-                block.setValue(fieldName, rowNum, null);
+                block.setValue(field.getName(), rowNum, null);
             }
         } catch (Exception e) {
             logger.warn("Failed to set null value for field '{}': {}", field.getName(), e.getMessage());
         }
-    }
-
-    @Deprecated
-    public static void cleanupTempFile(String filePath)
-    {
-        if (filePath != null) {
-            try { new File(filePath).delete(); } catch (Exception ignored) {}
-        }
-    }
-
-    @Deprecated
-    public static String downloadParquetFile(String signedUrl) throws IOException
-    {
-        throw new UnsupportedOperationException("Use streamParquetFromUrl instead");
-    }
-
-    @Deprecated
-    public static void streamParquetToSpiller(String parquetFilePath, BlockSpiller spiller, Schema schema) throws IOException
-    {
-        throw new UnsupportedOperationException("Use streamParquetFromUrl instead");
     }
 }

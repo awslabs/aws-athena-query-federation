@@ -2,7 +2,7 @@
  * #%L
  * athena-deltashare
  * %%
- * Copyright (C) 2019 - 2025 Amazon Web Services
+ * Copyright (C) 2019 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -183,13 +183,26 @@ public class DeltaShareRecordHandler extends RecordHandler
             return;
         }
         
+        int failedFiles = 0;
+        
         for (JsonNode line : queryResponse) {
             if (line.has("file")) {
                 JsonNode file = line.get("file");
                 String filePartitionKey = getPartitionKey(file);
                 
                 if (matchesPartition(filePartitionKey, partitionId)) {
+                    if (!file.has("url")) {
+                        logger.warn("File entry missing URL, skipping file");
+                        failedFiles++;
+                        continue;
+                    }
+                    
                     String signedUrl = file.get("url").asText();
+                    if (signedUrl == null || signedUrl.trim().isEmpty()) {
+                        logger.warn("File entry has empty URL, skipping file");
+                        failedFiles++;
+                        continue;
+                    }
                     
                     try {
                         com.amazonaws.athena.connectors.deltashare.util.ParquetReaderUtil.streamParquetFromUrl(signedUrl, spiller, recordsRequest.getSchema());

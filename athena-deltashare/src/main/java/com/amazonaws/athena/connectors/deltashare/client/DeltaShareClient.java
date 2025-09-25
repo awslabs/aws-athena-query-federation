@@ -52,16 +52,21 @@ public class DeltaShareClient
 
     public DeltaShareClient(String endpoint, String token)
     {
-        if (endpoint == null) {
-            throw new IllegalArgumentException("Delta Share endpoint cannot be null. Please set the 'endpoint' environment variable.");
+        this(endpoint, token, null);
+    }
+
+    public DeltaShareClient(String endpoint, String token, CloseableHttpClient httpClient)
+    {
+        if (endpoint == null || endpoint.trim().isEmpty()) {
+            throw new IllegalArgumentException("Delta Share endpoint cannot be null or empty. Please set the 'endpoint' environment variable.");
         }
-        if (token == null) {
-            throw new IllegalArgumentException("Delta Share token cannot be null. Please set the 'token' environment variable.");
+        if (token == null || token.trim().isEmpty()) {
+            throw new IllegalArgumentException("Delta Share token cannot be null or empty. Please set the 'token' environment variable.");
         }
         
         this.endpoint = endpoint.endsWith("/") ? endpoint : endpoint + "/";
         this.token = token;
-        this.httpClient = HttpClients.createDefault();
+        this.httpClient = httpClient != null ? httpClient : HttpClients.createDefault();
         this.objectMapper = new ObjectMapper();
     }
 
@@ -197,7 +202,8 @@ public class DeltaShareClient
         request.setHeader("Authorization", "Bearer " + token);
         request.setHeader("Content-Type", "application/json");
         
-        request.setEntity(new StringEntity("{\"predicateHints\": [], \"limitHint\": 1000}"));
+        String requestBody = String.format("{\"sql\": \"SELECT * FROM \\\"%s\\\".\\\"%s\\\"\"}", schema, table);
+        request.setEntity(new StringEntity(requestBody));
         
         try (CloseableHttpResponse response = httpClient.execute(request)) {
             String json = EntityUtils.toString(response.getEntity());

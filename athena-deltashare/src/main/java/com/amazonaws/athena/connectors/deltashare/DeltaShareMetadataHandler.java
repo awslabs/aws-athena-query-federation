@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -112,6 +112,9 @@ public class DeltaShareMetadataHandler extends MetadataHandler
         String endpoint = configOptions.get(DeltaShareConstants.ENDPOINT_PROPERTY);
         String token = configOptions.get(DeltaShareConstants.TOKEN_PROPERTY);
         this.configuredShareName = configOptions.get(DeltaShareConstants.SHARE_NAME_PROPERTY);
+        if (configuredShareName == null || configuredShareName.trim().isEmpty()) {
+            throw new RuntimeException("share_name must be configured in environment variables");
+        }
         this.deltaShareClient = new DeltaShareClient(endpoint, token);
         this.objectMapper = new ObjectMapper();
         
@@ -222,6 +225,10 @@ public class DeltaShareMetadataHandler extends MetadataHandler
             
             if (schemaRoot == null) {
                 throw new RuntimeException("No schema metadata returned from Delta Share for table: " + tableName);
+            }
+            
+            if (!schemaRoot.has("fields") || !schemaRoot.get("fields").isArray()) {
+                throw new RuntimeException("Invalid or malformed schema metadata: missing or invalid 'fields' property for table: " + tableName);
             }
             
             if (schemaRoot.has("partitionColumns")) {
@@ -807,13 +814,17 @@ public class DeltaShareMetadataHandler extends MetadataHandler
      */
     private void readPartitionFieldToMetadata(Block partitions, int rowIndex, String fieldName, Map<String, String> metadata)
     {
-        FieldReader fieldReader = partitions.getFieldReader(fieldName);
-        if (fieldReader != null) {
-            fieldReader.setPosition(rowIndex);
-            Object value = fieldReader.readObject();
-            if (value != null) {
-                metadata.put(fieldName, value.toString());
+        try {
+            FieldReader fieldReader = partitions.getFieldReader(fieldName);
+            if (fieldReader != null) {
+                fieldReader.setPosition(rowIndex);
+                Object value = fieldReader.readObject();
+                if (value != null) {
+                    metadata.put(fieldName, value.toString());
+                }
             }
+        } catch (Exception e) {
+            logger.debug("Field {} not found in partition block, skipping", fieldName);
         }
     }
     

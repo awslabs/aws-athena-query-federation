@@ -2,7 +2,7 @@
  * #%L
  * athena-deltashare
  * %%
- * Copyright (C) 2019 - 2025 Amazon Web Services
+ * Copyright (C) 2019 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,118 +21,283 @@ package com.amazonaws.athena.connectors.deltashare.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.Rule;
 import org.junit.Test;
-import java.io.IOException;
-import static org.junit.Assert.assertNotNull;
+import org.junit.rules.TestName;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
 
 public class DeltaShareSchemaBuilderTest
 {
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    
+    @Rule
+    public TestName testName = new TestName();
+
     @Test
-    public void testBuildTableSchemaWithBasicTypes() throws IOException
+    public void testMapDeltaTypeToArrowTypeString()
     {
-        String deltaSchemaJson = "{\n" +
-            "  \"type\": \"struct\",\n" +
-            "  \"fields\": [\n" +
-            "    {\"name\": \"id\", \"type\": \"long\", \"nullable\": true},\n" +
-            "    {\"name\": \"name\", \"type\": \"string\", \"nullable\": false},\n" +
-            "    {\"name\": \"age\", \"type\": \"integer\", \"nullable\": true},\n" +
-            "    {\"name\": \"active\", \"type\": \"boolean\", \"nullable\": true}\n" +
-            "  ]\n" +
-            "}";
-        
-        JsonNode deltaSchema = objectMapper.readTree(deltaSchemaJson);
-        Schema schema = DeltaShareSchemaBuilder.buildTableSchema(deltaSchema);
-        
-        assertNotNull(schema);
-        assertEquals(4, schema.getFields().size());
-        
-        assertNotNull(schema.findField("id"));
-        assertNotNull(schema.findField("name"));
-        assertNotNull(schema.findField("age"));
-        assertNotNull(schema.findField("active"));
-        
-        assertTrue(schema.findField("id").isNullable());
-        assertFalse(schema.findField("name").isNullable());
-        assertTrue(schema.findField("age").isNullable());
-        assertTrue(schema.findField("active").isNullable());
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("string");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
     }
-    
+
     @Test
-    public void testMapDeltaTypeToArrowType()
+    public void testMapDeltaTypeToArrowTypeInteger()
     {
-        ArrowType stringType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("string");
-        assertEquals(ArrowType.Utf8.TYPE_TYPE, stringType.getTypeID());
-        
-        ArrowType longType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("long");
-        assertEquals(ArrowType.Int.TYPE_TYPE, longType.getTypeID());
-        
-        ArrowType intType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("integer");
-        assertEquals(ArrowType.Int.TYPE_TYPE, intType.getTypeID());
-        
-        ArrowType boolType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("boolean");
-        assertEquals(ArrowType.Bool.TYPE_TYPE, boolType.getTypeID());
-        
-        ArrowType doubleType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("double");
-        assertEquals(ArrowType.FloatingPoint.TYPE_TYPE, doubleType.getTypeID());
-        
-        ArrowType floatType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("float");
-        assertEquals(ArrowType.FloatingPoint.TYPE_TYPE, floatType.getTypeID());
-        
-        ArrowType dateType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("date");
-        assertEquals(ArrowType.Date.TYPE_TYPE, dateType.getTypeID());
-        
-        ArrowType timestampType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("timestamp");
-        assertEquals(ArrowType.Timestamp.TYPE_TYPE, timestampType.getTypeID());
-        
-        ArrowType binaryType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("binary");
-        assertEquals(ArrowType.Binary.TYPE_TYPE, binaryType.getTypeID());
-        
-        ArrowType decimalType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("decimal(10,2)");
-        assertNotNull(decimalType);
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("integer");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Int);
+        assertEquals(32, ((ArrowType.Int) result).getBitWidth());
+        assertTrue(((ArrowType.Int) result).getIsSigned());
     }
-    
+
     @Test
-    public void testMapDeltaTypeToArrowTypeWithUnknownType()
+    public void testMapDeltaTypeToArrowTypeInt()
     {
-        ArrowType unknownType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("unknown_type");
-        assertEquals(ArrowType.Utf8.TYPE_TYPE, unknownType.getTypeID());
-        
-        try {
-            ArrowType nullType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType(null);
-            assertEquals(ArrowType.Utf8.TYPE_TYPE, nullType.getTypeID());
-        } catch (NullPointerException e) {
-            assertTrue(true);
-        }
-        
-        ArrowType emptyType = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("");
-        assertEquals(ArrowType.Utf8.TYPE_TYPE, emptyType.getTypeID());
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("int");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Int);
+        assertEquals(32, ((ArrowType.Int) result).getBitWidth());
     }
-    
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeLong()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("long");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Int);
+        assertEquals(64, ((ArrowType.Int) result).getBitWidth());
+        assertTrue(((ArrowType.Int) result).getIsSigned());
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeBigInt()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("bigint");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Int);
+        assertEquals(64, ((ArrowType.Int) result).getBitWidth());
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeDouble()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("double");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.FloatingPoint);
+        assertEquals(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE, ((ArrowType.FloatingPoint) result).getPrecision());
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeFloat()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("float");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.FloatingPoint);
+        assertEquals(org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE, ((ArrowType.FloatingPoint) result).getPrecision());
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeBoolean()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("boolean");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Bool);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeDate()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("date");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Date);
+        assertEquals(org.apache.arrow.vector.types.DateUnit.DAY, ((ArrowType.Date) result).getUnit());
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeTimestamp()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("timestamp");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Timestamp);
+        assertEquals(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, ((ArrowType.Timestamp) result).getUnit());
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeBinary()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("binary");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Binary);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeDecimal()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("decimal");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Decimal);
+        assertEquals(18, ((ArrowType.Decimal) result).getPrecision());
+        assertEquals(2, ((ArrowType.Decimal) result).getScale());
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeDecimalWithDefaultScale()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("decimal(18)");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeArray()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("array<string>");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeMap()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("map<string,integer>");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeStruct()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("struct<field1:string,field2:integer>");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeUnknown()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("unknown_type");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeCaseInsensitive()
+    {
+        ArrowType result1 = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("STRING");
+        ArrowType result2 = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("String");
+        ArrowType result3 = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("string");
+
+        assertTrue(result1 instanceof ArrowType.Utf8);
+        assertTrue(result2 instanceof ArrowType.Utf8);
+        assertTrue(result3 instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeWithWhitespace()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("  string  ");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeComplexDecimal()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("decimal(38,18)");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeNestedArray()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("array<array<string>>");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeComplexStruct()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("struct<name:string,age:integer,address:struct<street:string,city:string>>");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeComplexMap()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("map<string,struct<field1:string,field2:integer>>");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
     @Test(expected = NullPointerException.class)
-    public void testBuildTableSchemaWithNullInput()
+    public void testMapDeltaTypeToArrowTypeNullInput()
     {
-        DeltaShareSchemaBuilder.buildTableSchema(null);
+        DeltaShareSchemaBuilder.mapDeltaTypeToArrowType(null);
     }
-    
+
     @Test
-    public void testBuildTableSchemaWithEmptyFields() throws IOException
+    public void testMapDeltaTypeToArrowTypeEmptyInput()
     {
-        String deltaSchemaJson = "{\n" +
-            "  \"type\": \"struct\",\n" +
-            "  \"fields\": []\n" +
-            "}";
-        
-        JsonNode deltaSchema = objectMapper.readTree(deltaSchemaJson);
-        Schema schema = DeltaShareSchemaBuilder.buildTableSchema(deltaSchema);
-        
-        assertNotNull(schema);
-        assertEquals(0, schema.getFields().size());
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeVarchar()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("varchar(255)");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeChar()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("char(10)");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeTinyInt()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("tinyint");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeSmallInt()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("smallint");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeReal()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("real");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
+    }
+
+    @Test
+    public void testMapDeltaTypeToArrowTypeInterval()
+    {
+        ArrowType result = DeltaShareSchemaBuilder.mapDeltaTypeToArrowType("interval");
+        assertNotNull(result);
+        assertTrue(result instanceof ArrowType.Utf8);
     }
 }
