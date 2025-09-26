@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaSaphanaConnector
-    Description: 'This connector enables Amazon Athena to communicate with your Teradata instance(s) using JDBC driver.'
+    Description: 'This connector enables Amazon Athena to communicate with your SAP HANA instance(s) using JDBC driver.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
@@ -77,7 +77,7 @@ Resources:
         - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
       ImageConfig:
         Command: [ "com.amazonaws.athena.connectors.saphana.SaphanaMuxCompositeHandler" ]
-      Description: "Enables Amazon Athena to communicate with Teradata using JDBC"
+      Description: "Enables Amazon Athena to communicate with SAP HANA using JDBC"
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
@@ -85,6 +85,7 @@ Resources:
         - Statement:
             - Action:
                 - secretsmanager:GetSecretValue
+                - secretsmanager:PutSecretValue
               Effect: Allow
               Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
           Version: '2012-10-17'
