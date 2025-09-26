@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.substrait;
 
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.LogicalExpression;
 import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
@@ -230,21 +231,6 @@ class SubstraitFunctionParserTest
                 .build();
     }
 
-    private Expression createLogicalExpression(int functionRef, Expression left, Expression right)
-    {
-        return Expression.newBuilder()
-                .setScalarFunction(Expression.ScalarFunction.newBuilder()
-                        .setFunctionReference(functionRef)
-                        .addArguments(FunctionArgument.newBuilder()
-                                .setValue(left)
-                                .build())
-                        .addArguments(FunctionArgument.newBuilder()
-                                .setValue(right)
-                                .build())
-                        .build())
-                .build();
-    }
-
     private Expression createFieldReference(int fieldIndex)
     {
         return Expression.newBuilder()
@@ -431,6 +417,142 @@ class SubstraitFunctionParserTest
         return Expression.newBuilder()
                 .setLiteral(Expression.Literal.newBuilder()
                         .setBoolean(value)
+                        .build())
+                .build();
+    }
+
+    // Tests for parseLogicalExpression method
+    @Test
+    void testParseLogicalExpressionWithSinglePredicate()
+    {
+        // Test single binary predicate: id = 123
+        SimpleExtensionDeclaration extension = createExtensionDeclaration(1, "equal:any_any");
+        List<SimpleExtensionDeclaration> extensions = Arrays.asList(extension);
+        Expression expression = createBinaryExpression(1, 0, 123);
+        
+        LogicalExpression result = SubstraitFunctionParser.parseLogicalExpression(extensions, expression, COLUMN_NAMES);
+        
+        assertTrue(result.isLeaf());
+        assertEquals(SubstraitOperator.EQUAL, result.getOperator());
+        assertEquals("id", result.getLeafPredicate().getColumn());
+        assertEquals(123, result.getLeafPredicate().getValue());
+    }
+
+    @Test
+    void testParseLogicalExpressionWithAndOperator()
+    {
+        // Test AND operation: id = 123 AND name = 'test'
+        SimpleExtensionDeclaration equalExt = createExtensionDeclaration(1, "equal:any_any");
+        SimpleExtensionDeclaration andExt = createExtensionDeclaration(2, "and:bool");
+        List<SimpleExtensionDeclaration> extensions = Arrays.asList(equalExt, andExt);
+        
+        Expression leftExpr = createBinaryExpression(1, 0, 123);
+        Expression rightExpr = createBinaryExpressionWithString(1, 1, "test");
+        Expression andExpression = createLogicalExpression(2, leftExpr, rightExpr);
+        
+        LogicalExpression result = SubstraitFunctionParser.parseLogicalExpression(extensions, andExpression, COLUMN_NAMES);
+        
+        assertEquals(false, result.isLeaf());
+        assertEquals(SubstraitOperator.AND, result.getOperator());
+        assertEquals(2, result.getChildren().size());
+        
+        // Check left child
+        LogicalExpression leftChild = result.getChildren().get(0);
+        assertTrue(leftChild.isLeaf());
+        assertEquals(SubstraitOperator.EQUAL, leftChild.getOperator());
+        assertEquals("id", leftChild.getLeafPredicate().getColumn());
+        assertEquals(123, leftChild.getLeafPredicate().getValue());
+        
+        // Check right child
+        LogicalExpression rightChild = result.getChildren().get(1);
+        assertTrue(rightChild.isLeaf());
+        assertEquals(SubstraitOperator.EQUAL, rightChild.getOperator());
+        assertEquals("name", rightChild.getLeafPredicate().getColumn());
+        assertEquals("test", rightChild.getLeafPredicate().getValue());
+    }
+
+    @Test
+    void testParseLogicalExpressionWithOrOperator()
+    {
+        // Test OR operation: id = 123 OR name = 'test'
+        SimpleExtensionDeclaration equalExt = createExtensionDeclaration(1, "equal:any_any");
+        SimpleExtensionDeclaration orExt = createExtensionDeclaration(2, "or:bool");
+        List<SimpleExtensionDeclaration> extensions = Arrays.asList(equalExt, orExt);
+        
+        Expression leftExpr = createBinaryExpression(1, 0, 123);
+        Expression rightExpr = createBinaryExpressionWithString(1, 1, "test");
+        Expression orExpression = createLogicalExpression(2, leftExpr, rightExpr);
+        
+        LogicalExpression result = SubstraitFunctionParser.parseLogicalExpression(extensions, orExpression, COLUMN_NAMES);
+        
+        assertEquals(false, result.isLeaf());
+        assertEquals(SubstraitOperator.OR, result.getOperator());
+        assertEquals(2, result.getChildren().size());
+        assertTrue(result.hasComplexLogic());
+        
+        // Check children are leaf predicates
+        assertTrue(result.getChildren().get(0).isLeaf());
+        assertTrue(result.getChildren().get(1).isLeaf());
+    }
+
+    @Test
+    void testParseLogicalExpressionWithUnaryPredicate()
+    {
+        // Test unary predicate: id IS NULL
+        SimpleExtensionDeclaration extension = createExtensionDeclaration(1, "is_null:any");
+        List<SimpleExtensionDeclaration> extensions = Arrays.asList(extension);
+        Expression expression = createUnaryExpression(1, 0);
+        
+        LogicalExpression result = SubstraitFunctionParser.parseLogicalExpression(extensions, expression, COLUMN_NAMES);
+        
+        assertTrue(result.isLeaf());
+        assertEquals(SubstraitOperator.IS_NULL, result.getOperator());
+        assertEquals("id", result.getLeafPredicate().getColumn());
+    }
+
+    @Test
+    void testParseLogicalExpressionWithNullExpression()
+    {
+        // Test null expression
+        LogicalExpression result = SubstraitFunctionParser.parseLogicalExpression(Arrays.asList(), null, COLUMN_NAMES);
+        
+        assertNull(result);
+    }
+
+    @Test
+    void testParseLogicalExpressionComplexLogicDetection()
+    {
+        // Test hasComplexLogic method
+        SimpleExtensionDeclaration equalExt = createExtensionDeclaration(1, "equal:any_any");
+        List<SimpleExtensionDeclaration> extensions = Arrays.asList(equalExt);
+        Expression expression = createBinaryExpression(1, 0, 123);
+        
+        LogicalExpression leafResult = SubstraitFunctionParser.parseLogicalExpression(extensions, expression, COLUMN_NAMES);
+        assertEquals(false, leafResult.hasComplexLogic()); // Leaf nodes don't have complex logic
+        
+        // Test with OR operator
+        SimpleExtensionDeclaration orExt = createExtensionDeclaration(2, "or:bool");
+        extensions = Arrays.asList(equalExt, orExt);
+        Expression leftExpr = createBinaryExpression(1, 0, 123);
+        Expression rightExpr = createBinaryExpressionWithString(1, 1, "test");
+        Expression orExpression = createLogicalExpression(2, leftExpr, rightExpr);
+        
+        LogicalExpression orResult = SubstraitFunctionParser.parseLogicalExpression(extensions, orExpression, COLUMN_NAMES);
+        assertTrue(orResult.hasComplexLogic()); // OR operations have complex logic
+    }
+
+    // Helper method to create logical expressions (AND/OR)
+    private Expression createLogicalExpression(int functionRef, Expression left, Expression right)
+    {
+        return Expression.newBuilder()
+                .setScalarFunction(Expression.ScalarFunction.newBuilder()
+                        .setFunctionReference(functionRef)
+                        .addArguments(FunctionArgument.newBuilder()
+                                .setValue(left)
+                                .build())
+                        .addArguments(FunctionArgument.newBuilder()
+                                .setValue(right)
+                                .build())
                         .build())
                 .build();
     }

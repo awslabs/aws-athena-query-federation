@@ -755,5 +755,4 @@ public class DocDBRecordHandlerTest
     {
         return new QueryPlan("1.0", base64Plan);
     }
-
 }

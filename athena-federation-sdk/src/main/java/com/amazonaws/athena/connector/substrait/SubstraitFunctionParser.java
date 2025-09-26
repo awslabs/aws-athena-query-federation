@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.substrait;
 
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
+import com.amazonaws.athena.connector.substrait.model.LogicalExpression;
 import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
@@ -115,6 +116,66 @@ public final class SubstraitFunctionParser
             columnPredicates.add(predicate);
         }
         return columnPredicates;
+    }
+
+    /**
+     * Parses a Substrait expression into a logical expression tree that preserves AND/OR hierarchy.
+     * This method maintains the original logical structure instead of flattening it.
+     *
+     * @param extensionDeclarationList List of function extension declarations from the Substrait plan
+     * @param expression The Substrait expression to parse
+     * @param columnNames List of column names in the schema for field reference resolution
+     * @return LogicalExpression tree preserving the original logical structure
+     */
+    public static LogicalExpression parseLogicalExpression(List<SimpleExtensionDeclaration> extensionDeclarationList,
+                                                           Expression expression,
+                                                           List<String> columnNames)
+    {
+        // Handle null expression gracefully
+        if (expression == null) {
+            return null;
+        }
+        
+        // Extract function information from the Substrait expression
+        ScalarFunctionInfo functionInfo = extractScalarFunctionInfo(expression, extensionDeclarationList);
+
+        if (functionInfo == null) {
+            return null;
+        }
+
+        // Handle logical operators (AND/OR) by building tree structure instead of flattening
+        // This preserves the original logical hierarchy from the SQL query
+        if (isLogicalOperator(functionInfo.getFunctionName())) {
+            List<LogicalExpression> childExpressions = new ArrayList<>();
+            
+            // Recursively parse each child argument to build the expression tree
+            for (FunctionArgument argument : functionInfo.getArguments()) {
+                LogicalExpression childExpr = parseLogicalExpression(extensionDeclarationList, argument.getValue(), columnNames);
+                if (childExpr != null) {
+                    childExpressions.add(childExpr);
+                }
+            }
+            
+            // Create logical expression node with the operator and its children
+            SubstraitOperator operator = mapToOperator(functionInfo.getFunctionName());
+            return new LogicalExpression(operator, childExpressions);
+        }
+
+        // Handle binary comparison operations (e.g., column = value, column > value)
+        if (functionInfo.getArguments().size() == 2) {
+            ColumnPredicate predicate = createBinaryColumnPredicate(functionInfo, columnNames);
+            // Wrap the predicate in a leaf LogicalExpression node
+            return new LogicalExpression(predicate);
+        }
+
+        // Handle unary operations (e.g., column IS NULL, column IS NOT NULL)
+        if (functionInfo.getArguments().size() == 1) {
+            ColumnPredicate predicate = createUnaryColumnPredicate(functionInfo, columnNames);
+            // Wrap the predicate in a leaf LogicalExpression node
+            return new LogicalExpression(predicate);
+        }
+
+        return null;
     }
 
     /**
@@ -220,10 +281,10 @@ public final class SubstraitFunctionParser
     private static SubstraitOperator mapToOperator(String functionName)
     {
         return switch (functionName) {
-            case "gt:any_any" -> SubstraitOperator.GREATER_THAN;
-            case "gte:any_any" -> SubstraitOperator.GREATER_THAN_OR_EQUAL_TO;
-            case "lt:any_any" -> SubstraitOperator.LESS_THAN;
-            case "lte:any_any" -> SubstraitOperator.LESS_THAN_OR_EQUAL_TO;
+            case "gt:any_any", "gt:pts_pts" -> SubstraitOperator.GREATER_THAN;
+            case "gte:any_any", "gte:pts_pts" -> SubstraitOperator.GREATER_THAN_OR_EQUAL_TO;
+            case "lt:any_any", "lt:pts_pts" -> SubstraitOperator.LESS_THAN;
+            case "lte:any_any", "lte:pts_pts" -> SubstraitOperator.LESS_THAN_OR_EQUAL_TO;
             case "equal:any_any" -> SubstraitOperator.EQUAL;
             case "not_equal:any_any" -> SubstraitOperator.NOT_EQUAL;
             case "is_null:any" -> SubstraitOperator.IS_NULL;
@@ -272,7 +333,8 @@ public final class SubstraitFunctionParser
     private static ColumnPredicate handleNotOperator(
             ScalarFunctionInfo notFunctionInfo,
             List<SimpleExtensionDeclaration> extensionDeclarationList,
-            List<String> columnNames) {
+            List<String> columnNames)
+    {
         if (notFunctionInfo.getArguments().size() != 1) {
             return null;
         }

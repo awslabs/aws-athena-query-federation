@@ -166,7 +166,7 @@ public class DocDBRecordHandler
         final MongoClient client = getOrCreateConn(recordsRequest.getSplit());
         final MongoDatabase db;
         final MongoCollection<Document> table;
-        final Document query;
+        Document query;
 
         // ---------------------- Substrait Plan extraction ----------------------
         final QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
@@ -209,7 +209,17 @@ public class DocDBRecordHandler
             table = db.getCollection(tableName);
             final Map<String, List<ColumnPredicate>> columnPredicateMap = QueryUtils.buildFilterPredicatesFromPlan(plan);
             if (!columnPredicateMap.isEmpty()) {
-                query = QueryUtils.makeQueryFromPlan(columnPredicateMap);
+                // Use enhanced query generation that preserves AND/OR logical structure from SQL
+                // This handles cases like "job_title IN ('A', 'B') OR job_title < 'C'" correctly as OR operations
+                // instead of flattening them into AND operations like the legacy approach
+                try {
+                    query = QueryUtils.makeEnhancedQueryFromPlan(plan);
+                }
+                catch (Exception e) {
+                    // Fallback to legacy flattened approach for handling NOT, NOT IN, NOR and NAND operations and compatibility.
+                    // This ensures existing queries continue to work if enhanced parsing fails
+                    query = QueryUtils.makeQueryFromPlan(columnPredicateMap);
+                }
             }
             else {
                 query = QueryUtils.makeQuery(recordsRequest.getSchema(), recordsRequest.getConstraints().getSummary());
