@@ -58,6 +58,7 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -325,7 +326,7 @@ public final class QueryUtils
             }
         }
         catch (Exception e) {
-            log.warn( "Tree-based parsing failed - fall back to flattened approach  {}", e.getMessage());
+            log.warn("Tree-based parsing failed - fall back to flattened approach  {}", e.getMessage());
         }
 
         // Fall back to existing flattened approach for backward compatibility
@@ -423,7 +424,7 @@ public final class QueryUtils
         List<Object> equalValues = new ArrayList<>();
         List<Document> otherPredicates = new ArrayList<>();
         for (ColumnPredicate pred : colPreds) {
-            Object value = convertValueForDateTimeField(pred);
+            Object value = convertSubstraitValue(pred);
             SubstraitOperator op = pred.getOperator();
             switch (op) {
                 case EQUAL:
@@ -639,7 +640,7 @@ public final class QueryUtils
     /**
      * Converts NumberLong values to Date objects for datetime fields
      */
-    private static Object convertValueForDateTimeField(ColumnPredicate pred)
+    private static Object convertSubstraitValue(ColumnPredicate pred)
     {
         Object value = pred.getValue();
         // Check if this is a datetime field and value is NumberLong
@@ -649,6 +650,12 @@ public final class QueryUtils
             Long milliseconds = epochValue / 1000;
             // Convert to Date object for MongoDB ISODate format
             return new Date(milliseconds);
+        }
+        else if (value instanceof Text) {
+            return ((Text) value).toString();
+        }
+        else if (value instanceof BigDecimal) {
+            return ((BigDecimal) value).doubleValue();
         }
         return value;
     }
