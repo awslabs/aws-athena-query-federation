@@ -12,11 +12,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.release>11</maven.compiler.release>
-        <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.32.29</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.34.3</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
-        <aws-sdk.version>1.12.788</aws-sdk.version>
+        <aws-sdk.version>1.12.791</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
@@ -30,7 +30,7 @@
         <testng.version>7.11.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
-        <surefire.failsafe.version>3.5.3</surefire.failsafe.version>
+        <surefire.failsafe.version>3.5.4</surefire.failsafe.version>
         <log4j2Version>2.25.1</log4j2Version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
         <guava.version>33.4.0-jre</guava.version>
@@ -44,7 +44,7 @@
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
         <mvn.checkstyle.version>3.6.0</mvn.checkstyle.version>
-        <mvn.shade.plugin.version>3.6.0</mvn.shade.plugin.version>
+        <mvn.shade.plugin.version>3.6.1</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.3.1</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.11.3</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.4.2</mvn.jar.plugin.version>
