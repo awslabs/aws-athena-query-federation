@@ -337,6 +337,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
             else {
                 preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableNameInput.getSchemaName(), tableNameInput.getTableName(), schema, constraints, split);
             }
+            System.out.println("preparedStatement: " + preparedStatement);
 
             // Disable fetching all rows.
             preparedStatement.setFetchSize(FETCH_SIZE);

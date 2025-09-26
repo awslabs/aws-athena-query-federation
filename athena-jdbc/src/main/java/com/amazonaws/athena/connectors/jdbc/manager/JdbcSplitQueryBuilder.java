@@ -34,6 +34,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -42,6 +43,10 @@ import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.calcite.util.BitString;
+import org.apache.calcite.util.DateString;
+import org.apache.calcite.util.TimeString;
+import org.apache.calcite.util.TimestampString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
@@ -62,6 +67,11 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static org.apache.calcite.sql.type.SqlTypeName.BIGINT;
+import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
+import static org.apache.calcite.sql.type.SqlTypeName.DOUBLE;
+import static org.apache.calcite.sql.type.SqlTypeName.FLOAT;
 
 /**
  * Query builder for database table split.
@@ -139,7 +149,7 @@ public abstract class JdbcSplitQueryBuilder
     {
         if (constraints.getQueryPlan() != null) {
             SqlDialect sqlDialect = getSqlDialect();
-            return prepareStatementWithSqlDialect(jdbcConnection, constraints, sqlDialect, split, catalog, schema, table, columnNames);
+            return prepareStatementWithSqlDialect(jdbcConnection, constraints, sqlDialect, split, catalog, schema, table, columnNames, tableSchema);
         }
 
         StringBuilder sql = new StringBuilder();
@@ -393,7 +403,8 @@ public abstract class JdbcSplitQueryBuilder
     protected PreparedStatement prepareStatementWithSqlDialect(Connection jdbcConnection, Constraints constraints, SqlDialect sqlDialect,
                                                         Split split, final String catalog,
                                                         final String schema,
-                                                        final String table, final String columnNames)
+                                                        final String table, final String columnNames,
+                                                        final Schema tableSchema)
     {
         try {
             String base64EncodedPlan = constraints.getQueryPlan().getSubstraitPlan();
@@ -420,17 +431,14 @@ public abstract class JdbcSplitQueryBuilder
             sql.append(getFromClauseWithSplit(catalog, schema, table, split));
 
             SqlNode whereClause = select.getWhere();
-
             List<String> clauses = new ArrayList<>();
             List<String> partitionWhereClauses = getPartitionWhereClauses(split);
-
             if (partitionWhereClauses != null && !partitionWhereClauses.isEmpty()) {
                 clauses.addAll(partitionWhereClauses);
             }
-
             if (whereClause != null) {
                 whereClause.accept(new FilterRemovalVisitor(split.getProperties().keySet()));
-                whereClause.accept(new SubstraitAccumulatorVisitor(accumulator, split.getProperties()));
+                whereClause.accept(new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), tableSchema));
                 clauses.add(whereClause.toSqlString(sqlDialect).getSql());
             }
 
@@ -456,16 +464,17 @@ public abstract class JdbcSplitQueryBuilder
                 sql.append(appendLimitOffsetWithValue(limit, offset));
             }
 
-            LOGGER.info("Generated SQL from Substrait: {}", sql);
-
             PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
 
             for (int i = 0; i < accumulator.size(); i++) {
                 SubstraitTypeAndValue typeAndValue = accumulator.get(i);
-                System.out.println(typeAndValue.getType());
+                System.out.println(typeAndValue.getValue() + " " + typeAndValue.getType());
                 switch (typeAndValue.getType()) {
                     case BIGINT:
-                        statement.setLong(i + 1, (long) typeAndValue.getValue());
+                        statement.setLong(i + 1, ((Number) typeAndValue.getValue()).longValue());
+                        break;
+                    case DOUBLE:
+                        statement.setDouble(i + 1, ((Number) typeAndValue.getValue()).doubleValue());
                         break;
                     case INTEGER:
                         statement.setInt(i + 1, ((Number) typeAndValue.getValue()).intValue());
@@ -477,34 +486,44 @@ public abstract class JdbcSplitQueryBuilder
                         statement.setByte(i + 1, ((Number) typeAndValue.getValue()).byteValue());
                         break;
                     case CHAR:
-                    case FLOAT:
-                        // ToDo: ^ this is not correct
                     case VARCHAR:
-                        statement.setString(i + 1, String.valueOf(typeAndValue.getValue()));
+                        statement.setString(i + 1, typeAndValue.getValue().toString());
                         break;
                     case VARBINARY:
-                        statement.setBytes(i + 1, (byte[]) typeAndValue.getValue());
+                        BitString bitString = (BitString) typeAndValue.getValue();
+                        statement.setBytes(i + 1, bitString.getAsByteArray());
+                        break;
+                    case FLOAT:
+                        statement.setFloat(i + 1, ((Number) typeAndValue.getValue()).floatValue());
                         break;
                     case DECIMAL:
                         statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
                         break;
                     case DATE:
-                        if (typeAndValue.getType().getStartUnit() == org.apache.calcite.avatica.util.TimeUnit.DAY) {
-                            long days = ((Number) typeAndValue.getValue()).longValue();
-                            long utcMillis = days * org.apache.calcite.avatica.util.TimeUnit.DAY.multiplier.longValue();
-                            TimeZone aDefault = TimeZone.getDefault();
-                            int timeoffset = aDefault.getOffset(utcMillis);
-                            utcMillis -= timeoffset;
-                            statement.setDate(i + 1, new Date(utcMillis));
-                            // ToDo: ^ this needs to be tested
-                        }
-                        else if (typeAndValue.getType().getStartUnit() == org.apache.calcite.avatica.util.TimeUnit.MILLISECOND) {
-                            long millis = ((Number) typeAndValue.getValue()).longValue();
-                            statement.setTimestamp(i + 1, new Timestamp(millis));
-                        }
-                        else {
-                            throw new AthenaConnectorException(String.format("Can't handle date format: %s, %s", typeAndValue.getType(), typeAndValue.getType()),
-                                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+                        ArrowType.Date dateType = (ArrowType.Date) tableSchema.findField(typeAndValue.getColumnName()).getType();
+                        if (typeAndValue.getValue() instanceof Number) {
+                            long numericValue = ((Number) typeAndValue.getValue()).longValue();
+                            if (dateType.getUnit() == DateUnit.DAY) {
+                                long utcMillis = numericValue * 24L * 60L * 60L * 1000L; // days → ms
+                                int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
+                                utcMillis -= offsetVal;
+                                statement.setDate(i + 1, new Date(utcMillis));
+                            } else if (dateType.getUnit() == DateUnit.MILLISECOND) {
+                                long utcMillis = numericValue;
+                                int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
+                                utcMillis -= offsetVal;
+                                statement.setDate(i + 1, new Date(utcMillis));
+                            }
+                        } else if (typeAndValue.getValue() instanceof DateString) {
+                            statement.setDate(i + 1, Date.valueOf(typeAndValue.getValue().toString()));
+                        } else if (typeAndValue.getValue() instanceof TimestampString) {
+                            statement.setTimestamp(i + 1, Timestamp.valueOf(typeAndValue.getValue().toString()));
+                        } else {
+                            throw new AthenaConnectorException(
+                                    String.format("Can't handle date format: %s", typeAndValue.getType()),
+                                    ErrorDetails.builder()
+                                            .errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString())
+                                            .build());
                         }
                         break;
                     default:

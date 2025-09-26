@@ -20,35 +20,109 @@
 package com.amazonaws.athena.connectors.jdbc.visitor;
 
 import com.amazonaws.athena.connectors.jdbc.manager.SubstraitTypeAndValue;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.SqlDynamicParam;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.util.NlsString;
 
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.arrow.vector.types.DateUnit.DAY;
+import static org.apache.arrow.vector.types.DateUnit.MILLISECOND;
+
 public class SubstraitAccumulatorVisitor extends SqlShuttle
 {
     private List<SubstraitTypeAndValue> accumulator;
     private Map<String, String> splitProperties;
+    private final Schema schema;
+    private String currentColumn;
 
-    public SubstraitAccumulatorVisitor(List<SubstraitTypeAndValue> accumulator, Map<String, String> splitProperties)
+    public SubstraitAccumulatorVisitor(List<SubstraitTypeAndValue> accumulator, Map<String, String> splitProperties, Schema schema)
     {
         this.accumulator = accumulator;
         this.splitProperties = splitProperties;
+        this.schema = schema;
+    }
+
+    @Override
+    public SqlNode visit(SqlIdentifier id)
+    {
+        if (id.isSimple()) {
+            currentColumn = id.getSimple();
+        }
+        return super.visit(id);
     }
 
     @Override
     public SqlNode visit(SqlLiteral literal)
     {
-        if (literal.getValue() instanceof NlsString) {
-            accumulator.add(new SubstraitTypeAndValue(literal.getTypeName(), ((NlsString) literal.getValue()).getValue()));
+        if (currentColumn == null) {
+            throw new RuntimeException("Cannot determine column for literal: " + literal);
         }
-        else {
-            accumulator.add(new SubstraitTypeAndValue(literal.getTypeName(), literal.getValue()));
+        Field arrowField = schema.findField(currentColumn);
+        if (arrowField == null) {
+            throw new RuntimeException("Column not found in schema: " + currentColumn);
+        }
+        SqlTypeName typeName = mapArrowTypeToSqlTypeName(arrowField.getType());
+        if (literal.getValue() instanceof NlsString) {
+            accumulator.add(new SubstraitTypeAndValue(typeName, ((NlsString) literal.getValue()).getValue(), currentColumn));
+        } else {
+            accumulator.add(new SubstraitTypeAndValue(typeName, literal.getValue(), currentColumn));
         }
         return new SqlDynamicParam(0, literal.getParserPosition());
+    }
+
+    private SqlTypeName mapArrowTypeToSqlTypeName(ArrowType arrowType)
+    {
+        if (arrowType instanceof ArrowType.Int) {
+            int bitWidth = ((ArrowType.Int) arrowType).getBitWidth();
+            if (bitWidth <= 32) {
+                return SqlTypeName.INTEGER;
+            }
+            return SqlTypeName.BIGINT;
+        }
+        else if (arrowType instanceof ArrowType.FloatingPoint) {
+            ArrowType.FloatingPoint fp = (ArrowType.FloatingPoint) arrowType;
+            if (fp.getPrecision() == FloatingPointPrecision.SINGLE) {
+                return SqlTypeName.FLOAT;
+            }
+            return SqlTypeName.DOUBLE;
+        }
+        else if (arrowType instanceof ArrowType.Null) {
+            return SqlTypeName.NULL;
+        }
+        else if (arrowType instanceof ArrowType.Utf8 || arrowType instanceof ArrowType.LargeUtf8) {
+            return SqlTypeName.VARCHAR;
+        }
+        else if (arrowType instanceof ArrowType.Bool) {
+            return SqlTypeName.BOOLEAN;
+        }
+        else if (arrowType instanceof ArrowType.Decimal) {
+            return SqlTypeName.DECIMAL;
+        }
+        else if (arrowType instanceof ArrowType.Date) {
+            return SqlTypeName.DATE;
+        }
+        else if (arrowType instanceof ArrowType.Time) {
+            return SqlTypeName.TIME;
+        }
+        else if (arrowType instanceof ArrowType.Timestamp) {
+            return SqlTypeName.TIMESTAMP;
+        }
+        else if (arrowType instanceof ArrowType.Binary || arrowType instanceof ArrowType.LargeBinary) {
+            return SqlTypeName.VARBINARY;
+        }
+        else {
+            return SqlTypeName.VARCHAR;
+        }
     }
 }

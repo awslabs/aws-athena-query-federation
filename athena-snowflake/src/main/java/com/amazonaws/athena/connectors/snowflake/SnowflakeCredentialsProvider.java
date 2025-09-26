@@ -61,7 +61,7 @@ import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils
 public class SnowflakeCredentialsProvider implements CredentialsProvider
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeCredentialsProvider.class);
-    
+
     public static final String ACCESS_TOKEN = "access_token";
     public static final String FETCHED_AT = "fetched_at";
     public static final String REFRESH_TOKEN = "refresh_token";
@@ -105,9 +105,10 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
         try {
             String secretString = secretsManager.getSecret(oauthSecretName);
             Map<String, String> secretMap = objectMapper.readValue(secretString, Map.class);
-            
+
             // Determine authentication type based on secret contents
             SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(secretMap);
+            LOGGER.debug("secretString result: {} for {} with {}", secretMap, oauthSecretName, authType);
             // Validate credentials once after determining auth type
             validateCredentials(secretMap, authType);
             switch (authType) {

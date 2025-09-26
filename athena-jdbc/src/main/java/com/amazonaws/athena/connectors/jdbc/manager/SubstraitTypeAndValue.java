@@ -26,11 +26,13 @@ public class SubstraitTypeAndValue
 {
     private final SqlTypeName type;
     private final Object value;
+    private final String columnName;
 
-    public SubstraitTypeAndValue(SqlTypeName type, Object value)
+    public SubstraitTypeAndValue(SqlTypeName type, Object value, String columnName)
     {
         this.type = Validate.notNull(type, "type is null");
         this.value = Validate.notNull(value, "value is null");
+        this.columnName = Validate.notNull(columnName, "value is null");
     }
 
     public SqlTypeName getType()
@@ -41,6 +43,11 @@ public class SubstraitTypeAndValue
     public Object getValue()
     {
         return value;
+    }
+
+    public String getColumnName()
+    {
+        return columnName;
     }
 
     @Override
