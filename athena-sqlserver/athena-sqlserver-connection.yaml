@@ -100,6 +100,7 @@ Resources:
         Statement:
           - Action:
               - secretsmanager:GetSecretValue
+              - secretsmanager:PutSecretValue
             Effect: Allow
             Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}*'
           - Action:

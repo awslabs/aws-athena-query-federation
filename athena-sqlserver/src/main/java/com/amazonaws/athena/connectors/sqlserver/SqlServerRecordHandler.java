@@ -20,11 +20,14 @@
 
 package com.amazonaws.athena.connectors.sqlserver;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProviderFactory;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
+import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
@@ -54,7 +57,7 @@ public class SqlServerRecordHandler extends JdbcRecordHandler
 
     public SqlServerRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new SqlServerJdbcConnectionFactory(databaseConnectionConfig, SqlServerMetadataHandler.JDBC_PROPERTIES,
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, SqlServerMetadataHandler.JDBC_PROPERTIES,
                 new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT)), configOptions);
     }
 
@@ -88,5 +91,15 @@ public class SqlServerRecordHandler extends JdbcRecordHandler
         // Disable fetching all rows.
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider()
+    {
+        return CredentialsProviderFactory.createCredentialProvider(
+                getDatabaseConnectionConfig().getSecret(),
+                getCachableSecretsManager(),
+                new SqlServerOAuthCredentialsProvider()
+        );
     }
 }
