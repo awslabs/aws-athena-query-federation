@@ -20,7 +20,7 @@
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.113.0</jsii.version>
+        <jsii.version>1.114.1</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.17</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
@@ -49,7 +49,7 @@
         <mvn.javadoc.plugin.version>3.11.3</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.4.2</mvn.jar.plugin.version>
         <io.substrait.version>0.52.0</io.substrait.version>
-        <org.apache.calcite.version>1.39.0</org.apache.calcite.version>
+        <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
         <com.google.protobuf.version>4.32.1</com.google.protobuf.version>
         <doclint>none</doclint>
     </properties>
