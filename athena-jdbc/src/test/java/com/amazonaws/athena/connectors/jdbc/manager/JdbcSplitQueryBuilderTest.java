@@ -60,16 +60,15 @@ import static org.apache.arrow.vector.types.Types.MinorType.TINYINT;
 import static org.apache.arrow.vector.types.Types.MinorType.VARBINARY;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 
 public class JdbcSplitQueryBuilderTest
 {
@@ -91,7 +90,21 @@ public class JdbcSplitQueryBuilderTest
     private static final String TEST_PARTITION_COL = "partition_col";
     private static final String TEST_PARTITION_VALUE = "2024";
     private static final String QUOTE_CHAR = "\"";
-
+    private static final String TEST_UNSUPPORTED_COL = "unsupported";
+    private static final String TEST_ORDER_BY_CLAUSE = "ORDER BY";
+    private static final String TEST_LIMIT_CLAUSE = "LIMIT";
+    private static final String TEST_SELECT_CLAUSE = "SELECT";
+    private static final String TEST_FROM_CLAUSE = "FROM";
+    private static final String TEST_COL2 = "col2";
+    private static final String TEST_COL3 = "col3";
+    private static final String TEST_HELLO_VALUE = "hello";
+    private static final String TEST_ABC_VALUE = "abc";
+    private static final String TEST_COLUMN_WITH_QUOTES = "column\"with\"quotes";
+    private static final String TEST_QUOTED_COLUMN_WITH_QUOTES = "\"column\"\"with\"\"quotes\"";
+    private static final String TEST_CANNOT_HANDLE_TYPE_MESSAGE = "Can't handle type";
+    private static final String TEST_LOW_MARKER_BELOW_BOUND_MESSAGE = "Low marker should never use BELOW bound";
+    private static final String TEST_HIGH_MARKER_ABOVE_BOUND_MESSAGE = "High marker should never use ABOVE bound";
+    private static final String EXPECTED_STATEMENT_NOT_NULL = "Statement should not be null";
     private BlockAllocatorImpl allocator;
     private JdbcSplitQueryBuilder builder;
     private Connection mockConnection;
@@ -145,7 +158,7 @@ public class JdbcSplitQueryBuilderTest
     public void testBuildSql_IntType() throws SQLException
     {
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraints, split);
-        assertNotNull(stmt);
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
         verify(mockConnection).prepareStatement(contains("SELECT \"" + TEST_COL1 + "\""));
     }
 
@@ -156,7 +169,7 @@ public class JdbcSplitQueryBuilderTest
         Constraints constraintsWithOrderBy = createConstraintsWithOrderBy(Collections.singletonList(orderByField));
 
         String clause = builder.extractOrderByClause(constraintsWithOrderBy);
-        assertEquals("ORDER BY \"" + TEST_COL1 + "\" ASC NULLS FIRST", clause);
+        assertEquals(TEST_ORDER_BY_CLAUSE + " \"" + TEST_COL1 + "\" ASC NULLS FIRST", clause);
     }
 
     @Test
@@ -179,7 +192,7 @@ public class JdbcSplitQueryBuilderTest
         ArrowType unsupportedType = new ArrowType.Duration(TimeUnit.MILLISECOND);
 
         // Define schema with one unsupported field
-        Field unsupportedField = new Field("unsupported", FieldType.nullable(unsupportedType), null);
+        Field unsupportedField = new Field(TEST_UNSUPPORTED_COL, FieldType.nullable(unsupportedType), null);
         Schema schema = new Schema(List.of(unsupportedField));
 
         // Mock ValueSet with unsupported type
@@ -187,7 +200,7 @@ public class JdbcSplitQueryBuilderTest
         ValueSet valueSet = SortedRangeSet.of(range);
 
         // Make constraints map return this ValueSet for the unsupported column
-        Constraints constraintsWithUnsupported = createConstraintsWithSummary(Map.of("unsupported", valueSet));
+        Constraints constraintsWithUnsupported = createConstraintsWithSummary(Map.of(TEST_UNSUPPORTED_COL, valueSet));
 
         // Execute and verify that the unsupported type triggers exception
         AthenaConnectorException ex = assertThrows(
@@ -195,7 +208,7 @@ public class JdbcSplitQueryBuilderTest
                 () -> builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithUnsupported, split)
         );
 
-        assertTrue(ex.getMessage().contains("Can't handle type"));
+        assertTrue(ex.getMessage().contains(TEST_CANNOT_HANDLE_TYPE_MESSAGE));
     }
 
     @Test
@@ -232,22 +245,22 @@ public class JdbcSplitQueryBuilderTest
         valueSetMap.put(TEST_COL_DATEMILLI, SortedRangeSet.of(Range.equal(allocator, DATEMILLI.getType(), LocalDateTime.of(2023, 1, 1, 10, 0))));
 
         fields.add(new Field(TEST_COL_VARCHAR, FieldType.nullable(VARCHAR.getType()), null));
-        valueSetMap.put(TEST_COL_VARCHAR, SortedRangeSet.of(Range.equal(allocator, VARCHAR.getType(), "hello")));
+        valueSetMap.put(TEST_COL_VARCHAR, SortedRangeSet.of(Range.equal(allocator, VARCHAR.getType(), TEST_HELLO_VALUE)));
 
         fields.add(new Field(TEST_COL_VARBINARY, FieldType.nullable(VARBINARY.getType()), null));
-        valueSetMap.put(TEST_COL_VARBINARY, SortedRangeSet.of(Range.equal(allocator, VARBINARY.getType(), "abc".getBytes(StandardCharsets.UTF_8))));
+        valueSetMap.put(TEST_COL_VARBINARY, SortedRangeSet.of(Range.equal(allocator, VARBINARY.getType(), TEST_ABC_VALUE.getBytes(StandardCharsets.UTF_8))));
 
         Schema schema = new Schema(fields);
         Constraints constraintsWithValueSets = createConstraintsWithSummary(valueSetMap);
 
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithValueSets, split);
-        assertNotNull("Generated statement should not be null", stmt);
+        assertEquals("Generated statement should not be null", mockStatement, stmt);
         // Verify SQL contains all columns
         for (Field field : fields) {
             verify(mockConnection).prepareStatement(contains("\"" + field.getName() + "\""));
         }
 
-        verify(mockConnection).prepareStatement(contains("FROM \"" + TEST_SCHEMA + "\".\"" + TEST_TABLE + "\""));
+        verify(mockConnection).prepareStatement(contains(TEST_FROM_CLAUSE + " \"" + TEST_SCHEMA + "\".\"" + TEST_TABLE + "\""));
     }
 
     @Test
@@ -349,7 +362,7 @@ public class JdbcSplitQueryBuilderTest
                 () -> builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithInvalidBound, split)
         );
         
-        assertTrue(ex.getMessage().contains("Low marker should never use BELOW bound"));
+        assertTrue(ex.getMessage().contains(TEST_LOW_MARKER_BELOW_BOUND_MESSAGE));
     }
 
     @Test
@@ -367,14 +380,14 @@ public class JdbcSplitQueryBuilderTest
                 () -> builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithInvalidHighBound, split)
         );
         
-        assertTrue(ex.getMessage().contains("High marker should never use ABOVE bound"));
+        assertTrue(ex.getMessage().contains(TEST_HIGH_MARKER_ABOVE_BOUND_MESSAGE));
     }
 
     @Test
     public void testQuoteMethodWithSpecialCharacters()
     {
-        String result = builder.quote("column\"with\"quotes");
-        assertEquals("\"column\"\"with\"\"quotes\"", result);
+        String result = builder.quote(TEST_COLUMN_WITH_QUOTES);
+        assertEquals(TEST_QUOTED_COLUMN_WITH_QUOTES, result);
     }
 
     @Test
@@ -395,13 +408,13 @@ public class JdbcSplitQueryBuilderTest
     @Test
     public void testExtractOrderByClauseMultipleFields()
     {
-        OrderByField field1 = new OrderByField("col1", OrderByField.Direction.ASC_NULLS_LAST);
-        OrderByField field2 = new OrderByField("col2", OrderByField.Direction.DESC_NULLS_FIRST);
+        OrderByField field1 = new OrderByField(TEST_COL1, OrderByField.Direction.ASC_NULLS_LAST);
+        OrderByField field2 = new OrderByField(TEST_COL2, OrderByField.Direction.DESC_NULLS_FIRST);
         
         Constraints constraintsWithMultipleOrderBy = createConstraintsWithOrderBy(List.of(field1, field2));
 
         String clause = builder.extractOrderByClause(constraintsWithMultipleOrderBy);
-        assertEquals("ORDER BY \"col1\" ASC NULLS LAST, \"col2\" DESC NULLS FIRST", clause);
+        assertEquals(TEST_ORDER_BY_CLAUSE + " \"" + TEST_COL1 + "\" ASC NULLS LAST, \"" + TEST_COL2 + "\" DESC NULLS FIRST", clause);
     }
 
     @Test
@@ -423,9 +436,126 @@ public class JdbcSplitQueryBuilderTest
 
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, emptyConstraints, split);
         
-        assertNotNull(stmt);
-        verify(mockConnection).prepareStatement(contains("SELECT"));
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains(TEST_SELECT_CLAUSE));
         verify(mockConnection).prepareStatement(contains(TEST_COL1));
+    }
+
+    @Test
+    public void testBuildSqlWithOrderByAndLimit() throws SQLException
+    {
+        // Test ORDER BY with LIMIT
+        OrderByField orderByField = new OrderByField(TEST_COL1, OrderByField.Direction.ASC_NULLS_FIRST);
+        Constraints constraintsWithOrderByAndLimit = createConstraintsWithOrderByAndLimit(Collections.singletonList(orderByField), 50L);
+        
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithOrderByAndLimit, split);
+        
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
+        verify(mockConnection).prepareStatement(contains(TEST_LIMIT_CLAUSE));
+    }
+
+    @Test
+    public void testBuildSqlWithComplexExpressionsAndOrderBy() throws SQLException
+    {
+        // Test complex expressions with ORDER BY
+        List<String> complexExpressions = List.of("(col1 + col2)", "CASE WHEN col3 > 0 THEN col4 ELSE 0 END");
+        when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(complexExpressions);
+        
+        OrderByField orderByField = new OrderByField(TEST_COL1, OrderByField.Direction.DESC_NULLS_LAST);
+        Constraints constraintsWithComplexAndOrderBy = createConstraintsWithOrderBy(Collections.singletonList(orderByField));
+        
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithComplexAndOrderBy, split);
+        
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
+        verify(expressionParser).parseComplexExpressions(any(), any(), any());
+    }
+
+    @Test
+    public void testBuildSqlWithOrderByLimitAndComplexExpressions() throws SQLException
+    {
+        // Test the complete scenario: ORDER BY + LIMIT + complex expressions
+        List<String> complexExpressions = List.of(
+            "(col1 * col2 + col3)", 
+            "CASE WHEN col4 > 100 THEN col5 ELSE col6 END",
+            "COALESCE(col7, col8, 'default')"
+        );
+        when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(complexExpressions);
+        
+        OrderByField orderByField1 = new OrderByField(TEST_COL1, OrderByField.Direction.ASC_NULLS_FIRST);
+        OrderByField orderByField2 = new OrderByField(TEST_COL2, OrderByField.Direction.DESC_NULLS_LAST);
+        Constraints constraintsWithAll = createConstraintsWithOrderByAndLimit(List.of(orderByField1, orderByField2), 25L);
+        
+        List<Field> fields = List.of(
+            new Field(TEST_COL1, FieldType.nullable(INT.getType()), null),
+            new Field(TEST_COL2, FieldType.nullable(INT.getType()), null),
+            new Field(TEST_COL3, FieldType.nullable(INT.getType()), null)
+        );
+        Schema schema = new Schema(fields);
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithAll, split);
+        
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
+        verify(mockConnection).prepareStatement(contains(TEST_LIMIT_CLAUSE));
+        verify(expressionParser).parseComplexExpressions(any(), any(), any());
+    }
+
+    @Test
+    public void testBuildSqlWithComplexNestedExpressions() throws SQLException
+    {
+        // Test deeply nested complex expressions
+        List<String> nestedExpressions = List.of(
+            "((col1 + col2) * (col3 - col4))",
+            "CASE WHEN (col5 > col6) AND (col7 < col8) THEN col9 ELSE col10 END",
+            "NULLIF(COALESCE(col11, col12), col13)"
+        );
+        when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(nestedExpressions);
+        
+        OrderByField orderByField = new OrderByField(TEST_COL1, OrderByField.Direction.ASC_NULLS_FIRST);
+        Constraints constraintsWithNested = createConstraintsWithOrderByAndLimit(Collections.singletonList(orderByField), 10L);
+        
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithNested, split);
+        
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
+        verify(mockConnection).prepareStatement(contains(TEST_LIMIT_CLAUSE));
+        verify(expressionParser).parseComplexExpressions(any(), any(), any());
+    }
+
+    @Test
+    public void testBuildSqlWithAggregateFunctionsInOrderBy() throws SQLException
+    {
+        // Test ORDER BY with aggregate functions and complex expressions
+        List<String> aggregateExpressions = List.of(
+            "SUM(col1 + col2)",
+            "AVG(CASE WHEN col3 > 0 THEN col4 ELSE 0 END)",
+            "COUNT(DISTINCT col5)"
+        );
+        when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(aggregateExpressions);
+        
+        OrderByField orderByField = new OrderByField("SUM(col1)", OrderByField.Direction.DESC_NULLS_LAST);
+        Constraints constraintsWithAggregates = createConstraintsWithOrderByAndLimit(Collections.singletonList(orderByField), 100L);
+        
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithAggregates, split);
+        
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
+        verify(mockConnection).prepareStatement(contains(TEST_LIMIT_CLAUSE));
+        verify(expressionParser).parseComplexExpressions(any(), any(), any());
     }
 
     /**
@@ -463,6 +593,15 @@ public class JdbcSplitQueryBuilderTest
         Map<String, String> queryArgs = Collections.emptyMap();
         return new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
                 100L, queryArgs, null);
+    }
+
+    /**
+     * Creates a Constraints instance with both ORDER BY and LIMIT.
+     */
+    private Constraints createConstraintsWithOrderByAndLimit(List<OrderByField> orderByClause, Long limit) {
+        Map<String, String> queryArgs = Collections.emptyMap();
+        return new Constraints(Collections.emptyMap(), Collections.emptyList(), orderByClause,
+                limit, queryArgs, null);
     }
 
     private Range createRangeWithBounds(Marker.Bound lowerBound, Marker.Bound upperBound)

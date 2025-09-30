@@ -61,6 +61,26 @@ public class FederationExpressionParserTest {
     private static final String TEST_EQUALS_FUNCTION = "EQUALS";
     private static final String TEST_IS_NULL_FUNCTION = "IS_NULL";
     private static final String TEST_NOT_NULL_FUNCTION = "NOT_NULL";
+    private static final String TEST_SUBTRACT_FUNCTION = "SUBTRACT";
+    private static final String TEST_MULTIPLY_FUNCTION = "MULTIPLY";
+    private static final String TEST_GREATER_THAN_FUNCTION = "GREATER_THAN";
+    private static final String TEST_CASE_WHEN_FUNCTION = "CASE_WHEN";
+    private static final String TEST_SUM_FUNCTION = "SUM";
+    private static final String TEST_LIKE_FUNCTION = "LIKE";
+    private static final String TEST_CONCAT_FUNCTION = "CONCAT";
+    private static final String TEST_COALESCE_FUNCTION = "COALESCE";
+    private static final String TEST_COL1_LITERAL = "col1";
+    private static final String TEST_COL2_LITERAL = "col2";
+    private static final String TEST_AGE_LITERAL = "age";
+    private static final String TEST_SALARY_LITERAL = "salary";
+    private static final String TEST_BONUS_LITERAL = "bonus";
+    private static final String TEST_NAME_LITERAL = "name";
+    private static final String TEST_PATTERN_LITERAL = "pattern";
+    private static final String TEST_SUFFIX_LITERAL = "_suffix";
+    private static final String TEST_PLACEHOLDER_SINGLE = "?";
+    private static final String TEST_PLACEHOLDER_DOUBLE = "?,?";
+    private static final int TEST_AGE_THRESHOLD = 18;
+    private static final int TEST_DEFAULT_VALUE = 0;
 
     private FederationExpressionParser parser;
 
@@ -88,7 +108,7 @@ public class FederationExpressionParserTest {
         List<TypeAndValue> acc = new ArrayList<>();
         String result = parser.parseConstantExpression(constantExpression, acc);
 
-        assertEquals("?,?", result);
+        assertEquals(TEST_PLACEHOLDER_DOUBLE, result);
         assertEquals(TEST_ROW_COUNT, acc.size());
         assertEquals(TEST_VALUE, acc.get(0).getValue());
     }
@@ -182,7 +202,7 @@ public class FederationExpressionParserTest {
         List<TypeAndValue> acc = new ArrayList<>();
         String result = parser.parseConstantExpression(constantExpression, acc);
 
-        assertEquals("?", result);
+        assertEquals(TEST_PLACEHOLDER_SINGLE, result);
         assertEquals(TEST_SINGLE_ROW_COUNT, acc.size());
         assertEquals(TEST_CONSTANT_VALUE_42, acc.get(0).getValue());
     }
@@ -197,6 +217,128 @@ public class FederationExpressionParserTest {
         assertEquals(TEST_INT_COL_NAME, parser.parseVariableExpression(intExpr));
         assertEquals(TEST_STRING_COL_NAME, parser.parseVariableExpression(stringExpr));
         assertEquals(TEST_BOOL_COL_NAME, parser.parseVariableExpression(boolExpr));
+    }
+
+    @Test
+    public void testParseComplexExpressionsWithNestedFunctions() {
+        // Test complex nested function expressions
+        VariableExpression varExpr1 = new VariableExpression(TEST_COL1_LITERAL, new ArrowType.Int(32, true));
+        VariableExpression varExpr2 = new VariableExpression(TEST_COL2_LITERAL, new ArrowType.Int(32, true));
+
+        // Create nested function: ADD(SUBTRACT(col1, col2), MULTIPLY(col1, col2))
+        FunctionCallExpression subtractFunc = new FunctionCallExpression(
+                new ArrowType.Int(32, true), new FunctionName(TEST_SUBTRACT_FUNCTION), List.of(varExpr1, varExpr2));
+        
+        FunctionCallExpression multiplyFunc = new FunctionCallExpression(
+                new ArrowType.Int(32, true), new FunctionName(TEST_MULTIPLY_FUNCTION), List.of(varExpr1, varExpr2));
+        
+        FunctionCallExpression addFunc = new FunctionCallExpression(
+                new ArrowType.Int(32, true), new FunctionName(TEST_FUNCTION_NAME), List.of(subtractFunc, multiplyFunc));
+
+        Constraints constraints = createConstraintsWithExpressions(List.of(addFunc));
+
+        List<TypeAndValue> acc = new ArrayList<>();
+        List<String> expressions = parser.parseComplexExpressions(List.of(), constraints, acc);
+
+        assertEquals(1, expressions.size());
+        assertTrue(expressions.get(0).contains(TEST_FUNCTION_NAME));
+        assertTrue(expressions.get(0).contains(TEST_SUBTRACT_FUNCTION));
+        assertTrue(expressions.get(0).contains(TEST_MULTIPLY_FUNCTION));
+    }
+
+    @Test
+    public void testParseComplexExpressionsWithCaseWhen() {
+        // Test CASE WHEN expressions
+        VariableExpression conditionVar = new VariableExpression(TEST_AGE_LITERAL, new ArrowType.Int(32, true));
+        VariableExpression thenVar = new VariableExpression(TEST_SALARY_LITERAL, new ArrowType.Int(32, true));
+        VariableExpression elseVar = new VariableExpression(TEST_BONUS_LITERAL, new ArrowType.Int(32, true));
+
+        // Create CASE WHEN expression: CASE WHEN age > 18 THEN salary ELSE bonus END
+        FunctionCallExpression greaterThanFunc = new FunctionCallExpression(
+                new ArrowType.Bool(), new FunctionName(TEST_GREATER_THAN_FUNCTION), List.of(conditionVar, new ConstantExpression(createMockBlock(1, TEST_AGE_THRESHOLD), new ArrowType.Int(32, true))));
+        
+        FunctionCallExpression caseFunc = new FunctionCallExpression(
+                new ArrowType.Int(32, true), new FunctionName(TEST_CASE_WHEN_FUNCTION), List.of(greaterThanFunc, thenVar, elseVar));
+
+        Constraints constraints = createConstraintsWithExpressions(List.of(caseFunc));
+
+        List<TypeAndValue> acc = new ArrayList<>();
+        List<String> expressions = parser.parseComplexExpressions(List.of(), constraints, acc);
+
+        assertEquals(1, expressions.size());
+        assertTrue(expressions.get(0).contains(TEST_CASE_WHEN_FUNCTION));
+        assertTrue(expressions.get(0).contains(TEST_GREATER_THAN_FUNCTION));
+    }
+
+    @Test
+    public void testParseComplexExpressionsWithAggregateFunctions() {
+        // Test aggregate functions in complex expressions
+        VariableExpression varExpr = new VariableExpression(TEST_COL1_LITERAL, new ArrowType.Int(32, true));
+        
+        // Create aggregate function: SUM(col1 + col1)
+        FunctionCallExpression addFunc = new FunctionCallExpression(
+                new ArrowType.Int(32, true), new FunctionName(TEST_FUNCTION_NAME), List.of(varExpr, varExpr));
+        
+        FunctionCallExpression sumFunc = new FunctionCallExpression(
+                new ArrowType.Int(32, true), new FunctionName(TEST_SUM_FUNCTION), List.of(addFunc));
+
+        Constraints constraints = createConstraintsWithExpressions(List.of(sumFunc));
+
+        List<TypeAndValue> acc = new ArrayList<>();
+        List<String> expressions = parser.parseComplexExpressions(List.of(), constraints, acc);
+
+        assertEquals(1, expressions.size());
+        assertTrue(expressions.get(0).contains(TEST_SUM_FUNCTION));
+        assertTrue(expressions.get(0).contains(TEST_FUNCTION_NAME));
+    }
+
+    @Test
+    public void testParseComplexExpressionsWithStringFunctions() {
+        // Test string manipulation functions
+        VariableExpression stringVar = new VariableExpression(TEST_NAME_LITERAL, new ArrowType.Utf8());
+        VariableExpression patternVar = new VariableExpression(TEST_PATTERN_LITERAL, new ArrowType.Utf8());
+        
+        // Create LIKE function: name LIKE pattern
+        FunctionCallExpression likeFunc = new FunctionCallExpression(
+                new ArrowType.Bool(), new FunctionName(TEST_LIKE_FUNCTION), List.of(stringVar, patternVar));
+        
+        // Create CONCAT function: CONCAT(name, '_suffix')
+        FunctionCallExpression concatFunc = new FunctionCallExpression(
+                new ArrowType.Utf8(), new FunctionName(TEST_CONCAT_FUNCTION), List.of(stringVar, new ConstantExpression(createMockBlock(1, TEST_SUFFIX_LITERAL), new ArrowType.Utf8())));
+
+        Constraints constraints = createConstraintsWithExpressions(List.of(likeFunc, concatFunc));
+
+        List<TypeAndValue> acc = new ArrayList<>();
+        List<String> expressions = parser.parseComplexExpressions(List.of(), constraints, acc);
+
+        assertEquals(2, expressions.size());
+        assertTrue(expressions.get(0).contains(TEST_LIKE_FUNCTION));
+        assertTrue(expressions.get(1).contains(TEST_CONCAT_FUNCTION));
+    }
+
+    @Test
+    public void testParseComplexExpressionsWithNullHandling() {
+        // Test NULL handling functions
+        VariableExpression varExpr1 = new VariableExpression(TEST_COL1_LITERAL, new ArrowType.Int(32, true));
+        VariableExpression varExpr2 = new VariableExpression(TEST_COL2_LITERAL, new ArrowType.Int(32, true));
+        
+        // Create COALESCE function: COALESCE(col1, col2, 0)
+        FunctionCallExpression coalesceFunc = new FunctionCallExpression(
+                new ArrowType.Int(32, true), new FunctionName(TEST_COALESCE_FUNCTION), 
+                List.of(varExpr1, varExpr2, new ConstantExpression(createMockBlock(1, TEST_DEFAULT_VALUE), new ArrowType.Int(32, true))));
+        
+        // Create IS_NULL function: IS_NULL(col1)
+        FunctionCallExpression isNullFunc = new FunctionCallExpression(
+                new ArrowType.Bool(), new FunctionName(TEST_IS_NULL_FUNCTION), List.of(varExpr1));
+
+        Constraints constraints = createConstraintsWithExpressions(List.of(coalesceFunc, isNullFunc));
+
+        List<TypeAndValue> acc = new ArrayList<>();
+        List<String> expressions = parser.parseComplexExpressions(List.of(), constraints, acc);
+
+        assertEquals(2, expressions.size());
+        assertTrue(expressions.get(0).contains(TEST_COALESCE_FUNCTION));
+        assertTrue(expressions.get(1).contains(TEST_IS_NULL_FUNCTION));
     }
 
     private Constraints createEmptyConstraints() {

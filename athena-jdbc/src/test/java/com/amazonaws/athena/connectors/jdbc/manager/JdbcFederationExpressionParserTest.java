@@ -61,6 +61,12 @@ public class JdbcFederationExpressionParserTest
     private static final String TEST_DIVIDE_FUNCTION = "$divide";
     private static final String TEST_SUBTRACT_FUNCTION = "$subtract";
     private static final String TEST_LIKE_FUNCTION = "$like_pattern";
+    private static final String TEST_AGE_LITERAL = "age";
+    private static final String TEST_NAME_LITERAL = "name";
+    private static final String TEST_EMAIL_LITERAL = "email";
+    private static final String TEST_COMPANY_EMAIL_PATTERN = "%@company.com";
+    private static final String TEST_J_PATTERN = "J%";
+    private static final int TEST_AGE_THRESHOLD = 18;
 
     private static class TestJdbcFederationExpressionParser extends JdbcFederationExpressionParser
     {
@@ -249,8 +255,8 @@ public class JdbcFederationExpressionParserTest
     @Test
     public void testLikeFunction()
     {
-        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LIKE_FUNCTION), null, List.of("name", "'J%'"));
-        assertEquals("(name LIKE 'J%')", result);
+        String result = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LIKE_FUNCTION), null, List.of(TEST_NAME_LITERAL, "'" + TEST_J_PATTERN + "'"));
+        assertEquals("(" + TEST_NAME_LITERAL + " LIKE '" + TEST_J_PATTERN + "')", result);
     }
 
 
@@ -333,5 +339,109 @@ public class JdbcFederationExpressionParserTest
         String negateFloatResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_NEGATE_FUNCTION), 
             null, List.of("3.14"));
         assertEquals("(-3.14)", negateFloatResult);
+    }
+
+    @Test
+    public void testComplexNestedArithmeticExpressions()
+    {
+        // Test deeply nested arithmetic expressions
+        String complexResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_ADD_FUNCTION), 
+            new ArrowType.Int(32, true), List.of("((a + b) * c)", "((d - e) / f)"));
+        assertEquals("(((a + b) * c) + ((d - e) / f))", complexResult);
+    }
+
+    @Test
+    public void testComplexLogicalExpressions()
+    {
+        // Test complex logical expressions with multiple conditions
+        String andResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_AND_FUNCTION),
+            null, List.of("(age > 18)", "(salary > 50000)", "(department = 'IT')"));
+        assertEquals("((age > 18) AND (salary > 50000) AND (department = 'IT'))", andResult);
+
+        String orResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_OR_FUNCTION),
+            null, List.of("(status = 'active')", "(status = 'pending')", "(status = 'approved')"));
+        assertEquals("((status = 'active') OR (status = 'pending') OR (status = 'approved'))", orResult);
+    }
+
+    @Test
+    public void testComplexStringExpressions()
+    {
+        // Test complex string manipulation expressions using existing functions
+        String likeResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LIKE_FUNCTION),
+            null, List.of(TEST_EMAIL_LITERAL, "'" + TEST_COMPANY_EMAIL_PATTERN + "'"));
+        assertEquals("(" + TEST_EMAIL_LITERAL + " LIKE '" + TEST_COMPANY_EMAIL_PATTERN + "')", likeResult);
+
+        // Test complex logical expressions with string conditions
+        String andResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_AND_FUNCTION),
+            null, List.of("(" + TEST_NAME_LITERAL + " LIKE '" + TEST_J_PATTERN + "')", "(" + TEST_AGE_LITERAL + " > " + TEST_AGE_THRESHOLD + ")"));
+        assertEquals("((" + TEST_NAME_LITERAL + " LIKE '" + TEST_J_PATTERN + "') AND (" + TEST_AGE_LITERAL + " > " + TEST_AGE_THRESHOLD + "))", andResult);
+    }
+
+    @Test
+    public void testComplexDateExpressions()
+    {
+        // Test complex date/time expressions using existing arithmetic functions
+        String addResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_ADD_FUNCTION),
+            new ArrowType.Int(32, true), List.of("order_date", "30"));
+        assertEquals("(order_date + 30)", addResult);
+
+        String subtractResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_SUBTRACT_FUNCTION),
+            new ArrowType.Int(32, true), List.of("end_date", "start_date"));
+        assertEquals("(end_date - start_date)", subtractResult);
+    }
+
+    @Test
+    public void testComplexAggregateExpressions()
+    {
+        // Test complex aggregate expressions using existing arithmetic functions
+        String multiplyResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_MULTIPLY_FUNCTION),
+            new ArrowType.Int(32, true), List.of("price", "quantity"));
+        assertEquals("(price * quantity)", multiplyResult);
+
+        String divideResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_DIVIDE_FUNCTION),
+            new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE), 
+            List.of("score", "total_questions"));
+        assertEquals("(score / total_questions)", divideResult);
+    }
+
+    @Test
+    public void testComplexCaseExpressions()
+    {
+        // Test complex CASE expressions using existing comparison functions
+        String greaterThanResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_GREATER_THAN_OR_EQUAL_FUNCTION),
+            null, List.of("age", "65"));
+        assertEquals("(age >= 65)", greaterThanResult);
+
+        String lessThanResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_LESS_THAN_OR_EQUAL_FUNCTION),
+            null, List.of("age", "18"));
+        assertEquals("(age <= 18)", lessThanResult);
+    }
+
+    @Test
+    public void testComplexNullHandlingExpressions()
+    {
+        // Test complex NULL handling expressions using existing functions
+        String nullIfResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_NULLIF_FUNCTION),
+            new ArrowType.Int(32, true), List.of("(salary * 1.1)", "0"));
+        assertEquals("(NULLIF((salary * 1.1), 0))", nullIfResult);
+
+        // Test complex arithmetic with NULL handling
+        String multiplyResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_MULTIPLY_FUNCTION),
+            new ArrowType.Int(32, true), List.of("salary", "1.1"));
+        assertEquals("(salary * 1.1)", multiplyResult);
+    }
+
+    @Test
+    public void testComplexWindowFunctionExpressions()
+    {
+        // Test complex window function expressions using existing arithmetic functions
+        String addResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_ADD_FUNCTION),
+            new ArrowType.Int(32, true), List.of("salary", "bonus"));
+        assertEquals("(salary + bonus)", addResult);
+
+        // Test complex logical expressions for window functions
+        String andResult = parser.mapFunctionToDataSourceSyntax(new FunctionName(TEST_AND_FUNCTION),
+            null, List.of("(department = 'IT')", "(salary > 50000)"));
+        assertEquals("((department = 'IT') AND (salary > 50000))", andResult);
     }
 }
