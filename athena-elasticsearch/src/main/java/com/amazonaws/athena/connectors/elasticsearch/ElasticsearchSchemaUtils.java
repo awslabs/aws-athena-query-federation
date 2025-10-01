@@ -92,6 +92,12 @@ class ElasticsearchSchemaUtils
     private static Field inferField(String fieldName, String qualifiedName,
                                     Map<String, Object> mapping, Map<String, Object> meta)
     {
+        // Check if the qualified name of the field is present in the _meta property with a "json" value.
+        if ("json".equals(meta.get(qualifiedName))) {
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("json", "true");
+            return new Field(fieldName, new FieldType(true, Types.MinorType.VARCHAR.getType(), null, metadata), null);
+        }
         Field field;
 
         //For ES, only struct will has properties field.
