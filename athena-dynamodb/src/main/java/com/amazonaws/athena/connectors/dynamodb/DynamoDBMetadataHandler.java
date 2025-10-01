@@ -582,7 +582,9 @@ public class DynamoDBMetadataHandler
                 Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
 
                 Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
-                splitMetadata.put(hashKeyName, DDBTypeUtils.attributeToJson(DDBTypeUtils.toAttributeValue(hashKeyValue), hashKeyName));
+                // Direct AttributeValue storage instead of JSON serialization
+                AttributeValue hashKeyAttribute = DDBTypeUtils.toAttributeValue(hashKeyValue);
+                splitMetadata.put(hashKeyName, hashKeyAttribute.toString());
 
                 splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
 

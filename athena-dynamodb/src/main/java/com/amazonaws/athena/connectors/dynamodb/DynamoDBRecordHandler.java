@@ -257,43 +257,39 @@ public class DynamoDBRecordHandler
             Pair<Boolean, Integer> limitPair)
     {
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
-
-        String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "auto").toLowerCase();
-        logger.info(DISABLE_PROJECTION_AND_CASING_ENV + " environment variable set to: " + disableProjectionAndCasingEnvValue);
-
         GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
-        //register extract and field writer factory for each field.
+        
+        // Use direct extractors for simple types, field writers for complex types
         for (Field next : recordsRequest.getSchema().getFields()) {
-            Optional<Extractor> extractor = DDBTypeUtils.makeExtractor(next, recordMetadata, disableProjectionAndCasing);
-            //generate extractor for supported data types
-            if (extractor.isPresent()) {
-                rowWriterBuilder.withExtractor(next.getName(), extractor.get());
+            Optional<Extractor> directExtractor = DDBTypeUtils.makeDirectExtractor(next, recordMetadata, disableProjectionAndCasing);
+            if (directExtractor.isPresent()) {
+                rowWriterBuilder.withExtractor(next.getName(), directExtractor.get());
             }
             else {
-                //generate field writer factor for complex data types.
                 rowWriterBuilder.withFieldWriterFactory(next.getName(), DDBTypeUtils.makeFactory(next, recordMetadata, resolver, disableProjectionAndCasing));
             }
         }
 
         GeneratedRowWriter rowWriter = rowWriterBuilder.build();
+        
+        // Hybrid processing with extractors + direct Arrow
         long numRows = 0;
-        while (itemIterator.hasNext()) {
-            if (!queryStatusChecker.isQueryRunning()) {
-                // we can stop processing because the query waiting for this data has already terminated
-                return;
-            }
-
+        while (itemIterator.hasNext() && queryStatusChecker.isQueryRunning()) {
             Map<String, AttributeValue> item = itemIterator.next();
-            if (item == null) {
-                // this can happen regardless of the hasNext() check above for the very first iteration since itemIterator
-                // had not made any DDB calls yet and there may be zero items returned when it does
-                continue;
-            }
-            spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
-            numRows++;
-            // If limit is enabled and records fetched is greater than limit, We can stop execution.
-            if (limitPair.getLeft() && numRows >= limitPair.getRight()) {
-                return;
+            if (item != null) {
+                spiller.writeRows((Block block, int rowNum) -> {
+                    try {
+                        return rowWriter.writeRow(block, rowNum, item) ? 1 : 0;
+                    }
+                    catch (Exception e) {
+                        logger.error("Error writing row", e);
+                        return 0;
+                    }
+                });
+                numRows++;
+                if (limitPair.getLeft() && numRows >= limitPair.getRight()) {
+                    break;
+                }
             }
         }
         logger.info("readWithConstraint: numRows[{}]", numRows);
@@ -399,7 +395,9 @@ public class DynamoDBRecordHandler
         }
         expressionAttributeNames.put(hashKeyAlias, hashKeyName);
 
-        AttributeValue hashKeyAttribute = DDBTypeUtils.jsonToAttributeValue(split.getProperty(hashKeyName), hashKeyName);
+        // Direct AttributeValue parsing instead of JSON deserialization
+        String hashKeyStr = split.getProperty(hashKeyName);
+        AttributeValue hashKeyAttribute = parseAttributeValueFromString(hashKeyStr, hashKeyName);
         expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, hashKeyAttribute);
 
         QueryRequest.Builder queryRequestBuilder = QueryRequest.builder()
@@ -501,14 +499,12 @@ public class DynamoDBRecordHandler
                 if (currentPageIterator.get() != null && currentPageIterator.get().hasNext()) {
                     return currentPageIterator.get().next();
                 }
-                // Variable to determine limit can be applied or not, If applicable what is the limit value.
                 Pair<Boolean, Integer> limitPair = getLimit(plan, constraints);
                 Iterator<Map<String, AttributeValue>> iterator;
                 try {
                     if (isQueryRequest(split)) {
                         QueryRequest request = buildQueryRequest(split, tableName, schema,
                                 disableProjectionAndCasing, lastKeyEvaluated.get(),  requestOverrideConfiguration, limitPair);
-                        logger.info("Invoking DDB with Query request: {}", request);
                         QueryResponse response = invokerCache.get(tableName).invoke(() -> ddbClient.query(request));
                         lastKeyEvaluated.set(response.lastEvaluatedKey());
                         iterator = response.items().iterator();
@@ -516,7 +512,6 @@ public class DynamoDBRecordHandler
                     else {
                         ScanRequest request = buildScanRequest(split, tableName, schema,
                                  disableProjectionAndCasing, lastKeyEvaluated.get(), requestOverrideConfiguration, limitPair);
-                        logger.info("Invoking DDB with Scan request: {}", request);
                         ScanResponse response = invokerCache.get(tableName).invoke(() -> ddbClient.scan(request));
                         lastKeyEvaluated.set(response.lastEvaluatedKey());
                         iterator = response.items().iterator();
@@ -552,6 +547,24 @@ public class DynamoDBRecordHandler
             checkArgument(metadata.containsKey(EXPRESSION_NAMES_METADATA), "Split missing expected metadata [%s] when filters are present", EXPRESSION_NAMES_METADATA);
             checkArgument(metadata.containsKey(EXPRESSION_VALUES_METADATA), "Split missing expected metadata [%s] when filters are present", EXPRESSION_VALUES_METADATA);
         }
+    }
+
+    private AttributeValue parseAttributeValueFromString(String value, String keyName)
+    {
+        // Simple direct parsing instead of JSON deserialization
+        if (value.startsWith("AttributeValue")) {
+            // Extract the actual value from AttributeValue string representation
+            if (value.contains("S=")) {
+                String stringValue = value.substring(value.indexOf("S=") + 2, value.lastIndexOf("}"));
+                return AttributeValue.builder().s(stringValue).build();
+            }
+            else if (value.contains("N=")) {
+                String numberValue = value.substring(value.indexOf("N=") + 2, value.lastIndexOf("}"));
+                return AttributeValue.builder().n(numberValue).build();
+            }
+        }
+        // Fallback to JSON parsing if needed
+        return DDBTypeUtils.jsonToAttributeValue(value, keyName);
     }
 
     private Pair<Boolean, Integer> getLimit(Plan  plan, Constraints constraints)

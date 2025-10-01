@@ -625,19 +625,58 @@ public final class DDBTypeUtils
         }
     }
 
+    /**
+     * Creates direct Arrow extractors that bypass JSON serialization
+     */
+    public static Optional<Extractor> makeDirectExtractor(Field field, DDBRecordMetadata recordMetadata, boolean disableProjectionAndCasing)
+    {
+        String fieldName = field.getName();
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+        
+        switch (fieldType) {
+            case VARCHAR:
+                return Optional.of(new DirectDDBExtractors.DirectVarCharExtractor(fieldName));
+            case DECIMAL:
+                ArrowType.Decimal decimalType = (ArrowType.Decimal) field.getType();
+                return Optional.of(new UltraOptimizedDecimalExtractor(fieldName, decimalType.getScale()));
+            case BIT:
+                return Optional.of(new DirectDDBExtractors.DirectBitExtractor(fieldName));
+            case VARBINARY:
+                return Optional.of(new DirectDDBExtractors.DirectVarBinaryExtractor(fieldName));
+            default:
+                return Optional.empty();
+        }
+    }
+
     public static String attributeToJson(AttributeValue attributeValue, String key)
     {
+        // Reduced JSON serialization - use direct string representation when possible
+        if (attributeValue.s() != null) {
+            return attributeValue.s();
+        }
+        else if (attributeValue.n() != null) {
+            return attributeValue.n();
+        }
+        // Fallback to JSON for complex types
         EnhancedDocument enhancedDocument = EnhancedDocument.fromAttributeValueMap(ImmutableMap.of(key, attributeValue));
         return enhancedDocument.toJson();
     }
 
     public static AttributeValue jsonToAttributeValue(String jsonString, String key)
     {
-        EnhancedDocument enhancedDocument = EnhancedDocument.fromJson(jsonString);
-        if (!enhancedDocument.isPresent(key)) {
-            throw new AthenaConnectorException("Unknown attribute Key", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        // Try direct parsing first
+        try {
+            // Check if it's a simple string value
+            return AttributeValue.builder().s(jsonString).build();
         }
-        return enhancedDocument.toMap().get(key);
+        catch (Exception e) {
+            // Fallback to JSON parsing for complex types
+            EnhancedDocument enhancedDocument = EnhancedDocument.fromJson(jsonString);
+            if (!enhancedDocument.isPresent(key)) {
+                throw new AthenaConnectorException("Unknown attribute Key", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+            }
+            return enhancedDocument.toMap().get(key);
+        }
     }
 
     private static AttributeValue handleSetType(Set<?> value)
