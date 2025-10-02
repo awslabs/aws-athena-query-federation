@@ -60,6 +60,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -175,10 +176,15 @@ public abstract class JdbcMetadataHandler
 
     protected CredentialsProvider getCredentialProvider()
     {
+        return getCredentialProvider(null);
+    }
+
+    protected CredentialsProvider getCredentialProvider(AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
         final String secretName = databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
             LOGGER.info("Using Secrets Manager.");
-            return new DefaultCredentialsProvider(getSecret(secretName));
+            return new DefaultCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
         }
 
         return null;
@@ -188,7 +194,7 @@ public abstract class JdbcMetadataHandler
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
             throws Exception
     {
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(listSchemasRequest)))) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
         }
@@ -217,7 +223,7 @@ public abstract class JdbcMetadataHandler
     public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
             throws Exception
     {
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(listTablesRequest)))) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(),
                     listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
 
@@ -302,7 +308,7 @@ public abstract class JdbcMetadataHandler
             throws Exception
     {
         LOGGER.debug("doGetTable getTableName:{}", getTableRequest.getTableName());
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(getTableRequest)))) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName adjustedTableNameObject = caseResolver.getAdjustedTableNameObject(connection,
                     new TableName(getTableRequest.getTableName().getSchemaName(), getTableRequest.getTableName().getTableName()),
@@ -327,7 +333,7 @@ public abstract class JdbcMetadataHandler
         jdbcQueryPassthrough.verify(getTableRequest.getQueryPassthroughArguments());
         String customerPassedQuery = getTableRequest.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(getTableRequest)))) {
             PreparedStatement preparedStatement = connection.prepareStatement(customerPassedQuery);
             ResultSetMetaData metadata = preparedStatement.getMetaData();
             if (metadata == null) {

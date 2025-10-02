@@ -21,7 +21,9 @@ package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtractor;
@@ -50,6 +52,16 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.dataset.file.FileFormat;
+import org.apache.arrow.dataset.file.FileSystemDatasetFactory;
+import org.apache.arrow.dataset.jni.NativeMemoryPool;
+import org.apache.arrow.dataset.scanner.ScanOptions;
+import org.apache.arrow.dataset.scanner.Scanner;
+import org.apache.arrow.dataset.source.Dataset;
+import org.apache.arrow.dataset.source.DatasetFactory;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDateDayHolder;
@@ -58,6 +70,7 @@ import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableSmallIntHolder;
 import org.apache.arrow.vector.holders.NullableTinyIntHolder;
+import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -80,6 +93,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.JDBC_PROPERTIES;
 
 public class SnowflakeRecordHandler extends JdbcRecordHandler
@@ -139,7 +155,72 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        handleDirectRead(spiller, recordsRequest, queryStatusChecker);
+        SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
+
+        if (envProperties.isS3ExportEnabled()) {
+            // Use S3 export path for data transfer
+            handleS3ExportRead(spiller, recordsRequest, queryStatusChecker);
+        }
+        else {
+            // Use traditional direct query path
+            handleDirectRead(spiller, recordsRequest, queryStatusChecker);
+        }
+    }
+
+    private void handleS3ExportRead(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    {
+        LOGGER.info("handleS3ExportRead: schema[{}] tableName[{}]", recordsRequest.getSchema(), recordsRequest.getTableName());
+
+        Schema schemaName = recordsRequest.getSchema();
+        Split split = recordsRequest.getSplit();
+        String id = split.getProperty(SNOWFLAKE_SPLIT_QUERY_ID);
+        String exportBucket = split.getProperty(SNOWFLAKE_SPLIT_EXPORT_BUCKET);
+        String s3ObjectKey = split.getProperty(SNOWFLAKE_SPLIT_OBJECT_KEY);
+
+        if (!s3ObjectKey.isEmpty()) {
+            //get column name and type from the Schema
+            HashMap<String, Types.MinorType> mapOfNamesAndTypes = new HashMap<>();
+            HashMap<String, Object> mapOfCols = new HashMap<>();
+
+            for (Field field : schemaName.getFields()) {
+                Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(field.getType());
+                mapOfNamesAndTypes.put(field.getName(), minorTypeForArrowType);
+                mapOfCols.put(field.getName(), null);
+            }
+
+            // creating a RowContext class to hold the column name and value.
+            final RowContext rowContext = new RowContext(id);
+
+            //Generating the RowWriter and Extractor
+            GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+            for (Field next : recordsRequest.getSchema().getFields()) {
+                Extractor extractor = makeExtractor(next, mapOfNamesAndTypes, mapOfCols);
+                builder.withExtractor(next.getName(), extractor);
+            }
+            GeneratedRowWriter rowWriter = builder.build();
+
+            /*
+            Using Arrow Dataset to read the S3 Parquet file generated in the split
+            */
+            try (ArrowReader reader = constructArrowReader(constructS3Uri(exportBucket, s3ObjectKey))) {
+                while (reader.loadNextBatch()) {
+                    VectorSchemaRoot root = reader.getVectorSchemaRoot();
+                    for (int row = 0; row < root.getRowCount(); row++) {
+                        HashMap<String, Object> map = new HashMap<>();
+                        for (Field field : root.getSchema().getFields()) {
+                            map.put(field.getName(), root.getVector(field).getObject(row));
+                        }
+                        rowContext.setNameValue(map);
+
+                        //Passing the RowContext to BlockWriter;
+                        spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
+                    }
+                }
+            }
+            catch (Exception e) {
+                throw new AthenaConnectorException("Error in object content for object : " + s3ObjectKey + " " + e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+            }
+        }
     }
 
     private void handleDirectRead(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
@@ -326,6 +407,27 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         }
     }
 
+    @VisibleForTesting
+    protected ArrowReader constructArrowReader(String uri)
+    {
+        LOGGER.debug("URI {}", uri);
+        BufferAllocator allocator = new RootAllocator();
+        DatasetFactory datasetFactory = new FileSystemDatasetFactory(
+                allocator,
+                NativeMemoryPool.getDefault(),
+                FileFormat.PARQUET,
+                uri);
+        Dataset dataset = datasetFactory.finish();
+        ScanOptions options = new ScanOptions(/*batchSize*/ 32768);
+        Scanner scanner = dataset.newScan(options);
+        return scanner.scanBatches();
+    }
+
+    private static String constructS3Uri(String bucket, String key)
+    {
+        return "s3://" + bucket + "/" + key;
+    }
+
     @Override
     public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableNameInput, Schema schema, Constraints constraints, Split split) throws SQLException
     {
@@ -337,7 +439,6 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
             else {
                 preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableNameInput.getSchemaName(), tableNameInput.getTableName(), schema, constraints, split);
             }
-            System.out.println("preparedStatement: " + preparedStatement);
 
             // Disable fetching all rows.
             preparedStatement.setFetchSize(FETCH_SIZE);
@@ -353,7 +454,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     {
         final String secretName = getDatabaseConnectionConfig().getSecret();
         if (StringUtils.isNotBlank(secretName)) {
-            return new SnowflakeCredentialsProvider(secretName, getSecretsManager());
+            return new SnowflakeCredentialsProvider(secretName);
         }
 
         return null;

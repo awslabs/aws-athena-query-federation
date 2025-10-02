@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.jdbc.visitor;
 
 import com.amazonaws.athena.connectors.jdbc.manager.SubstraitTypeAndValue;
-import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -35,9 +34,6 @@ import org.apache.calcite.util.NlsString;
 
 import java.util.List;
 import java.util.Map;
-
-import static org.apache.arrow.vector.types.DateUnit.DAY;
-import static org.apache.arrow.vector.types.DateUnit.MILLISECOND;
 
 public class SubstraitAccumulatorVisitor extends SqlShuttle
 {
@@ -75,7 +71,8 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
         SqlTypeName typeName = mapArrowTypeToSqlTypeName(arrowField.getType());
         if (literal.getValue() instanceof NlsString) {
             accumulator.add(new SubstraitTypeAndValue(typeName, ((NlsString) literal.getValue()).getValue(), currentColumn));
-        } else {
+        }
+        else {
             accumulator.add(new SubstraitTypeAndValue(typeName, literal.getValue(), currentColumn));
         }
         return new SqlDynamicParam(0, literal.getParserPosition());

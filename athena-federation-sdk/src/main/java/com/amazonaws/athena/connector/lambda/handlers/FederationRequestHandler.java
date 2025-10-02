@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connector.lambda.handlers;
 
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -27,7 +29,6 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Map;
 import java.util.Objects;
@@ -61,35 +62,36 @@ public interface FederationRequestHandler extends RequestStreamHandler
 
     default S3Client getS3Client(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration, S3Client defaultS3)
     {
-        AwsCredentialsProvider awsCredentialsProvider = getAwsCredentialsProvider(awsRequestOverrideConfiguration);
-        return awsCredentialsProvider == null ? defaultS3 : S3Client.builder()
-                .credentialsProvider(awsCredentialsProvider)
-                .build();
+        if (Objects.nonNull(awsRequestOverrideConfiguration) &&
+                awsRequestOverrideConfiguration.credentialsProvider().isPresent()) {
+            AwsCredentialsProvider awsCredentialsProvider = awsRequestOverrideConfiguration.credentialsProvider().get();
+            return S3Client.builder()
+                    .credentialsProvider(awsCredentialsProvider)
+                    .build();
+        }
+        else {
+            return defaultS3;
+        }
     }
 
     default AthenaClient getAthenaClient(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration, AthenaClient defaultAthena)
     {
-        AwsCredentialsProvider awsCredentialsProvider = getAwsCredentialsProvider(awsRequestOverrideConfiguration);
-        return awsCredentialsProvider == null ? defaultAthena : AthenaClient.builder()
-                .credentialsProvider(awsCredentialsProvider)
-                .build();
-    }
-
-    default SecretsManagerClient getSecretsManagerClient(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration, SecretsManagerClient defaultSecretsManager)
-    {
-        AwsCredentialsProvider awsCredentialsProvider = getAwsCredentialsProvider(awsRequestOverrideConfiguration);
-
-        return awsCredentialsProvider == null ? defaultSecretsManager : SecretsManagerClient.builder()
-                .credentialsProvider(awsCredentialsProvider)
-                .build();
-    }
-
-    private AwsCredentialsProvider getAwsCredentialsProvider(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
-    {
         if (Objects.nonNull(awsRequestOverrideConfiguration) &&
-                awsRequestOverrideConfiguration.credentialsProvider().isPresent())  {
-            return awsRequestOverrideConfiguration.credentialsProvider().get();
+                awsRequestOverrideConfiguration.credentialsProvider().isPresent()) {
+            AwsCredentialsProvider awsCredentialsProvider = awsRequestOverrideConfiguration.credentialsProvider().get();
+            return AthenaClient.builder()
+                    .credentialsProvider(awsCredentialsProvider)
+                    .build();
         }
-        return null;
+        else {
+            return defaultAthena;
+        }
+    }
+
+    default boolean isRequestFederated(FederationRequest req) 
+    {
+        FederatedIdentity federatedIdentity = req.getIdentity();
+        Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
+        return (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null);
     }
 }

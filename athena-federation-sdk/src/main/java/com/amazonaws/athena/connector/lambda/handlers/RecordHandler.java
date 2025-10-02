@@ -78,7 +78,7 @@ public abstract class RecordHandler
     protected final java.util.Map<String, String> configOptions;
     private final S3Client amazonS3;
     private final String sourceType;
-    private CachableSecretsManager secretsManager;
+    private final CachableSecretsManager secretsManager;
     private final AthenaClient athena;
     private final ThrottlingInvoker athenaInvoker;
     private final KmsEncryptionProvider kmsEncryptionProvider;
@@ -131,14 +131,24 @@ public abstract class RecordHandler
         return secretsManager.resolveWithDefaultCredentials(rawString);
     }
 
-    protected CachableSecretsManager getSecretsManager()
-    {
-        return secretsManager;
-    }
-
     protected String getSecret(String secretName)
     {
         return secretsManager.getSecret(secretName);
+    }
+
+    protected String getSecret(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return secretsManager.getSecret(secretName, requestOverrideConfiguration);
+    }
+
+    /**
+     * Gets the CachableSecretsManager instance used by this handler.
+     * This is used by credential providers to reuse the same secrets manager instance.
+     * @return The CachableSecretsManager instance
+     */
+    protected CachableSecretsManager getCachableSecretsManager()
+    {
+        return secretsManager;
     }
 
     public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
@@ -178,12 +188,6 @@ public abstract class RecordHandler
         RecordRequestType type = req.getRequestType();
         switch (type) {
             case READ_RECORDS:
-                FederatedIdentity federatedIdentity = req.getIdentity();
-                Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
-                if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
-                    AwsRequestOverrideConfiguration awsRequestOverrideConfiguration = getRequestOverrideConfig(connectorRequestOptions);
-                    secretsManager = new CachableSecretsManager(getSecretsManagerClient(awsRequestOverrideConfiguration, SecretsManagerClient.create()));
-                }
                 try (RecordResponse response = doReadRecords(allocator, (ReadRecordsRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
@@ -234,6 +238,19 @@ public abstract class RecordHandler
                         spillConfig.getEncryptionKey());
             }
         }
+    }
+
+    public AwsRequestOverrideConfiguration getRequestOverrideConfig(RecordRequest request)
+    {
+        if (isRequestFederated(request)) {
+            FederatedIdentity federatedIdentity = request.getIdentity();
+            Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
+
+            if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
+                return getRequestOverrideConfig(connectorRequestOptions);
+            }
+        }
+        return null;
     }
 
     public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)

@@ -45,7 +45,6 @@ import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.util.BitString;
 import org.apache.calcite.util.DateString;
-import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -468,7 +467,6 @@ public abstract class JdbcSplitQueryBuilder
 
             for (int i = 0; i < accumulator.size(); i++) {
                 SubstraitTypeAndValue typeAndValue = accumulator.get(i);
-                System.out.println(typeAndValue.getValue() + " " + typeAndValue.getType());
                 switch (typeAndValue.getType()) {
                     case BIGINT:
                         statement.setLong(i + 1, ((Number) typeAndValue.getValue()).longValue());
@@ -508,17 +506,21 @@ public abstract class JdbcSplitQueryBuilder
                                 int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
                                 utcMillis -= offsetVal;
                                 statement.setDate(i + 1, new Date(utcMillis));
-                            } else if (dateType.getUnit() == DateUnit.MILLISECOND) {
+                            }
+                            else if (dateType.getUnit() == DateUnit.MILLISECOND) {
                                 long utcMillis = numericValue;
                                 int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
                                 utcMillis -= offsetVal;
                                 statement.setDate(i + 1, new Date(utcMillis));
                             }
-                        } else if (typeAndValue.getValue() instanceof DateString) {
+                        }
+                        else if (typeAndValue.getValue() instanceof DateString) {
                             statement.setDate(i + 1, Date.valueOf(typeAndValue.getValue().toString()));
-                        } else if (typeAndValue.getValue() instanceof TimestampString) {
+                        }
+                        else if (typeAndValue.getValue() instanceof TimestampString) {
                             statement.setTimestamp(i + 1, Timestamp.valueOf(typeAndValue.getValue().toString()));
-                        } else {
+                        }
+                        else {
                             throw new AthenaConnectorException(
                                     String.format("Can't handle date format: %s", typeAndValue.getType()),
                                     ErrorDetails.builder()

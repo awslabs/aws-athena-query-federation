@@ -74,6 +74,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -139,9 +140,14 @@ public abstract class JdbcRecordHandler
 
     protected CredentialsProvider getCredentialProvider()
     {
+        return getCredentialProvider(null);
+    }
+
+    protected CredentialsProvider getCredentialProvider(AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
         final String secretName = this.databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
-            return new DefaultCredentialsProvider(getSecret(secretName));
+            return new DefaultCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
         }
 
         return null;

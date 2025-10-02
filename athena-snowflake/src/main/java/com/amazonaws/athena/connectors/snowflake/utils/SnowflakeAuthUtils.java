@@ -196,6 +196,11 @@ public class SnowflakeAuthUtils
             username = credentials.get(SnowflakeConstants.USERNAME);
         }
         if (StringUtils.isBlank(username)) {
+            //for oauth and password auth type
+            //this can be removed once changes to sfUser instead of username
+            username = credentials.get("USERNAME");
+        }
+        if (StringUtils.isBlank(username)) {
             throw new IllegalArgumentException("Missing required parameter: username/sfUser");
         }
         return username;
@@ -213,7 +218,7 @@ public class SnowflakeAuthUtils
         if (credentials == null || credentials.isEmpty()) {
             throw new IllegalArgumentException("Credentials cannot be null or empty");
         }
-        // Check for sfUser (or "username" field)
+        // Check for sfUser (or "username" / "USERNAME" field)
         getUsername(credentials);
 
         switch (authType) {
@@ -229,7 +234,8 @@ public class SnowflakeAuthUtils
                 }
                 break;
             case SNOWFLAKE:
-                if (StringUtils.isBlank(credentials.get(SnowflakeConstants.PASSWORD))) {
+                if (StringUtils.isBlank(credentials.get(SnowflakeConstants.PASSWORD))
+                    && StringUtils.isBlank(credentials.get("PASSWORD"))) {
                     throw new IllegalArgumentException("password is required for password authentication");
                 }
                 break;

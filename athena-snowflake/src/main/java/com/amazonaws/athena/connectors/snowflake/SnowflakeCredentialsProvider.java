@@ -61,7 +61,6 @@ import static com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils
 public class SnowflakeCredentialsProvider implements CredentialsProvider
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeCredentialsProvider.class);
-
     public static final String ACCESS_TOKEN = "access_token";
     public static final String FETCHED_AT = "fetched_at";
     public static final String REFRESH_TOKEN = "refresh_token";
@@ -77,15 +76,9 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
 
     @VisibleForTesting
     public SnowflakeCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient)
-
-    {
-        this(oauthSecretName, new CachableSecretsManager(secretsClient));
-    }
-
-    public SnowflakeCredentialsProvider(String oauthSecretName, CachableSecretsManager secretsManager)
     {
         this.oauthSecretName = Validate.notNull(oauthSecretName, "oauthSecretName must not be null");
-        this.secretsManager = secretsManager;
+        this.secretsManager = new CachableSecretsManager(secretsClient);
         this.objectMapper = new ObjectMapper();
     }
 
@@ -105,10 +98,8 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
         try {
             String secretString = secretsManager.getSecret(oauthSecretName);
             Map<String, String> secretMap = objectMapper.readValue(secretString, Map.class);
-
             // Determine authentication type based on secret contents
             SnowflakeAuthType authType = SnowflakeAuthUtils.determineAuthType(secretMap);
-            LOGGER.debug("secretString result: {} for {} with {}", secretMap, oauthSecretName, authType);
             // Validate credentials once after determining auth type
             validateCredentials(secretMap, authType);
             switch (authType) {
@@ -165,7 +156,7 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     {
         Map<String, String> credentialMap = new HashMap<>();
         credentialMap.put(SnowflakeConstants.USER, getUsername(oauthConfig));
-        credentialMap.put(SnowflakeConstants.PASSWORD, oauthConfig.get(SnowflakeConstants.PASSWORD));
+        credentialMap.put(SnowflakeConstants.PASSWORD, oauthConfig.getOrDefault(SnowflakeConstants.PASSWORD, oauthConfig.get("PASSWORD")));
         LOGGER.debug("Using password authentication for user: {}", getUsername(oauthConfig));
         return credentialMap;
     }

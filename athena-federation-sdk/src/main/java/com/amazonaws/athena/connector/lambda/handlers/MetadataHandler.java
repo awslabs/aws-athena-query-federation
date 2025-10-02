@@ -66,6 +66,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
@@ -126,6 +127,7 @@ public abstract class MetadataHandler
     protected static final String SPILL_PREFIX_ENV = "spill_prefix";
     protected static final String KMS_KEY_ID_ENV = "kms_key_id";
     protected static final String DISABLE_SPILL_ENCRYPTION = "disable_spill_encryption";
+    private final CachableSecretsManager secretsManager;
     private final AthenaClient athena;
     private final S3Client s3Client;
     private final ThrottlingInvoker athenaInvoker;
@@ -133,7 +135,6 @@ public abstract class MetadataHandler
     private final String spillBucket;
     private final String spillPrefix;
     private final String sourceType;
-    private CachableSecretsManager secretsManager;
     private SpillLocationVerifier verifier;
     private final KmsEncryptionProvider kmsEncryptionProvider;
 
@@ -160,6 +161,7 @@ public abstract class MetadataHandler
                     new LocalKeyFactory();
             logger.debug("ENABLE_SPILL_ENCRYPTION with encryption factory: " + encryptionKeyFactory.getClass().getSimpleName());
         }
+
         this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
         this.athena = AthenaClient.create();
         this.s3Client = S3Client.create();
@@ -218,7 +220,17 @@ public abstract class MetadataHandler
         return secretsManager.getSecret(secretName);
     }
 
-    protected CachableSecretsManager getSecretsManager()
+    protected String getSecret(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return secretsManager.getSecret(secretName, requestOverrideConfiguration);
+    }
+
+    /**
+     * Gets the CachableSecretsManager instance used by this handler.
+     * This is used by credential providers to reuse the same secrets manager instance.
+     * @return The CachableSecretsManager instance
+     */
+    protected CachableSecretsManager getCachableSecretsManager()
     {
         return secretsManager;
     }
@@ -238,16 +250,21 @@ public abstract class MetadataHandler
     {
         FederatedIdentity federatedIdentity = request.getIdentity();
         Map<String, String> configOptions = federatedIdentity.getConfigOptions();
-        String queryId = request.getQueryId();
-        if (Objects.nonNull(spillPrefix) && spillPrefix.contains(request.getQueryId())) {
-            queryId = "";
-        }
         if (CollectionUtils.isNullOrEmpty(configOptions)) {
+            logger.debug("configOptions is empty from federation. Use default configOptions.");
             configOptions = new HashMap<>(this.configOptions);
         }
+        String queryId = request.getQueryId();
+        String prefix = StringUtils.isBlank(configOptions.get(SPILL_PREFIX_ENV))
+                ? spillPrefix : configOptions.get(SPILL_PREFIX_ENV);
+        String bucket = StringUtils.isBlank(configOptions.get(SPILL_BUCKET_ENV))
+                ? spillBucket : configOptions.get(SPILL_BUCKET_ENV);
+        if (Objects.nonNull(prefix) && prefix.contains(request.getQueryId())) {
+            queryId = "";
+        }
         return S3SpillLocation.newBuilder()
-                .withBucket(configOptions.get(SPILL_BUCKET_ENV))
-                .withPrefix(configOptions.get(SPILL_PREFIX_ENV))
+                .withBucket(bucket)
+                .withPrefix(prefix)
                 .withQueryId(queryId)
                 .withSplitId(UUID.randomUUID().toString())
                 .build();
@@ -289,14 +306,6 @@ public abstract class MetadataHandler
         logger.info("doHandleRequest: request[{}]", req);
         MetadataRequestType type = req.getRequestType();
 
-        FederatedIdentity federatedIdentity = req.getIdentity();
-        Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
-
-        if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
-            AwsRequestOverrideConfiguration awsRequestOverrideConfiguration = getRequestOverrideConfig(connectorRequestOptions);
-            secretsManager = new CachableSecretsManager(getSecretsManagerClient(awsRequestOverrideConfiguration, SecretsManagerClient.create()));
-        }
-
         switch (type) {
             case LIST_SCHEMAS:
                 try (ListSchemasResponse response = doListSchemaNames(allocator, (ListSchemasRequest) req)) {
@@ -328,7 +337,8 @@ public abstract class MetadataHandler
                 }
                 return;
             case GET_SPLITS:
-                connectorRequestOptions = federatedIdentity.getConfigOptions();
+                FederatedIdentity federatedIdentity = req.getIdentity();
+                Map<String, String> connectorRequestOptions = federatedIdentity.getConfigOptions();
                 if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
                     AwsRequestOverrideConfiguration awsRequestOverrideConfiguration = getRequestOverrideConfig(connectorRequestOptions);
                     verifier = new SpillLocationVerifier(getS3Client(awsRequestOverrideConfiguration, s3Client));
@@ -570,6 +580,19 @@ public abstract class MetadataHandler
     public void onPing(PingRequest request)
     {
         //NoOp
+    }
+
+    public AwsRequestOverrideConfiguration getRequestOverrideConfig(MetadataRequest request)
+    {
+        if (isRequestFederated(request)) {
+            FederatedIdentity federatedIdentity = request.getIdentity();
+            Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
+
+            if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
+                return getRequestOverrideConfig(connectorRequestOptions);
+            }
+        }
+        return null;
     }
 
     public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)
