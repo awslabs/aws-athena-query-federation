@@ -159,7 +159,7 @@ public abstract class JdbcRecordHandler
     {
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
-        try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(readRecordsRequest)))) {
             String databaseProductName = connection.getMetaData().getDatabaseProductName();
 
             // clickhouse does not support disabling auto-commit

@@ -129,8 +129,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     }
 
     @VisibleForTesting
-    public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager,
-                                  AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, SnowflakeQueryStringBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
+    public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, SnowflakeQueryStringBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcConnectionFactory = jdbcConnectionFactory;
@@ -156,7 +155,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
             throws Exception
     {
         SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
-
+        
         if (envProperties.isS3ExportEnabled()) {
             // Use S3 export path for data transfer
             handleS3ExportRead(spiller, recordsRequest, queryStatusChecker);

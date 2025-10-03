@@ -305,7 +305,6 @@ public abstract class MetadataHandler
     {
         logger.info("doHandleRequest: request[{}]", req);
         MetadataRequestType type = req.getRequestType();
-
         switch (type) {
             case LIST_SCHEMAS:
                 try (ListSchemasResponse response = doListSchemaNames(allocator, (ListSchemasRequest) req)) {

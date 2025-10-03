@@ -406,7 +406,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire.failsafe.version}</version>
                 <configuration>
-                    <argLine>--add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED</argLine>
                     <excludes>
                         <exclude>*IntegTest</exclude>
                     </excludes>
@@ -460,7 +459,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>${surefire.failsafe.version}</version>
                         <configuration>
-                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED</argLine>
+                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                             <excludes>
                                 <exclude>*IntegTest</exclude>
                             </excludes>
@@ -471,7 +470,7 @@
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <version>${surefire.failsafe.version}</version>
                         <configuration>
-                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED</argLine>
+                            <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                             <forkCount>3C</forkCount>
                             <reuseForks>false</reuseForks>
                             <includes>
