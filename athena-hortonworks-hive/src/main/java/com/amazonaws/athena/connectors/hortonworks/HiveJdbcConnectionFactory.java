@@ -20,6 +20,7 @@
 
 package com.amazonaws.athena.connectors.hortonworks;
 
+import com.amazonaws.athena.connector.credentials.CredentialsConstants;
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
@@ -63,7 +64,7 @@ public class HiveJdbcConnectionFactory extends GenericJdbcConnectionFactory
             if (null != credentialsProvider) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement = String.format("UID=%s;PWD=%s",
-                        credentialsProvider.getCredential().getUser(), credentialsProvider.getCredential().getPassword());
+                        credentialsProvider.getCredentialMap().get(CredentialsConstants.USER), credentialsProvider.getCredentialMap().get(CredentialsConstants.PASSWORD));
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {
