@@ -21,30 +21,6 @@ package com.amazonaws.athena.connectors.aws.cmdb.tables;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
-import com.amazonaws.services.elasticmapreduce.model.Application;
-import com.amazonaws.services.elasticmapreduce.model.Cluster;
-import com.amazonaws.services.elasticmapreduce.model.ClusterStateChangeReason;
-import com.amazonaws.services.elasticmapreduce.model.ClusterStatus;
-import com.amazonaws.services.elasticmapreduce.model.ClusterSummary;
-import com.amazonaws.services.elasticmapreduce.model.DescribeClusterRequest;
-import com.amazonaws.services.elasticmapreduce.model.DescribeClusterResult;
-import com.amazonaws.services.elasticmapreduce.model.ListClustersRequest;
-import com.amazonaws.services.elasticmapreduce.model.ListClustersResult;
-import com.amazonaws.services.rds.AmazonRDS;
-import com.amazonaws.services.rds.model.DBInstance;
-import com.amazonaws.services.rds.model.DBInstanceStatusInfo;
-import com.amazonaws.services.rds.model.DBParameterGroup;
-import com.amazonaws.services.rds.model.DBParameterGroupStatus;
-import com.amazonaws.services.rds.model.DBSecurityGroupMembership;
-import com.amazonaws.services.rds.model.DBSubnetGroup;
-import com.amazonaws.services.rds.model.DescribeDBInstancesRequest;
-import com.amazonaws.services.rds.model.DescribeDBInstancesResult;
-import com.amazonaws.services.rds.model.DomainMembership;
-import com.amazonaws.services.rds.model.Endpoint;
-import com.amazonaws.services.rds.model.Subnet;
-import com.amazonaws.services.rds.model.Tag;
-
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -54,6 +30,18 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.rds.RdsClient;
+import software.amazon.awssdk.services.rds.model.DBInstance;
+import software.amazon.awssdk.services.rds.model.DBInstanceStatusInfo;
+import software.amazon.awssdk.services.rds.model.DBParameterGroupStatus;
+import software.amazon.awssdk.services.rds.model.DBSecurityGroupMembership;
+import software.amazon.awssdk.services.rds.model.DBSubnetGroup;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
+import software.amazon.awssdk.services.rds.model.DomainMembership;
+import software.amazon.awssdk.services.rds.model.Endpoint;
+import software.amazon.awssdk.services.rds.model.Subnet;
+import software.amazon.awssdk.services.rds.model.Tag;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -74,7 +62,7 @@ public class RdsTableProviderTest
     private static final Logger logger = LoggerFactory.getLogger(RdsTableProviderTest.class);
 
     @Mock
-    private AmazonRDS mockRds;
+    private RdsClient mockRds;
 
     protected String getIdField()
     {
@@ -110,19 +98,19 @@ public class RdsTableProviderTest
     protected void setUpRead()
     {
         final AtomicLong requestCount = new AtomicLong(0);
-        when(mockRds.describeDBInstances(nullable(DescribeDBInstancesRequest.class)))
+        when(mockRds.describeDBInstances(nullable(DescribeDbInstancesRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
-                    DescribeDBInstancesResult mockResult = mock(DescribeDBInstancesResult.class);
                     List<DBInstance> values = new ArrayList<>();
                     values.add(makeValue(getIdValue()));
                     values.add(makeValue(getIdValue()));
                     values.add(makeValue("fake-id"));
-                    when(mockResult.getDBInstances()).thenReturn(values);
+                    DescribeDbInstancesResponse.Builder resultBuilder = DescribeDbInstancesResponse.builder();
+                    resultBuilder.dbInstances(values);
 
                     if (requestCount.incrementAndGet() < 3) {
-                        when(mockResult.getMarker()).thenReturn(String.valueOf(requestCount.get()));
+                        resultBuilder.marker(String.valueOf(requestCount.get()));
                     }
-                    return mockResult;
+                    return resultBuilder.build();
                 });
     }
 
@@ -184,56 +172,61 @@ public class RdsTableProviderTest
 
     private DBInstance makeValue(String id)
     {
-        return new DBInstance()
-                .withDBInstanceIdentifier(id)
-                .withAvailabilityZone("primary_az")
-                .withAllocatedStorage(100)
-                .withStorageEncrypted(true)
-                .withBackupRetentionPeriod(100)
-                .withAutoMinorVersionUpgrade(true)
-                .withDBInstanceClass("instance_class")
-                .withDbInstancePort(100)
-                .withDBInstanceStatus("status")
-                .withStorageType("storage_type")
-                .withDbiResourceId("dbi_resource_id")
-                .withDBName("name")
-                .withDomainMemberships(new DomainMembership()
-                        .withDomain("domain")
-                        .withFQDN("fqdn")
-                        .withIAMRoleName("iam_role")
-                        .withStatus("status"))
-                .withEngine("engine")
-                .withEngineVersion("engine_version")
-                .withLicenseModel("license_model")
-                .withSecondaryAvailabilityZone("secondary_az")
-                .withPreferredBackupWindow("backup_window")
-                .withPreferredMaintenanceWindow("maint_window")
-                .withReadReplicaSourceDBInstanceIdentifier("read_replica_source_id")
-                .withDBParameterGroups(new DBParameterGroupStatus()
-                        .withDBParameterGroupName("name")
-                        .withParameterApplyStatus("status"))
-                .withDBSecurityGroups(new DBSecurityGroupMembership()
-                        .withDBSecurityGroupName("name")
-                        .withStatus("status"))
-                .withDBSubnetGroup(new DBSubnetGroup()
-                        .withDBSubnetGroupName("name")
-                        .withSubnetGroupStatus("status")
-                        .withVpcId("vpc")
-                        .withSubnets(new Subnet()
-                                .withSubnetIdentifier("subnet")))
-                .withStatusInfos(new DBInstanceStatusInfo()
-                        .withStatus("status")
-                        .withMessage("message")
-                        .withNormal(true)
-                        .withStatusType("type"))
-                .withEndpoint(new Endpoint()
-                        .withAddress("address")
-                        .withPort(100)
-                        .withHostedZoneId("zone"))
-                .withInstanceCreateTime(new Date(100000))
-                .withIops(100)
-                .withMultiAZ(true)
-                .withPubliclyAccessible(true)
-                .withTagList(new Tag().withKey("key").withValue("value"));
+        return DBInstance.builder()
+                .dbInstanceIdentifier(id)
+                .availabilityZone("primary_az")
+                .allocatedStorage(100)
+                .storageEncrypted(true)
+                .backupRetentionPeriod(100)
+                .autoMinorVersionUpgrade(true)
+                .dbInstanceClass("instance_class")
+                .dbInstancePort(100)
+                .dbInstanceStatus("status")
+                .storageType("storage_type")
+                .dbiResourceId("dbi_resource_id")
+                .dbName("name")
+                .domainMemberships(DomainMembership.builder()
+                        .domain("domain")
+                        .fqdn("fqdn")
+                        .iamRoleName("iam_role")
+                        .status("status")
+                        .build())
+                .engine("engine")
+                .engineVersion("engine_version")
+                .licenseModel("license_model")
+                .secondaryAvailabilityZone("secondary_az")
+                .preferredBackupWindow("backup_window")
+                .preferredMaintenanceWindow("maint_window")
+                .readReplicaSourceDBInstanceIdentifier("read_replica_source_id")
+                .dbParameterGroups(DBParameterGroupStatus.builder()
+                        .dbParameterGroupName("name")
+                        .parameterApplyStatus("status")
+                        .build())
+                .dbSecurityGroups(DBSecurityGroupMembership.builder()
+                        .dbSecurityGroupName("name")
+                        .status("status").build())
+                .dbSubnetGroup(DBSubnetGroup.builder()
+                        .dbSubnetGroupName("name")
+                        .subnetGroupStatus("status")
+                        .vpcId("vpc")
+                        .subnets(Subnet.builder().subnetIdentifier("subnet").build())
+                        .build())
+                .statusInfos(DBInstanceStatusInfo.builder()
+                        .status("status")
+                        .message("message")
+                        .normal(true)
+                        .statusType("type")
+                        .build())
+                .endpoint(Endpoint.builder()
+                        .address("address")
+                        .port(100)
+                        .hostedZoneId("zone")
+                        .build())
+                .instanceCreateTime(new Date(100000).toInstant())
+                .iops(100)
+                .multiAZ(true)
+                .publiclyAccessible(true)
+                .tagList(Tag.builder().key("key").value("value").build())
+                .build();
     }
 }

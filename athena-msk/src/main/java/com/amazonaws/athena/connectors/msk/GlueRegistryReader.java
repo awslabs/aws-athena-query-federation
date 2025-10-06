@@ -19,20 +19,41 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.GetSchemaRequest;
-import com.amazonaws.services.glue.model.GetSchemaResult;
-import com.amazonaws.services.glue.model.GetSchemaVersionRequest;
-import com.amazonaws.services.glue.model.GetSchemaVersionResult;
-import com.amazonaws.services.glue.model.SchemaId;
-import com.amazonaws.services.glue.model.SchemaVersionNumber;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.os72.protocjar.Protoc;
+import com.google.protobuf.DescriptorProtos.DescriptorProto;
+import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
+import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.glue.model.GetSchemaRequest;
+import software.amazon.awssdk.services.glue.model.GetSchemaResponse;
+import software.amazon.awssdk.services.glue.model.GetSchemaVersionRequest;
+import software.amazon.awssdk.services.glue.model.GetSchemaVersionResponse;
+import software.amazon.awssdk.services.glue.model.SchemaId;
+import software.amazon.awssdk.services.glue.model.SchemaVersionNumber;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public class GlueRegistryReader
 {
+    private static final Logger logger = LoggerFactory.getLogger(GlueRegistryReader.class);
     private static final ObjectMapper objectMapper;
+    private static final String PROTO_FILE = "schema.proto";
+    private static final String DESC_FILE = "schema.desc";
 
     static {
         objectMapper = new ObjectMapper();
@@ -41,22 +62,120 @@ public class GlueRegistryReader
     }
 
     /**
+     * Parse protobuf schema definition from Glue Schema Registry using protoc compiler
+     * @param glueRegistryName Registry name
+     * @param glueSchemaName Schema name
+     * @return List of MSKField objects containing field information
+     * @throws AthenaConnectorException if schema parsing fails
+     */
+    public List<MSKField> getProtobufFields(String glueRegistryName, String glueSchemaName)
+    {
+        // Get schema from Glue
+        GetSchemaVersionResponse schemaVersionResponse = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        String schemaDef = schemaVersionResponse.schemaDefinition();
+
+        // Create a unique temp directory using UUID
+        Path protoDir = Paths.get("/tmp", "proto_" + UUID.randomUUID());
+        Path protoFile = protoDir.resolve(PROTO_FILE);
+        Path descFile = protoDir.resolve(DESC_FILE);
+
+        try {
+            Files.createDirectories(protoDir);
+            Files.writeString(protoFile, schemaDef);
+            // Compile using protoc-jar
+            int exitCode = Protoc.runProtoc(new String[]{
+                    "--descriptor_set_out=" + descFile.toAbsolutePath(),
+                    "--proto_path=" + protoDir.toAbsolutePath(),
+                    protoFile.getFileName().toString()
+            });
+
+            if (exitCode != 0 || !Files.exists(descFile)) {
+                throw new AthenaConnectorException(
+                        "Failed to generate descriptor set with protoc",
+                        ErrorDetails.builder()
+                                .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                                .build()
+                );
+            }
+
+            try (FileInputStream fis = new FileInputStream(descFile.toFile())) {
+                FileDescriptorSet descriptorSet = FileDescriptorSet.parseFrom(fis);
+
+                if (descriptorSet.getFileList().isEmpty() ||
+                        descriptorSet.getFile(0).getMessageTypeList().isEmpty()) {
+                    throw new AthenaConnectorException(
+                            "No message types found in compiled schema",
+                            ErrorDetails.builder()
+                                    .errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString())
+                                    .build()
+                    );
+                }
+
+                List<MSKField> fields = new ArrayList<>();
+                DescriptorProto messageType = descriptorSet.getFile(0).getMessageType(0);
+                for (FieldDescriptorProto field : messageType.getFieldList()) {
+                    String fieldType = getFieldTypeString(field);
+                    fields.add(new MSKField(field.getName(), fieldType));
+                }
+
+                return fields;
+            }
+        }
+        catch (IOException | InterruptedException e) {
+            throw new AthenaConnectorException(
+                    "Error while handling schema files or protoc execution",
+                    ErrorDetails.builder()
+                            .errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString())
+                            .build()
+            );
+        }
+        finally {
+            // Clean up temporary files
+            try {
+                Files.deleteIfExists(protoFile);
+                Files.deleteIfExists(descFile);
+                Files.deleteIfExists(protoDir);
+            }
+            catch (IOException e) {
+                logger.warn("Failed to clean up temporary proto directory: {}", protoDir.toAbsolutePath(), e);
+            }
+        }
+    }
+
+    /**
+     * Convert protobuf field type to string representation
+     */
+    private String getFieldTypeString(FieldDescriptorProto field)
+    {
+        String baseType = field.getType().toString().toLowerCase().replace("type_", "");
+        return field.getLabel() == FieldDescriptorProto.Label.LABEL_REPEATED ? 
+               "repeated " + baseType : baseType;
+    }
+
+    /**
      * Fetch glue schema content for latest version
      * @param glueRegistryName
      * @param glueSchemaName
      * @return
      */
-    public GetSchemaVersionResult getSchemaVersionResult(String glueRegistryName, String glueSchemaName)
+    public GetSchemaVersionResponse getSchemaVersionResult(String glueRegistryName, String glueSchemaName)
     {
-        AWSGlue glue = AWSGlueClientBuilder.defaultClient();
-        SchemaId sid = new SchemaId().withRegistryName(glueRegistryName).withSchemaName(glueSchemaName);
-        GetSchemaResult schemaResult = glue.getSchema(new GetSchemaRequest().withSchemaId(sid));
-        SchemaVersionNumber svn = new SchemaVersionNumber().withVersionNumber(schemaResult.getLatestSchemaVersion());
-        return glue.getSchemaVersion(new GetSchemaVersionRequest()
-                .withSchemaId(sid)
-                .withSchemaVersionNumber(svn)
+        GlueClient glue = GlueClient.create();
+        SchemaId sid = SchemaId.builder()
+                .registryName(glueRegistryName)
+                .schemaName(glueSchemaName)
+                .build();
+        GetSchemaResponse schemaResult = glue.getSchema(GetSchemaRequest.builder().schemaId(sid).build());
+        SchemaVersionNumber svn = SchemaVersionNumber.builder()
+                .versionNumber(schemaResult.latestSchemaVersion())
+                .build();
+        return glue.getSchemaVersion(GetSchemaVersionRequest.builder()
+                .schemaId(sid)
+                .schemaVersionNumber(svn)
+                .build()
         );
     }
+
     /**
      * fetch schema file content from glue schema.
      *
@@ -69,17 +188,13 @@ public class GlueRegistryReader
      */
     public <T> T getGlueSchema(String glueRegistryName, String glueSchemaName, Class<T> clazz) throws Exception
     {
-        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
-        return objectMapper.readValue(result.getSchemaDefinition(), clazz);
+        GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return objectMapper.readValue(result.schemaDefinition(), clazz);
     }
+
     public String getGlueSchemaType(String glueRegistryName, String glueSchemaName)
     {
-        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
-        return result.getDataFormat();
-    }
-    public String getSchemaDef(String glueRegistryName, String glueSchemaName)
-    {
-        GetSchemaVersionResult result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
-        return result.getSchemaDefinition();
+        GetSchemaVersionResponse result = getSchemaVersionResult(glueRegistryName, glueSchemaName);
+        return result.dataFormatAsString();
     }
 }

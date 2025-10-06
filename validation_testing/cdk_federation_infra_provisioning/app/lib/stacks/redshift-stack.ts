@@ -7,11 +7,13 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
+import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { CfnInclude } from 'aws-cdk-lib/cloudformation-include';
 import { Construct } from 'constructs';
 const path = require('path');
 import tpcdsJson from '../../resources/tpcds_specs.json'
 import {FederationStackProps} from './stack-props'
+import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 
 export class RedshiftStack extends cdk.Stack {
 
@@ -49,14 +51,29 @@ export class RedshiftStack extends cdk.Stack {
     const securityGroup = new ec2.SecurityGroup(this, 'redshift_security_group', {
         vpc: vpc
     });
+    vpc.addInterfaceEndpoint('RedshiftDataEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.REDSHIFT_DATA,
+      subnets: {
+        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
+      },
+      securityGroups: [securityGroup]
+    });
 
     securityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(5439));
     securityGroup.addIngressRule(securityGroup, ec2.Port.allTcp());
 
+    const secret = new Secret(this, `redshift_db_cluster_secret`, {
+      secretName: `redshift_db_cluster_secret`,
+      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
+        username: 'athena',
+        password: password
+      }))
+    });
     // https://github.com/aws/aws-cdk/blob/main/packages/%40aws-cdk/aws-redshift/lib/cluster.ts
     // Original L2 Construct
     const cluster = new redshift.Cluster(this, 'redshift_cluster', {
         numberOfNodes: 2,
+        nodeType: redshift.NodeType.RA3_LARGE,
         port: 5439,
         vpc: vpc,
         vpcSubnets: {
@@ -113,15 +130,18 @@ export class RedshiftStack extends cdk.Stack {
           '--username': 'athena',
           '--password': password, 
           '--redshiftTmpDir': `s3://${s3Spill.bucketName}/tmpDir`,
-          '--tpcds_table_name': tableName
+          '--tpcds_table_name': tableName,
+          '--cluster_identifier': cluster.clusterName,
+          '--database_name': 'test',
+          '--secret_arn': secret.secretArn,
         }
       });
     }
 
     const glueJob = new glue.Job(this, 'redshift_glue_job_create_case_insensitive_data', {
-      executable: glue.JobExecutable.pythonShell({
-        glueVersion: glue.GlueVersion.V1_0,
-        pythonVersion: glue.PythonVersion.THREE_NINE,
+      executable: glue.JobExecutable.pythonEtl({
+        glueVersion: glue.GlueVersion.V4_0,
+        pythonVersion: glue.PythonVersion.THREE,
         script: glue.Code.fromAsset(path.join(__dirname, `../../../glue_scripts/redshift_create_case_insensitive_data.py`))
       }),
       role: glue_role,
@@ -131,7 +151,10 @@ export class RedshiftStack extends cdk.Stack {
       defaultArguments: {
         '--db_url': cluster.clusterEndpoint.hostname,
         '--username': 'athena',
-        '--password': password
+        '--password': password,
+        '--cluster_identifier': cluster.clusterName,
+        '--database_name': 'test',
+        '--secret_arn': secret.secretArn,
       }
     });
 

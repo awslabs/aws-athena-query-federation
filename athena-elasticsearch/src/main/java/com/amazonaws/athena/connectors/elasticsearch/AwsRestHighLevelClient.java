@@ -19,8 +19,7 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
-import com.amazonaws.auth.AWS4Signer;
-import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.base.Splitter;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -46,6 +45,11 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
+import software.amazon.awssdk.services.elasticsearch.ElasticsearchClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
@@ -79,8 +83,14 @@ public class AwsRestHighLevelClient
     public Set<String> getAliases()
             throws IOException
     {
-        GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
-        GetAliasesResponse getAliasesResponse = indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
+        GetAliasesResponse getAliasesResponse = null;
+        try {
+            GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
+            getAliasesResponse = indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
+        }
+        catch (Exception e) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
+        }
         return getAliasesResponse.getAliases().keySet();
     }
 
@@ -123,7 +133,7 @@ public class AwsRestHighLevelClient
             Map.Entry<String, MappingMetadata> dsmapping = mappingsResponse.mappings().entrySet()
                     .stream()
                     .findFirst()
-                    .orElseThrow(() -> new RuntimeException(String.format("Could not find mapping for data stream name: %s", index)));
+                    .orElseThrow(() -> new AthenaConnectorException(String.format("Could not find mapping for data stream name: %s", index), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build()));
             mappingMetadata = dsmapping.getValue();
         }
 
@@ -150,17 +160,17 @@ public class AwsRestHighLevelClient
         ClusterHealthResponse response = cluster().health(request, RequestOptions.DEFAULT);
 
         if (response.isTimedOut()) {
-            throw new RuntimeException("Request timed out for index (" + index + ").");
+            throw new AthenaConnectorException("Request timed out for index (" + index + ").", ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString()).build());
         }
         else if (response.getActiveShards() == 0) {
-            throw new RuntimeException("There are no active shards for index (" + index + ").");
+            throw new AthenaConnectorException("There are no active shards for index (" + index + ").", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         else if (response.getStatus() == ClusterHealthStatus.RED) {
-            throw new RuntimeException("Request aborted for index (" + index +
-                    ") due to cluster's status (RED) - One or more primary shards are unassigned.");
+            throw new AthenaConnectorException("Request aborted for index (" + index +
+                    ") due to cluster's status (RED) - One or more primary shards are unassigned.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
         }
         else if (!response.getIndices().containsKey(index)) {
-            throw new RuntimeException("Request has an invalid index (" + index + ").");
+            throw new AthenaConnectorException("Request has an invalid index (" + index + ").", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         return response.getIndices().get(index).getShards().keySet();
@@ -196,7 +206,7 @@ public class AwsRestHighLevelClient
     {
         private final String endpoint;
         private final RestClientBuilder clientBuilder;
-        private final AWS4Signer signer;
+        private final AwsV4HttpSigner signer;
         private final Splitter domainSplitter;
 
         /**
@@ -207,7 +217,7 @@ public class AwsRestHighLevelClient
         {
             this.endpoint = endpoint;
             this.clientBuilder = RestClient.builder(HttpHost.create(this.endpoint));
-            this.signer = new AWS4Signer();
+            this.signer = AwsV4HttpSigner.create();
             this.domainSplitter = Splitter.on(".");
         }
 
@@ -216,7 +226,7 @@ public class AwsRestHighLevelClient
          * @param credentialsProvider is the AWS credentials provider.
          * @return self.
          */
-        public Builder withCredentials(AWSCredentialsProvider credentialsProvider)
+        public Builder withCredentials(AwsCredentialsProvider credentialsProvider)
         {
             /**
              * endpoint:
@@ -231,16 +241,13 @@ public class AwsRestHighLevelClient
              */
             List<String> domainSplits = domainSplitter.splitToList(endpoint);
 
+            HttpRequestInterceptor interceptor;
             if (domainSplits.size() > 1) {
-                signer.setRegionName(domainSplits.get(1));
-                signer.setServiceName("es");
+                interceptor = new AWSRequestSigningApacheInterceptor(ElasticsearchClient.SERVICE_NAME, signer, credentialsProvider, domainSplits.get(1));
+
+                clientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                        .addInterceptorLast(interceptor));
             }
-
-            HttpRequestInterceptor interceptor =
-                    new AWSRequestSigningApacheInterceptor(signer.getServiceName(), signer, credentialsProvider);
-
-            clientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
-                    .addInterceptorLast(interceptor));
 
             return this;
         }

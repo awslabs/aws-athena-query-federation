@@ -24,18 +24,21 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -61,9 +64,9 @@ public class MultiplexingJdbcRecordHandler
 
     @VisibleForTesting
     protected MultiplexingJdbcRecordHandler(
-        AmazonS3 amazonS3,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        S3Client amazonS3,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
         DatabaseConnectionConfig databaseConnectionConfig,
         Map<String, JdbcRecordHandler> recordHandlerMap,
@@ -73,14 +76,16 @@ public class MultiplexingJdbcRecordHandler
         this.recordHandlerMap = Validate.notEmpty(recordHandlerMap, "recordHandlerMap must not be empty");
 
         if (this.recordHandlerMap.size() > MAX_CATALOGS_TO_MULTIPLEX) {
-            throw new RuntimeException("Max 100 catalogs supported in multiplexer.");
+            throw new AthenaConnectorException("Max 100 catalogs supported in multiplexer.",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 
     private void validateMultiplexer(final String catalogName)
     {
         if (this.recordHandlerMap.get(catalogName) == null) {
-            throw new RuntimeException(String.format(MultiplexingJdbcMetadataHandler.CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName));
+            throw new AthenaConnectorException(String.format(MultiplexingJdbcMetadataHandler.CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName),
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
     }
 

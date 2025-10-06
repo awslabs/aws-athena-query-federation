@@ -27,12 +27,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.kafka.dto.KafkaField;
 import com.amazonaws.athena.connectors.kafka.dto.SplitParameters;
 import com.amazonaws.athena.connectors.kafka.dto.TopicResultSet;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
@@ -45,6 +39,9 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -62,14 +59,14 @@ public class KafkaRecordHandler
     KafkaRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(
-            AmazonS3ClientBuilder.defaultClient(),
-            AWSSecretsManagerClientBuilder.defaultClient(),
-            AmazonAthenaClientBuilder.defaultClient(),
+            S3Client.create(),
+            SecretsManagerClient.create(),
+            AthenaClient.create(),
             configOptions);
     }
 
     @VisibleForTesting
-    public KafkaRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
+    public KafkaRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, KafkaConstants.KAFKA_SOURCE, configOptions);
     }
@@ -265,6 +262,10 @@ public class KafkaRecordHandler
             ConsumerRecord<String, TopicResultSet> record)
     {
         final boolean[] isExecuted = {false};
+        if (record == null || record.value() == null) {
+            LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
+            return;
+        }
         spiller.writeRows((Block block, int rowNum) -> {
             for (KafkaField field : record.value().getFields()) {
                 boolean isMatched = block.offerValue(field.getName(), rowNum, field.getValue());
@@ -348,6 +349,10 @@ public class KafkaRecordHandler
             SplitParameters splitParameters,
             ConsumerRecord<String, GenericRecord> record)
     {
+        if (record == null || record.value() == null) {
+            LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
+            return; // Skip processing this record
+        }
         spiller.writeRows((Block block, int rowNum) -> {
             for (Schema.Field next : record.value().getSchema().getFields()) {
                 boolean isMatched = block.offerValue(next.name(), rowNum, record.value().get(next.name()));
@@ -430,6 +435,10 @@ public class KafkaRecordHandler
             SplitParameters splitParameters,
             ConsumerRecord<String, DynamicMessage> record)
     {
+        if (record == null || record.value() == null) {
+            LOGGER.warn("[NullRecord] {} Received a null record or record value, offset: {}", splitParameters, record != null ? record.offset() : "unknown");
+            return; // Skip processing this record
+        }
         spiller.writeRows((Block block, int rowNum) -> {
             for (Descriptors.FieldDescriptor next : record.value().getAllFields().keySet()) {
                 boolean isMatched = block.offerValue(next.getName(), rowNum, record.value().getField(next));

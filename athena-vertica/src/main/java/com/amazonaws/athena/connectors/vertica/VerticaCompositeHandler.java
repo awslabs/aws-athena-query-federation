@@ -21,6 +21,14 @@ package com.amazonaws.athena.connectors.vertica;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
+import java.io.IOException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateEncodingException;
+
+import static com.amazonaws.athena.connectors.vertica.VerticaSchemaUtils.installCaCertificate;
+import static com.amazonaws.athena.connectors.vertica.VerticaSchemaUtils.setupNativeEnvironmentVariables;
+
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data.
@@ -28,8 +36,10 @@ import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 public class VerticaCompositeHandler
         extends CompositeHandler
 {
-    public VerticaCompositeHandler()
+    public VerticaCompositeHandler() throws CertificateEncodingException, IOException, NoSuchAlgorithmException, KeyStoreException
     {
-        super(new VerticaMetadataHandler(System.getenv()), new VerticaRecordHandler(System.getenv()));
+        super(new VerticaMetadataHandler(new VerticaEnvironmentProperties().createEnvironment()), new VerticaRecordHandler(new VerticaEnvironmentProperties().createEnvironment()));
+        installCaCertificate();
+        setupNativeEnvironmentVariables();
     }
 }

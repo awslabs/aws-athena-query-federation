@@ -29,11 +29,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -41,8 +38,12 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -56,21 +57,21 @@ public class DataLakeRecordHandlerTest
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    private AmazonS3 amazonS3;
-    private AWSSecretsManager secretsManager;
-    private AmazonAthena athena;
+    private S3Client amazonS3;
+    private SecretsManagerClient secretsManager;
+    private AthenaClient athena;
 
     @Before
     public void setup()
             throws Exception
     {
         System.setProperty("aws.region", "us-east-1");
-        this.amazonS3 = Mockito.mock(AmazonS3.class);
-        this.secretsManager = Mockito.mock(AWSSecretsManager.class);
-        this.athena = Mockito.mock(AmazonAthena.class);
+        this.amazonS3 = Mockito.mock(S3Client.class);
+        this.secretsManager = Mockito.mock(SecretsManagerClient.class);
+        this.athena = Mockito.mock(AthenaClient.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER, new DataLakeGen2FederationExpressionParser(QUOTE_CHARACTER));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", DataLakeGen2Constants.NAME,
                 "datalakegentwo://jdbc:sqlserver://hostname;databaseName=fakedatabase");
@@ -119,4 +120,93 @@ public class DataLakeRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, "varcharTest");
     }
 
+    @Test
+    public void testReadWithConstraintWithAzureServerlessEnvironment()
+            throws Exception
+    {
+        // Mock Azure serverless URL
+        DatabaseMetaData mockDatabaseMetaData = Mockito.mock(DatabaseMetaData.class);
+        Mockito.when(connection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        Mockito.when(mockDatabaseMetaData.getURL()).thenReturn("datalakegentwo://jdbc:sqlserver://myworkspace-ondemand.sql.azuresynapse.net:1433;database=mydatabase;");
+
+        // Mock the prepared statement and result set
+        PreparedStatement mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        java.sql.ResultSet mockResultSet = Mockito.mock(java.sql.ResultSet.class);
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(mockPreparedStatement);
+        Mockito.when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        Mockito.when(mockResultSet.next()).thenReturn(false); // No rows
+
+        // Mock the query status checker
+        com.amazonaws.athena.connector.lambda.QueryStatusChecker mockQueryStatusChecker = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.QueryStatusChecker.class);
+        Mockito.when(mockQueryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        // Mock the block spiller
+        com.amazonaws.athena.connector.lambda.data.BlockSpiller mockBlockSpiller = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.data.BlockSpiller.class);
+
+        // Create the read records request
+        com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest mockReadRecordsRequest = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest.class);
+        Mockito.when(mockReadRecordsRequest.getQueryId()).thenReturn("testQueryId");
+        Mockito.when(mockReadRecordsRequest.getCatalogName()).thenReturn("testCatalog");
+        Mockito.when(mockReadRecordsRequest.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        Mockito.when(mockReadRecordsRequest.getSchema()).thenReturn(SchemaBuilder.newBuilder().build());
+        Mockito.when(mockReadRecordsRequest.getConstraints()).thenReturn(Mockito.mock(Constraints.class));
+        Mockito.when(mockReadRecordsRequest.getSplit()).thenReturn(Mockito.mock(Split.class));
+
+        // Execute the method
+        dataLakeGen2RecordHandler.readWithConstraint(mockBlockSpiller, mockReadRecordsRequest, mockQueryStatusChecker);
+
+        // Verify that setAutoCommit(false) was NOT called for Azure serverless environment
+        Mockito.verify(connection, Mockito.never()).setAutoCommit(false);
+        
+        // Verify that commit() was NOT called for Azure serverless environment
+        Mockito.verify(connection, Mockito.never()).commit();
+    }
+
+    @Test
+    public void testReadWithConstraintWithStandardEnvironment()
+            throws Exception
+    {
+        // Mock standard SQL Server URL (non-serverless)
+        DatabaseMetaData mockDatabaseMetaData = Mockito.mock(DatabaseMetaData.class);
+        Mockito.when(connection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        Mockito.when(mockDatabaseMetaData.getURL()).thenReturn("datalakegentwo://jdbc:sqlserver://myserver.database.windows.net:1433;database=mydatabase;");
+
+        // Mock the prepared statement and result set
+        PreparedStatement mockPreparedStatement = Mockito.mock(PreparedStatement.class);
+        java.sql.ResultSet mockResultSet = Mockito.mock(java.sql.ResultSet.class);
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(mockPreparedStatement);
+        Mockito.when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        Mockito.when(mockResultSet.next()).thenReturn(false); // No rows
+
+        // Mock the query status checker
+        com.amazonaws.athena.connector.lambda.QueryStatusChecker mockQueryStatusChecker = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.QueryStatusChecker.class);
+        Mockito.when(mockQueryStatusChecker.isQueryRunning()).thenReturn(true);
+
+        // Mock the block spiller
+        com.amazonaws.athena.connector.lambda.data.BlockSpiller mockBlockSpiller = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.data.BlockSpiller.class);
+
+        // Create the read records request
+        com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest mockReadRecordsRequest = 
+            Mockito.mock(com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest.class);
+        Mockito.when(mockReadRecordsRequest.getQueryId()).thenReturn("testQueryId");
+        Mockito.when(mockReadRecordsRequest.getCatalogName()).thenReturn("testCatalog");
+        Mockito.when(mockReadRecordsRequest.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        Mockito.when(mockReadRecordsRequest.getSchema()).thenReturn(SchemaBuilder.newBuilder().build());
+        Mockito.when(mockReadRecordsRequest.getConstraints()).thenReturn(Mockito.mock(Constraints.class));
+        Mockito.when(mockReadRecordsRequest.getSplit()).thenReturn(Mockito.mock(Split.class));
+
+        // Execute the method
+        dataLakeGen2RecordHandler.readWithConstraint(mockBlockSpiller, mockReadRecordsRequest, mockQueryStatusChecker);
+
+        // Verify that setAutoCommit(false) WAS called for standard environment
+        Mockito.verify(connection, Mockito.times(1)).setAutoCommit(false);
+        
+        // Verify that commit() WAS called for standard environment
+        Mockito.verify(connection, Mockito.times(1)).commit();
+    }
 }

@@ -19,7 +19,6 @@ def assert_required_env_vars_set():
         'REPOSITORY_ROOT',
         'DATABASE_PASSWORD',
         'S3_DATA_PATH',
-        'S3_JARS_BUCKET',
         'SPILL_BUCKET'
     ]
     if not all([os.environ.get(env_var) for env_var in required_env_vars]):

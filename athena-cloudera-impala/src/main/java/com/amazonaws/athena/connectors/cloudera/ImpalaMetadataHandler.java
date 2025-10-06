@@ -35,8 +35,6 @@ import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesR
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
@@ -49,20 +47,18 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -73,8 +69,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class ImpalaMetadataHandler extends JdbcMetadataHandler
 {
@@ -92,8 +88,8 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
     @VisibleForTesting
     protected ImpalaMetadataHandler(
         DatabaseConnectionConfig databaseConnectionConfiguration,
-        AWSSecretsManager secretManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretManager,
+        AthenaClient athena,
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
@@ -281,26 +277,6 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
     {
         return String.valueOf(partition);
     }
-    /**
-     * Used to get definition (field names, types, descriptions, etc...) of an Impala Table.
-     *
-     * @param blockAllocator Tool for creating and managing Apache Arrow Blocks.
-     * @param getTableRequest Provides details on who made the request and which Athena catalog, database, and Impala table they are querying.
-     * @return A GetTableResponse which primarily contains:
-     * 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
-     * 2. A Set of Strings of partition column names (or empty if the table isn't partitioned).
-     */
-    @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
-            throws Exception
-    {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(),
-                    getSchema(connection, getTableRequest.getTableName(), partitionSchema),
-                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-    }
 
     /**
      * Used to convert Impala data types to Apache arrow data types
@@ -310,7 +286,8 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
      * @return Schema  Holds Table schema along with partition schema. See {@link Schema}
      * @throws Exception An Exception should be thrown for database connection failures , query syntax errors and so on.
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws Exception
+    @Override
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
@@ -319,7 +296,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                 GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
                 Map<String, String> hashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
+                    Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
                             resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"), configOptions);
                     String columnName = resultSet.getString(ImpalaConstants.COLUMN_NAME);
                     String dataType = hashMap.get(columnName);
@@ -329,70 +306,55 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                      * Converting date data type into DATEDAY MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("DATE")) {
-                        columnType = Types.MinorType.DATEDAY.getType();
+                        columnType = Optional.of(Types.MinorType.DATEDAY.getType());
                     }
                     /**
                      * Converting binary data type into VARBINARY MinorType
                      */
 
                     if (dataType != null && dataType.toUpperCase().contains("BINARY")) {
-                        columnType = Types.MinorType.VARBINARY.getType();
+                        columnType = Optional.of(Types.MinorType.VARBINARY.getType());
                     }
                     /**
                      * Converting double data type into FLOAT8 MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("DOUBLE")) {
-                        columnType = Types.MinorType.FLOAT8.getType();
+                        columnType = Optional.of(Types.MinorType.FLOAT8.getType());
                     }
                     /**
                      * Converting boolean data type into BIT MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("BOOLEAN")) {
-                        columnType = Types.MinorType.BIT.getType();
+                        columnType = Optional.of(Types.MinorType.BIT.getType());
                     }
                     /**
                      * Converting float data type into FLOAT4 MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("FLOAT")) {
-                        columnType = Types.MinorType.FLOAT4.getType();
+                        columnType = Optional.of(Types.MinorType.FLOAT4.getType());
                     }
                     /**
                      * Converting TIMESTAMP data type into DATEMILLI MinorType
                      */
                     if (dataType != null && dataType.toUpperCase().contains("TIMESTAMP")) {
-                        columnType = Types.MinorType.DATEMILLI.getType();
+                        columnType = Optional.of(Types.MinorType.DATEMILLI.getType());
                     }
                     /**
                      * Converting other data type into VARCHAR MinorType
                      */
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
+                    if (columnType.isEmpty()) {
+                        columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
+                    if (columnType.isPresent() && !SupportedTypes.isSupported(columnType.get())) {
+                        columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                     }
 
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
                 }
             }
             partitionSchema.getFields().forEach(schemaBuilder::addField);
             return schemaBuilder.build();
         }
-    }
-    /**
-     *  used to get all Arrow metadata information about a table.
-     * @param catalogName  catalog name
-     * @param tableHandle Holds table name and schema name. see {@link TableName}
-     * @param metadata  Database metadata
-     * @return A result set contains table metadata (data type , size and so on).
-     * @throws SQLException A SQLException should be thrown for database connection failures , query syntax errors and so on.
-     */
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
-            throws SQLException
-    {
-        String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(catalogName, escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape), null);
     }
 
     /**

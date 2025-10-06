@@ -23,12 +23,6 @@ package com.amazonaws.athena.connectors.gcs.storage;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.GenericGcsTest;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClient;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
@@ -53,6 +47,10 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.Table;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -141,13 +139,15 @@ public class StorageMetadataTest extends GenericGcsTest
     @Test
     public void testBuildTableSchema() throws Exception
     {
-        Table table = new Table();
-        table.setName("birthday");
-        table.setDatabaseName("default");
-        table.setParameters(ImmutableMap.of("classification", "parquet"));
-        table.setStorageDescriptor(new StorageDescriptor()
-                .withLocation("gs://mydatalake1test/birthday/"));
-        table.setCatalogId("catalog");
+        Table table = Table.builder()
+                .name("birthday")
+                .databaseName("default")
+                .parameters(ImmutableMap.of("classification", "parquet"))
+                .storageDescriptor(StorageDescriptor.builder()
+                        .location("gs://mydatalake1test/birthday/")
+                        .build())
+                .catalogId("catalog")
+                .build();
         storageMetadata = mock(StorageMetadata.class);
         storageMock();
         when(storageMetadata.buildTableSchema(any(), any())).thenCallRealMethod();
@@ -166,12 +166,12 @@ public class StorageMetadataTest extends GenericGcsTest
     {
         //single partition
         getStorageList(ImmutableList.of("year=2000/birthday.parquet", "year=2000/", "year=2000/birthday1.parquet"));
-        AWSGlue glue = Mockito.mock(AWSGlueClient.class);
+        GlueClient glue = Mockito.mock(GlueClient.class);
         List<Field> fieldList = ImmutableList.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
         List<Column> partKeys = ImmutableList.of(createColumn("year", "varchar"));
         Schema schema = getSchema(glue, fieldList, partKeys, "year=${year}/");
         List<Map<String, String>> partValue = storageMetadata.getPartitionFolders(schema, new TableName("testSchema", "testTable"),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), glue);
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), glue);
         assertEquals(1, partValue.size());
         assertEquals(partValue, ImmutableList.of(ImmutableMap.of("year", "2000")));
 
@@ -192,7 +192,7 @@ public class StorageMetadataTest extends GenericGcsTest
         List<Column> partKeys1 = ImmutableList.of(createColumn("year", "varchar"), createColumn("month", "varchar"));
         Schema schema1 = getSchema(glue, fieldList1, partKeys1, "year=${year}/birth_month${month}/");
         List<Map<String, String>> partValue1 = storageMetadata.getPartitionFolders(schema1, new TableName("testSchema", "testTable"),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), glue);
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), glue);
         assertEquals(4, partValue1.size());
         assertEquals(partValue1, ImmutableList.of(ImmutableMap.of("year", "2000", "month", "1"), ImmutableMap.of("year", "2000", "month", "2"),
                 ImmutableMap.of("year", "2001", "month", "1"), ImmutableMap.of("year", "2001", "month", "2")));
@@ -208,7 +208,7 @@ public class StorageMetadataTest extends GenericGcsTest
         List<Column> partKeys2 = ImmutableList.of(createColumn("year", "varchar"), createColumn("month", "varchar"));
         Schema schema2 = getSchema(glue, fieldList2, partKeys2, "year=${year}/birth_month${month}/");
         List<Map<String, String>> partValue2 = storageMetadata.getPartitionFolders(schema2, new TableName("testSchema", "testTable"),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), glue);
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), glue);
         assertEquals(4, partValue2.size());
         assertEquals(partValue2, ImmutableList.of(ImmutableMap.of("year", "2000", "month", "1"), ImmutableMap.of("year", "2000", "month", "2"),
                 ImmutableMap.of("year", "2001", "month", "1"), ImmutableMap.of("year", "2001", "month", "2")));
@@ -219,7 +219,7 @@ public class StorageMetadataTest extends GenericGcsTest
         List<Column> partKeys3 = ImmutableList.of(createColumn("year", "varchar"));
         Schema schema3 = getSchema(glue, fieldList3, partKeys3, "year=${year}/");
         List<Map<String, String>> partValue3 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), glue);
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), glue);
         assertEquals(0, partValue3.size());
         assertEquals(partValue3, ImmutableList.of());
 
@@ -229,25 +229,29 @@ public class StorageMetadataTest extends GenericGcsTest
         List<Column> partKeys4 = ImmutableList.of(createColumn("year", "varchar"));
         Schema schema4 = getSchema(glue, fieldList4, partKeys4, "year=${year}/");
         List<Map<String, String>> partValue4 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()), glue);
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), glue);
         assertEquals(0, partValue4.size());
         assertEquals(partValue4, ImmutableList.of());
     }
 
     @NotNull
-    private Schema getSchema(AWSGlue glue, List<Field> fieldList, List<Column> partKeys, String partitionPattern)
+    private Schema getSchema(GlueClient glue, List<Field> fieldList, List<Column> partKeys, String partitionPattern)
     {
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "parquet");
         Schema schema = new Schema(fieldList, metadataSchema);
-        GetTableResult getTablesResult = new GetTableResult();
-        getTablesResult.setTable(new Table().withName(TABLE_1)
-                .withParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET,
-                        PARTITION_PATTERN_KEY, partitionPattern))
-                .withPartitionKeys(partKeys)
-                .withStorageDescriptor(new StorageDescriptor()
-                        .withLocation(LOCATION)));
-        Mockito.when(glue.getTable(any())).thenReturn(getTablesResult);
+        software.amazon.awssdk.services.glue.model.GetTableResponse getTableResponse = software.amazon.awssdk.services.glue.model.GetTableResponse.builder()
+                .table(Table.builder()
+                        .name(TABLE_1)
+                        .parameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET,
+                                PARTITION_PATTERN_KEY, partitionPattern))
+                        .partitionKeys(partKeys)
+                        .storageDescriptor(StorageDescriptor.builder()
+                                .location(LOCATION)
+                                .build())
+                        .build())
+                .build();
+        Mockito.when(glue.getTable(any(software.amazon.awssdk.services.glue.model.GetTableRequest.class))).thenReturn(getTableResponse);
         return schema;
     }
 

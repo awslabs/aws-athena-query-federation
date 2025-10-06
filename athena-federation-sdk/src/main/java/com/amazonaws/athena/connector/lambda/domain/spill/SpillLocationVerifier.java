@@ -17,15 +17,17 @@
  * limitations under the License.
  * #L%
  */
-
 package com.amazonaws.athena.connector.lambda.domain.spill;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.HeadBucketRequest;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
  * This class is used to track the bucket and its state, and check its validity
@@ -37,14 +39,14 @@ public class SpillLocationVerifier
     private enum BucketState
     {UNCHECKED, VALID, INVALID}
 
-    private final AmazonS3 amazons3;
+    private final S3Client amazons3;
     private String bucket;
     private BucketState state;
 
     /**
      * @param amazons3 The S3 object for the account.
      */
-    public SpillLocationVerifier(AmazonS3 amazons3)
+    public SpillLocationVerifier(S3Client amazons3)
     {
         this.amazons3 = amazons3;
         this.bucket = null;
@@ -83,17 +85,17 @@ public class SpillLocationVerifier
     void updateBucketState()
     {
         try {
-            amazons3.headBucket(new HeadBucketRequest(bucket));
+            amazons3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
             state = BucketState.VALID;
         }
-        catch (AmazonServiceException ex) {
-            int statusCode = ex.getStatusCode();
+        catch (S3Exception ex) {
+            int statusCode = ex.statusCode();
             // returns 404 if bucket was not found, 403 if bucket access is forbidden
             if (statusCode == 404 || statusCode == 403) {
                 state = BucketState.INVALID;
             }
             else {
-                throw new RuntimeException("Error while checking bucket ownership for " + bucket, ex);
+                throw new AthenaConnectorException(ex, "Error while checking bucket ownership for " + bucket, ErrorDetails.builder().errorCode(FederationSourceErrorCode.ACCESS_DENIED_EXCEPTION.toString()).build());
             }
         }
         finally {
@@ -110,9 +112,9 @@ public class SpillLocationVerifier
     {
         switch (state) {
             case UNCHECKED:
-                throw new RuntimeException("Bucket state should have been checked already.");
+                throw new AthenaConnectorException("Bucket state should have been checked already.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             case INVALID:
-                throw new RuntimeException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket));
+                throw new AthenaConnectorException(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucket), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             default:
                 return;
         }

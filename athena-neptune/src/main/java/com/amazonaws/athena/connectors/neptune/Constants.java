@@ -32,6 +32,7 @@ public class Constants
    public static final String CFG_PORT = "neptune_port";
    public static final String CFG_IAM = "iam_enabled";
    public static final String CFG_REGION = "AWS_REGION";
+   public static final String CFG_ClUSTER_RES_ID = "neptune_cluster_res_id";
     
    public static final String SCHEMA_QUERY = "query";
    public static final String SCHEMA_CASE_INSEN = "enable_caseinsensitivematch";
@@ -52,4 +53,7 @@ public class Constants
    public static final int PREFIX_LEN = PREFIX_KEY.length();
 
    public static final String GREMLIN_QUERY_SUPPORT_TYPE = "valueMap";
+   public static final String RDF_COMPONENT_TYPE = "rdf";
+   public static final String GREMLIN_QUERY_LIMIT = "limit(10)";
+   public static final String SPARQL_QUERY_LIMIT = "limit 10";
 }

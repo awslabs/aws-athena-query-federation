@@ -43,12 +43,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -60,6 +54,12 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,7 +69,6 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
@@ -86,19 +85,19 @@ public class MetricsMetadataHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(MetricsMetadataHandlerTest.class);
 
     private final String defaultSchema = "default";
-    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
 
     private MetricsMetadataHandler handler;
     private BlockAllocator allocator;
 
     @Mock
-    private AmazonCloudWatch mockMetrics;
+    private CloudWatchClient mockMetrics;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
@@ -199,7 +198,7 @@ public class MetricsMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName(defaultSchema, "metrics"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -232,7 +231,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metrics"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 continuationToken);
         int numContinuations = 0;
         do {
@@ -273,17 +272,20 @@ public class MetricsMetadataHandlerTest
             ListMetricsRequest request = invocation.getArgument(0, ListMetricsRequest.class);
 
             //assert that the namespace filter was indeed pushed down
-            assertEquals(namespaceFilter, request.getNamespace());
-            String nextToken = (request.getNextToken() == null) ? "valid" : null;
+            assertEquals(namespaceFilter, request.namespace());
+            String nextToken = (request.nextToken() == null) ? "valid" : null;
             List<Metric> metrics = new ArrayList<>();
 
             for (int i = 0; i < numMetrics; i++) {
                 //first page does not match constraints, but second page should
-                String mockNamespace = (request.getNextToken() == null) ? "NotMyNameSpace" : namespaceFilter;
-                metrics.add(new Metric().withNamespace(mockNamespace).withMetricName("metric-" + i));
+                String mockNamespace = (request.nextToken() == null) ? "NotMyNameSpace" : namespaceFilter;
+                metrics.add(Metric.builder()
+                        .namespace(mockNamespace)
+                        .metricName("metric-" + i)
+                        .build());
             }
 
-            return new ListMetricsResult().withNextToken(nextToken).withMetrics(metrics);
+            return ListMetricsResponse.builder().nextToken(nextToken).metrics(metrics).build();
         });
 
         Schema schema = SchemaBuilder.newBuilder().addIntField("partitionId").build();
@@ -308,7 +310,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 continuationToken);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
@@ -336,7 +338,7 @@ public class MetricsMetadataHandlerTest
         logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
         assertEquals(3, response.getSplits().size());
         for (Split nextSplit : response.getSplits()) {
-            assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
+            assertNotNull(nextSplit.getProperty(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME));
         }
         assertNull(continuationToken);
 
@@ -356,9 +358,12 @@ public class MetricsMetadataHandlerTest
         when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             List<Metric> metrics = new ArrayList<>();
             for (int i = 0; i < numMetrics; i++) {
-                metrics.add(new Metric().withNamespace(namespace).withMetricName("metric-" + i));
+                metrics.add(Metric.builder()
+                        .namespace(namespace)
+                        .metricName("metric-" + i)
+                        .build());
             }
-            return new ListMetricsResult().withNextToken(null).withMetrics(metrics);
+            return ListMetricsResponse.builder().nextToken(null).metrics(metrics).build();
         });
 
         Schema schema = SchemaBuilder.newBuilder().addIntField("partitionId").build();
@@ -379,7 +384,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);

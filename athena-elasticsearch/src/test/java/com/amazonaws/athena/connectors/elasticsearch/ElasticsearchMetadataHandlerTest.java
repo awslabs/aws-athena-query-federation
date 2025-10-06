@@ -28,9 +28,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -54,6 +51,11 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -63,8 +65,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
@@ -83,6 +88,7 @@ import static org.mockito.Mockito.when;
 public class ElasticsearchMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchMetadataHandlerTest.class);
+    private static final String MOCK_SECRET_NAME = "asdf_secret";
 
     private ElasticsearchMetadataHandler handler;
     private boolean enableTests = System.getenv("publishing") != null &&
@@ -90,13 +96,13 @@ public class ElasticsearchMetadataHandlerTest
     private BlockAllocatorImpl allocator;
 
     @Mock
-    private AWSGlue awsGlue;
+    private GlueClient awsGlue;
 
     @Mock
-    private AWSSecretsManager awsSecretsManager;
+    private SecretsManagerClient awsSecretsManager;
 
     @Mock
-    private AmazonAthena amazonAthena;
+    private AthenaClient amazonAthena;
 
     @Mock
     private AwsRestHighLevelClient mockClient;
@@ -116,6 +122,9 @@ public class ElasticsearchMetadataHandlerTest
         when(clientFactory.getOrCreateClient(nullable(String.class))).thenReturn(mockClient);
 
         logger.info("setUpBefore - exit");
+
+        when(awsSecretsManager.getSecretValue(GetSecretValueRequest.builder().secretId(MOCK_SECRET_NAME).build()))
+                .thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"asdf_mock_user_name\", \"password\": \"asdf_mock_user_federation_password_1@!$\"}").build());
     }
 
     @After
@@ -141,7 +150,7 @@ public class ElasticsearchMetadataHandlerTest
                 "domain2", "endpoint2","domain3", "endpoint3"));
 
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of());
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of(), false);
 
         ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "elasticsearch");
         ListSchemasResponse realDomains = handler.doListSchemaNames(allocator, req);
@@ -205,7 +214,7 @@ public class ElasticsearchMetadataHandlerTest
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of());
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of(), false);
 
         IndicesClient indices = mock(IndicesClient.class);
         GetDataStreamResponse mockIndexResponse = mock(GetDataStreamResponse.class);
@@ -283,8 +292,8 @@ public class ElasticsearchMetadataHandlerTest
                 .addField(new Field("myscaled",
                         new FieldType(true, Types.MinorType.BIGINT.getType(), null,
                                 ImmutableMap.of("scaling_factor", "10.0")), null))
-                .addField("myfloat", Types.MinorType.FLOAT4.getType())
-                .addField("myhalf", Types.MinorType.FLOAT4.getType())
+                .addField("myfloat", Types.MinorType.FLOAT8.getType())
+                .addField("myhalf", Types.MinorType.FLOAT8.getType())
                 .addField("mydatemilli", Types.MinorType.DATEMILLI.getType())
                 .addField("mydatenano", Types.MinorType.DATEMILLI.getType())
                 .addField("myboolean", Types.MinorType.BIT.getType())
@@ -328,10 +337,10 @@ public class ElasticsearchMetadataHandlerTest
                 "          \"type\" : \"double\"\n" +                   // type: double (FLOAT8)
                 "        },\n" +
                 "        \"myfloat\" : {\n" +                           // myfloat:
-                "          \"type\" : \"float\"\n" +                    // type: float (FLOAT4)
+                "          \"type\" : \"float\"\n" +                    // type: float (FLOAT8)
                 "        },\n" +
                 "        \"myhalf\" : {\n" +                            // myhalf:
-                "          \"type\" : \"half_float\"\n" +               // type: half_float (FLOAT4)
+                "          \"type\" : \"half_float\"\n" +               // type: half_float (FLOAT8)
                 "        },\n" +
                 "        \"myinteger\" : {\n" +                         // myinteger:
                 "          \"type\" : \"integer\"\n" +                  // type: integer (INT)
@@ -385,7 +394,7 @@ public class ElasticsearchMetadataHandlerTest
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of());
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of(), false);
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
                 new TableName("movies", "mishmash"), Collections.emptyMap());
         GetTableResponse res = handler.doGetTable(allocator, req);
@@ -423,7 +432,7 @@ public class ElasticsearchMetadataHandlerTest
                 new TableName("movies", index),
                 partitions,
                 partitionCols,
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap()),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
@@ -446,7 +455,7 @@ public class ElasticsearchMetadataHandlerTest
 
         // Instantiate handler
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of());
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of(), false);
 
         // Call doGetSplits()
         MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
@@ -484,7 +493,8 @@ public class ElasticsearchMetadataHandlerTest
         return new FederatedIdentity("access_key_id",
             "principle",
             Collections.emptyMap(),
-            Collections.emptyList());
+            Collections.emptyList(),
+            Collections.emptyMap());
     }
 
     @Test
@@ -493,7 +503,7 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("convertFieldTest: enter");
 
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of());
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, ImmutableMap.of(), false);
 
         Field field = handler.convertField("myscaled", "SCALED_FLOAT(10.51)");
 
@@ -513,5 +523,34 @@ public class ElasticsearchMetadataHandlerTest
         assertEquals("10.0", field.getChildren().get(0).getMetadata().get("scaling_factor"));
 
         logger.info("convertFieldTest: exit");
+    }
+
+    @Test
+    public void glueConnectionDomainEndpointNoDomainName()
+    {
+        String endpoint = "https://search-opensearch-phase2test-domain-bxdc4bfecnsm3stqp4x5rh3acq.us-east-1.es.amazonaws.com";
+        Map<String, String> configMap = Map.of(DEFAULT_GLUE_CONNECTION, "asdf",
+                SECRET_NAME, "asdf_secret",
+                "domain_endpoint", endpoint);
+
+        ElasticsearchMetadataHandler elasticsearchMetadataHandler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
+                "spill-bucket", "spill-prefix", new ElasticsearchDomainMapProvider(false), clientFactory, 10, configMap, true);
+        assertTrue(elasticsearchMetadataHandler.getDomainMap().containsKey("default"));
+        assertEquals(elasticsearchMetadataHandler.getDomainMap().get("default"), endpoint);
+    }
+
+    @Test
+    public void glueConnectionDomainEndpointWithDomainNameForBackwardCompatibility()
+    {
+        String domainName = "iamdomain";
+        String domain = "https://search-opensearch-phase2test-domain-bxdc4bfecnsm3stqp4x5rh3acq.us-east-1.es.amazonaws.com";
+        Map<String, String> configMap = Map.of(DEFAULT_GLUE_CONNECTION, "asdf",
+                SECRET_NAME, "asdf_secret",
+                "domain_endpoint", domainName + "=" + domain);
+
+        ElasticsearchMetadataHandler elasticsearchMetadataHandler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
+                "spill-bucket", "spill-prefix", new ElasticsearchDomainMapProvider(false), clientFactory, 10, configMap, true);
+        assertTrue(elasticsearchMetadataHandler.getDomainMap().containsKey(domainName));
+        assertEquals(elasticsearchMetadataHandler.getDomainMap().get(domainName), domain);
     }
 }

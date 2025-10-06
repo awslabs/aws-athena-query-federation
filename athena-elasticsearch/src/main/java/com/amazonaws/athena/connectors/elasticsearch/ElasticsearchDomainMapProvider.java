@@ -19,15 +19,17 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
-import com.amazonaws.services.elasticsearch.AWSElasticsearch;
-import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsRequest;
-import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsResult;
-import com.amazonaws.services.elasticsearch.model.ListDomainNamesRequest;
-import com.amazonaws.services.elasticsearch.model.ListDomainNamesResult;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.google.common.base.Splitter;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.elasticsearch.ElasticsearchClient;
+import software.amazon.awssdk.services.elasticsearch.model.DescribeElasticsearchDomainsRequest;
+import software.amazon.awssdk.services.elasticsearch.model.DescribeElasticsearchDomainsResponse;
+import software.amazon.awssdk.services.elasticsearch.model.ListDomainNamesResponse;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -100,14 +102,14 @@ public class ElasticsearchDomainMapProvider
     private Map<String, String> getDomainMapFromAmazonElasticsearch()
             throws RuntimeException
     {
-        final AWSElasticsearch awsEsClient = awsElasticsearchFactory.getClient();
+        final ElasticsearchClient awsEsClient = awsElasticsearchFactory.getClient();
         final Map<String, String> domainMap = new HashMap<>();
 
         try {
-            ListDomainNamesResult listDomainNamesResult = awsEsClient.listDomainNames(new ListDomainNamesRequest());
+            ListDomainNamesResponse listDomainNamesResponse = awsEsClient.listDomainNames();
             List<String> domainNames = new ArrayList<>();
-            listDomainNamesResult.getDomainNames().forEach(domainInfo ->
-                    domainNames.add(domainInfo.getDomainName()));
+            listDomainNamesResponse.domainNames().forEach(domainInfo ->
+                    domainNames.add(domainInfo.domainName()));
 
             int startDomainNameIndex = 0;
             int endDomainNameIndex;
@@ -117,28 +119,25 @@ public class ElasticsearchDomainMapProvider
                 // DescribeElasticsearchDomains - Describes the domain configuration for up to five specified Amazon
                 // ES domains. Create multiple requests when list of Domain Names > 5.
                 endDomainNameIndex = Math.min(startDomainNameIndex + 5, maxDomainNames);
-                DescribeElasticsearchDomainsRequest describeDomainsRequest = new DescribeElasticsearchDomainsRequest()
-                        .withDomainNames(domainNames.subList(startDomainNameIndex, endDomainNameIndex));
-                DescribeElasticsearchDomainsResult describeDomainsResult =
+                DescribeElasticsearchDomainsRequest describeDomainsRequest = DescribeElasticsearchDomainsRequest
+                        .builder().domainNames(domainNames.subList(startDomainNameIndex, endDomainNameIndex)).build();
+                DescribeElasticsearchDomainsResponse describeDomainsResult =
                         awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
-                describeDomainsResult.getDomainStatusList().forEach(domainStatus -> {
-                        String domainEndpoint = (domainStatus.getEndpoint() == null) ? domainStatus.getEndpoints().get("vpc") : domainStatus.getEndpoint();
-                        domainMap.put(domainStatus.getDomainName(), endpointPrefix + domainEndpoint);
+                describeDomainsResult.domainStatusList().forEach(domainStatus -> {
+                        String domainEndpoint = (domainStatus.endpoint() == null) ? domainStatus.endpoints().get("vpc") : domainStatus.endpoint();
+                        domainMap.put(domainStatus.domainName(), endpointPrefix + domainEndpoint);
                 });
                 startDomainNameIndex = endDomainNameIndex;
             }
 
             if (domainMap.isEmpty()) {
-                throw new RuntimeException("Amazon Elasticsearch Service has no domain information for user.");
+                throw new AthenaConnectorException("Amazon Elasticsearch Service has no domain information for user.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
 
             return domainMap;
         }
-        catch (Exception error) {
-            throw new RuntimeException("Unable to create domain map: " + error.getMessage(), error);
-        }
         finally {
-            awsEsClient.shutdown();
+            awsEsClient.close();
         }
     }
 
@@ -153,7 +152,7 @@ public class ElasticsearchDomainMapProvider
     private Map<String, String> getDomainMapFromEnvironmentVar(String domainMapping)
     {
         if (domainMapping == null || domainMapping.isEmpty()) {
-            throw new RuntimeException("Unable to create domain map: Empty or null value found in DomainMapping.");
+            throw new AthenaConnectorException("Unable to create domain map: Empty or null value found in DomainMapping.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         Map<String, String> domainMap;
         try {
@@ -161,12 +160,12 @@ public class ElasticsearchDomainMapProvider
         }
         catch (Exception error) {
             // Intentional obfuscation of error message as it may contain sensitive info (e.g. username/password).
-            throw new RuntimeException("Unable to create domain map: DomainMapping Parsing error.");
+            throw new AthenaConnectorException("Unable to create domain map: DomainMapping Parsing error.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         if (domainMap.isEmpty()) {
             // Intentional obfuscation of error message: domainMapping contains sensitive info (e.g. username/password).
-            throw new RuntimeException("Unable to create domain map: Invalid DomainMapping value.");
+            throw new AthenaConnectorException("Unable to create domain map: Invalid DomainMapping value.", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         return domainMap;

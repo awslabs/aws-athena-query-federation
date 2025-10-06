@@ -32,6 +32,6 @@ public class HiveCompositeHandler
 {
     public HiveCompositeHandler()
     {
-        super(new HiveMetadataHandler(System.getenv()), new HiveRecordHandler(System.getenv()));
+        super(new HiveMetadataHandler(new HortonworksEnvironmentProperties().createEnvironment()), new HiveRecordHandler(new HortonworksEnvironmentProperties().createEnvironment()));
     }
 }

@@ -32,15 +32,15 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.util.Collections;
 import java.util.UUID;
@@ -59,10 +59,10 @@ public class AwsCmdbRecordHandlerTest
     private String bucket = "bucket";
     private String prefix = "prefix";
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
 
     @Mock
-    private AmazonS3 mockS3;
+    private S3Client mockS3;
 
     @Mock
     private TableProviderFactory mockTableProviderFactory;
@@ -77,10 +77,10 @@ public class AwsCmdbRecordHandlerTest
     private TableProvider mockTableProvider;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Mock
     private QueryStatusChecker queryStatusChecker;
@@ -115,7 +115,7 @@ public class AwsCmdbRecordHandlerTest
                         .withQueryId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000,
                 100_000);
 

@@ -41,13 +41,10 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.qpt.HbaseQueryPassthrough;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
@@ -58,6 +55,10 @@ import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,6 +66,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * Handles metadata requests for the Athena HBase Connector.
@@ -101,12 +104,12 @@ public class HbaseMetadataHandler
     //is indeed enabled for use by this connector.
     private static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
     //Used to filter out Glue tables which lack HBase metadata flag.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.parameters().containsKey(HBASE_METADATA_FLAG);
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
     //The number of rows to scan when attempting to infer schema from an HBase table.
     private static final int NUM_ROWS_TO_SCAN = 10;
-    private final AWSGlue awsGlue;
+    private final GlueClient awsGlue;
     private final HbaseConnectionFactory connectionFactory;
 
     private final HbaseQueryPassthrough queryPassthrough = new HbaseQueryPassthrough();
@@ -120,10 +123,10 @@ public class HbaseMetadataHandler
 
     @VisibleForTesting
     protected HbaseMetadataHandler(
-        AWSGlue awsGlue,
+        GlueClient awsGlue,
         EncryptionKeyFactory keyFactory,
-        AWSSecretsManager secretsManager,
-        AmazonAthena athena,
+        SecretsManagerClient secretsManager,
+        AthenaClient athena,
         HbaseConnectionFactory connectionFactory,
         String spillBucket,
         String spillPrefix,
@@ -190,7 +193,6 @@ public class HbaseMetadataHandler
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
-            throws IOException
     {
         List<com.amazonaws.athena.connector.lambda.domain.TableName> tableNames = new ArrayList<>();
         TableName[] tables = getOrCreateConn(request).listTableNamesByNamespace(request.getSchemaName());
@@ -199,7 +201,24 @@ public class HbaseMetadataHandler
             tableNames.add(new com.amazonaws.athena.connector.lambda.domain.TableName(request.getSchemaName(),
                     tableName.getNameAsString().replace(request.getSchemaName() + ":", "")));
         }
-        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
+
+        String token = request.getNextToken();
+        int pageSize = request.getPageSize();
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE && token == null) {
+            logger.info("doListTables - NO pagination");
+            return new ListTablesResponse(request.getCatalogName(), tableNames, null);
+        }
+        logger.info("doListTables - pagination");
+        return listPaginatedTables(request, tableNames);
+    }
+
+    private ListTablesResponse listPaginatedTables(ListTablesRequest listTablesRequest, List<com.amazonaws.athena.connector.lambda.domain.TableName> allTableNames)
+    {
+        logger.debug("Request is asking for pagination, but true pagination has not been implemented.");
+        int pageSize = listTablesRequest.getPageSize();
+        String startToken = listTablesRequest.getNextToken();
+
+        return PaginationHelper.manualPagination(allTableNames, startToken, pageSize, listTablesRequest.getCatalogName());
     }
 
     /**

@@ -34,26 +34,10 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.cloudwatch.metrics.MetricDataQuerySerDe;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
 import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.model.Dimension;
-import com.amazonaws.services.cloudwatch.model.GetMetricDataRequest;
-import com.amazonaws.services.cloudwatch.model.GetMetricDataResult;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.cloudwatch.model.MetricDataQuery;
-import com.amazonaws.services.cloudwatch.model.MetricDataResult;
-import com.amazonaws.services.cloudwatch.model.MetricStat;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.io.ByteStreams;
 import org.junit.After;
 import org.junit.Before;
@@ -65,9 +49,29 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.Dimension;
+import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
+import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataResponse;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
+import software.amazon.awssdk.services.cloudwatch.model.MetricDataResult;
+import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -104,7 +108,7 @@ public class MetricsRecordHandlerTest
     private static final TableName METRICS_TABLE_NAME = new TableName("default", METRIC_TABLE.getName());
     private static final TableName METRIC_SAMPLES_TABLE_NAME = new TableName("default", METRIC_DATA_TABLE.getName());
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private List<ByteHolder> mockS3Storage;
     private MetricsRecordHandler handler;
     private S3BlockSpillReader spillReader;
@@ -112,16 +116,16 @@ public class MetricsRecordHandlerTest
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
 
     @Mock
-    private AmazonCloudWatch mockMetrics;
+    private CloudWatchClient mockMetrics;
 
     @Mock
-    private AmazonS3 mockS3;
+    private S3Client mockS3;
 
     @Mock
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     @Mock
-    private AmazonAthena mockAthena;
+    private AthenaClient mockAthena;
 
     @Before
     public void setUp()
@@ -132,31 +136,27 @@ public class MetricsRecordHandlerTest
         handler = new MetricsRecordHandler(mockS3, mockSecretsManager, mockAthena, mockMetrics, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
-        Mockito.lenient().when(mockS3.putObject(any()))
+        Mockito.lenient().when(mockS3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
+                    InputStream inputStream = ((RequestBody) invocationOnMock.getArguments()[1]).contentStreamProvider().newStream();
                     ByteHolder byteHolder = new ByteHolder();
                     byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                     synchronized (mockS3Storage) {
                         mockS3Storage.add(byteHolder);
                         logger.info("puObject: total size " + mockS3Storage.size());
                     }
-                    return mock(PutObjectResult.class);
+                    return PutObjectResponse.builder().build();
                 });
 
-        Mockito.lenient().when(mockS3.getObject(nullable(String.class), nullable(String.class)))
+        Mockito.lenient().when(mockS3.getObject(any(GetObjectRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
                     synchronized (mockS3Storage) {
                         byteHolder = mockS3Storage.get(0);
                         mockS3Storage.remove(0);
                         logger.info("getObject: total size " + mockS3Storage.size());
                     }
-                    when(mockObject.getObjectContent()).thenReturn(
-                            new S3ObjectInputStream(
-                                    new ByteArrayInputStream(byteHolder.getBytes()), null));
-                    return mockObject;
+                    return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
                 });
     }
 
@@ -183,17 +183,23 @@ public class MetricsRecordHandlerTest
             ListMetricsRequest request = invocation.getArgument(0, ListMetricsRequest.class);
             numCalls.incrementAndGet();
             //assert that the namespace filter was indeed pushed down
-            assertEquals(namespace, request.getNamespace());
-            String nextToken = (request.getNextToken() == null) ? "valid" : null;
+            assertEquals(namespace, request.namespace());
+            String nextToken = (request.nextToken() == null) ? "valid" : null;
             List<Metric> metrics = new ArrayList<>();
 
             for (int i = 0; i < numMetrics; i++) {
-                metrics.add(new Metric().withNamespace(namespace).withMetricName("metric-" + i)
-                        .withDimensions(new Dimension().withName(dimName).withValue(dimValue)));
-                metrics.add(new Metric().withNamespace(namespace + i).withMetricName("metric-" + i));
+                metrics.add(Metric.builder()
+                        .namespace(namespace)
+                        .metricName("metric-" + i)
+                        .dimensions(Dimension.builder()
+                                .name(dimName)
+                                .value(dimValue)
+                                .build())
+                        .build());
+                metrics.add(Metric.builder().namespace(namespace + i).metricName("metric-" + i).build());
             }
 
-            return new ListMetricsResult().withNextToken(nextToken).withMetrics(metrics);
+            return ListMetricsResponse.builder().nextToken(nextToken).metrics(metrics).build();
         });
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
@@ -216,7 +222,7 @@ public class MetricsRecordHandlerTest
                 METRICS_TABLE_NAME,
                 METRIC_TABLE.getSchema(),
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );
@@ -246,7 +252,7 @@ public class MetricsRecordHandlerTest
         String period = "60";
         String dimName = "dimName";
         String dimValue = "dimValue";
-        List<Dimension> dimensions = Collections.singletonList(new Dimension().withName(dimName).withValue(dimValue));
+        List<Dimension> dimensions = Collections.singletonList(Dimension.builder().name(dimName).value(dimValue).build());
 
         int numMetrics = 10;
         int numSamples = 10;
@@ -269,17 +275,22 @@ public class MetricsRecordHandlerTest
                 .withIsDirectory(true)
                 .build();
 
-        List<MetricStat> metricStats = new ArrayList<>();
-        metricStats.add(new MetricStat()
-                .withMetric(new Metric()
-                        .withNamespace(namespace)
-                        .withMetricName(metricName)
-                        .withDimensions(dimensions))
-                .withPeriod(60)
-                .withStat(statistic));
+        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
+        metricDataQueries.add(MetricDataQuery.builder()
+                .metricStat(MetricStat.builder()
+                        .metric(Metric.builder()
+                                .namespace(namespace)
+                                .metricName(metricName)
+                                .dimensions(dimensions)
+                                .build())
+                        .period(60)
+                        .stat(statistic)
+                        .build())
+                .id("m1")
+                .build());
 
         Split split = Split.newBuilder(spillLocation, keyFactory.create())
-                .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, MetricStatSerDe.serialize(metricStats))
+                .add(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME, MetricDataQuerySerDe.serialize(metricDataQueries))
                 .add(METRIC_NAME_FIELD, metricName)
                 .add(NAMESPACE_FIELD, namespace)
                 .add(STATISTIC_FIELD, statistic)
@@ -292,7 +303,7 @@ public class MetricsRecordHandlerTest
                 METRIC_SAMPLES_TABLE_NAME,
                 METRIC_DATA_TABLE.getSchema(),
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );
@@ -310,40 +321,40 @@ public class MetricsRecordHandlerTest
         logger.info("readMetricSamplesWithConstraint: exit");
     }
 
-    private GetMetricDataResult mockMetricData(InvocationOnMock invocation, int numMetrics, int numSamples)
+    private GetMetricDataResponse mockMetricData(InvocationOnMock invocation, int numMetrics, int numSamples)
     {
         GetMetricDataRequest request = invocation.getArgument(0, GetMetricDataRequest.class);
 
         /**
          * Confirm that all available criteria were pushed down into Cloudwatch Metrics
          */
-        List<MetricDataQuery> queries = request.getMetricDataQueries();
+        List<MetricDataQuery> queries = request.metricDataQueries();
         assertEquals(1, queries.size());
         MetricDataQuery query = queries.get(0);
-        MetricStat stat = query.getMetricStat();
-        assertEquals("m1", query.getId());
-        assertNotNull(stat.getPeriod());
-        assertNotNull(stat.getMetric());
-        assertNotNull(stat.getStat());
-        assertNotNull(stat.getMetric().getMetricName());
-        assertNotNull(stat.getMetric().getNamespace());
-        assertNotNull(stat.getMetric().getDimensions());
-        assertEquals(1, stat.getMetric().getDimensions().size());
+        MetricStat stat = query.metricStat();
+        assertEquals("m1", query.id());
+        assertNotNull(stat.period());
+        assertNotNull(stat.metric());
+        assertNotNull(stat.stat());
+        assertNotNull(stat.metric().metricName());
+        assertNotNull(stat.metric().namespace());
+        assertNotNull(stat.metric().dimensions());
+        assertEquals(1, stat.metric().dimensions().size());
 
-        String nextToken = (request.getNextToken() == null) ? "valid" : null;
+        String nextToken = (request.nextToken() == null) ? "valid" : null;
         List<MetricDataResult> samples = new ArrayList<>();
 
         for (int i = 0; i < numMetrics; i++) {
             List<Double> values = new ArrayList<>();
-            List<Date> timestamps = new ArrayList<>();
+            List<Instant> timestamps = new ArrayList<>();
             for (double j = 0; j < numSamples; j++) {
                 values.add(j);
-                timestamps.add(new Date(System.currentTimeMillis() + (int) j));
+                timestamps.add(new Date(System.currentTimeMillis() + (int) j).toInstant());
             }
-            samples.add(new MetricDataResult().withValues(values).withTimestamps(timestamps).withId("m1"));
+            samples.add(MetricDataResult.builder().values(values).timestamps(timestamps).id("m1").build());
         }
 
-        return new GetMetricDataResult().withNextToken(nextToken).withMetricDataResults(samples);
+        return GetMetricDataResponse.builder().nextToken(nextToken).metricDataResults(samples).build();
     }
 
     private class ByteHolder

@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -69,8 +70,8 @@ public class ElasticsearchSchemaUtilsTest
                 .addField(new Field("myscaled",
                         new FieldType(true, Types.MinorType.BIGINT.getType(), null,
                                 ImmutableMap.of("scaling_factor", "10.0")), null))
-                .addField("myfloat", Types.MinorType.FLOAT4.getType())
-                .addField("myhalf", Types.MinorType.FLOAT4.getType())
+                .addField("myfloat", Types.MinorType.FLOAT8.getType())
+                .addField("myhalf", Types.MinorType.FLOAT8.getType())
                 .addField("mydatemilli", Types.MinorType.DATEMILLI.getType())
                 .addField("mydatenano", Types.MinorType.DATEMILLI.getType())
                 .addField("myboolean", Types.MinorType.BIT.getType())
@@ -111,10 +112,10 @@ public class ElasticsearchSchemaUtilsTest
                         "    \"type\" : \"double\"\n" +                   // type: double (FLOAT8)
                         "  },\n" +
                         "  \"myfloat\" : {\n" +                           // myfloat:
-                        "    \"type\" : \"float\"\n" +                    // type: float (FLOAT4)
+                        "    \"type\" : \"float\"\n" +                    // type: float (FLOAT8)
                         "  },\n" +
                         "  \"myhalf\" : {\n" +                            // myhalf:
-                        "    \"type\" : \"half_float\"\n" +               // type: half_float (FLOAT4)
+                        "    \"type\" : \"half_float\"\n" +               // type: half_float (FLOAT8)
                         "  },\n" +
                         "  \"myinteger\" : {\n" +                         // myinteger:
                         "    \"type\" : \"integer\"\n" +                  // type: integer (INT)
@@ -271,7 +272,7 @@ public class ElasticsearchSchemaUtilsTest
         logger.info("parseSchemaWithListOfStruct - exit");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void parseMappingWithInvalidMeta()
             throws JsonProcessingException
     {

@@ -34,18 +34,18 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -77,15 +77,15 @@ public class ExampleRecordHandler
      */
     private static final String SOURCE_TYPE = "example";
 
-    private AmazonS3 amazonS3;
+    private S3Client amazonS3;
 
     public ExampleRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), configOptions);
+        this(S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(), configOptions);
     }
 
     @VisibleForTesting
-    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
+    protected ExampleRecordHandler(S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient amazonAthena, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
@@ -230,10 +230,13 @@ public class ExampleRecordHandler
     private BufferedReader openS3File(String bucket, String key)
     {
         logger.info("openS3File: opening file " + bucket + ":" + key);
-        if (amazonS3.doesObjectExist(bucket, key)) {
-            S3Object obj = amazonS3.getObject(bucket, key);
+        try {
+            ResponseInputStream<GetObjectResponse> responseStream = amazonS3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build());
             logger.info("openS3File: opened file " + bucket + ":" + key);
-            return new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+            return new BufferedReader(new InputStreamReader(responseStream));
+        }
+        catch (NoSuchKeyException e) {
+            logger.error("openS3File: failed to open file " + bucket + ":" + key, e);
         }
         return null;
     }

@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,8 +19,11 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +31,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT_GLUE_CONNECTION;
 
 /**
  * Builds connection configurations for all catalogs and databases provided in environment properties.
@@ -87,7 +92,7 @@ public class DatabaseConnectionConfigBuilder
     public List<DatabaseConnectionConfig> build()
     {
         Validate.notEmpty(this.properties, "properties must not be empty");
-        Validate.notBlank(this.properties.get(DEFAULT_CONNECTION_STRING_PROPERTY), "Default connection string must be present");
+        Validate.isTrue(properties.containsKey(DEFAULT_CONNECTION_STRING_PROPERTY), "Default connection string must be present");
 
         List<DatabaseConnectionConfig> databaseConnectionConfigs = new ArrayList<>();
 
@@ -95,7 +100,7 @@ public class DatabaseConnectionConfigBuilder
         for (Map.Entry<String, String> property : this.properties.entrySet()) {
             final String key = property.getKey();
             final String value = property.getValue();
-
+    
             String catalogName;
             if (DEFAULT_CONNECTION_STRING_PROPERTY.equals(key.toLowerCase())) {
                 catalogName = key.toLowerCase();
@@ -109,9 +114,12 @@ public class DatabaseConnectionConfigBuilder
             }
             databaseConnectionConfigs.add(extractDatabaseConnectionConfig(catalogName, value));
 
-            numberOfCatalogs++;
+            if (StringUtils.isBlank(properties.get(DEFAULT_GLUE_CONNECTION))) {
+                numberOfCatalogs++; // Mux is not supported with glue. Do not count
+            }
             if (numberOfCatalogs > MUX_CATALOG_LIMIT) {
-                throw new RuntimeException("Too many database instances in mux. Max supported is " + MUX_CATALOG_LIMIT);
+                throw new AthenaConnectorException("Too many database instances in mux. Max supported is " + MUX_CATALOG_LIMIT,
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
             }
         }
 
@@ -128,7 +136,8 @@ public class DatabaseConnectionConfigBuilder
             jdbcConnectionString = m.group(2);
         }
         else {
-            throw new RuntimeException("Invalid connection String for Catalog " + catalogName);
+            throw new AthenaConnectorException("Invalid connection String for Catalog " + catalogName,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
 
         Validate.notBlank(dbType, "Database type must not be blank.");

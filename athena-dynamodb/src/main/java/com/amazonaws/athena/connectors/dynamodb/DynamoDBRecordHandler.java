@@ -27,28 +27,35 @@ import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
+import com.amazonaws.athena.connector.substrait.model.SubstraitRelModel;
 import com.amazonaws.athena.connectors.dynamodb.credentials.CrossAccountCredentialsProviderV2;
 import com.amazonaws.athena.connectors.dynamodb.qpt.DDBQueryPassthrough;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
-import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.util.json.Jackson;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import io.substrait.proto.FetchRel;
+import io.substrait.proto.Plan;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.enhanced.dynamodb.document.EnhancedDocument;
+import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
@@ -57,6 +64,10 @@ import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -128,7 +139,7 @@ public class DynamoDBRecordHandler
     }
 
     @VisibleForTesting
-    DynamoDBRecordHandler(DynamoDbClient ddbClient, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
+    DynamoDBRecordHandler(DynamoDbClient ddbClient, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, String sourceType, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, sourceType, configOptions);
         this.ddbClient = ddbClient;
@@ -198,15 +209,26 @@ public class DynamoDBRecordHandler
             logger.info("ColumnNameMapping isEmpty: " + recordMetadata.getColumnNameMapping().isEmpty());
             logger.info("Resolving disableProjectionAndCasing to: " + disableProjectionAndCasing);
         }
+        QueryPlan queryPlan = recordsRequest.getConstraints().getQueryPlan();
+        FederatedIdentity federatedIdentity = recordsRequest.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
+        Plan plan = null;
+        if (queryPlan != null) {
+            plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+        }
 
-        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema(), recordsRequest.getConstraints(), disableProjectionAndCasing);
-        writeItemsToBlock(spiller, recordsRequest, queryStatusChecker, recordMetadata, itemIterator, disableProjectionAndCasing);
+        Iterator<Map<String, AttributeValue>> itemIterator =
+                getIterator(split, tableName, recordsRequest.getSchema(), recordsRequest.getConstraints(),
+                        disableProjectionAndCasing, plan, overrideConfig);
+        // Variable to determine limit can be applied or not, If applicable what is the limit value.
+        Pair<Boolean, Integer> limitPair = getLimit(plan, recordsRequest.getConstraints());
+        writeItemsToBlock(spiller, recordsRequest, queryStatusChecker, recordMetadata, itemIterator, disableProjectionAndCasing, limitPair);
     }
 
     private void handleQueryPassthroughPartiQLQuery(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         if (!recordsRequest.getConstraints().isQueryPassThrough()) {
-            throw new RuntimeException("Attempting to readConstraints with Query Passthrough without PartiQL Query");
+            throw new AthenaConnectorException("Attempting to readConstraints with Query Passthrough without PartiQL Query", ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
         queryPassthrough.verify(recordsRequest.getConstraints().getQueryPassthroughArguments());
 
@@ -221,7 +243,8 @@ public class DynamoDBRecordHandler
         ExecuteStatementResponse response = ddbClient.executeStatement(executeStatementRequest);
 
         Iterator<Map<String, AttributeValue>> itemIterator = response.items().iterator();
-        writeItemsToBlock(spiller, recordsRequest, queryStatusChecker, recordMetadata, itemIterator, false);
+
+        writeItemsToBlock(spiller, recordsRequest, queryStatusChecker, recordMetadata, itemIterator, false, Pair.of(false, -1));
     }
 
     private void writeItemsToBlock(
@@ -230,7 +253,8 @@ public class DynamoDBRecordHandler
             QueryStatusChecker queryStatusChecker,
             DDBRecordMetadata recordMetadata,
             Iterator<Map<String, AttributeValue>> itemIterator,
-            boolean disableProjectionAndCasing)
+            boolean disableProjectionAndCasing,
+            Pair<Boolean, Integer> limitPair)
     {
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
 
@@ -253,7 +277,6 @@ public class DynamoDBRecordHandler
 
         GeneratedRowWriter rowWriter = rowWriterBuilder.build();
         long numRows = 0;
-        boolean canApplyLimit = canApplyLimit(recordsRequest.getConstraints());
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated
@@ -268,16 +291,30 @@ public class DynamoDBRecordHandler
             }
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
-            if (canApplyLimit && numRows >= recordsRequest.getConstraints().getLimit()) {
+            // If limit is enabled and records fetched is greater than limit, We can stop execution.
+            if (limitPair.getLeft() && numRows >= limitPair.getRight()) {
                 return;
             }
         }
         logger.info("readWithConstraint: numRows[{}]", numRows);
     }
 
-    private boolean canApplyLimit(Constraints constraints)
+    private Optional<Integer> canApplyLimit(Constraints constraints,
+                                  SubstraitRelModel substraitRelModel,
+                                  boolean useQueryPlan)
     {
-        return constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause();
+        if (useQueryPlan) {
+            if (substraitRelModel.getSortRel() == null && substraitRelModel.getFetchRel() != null) {
+                FetchRel fetchRel = substraitRelModel.getFetchRel();
+                int limit = (int) fetchRel.getCount();
+                return Optional.of(limit);
+            }
+            return Optional.empty();
+        }
+        if (constraints.hasLimit() && !constraints.hasNonEmptyOrderByClause()) {
+            return Optional.of((int) constraints.getLimit());
+        }
+        return Optional.empty();
     }
 
     private boolean rangeFilterHasIn(String rangeKeyFilter) 
@@ -311,7 +348,11 @@ public class DynamoDBRecordHandler
     /*
     Converts a split into a Query
      */
-    private QueryRequest buildQueryRequest(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing, Map<String, AttributeValue> exclusiveStartKey)
+    private QueryRequest buildQueryRequest(Split split, String tableName, Schema schema,
+                                           boolean disableProjectionAndCasing,
+                                           Map<String, AttributeValue> exclusiveStartKey,
+                                           AwsRequestOverrideConfiguration overrideConfiguration,
+                                           Pair<Boolean, Integer> limitPair)
     {
         validateExpectedMetadata(split.getProperties());
         // prepare filters
@@ -321,11 +362,12 @@ public class DynamoDBRecordHandler
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
         if (rangeKeyFilter != null || nonKeyFilter != null) {
             try {
-                expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
+                ObjectMapper objectMapper = new ObjectMapper();
+                expressionAttributeNames.putAll(objectMapper.readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
                 expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             }
         }
 
@@ -368,9 +410,12 @@ public class DynamoDBRecordHandler
                 .expressionAttributeNames(expressionAttributeNames)
                 .expressionAttributeValues(expressionAttributeValues)
                 .projectionExpression(projectionExpression)
+                .overrideConfiguration(overrideConfiguration)
                 .exclusiveStartKey(exclusiveStartKey);
-        if (canApplyLimit(constraints)) {
-            queryRequestBuilder.limit((int) constraints.getLimit());
+
+        boolean limitPresent = limitPair.getLeft();
+        if (limitPresent) {
+            queryRequestBuilder.limit(limitPair.getRight());
         }
         return queryRequestBuilder.build();
     }
@@ -378,7 +423,11 @@ public class DynamoDBRecordHandler
     /*
     Converts a split into a Scan Request
     */
-    private ScanRequest buildScanRequest(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing, Map<String, AttributeValue> exclusiveStartKey)
+    private ScanRequest buildScanRequest(Split split, String tableName, Schema schema,
+                                         boolean disableProjectionAndCasing,
+                                         Map<String, AttributeValue> exclusiveStartKey,
+                                         AwsRequestOverrideConfiguration overrideConfiguration,
+                                         Pair<Boolean, Integer> limitPair)
     {
         validateExpectedMetadata(split.getProperties());
         // prepare filters
@@ -388,11 +437,12 @@ public class DynamoDBRecordHandler
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
         if (rangeKeyFilter != null || nonKeyFilter != null) {
             try {
-                expressionAttributeNames.putAll(Jackson.getObjectMapper().readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
+                ObjectMapper objectMapper = new ObjectMapper();
+                expressionAttributeNames.putAll(objectMapper.readValue(split.getProperty(EXPRESSION_NAMES_METADATA), STRING_MAP_TYPE_REFERENCE));
                 expressionAttributeValues.putAll(EnhancedDocument.fromJson(split.getProperty(EXPRESSION_VALUES_METADATA)).toMap());
             }
             catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             }
         }
 
@@ -417,9 +467,11 @@ public class DynamoDBRecordHandler
                 .expressionAttributeNames(expressionAttributeNames.isEmpty() ? null : expressionAttributeNames)
                 .expressionAttributeValues(expressionAttributeValues.isEmpty() ? null : expressionAttributeValues)
                 .projectionExpression(projectionExpression)
+                .overrideConfiguration(overrideConfiguration)
                 .exclusiveStartKey(exclusiveStartKey);
-        if (canApplyLimit(constraints)) {
-            scanRequestBuilder.limit((int) constraints.getLimit());
+        boolean limitPresent = limitPair.getLeft();
+        if (limitPresent) {
+            scanRequestBuilder.limit(limitPair.getRight());
         }
         return scanRequestBuilder.build();
     }
@@ -427,7 +479,9 @@ public class DynamoDBRecordHandler
     /*
     Creates an iterator that can iterate through a Query or Scan, sending paginated requests as necessary
      */
-    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing)
+    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema,
+                                                              Constraints constraints, boolean disableProjectionAndCasing,
+                                                              Plan plan, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         return new Iterator<Map<String, AttributeValue>>() {
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
@@ -447,17 +501,21 @@ public class DynamoDBRecordHandler
                 if (currentPageIterator.get() != null && currentPageIterator.get().hasNext()) {
                     return currentPageIterator.get().next();
                 }
+                // Variable to determine limit can be applied or not, If applicable what is the limit value.
+                Pair<Boolean, Integer> limitPair = getLimit(plan, constraints);
                 Iterator<Map<String, AttributeValue>> iterator;
                 try {
                     if (isQueryRequest(split)) {
-                        QueryRequest request = buildQueryRequest(split, tableName, schema, constraints, disableProjectionAndCasing, lastKeyEvaluated.get());
+                        QueryRequest request = buildQueryRequest(split, tableName, schema,
+                                disableProjectionAndCasing, lastKeyEvaluated.get(),  requestOverrideConfiguration, limitPair);
                         logger.info("Invoking DDB with Query request: {}", request);
                         QueryResponse response = invokerCache.get(tableName).invoke(() -> ddbClient.query(request));
                         lastKeyEvaluated.set(response.lastEvaluatedKey());
                         iterator = response.items().iterator();
                     }
                     else {
-                        ScanRequest request = buildScanRequest(split, tableName, schema, constraints, disableProjectionAndCasing, lastKeyEvaluated.get());
+                        ScanRequest request = buildScanRequest(split, tableName, schema,
+                                 disableProjectionAndCasing, lastKeyEvaluated.get(), requestOverrideConfiguration, limitPair);
                         logger.info("Invoking DDB with Scan request: {}", request);
                         ScanResponse response = invokerCache.get(tableName).invoke(() -> ddbClient.scan(request));
                         lastKeyEvaluated.set(response.lastEvaluatedKey());
@@ -465,7 +523,7 @@ public class DynamoDBRecordHandler
                     }
                 }
                 catch (TimeoutException | ExecutionException e) {
-                    throw new RuntimeException(e);
+                    throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_TIMEOUT_EXCEPTION.toString()).build());
                 }
                 currentPageIterator.set(iterator);
                 if (iterator.hasNext()) {
@@ -494,5 +552,20 @@ public class DynamoDBRecordHandler
             checkArgument(metadata.containsKey(EXPRESSION_NAMES_METADATA), "Split missing expected metadata [%s] when filters are present", EXPRESSION_NAMES_METADATA);
             checkArgument(metadata.containsKey(EXPRESSION_VALUES_METADATA), "Split missing expected metadata [%s] when filters are present", EXPRESSION_VALUES_METADATA);
         }
+    }
+
+    private Pair<Boolean, Integer> getLimit(Plan  plan, Constraints constraints)
+    {
+        SubstraitRelModel substraitRelModel = null;
+        boolean useQueryPlan = false;
+        if (plan != null) {
+            substraitRelModel = SubstraitRelModel.buildSubstraitRelModel(plan.getRelations(0).getRoot().getInput());
+            useQueryPlan = true;
+        }
+        Optional<Integer> optionalLimit = canApplyLimit(constraints, substraitRelModel, useQueryPlan);
+        if (optionalLimit.isPresent()) {
+            return Pair.of(true, optionalLimit.get());
+        }
+        return Pair.of(false, -1);
     }
 }

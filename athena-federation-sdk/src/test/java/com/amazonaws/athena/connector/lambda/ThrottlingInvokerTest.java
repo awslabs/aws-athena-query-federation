@@ -20,14 +20,22 @@
 package com.amazonaws.athena.connector.lambda;
 
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import org.junit.Test;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
-import java.sql.Time;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.Assert.*;
+import static com.amazonaws.athena.connector.lambda.ThrottlingInvoker.THROTTLE_DECREASE_FACTOR;
+import static com.amazonaws.athena.connector.lambda.ThrottlingInvoker.THROTTLE_INCREASE_MS;
+import static com.amazonaws.athena.connector.lambda.ThrottlingInvoker.THROTTLE_INITIAL_DELAY_MS;
+import static com.amazonaws.athena.connector.lambda.ThrottlingInvoker.THROTTLE_MAX_DELAY_MS;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -87,7 +95,7 @@ public class ThrottlingInvokerTest
         assertEquals(199, invoker.getDelay());
     }
 
-    @Test(expected = TimeoutException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void invokeWithThrottleTimeout()
             throws TimeoutException
     {
@@ -99,10 +107,10 @@ public class ThrottlingInvokerTest
                 .withFilter((Exception ex) -> ex instanceof FederationThrottleException)
                 .build();
 
-        invoker.invoke(() -> {throw new FederationThrottleException();}, 2_000);
+        invoker.invoke(() -> {throw new AthenaConnectorException("Throttling error", ErrorDetails.builder().errorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString()).build());}, 2_000);
     }
 
-    @Test(expected = FederationThrottleException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void invokeWithThrottleNoSpill()
             throws TimeoutException
     {
@@ -117,6 +125,23 @@ public class ThrottlingInvokerTest
                 .build();
 
         when(spiller.spilled()).thenReturn(false);
-        invoker.invoke(() -> {throw new RuntimeException();}, 2_000);
+        invoker.invoke(() -> {throw new AthenaConnectorException("Throttling error", ErrorDetails.builder().errorCode(FederationSourceErrorCode.THROTTLING_EXCEPTION.toString()).build());}, 2_000);
+    }
+
+    @Test
+    public void testDefaultBuilderFromConfig()
+    {
+        java.util.Map<String, String> configOption = Map.of(THROTTLE_INITIAL_DELAY_MS, "100",
+                THROTTLE_MAX_DELAY_MS, "10000",
+                THROTTLE_DECREASE_FACTOR, "0.1",
+                THROTTLE_INCREASE_MS, "500") ;
+        ThrottlingInvoker.Builder builder = ThrottlingInvoker.newDefaultBuilder((Exception ex) -> ex instanceof FederationThrottleException, configOption);
+
+        ThrottlingInvoker invoker = builder.build();
+
+        assertTrue(invoker.getDecrease() == 0.1);
+        assertEquals(invoker.getIncrease(), 500);
+        assertEquals(invoker.getDefaultInitialDelayMs(), 100);
+        assertEquals(invoker.getMaxDelayMs(), 10000);
     }
 }

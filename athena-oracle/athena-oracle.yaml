@@ -70,6 +70,8 @@ Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
   HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
   HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -82,10 +84,13 @@ Resources:
           default: !Ref DefaultConnectionString
           is_FIPS_Enabled: !Ref IsFIPSEnabled
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.oracle.OracleMuxCompositeHandler"
-      CodeUri: "./target/athena-oracle-2022.47.1.jar"
+      PackageType: "Image"
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-oracle:2022.47.1'
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]]
+      ImageConfig:
+        Command: [ "com.amazonaws.athena.connectors.oracle.OracleMuxCompositeHandler" ]
       Description: "Enables Amazon Athena to communicate with ORACLE using JDBC"
-      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
@@ -99,7 +104,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:

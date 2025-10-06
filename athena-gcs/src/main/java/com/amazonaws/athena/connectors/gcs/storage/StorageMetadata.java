@@ -26,9 +26,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.GcsUtil;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Table;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
@@ -47,6 +44,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Table;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -132,17 +132,17 @@ public class StorageMetadata
      * @return A list of {@link Map<String, String>} instances
      * @throws URISyntaxException Throws if any occurs during parsing Uri
      */
-    public List<Map<String, String>> getPartitionFolders(Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
+    public List<Map<String, String>> getPartitionFolders(Schema schema, TableName tableInfo, Constraints constraints, GlueClient awsGlue)
             throws URISyntaxException
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
         // Build expression only based on partition keys
-        List<Column> partitionColumns = table.getPartitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.getPartitionKeys();
+        List<Column> partitionColumns = table.partitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.partitionKeys();
         // getConstraintsForPartitionedColumns gives us a case insensitive mapping of column names to their value set
         Map<String, Optional<Set<String>>> columnValueConstraintMap = FilterExpressionBuilder.getConstraintsForPartitionedColumns(partitionColumns, constraints);
         LOGGER.info("columnValueConstraintMap for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), columnValueConstraintMap);
-        URI storageLocation = new URI(table.getStorageDescriptor().getLocation());
+        URI storageLocation = new URI(table.storageDescriptor().location());
         LOGGER.info("Listing object in location {} under the bucket {}", storageLocation.getAuthority(), storageLocation.getPath());
         // Trim leading /
         String path = storageLocation.getPath().replaceFirst("^/", "");
@@ -226,9 +226,9 @@ public class StorageMetadata
     public Schema buildTableSchema(Table table, BufferAllocator allocator) throws URISyntaxException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        String locationUri = table.getStorageDescriptor().getLocation();
+        String locationUri = table.storageDescriptor().location();
         URI storageLocation = new URI(locationUri);
-        List<Field> fieldList = getFields(storageLocation.getAuthority(), storageLocation.getPath(), table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), allocator);
+        List<Field> fieldList = getFields(storageLocation.getAuthority(), storageLocation.getPath(), table.parameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), allocator);
 
         LOGGER.debug("Schema Fields\n{}", fieldList);
         for (Field field : fieldList) {

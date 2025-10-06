@@ -20,10 +20,13 @@
 
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.types.MetadataVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 
 import java.lang.reflect.Field;
 
@@ -60,7 +63,7 @@ public class AthenaFederationIpcOption
       }
       catch (ReflectiveOperationException ex) {
           // Rethrow as unchecked because most of the callers do not already declare any throws
-          throw new RuntimeException(ex);
+          throw new AthenaConnectorException(ex.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).errorMessage(ex.getMessage()).build());
       }
   }
 }

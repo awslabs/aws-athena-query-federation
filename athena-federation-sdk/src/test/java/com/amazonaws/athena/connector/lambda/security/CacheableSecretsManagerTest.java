@@ -20,9 +20,10 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,14 +40,14 @@ import static org.mockito.Mockito.when;
 
 public class CacheableSecretsManagerTest
 {
-    private AWSSecretsManager mockSecretsManager;
+    private SecretsManagerClient mockSecretsManager;
 
     private CachableSecretsManager cachableSecretsManager;
 
     @Before
     public void setup()
     {
-        mockSecretsManager = mock(AWSSecretsManager.class);
+        mockSecretsManager = mock(SecretsManagerClient.class);
         cachableSecretsManager = new CachableSecretsManager(mockSecretsManager);
     }
 
@@ -67,8 +68,8 @@ public class CacheableSecretsManagerTest
         when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
-                    if (request.getSecretId().equalsIgnoreCase("test")) {
-                        return new GetSecretValueResult().withSecretString("value2");
+                    if (request.secretId().equalsIgnoreCase("test")) {
+                        return GetSecretValueResponse.builder().secretString("value2").build();
                     }
                     throw new RuntimeException();
                 });
@@ -86,7 +87,7 @@ public class CacheableSecretsManagerTest
         when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
-                    return new GetSecretValueResult().withSecretString(request.getSecretId() + "_value");
+                    return GetSecretValueResponse.builder().secretString(request.secretId() + "_value").build();
                 });
 
         assertEquals("test_value", cachableSecretsManager.getSecret("test"));
@@ -101,11 +102,11 @@ public class CacheableSecretsManagerTest
         when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
-                    String result = request.getSecretId();
+                    String result = request.secretId();
                     if (result.equalsIgnoreCase("unknown")) {
                         throw new RuntimeException("Unknown secret!");
                     }
-                    return new GetSecretValueResult().withSecretString(result);
+                    return GetSecretValueResponse.builder().secretString(result).build();
                 });
 
         String oneSecret = "${OneSecret}";
@@ -134,5 +135,49 @@ public class CacheableSecretsManagerTest
             fail("Should not see this!");
         }
         catch (RuntimeException ex) {}
+    }
+
+    @Test
+    public void resolveWithDefaultCredentials()
+    {
+        when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
+                .thenAnswer((InvocationOnMock invocation) -> {
+                    GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
+                    String result = "{\"username\":\"testuser\", \"password\":\"testpassword\"}";
+                    if (request.secretId().equalsIgnoreCase("unknown")) {
+                        throw new RuntimeException("Unknown secret!");
+                    }
+                    return GetSecretValueResponse.builder().secretString(result).build();
+                });
+
+        String oneSecret = "${OneSecret}";
+        String oneExpected = "testuser:testpassword";
+        assertEquals(oneExpected, cachableSecretsManager.resolveWithDefaultCredentials(oneSecret));
+
+        String twoSecrets = "ThisIsMyStringWith${TwoSecret}SuperSecret${Secrets}";
+        String twoExpected = "ThisIsMyStringWithtestuser:testpasswordSuperSecrettestuser:testpassword";
+        assertEquals(twoExpected, cachableSecretsManager.resolveWithDefaultCredentials(twoSecrets));
+
+        String noSecrets = "ThisIsMyStringWithTwoSecretSuperSecretSecrets";
+        String noSecretsExpected = "ThisIsMyStringWithTwoSecretSuperSecretSecrets";
+        assertEquals(noSecretsExpected, cachableSecretsManager.resolveWithDefaultCredentials(noSecrets));
+
+        String commonErrors = "ThisIsM}yStringWi${thTwoSecretS{uperSecretSecrets";
+        String commonErrorsExpected = "ThisIsM}yStringWi${thTwoSecretS{uperSecretSecrets";
+        assertEquals(commonErrorsExpected, cachableSecretsManager.resolveWithDefaultCredentials(commonErrors));
+
+        String secretAllowedSpecialChars = "ThisIs${/My}StringW${ith_}All${Of+The}${@llowed=}${Special-Characters.}";
+        String secretAllowedSpecialCharsExpected = "ThisIstestuser:testpasswordStringWtestuser:testpasswordAlltestuser:testpasswordtestuser:testpasswordtestuser:testpassword";
+        assertEquals(secretAllowedSpecialCharsExpected, cachableSecretsManager.resolveWithDefaultCredentials(secretAllowedSpecialChars));
+
+        String unknownSecret = "This${Unknown}";
+        try {
+            cachableSecretsManager.resolveWithDefaultCredentials(unknownSecret);
+            fail("Should not see this!");
+        }
+        catch (RuntimeException ex) {}
+
+        String nullTest = null;
+        assertNull(cachableSecretsManager.resolveWithDefaultCredentials(nullTest));
     }
 }

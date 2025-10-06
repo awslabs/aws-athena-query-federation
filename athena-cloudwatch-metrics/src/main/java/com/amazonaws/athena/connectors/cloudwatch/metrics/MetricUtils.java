@@ -26,17 +26,15 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.cloudwatch.model.Dimension;
-import com.amazonaws.services.cloudwatch.model.DimensionFilter;
-import com.amazonaws.services.cloudwatch.model.GetMetricDataRequest;
-import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
-import com.amazonaws.services.cloudwatch.model.Metric;
-import com.amazonaws.services.cloudwatch.model.MetricDataQuery;
-import com.amazonaws.services.cloudwatch.model.MetricStat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.cloudwatch.model.Dimension;
+import software.amazon.awssdk.services.cloudwatch.model.DimensionFilter;
+import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
+import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
+import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -59,7 +57,21 @@ public class MetricUtils
     //this is a format required by Cloudwatch Metrics
     private static final String METRIC_ID = "m1";
 
+    // Environment variable to control cross-account metrics inclusion
+    private static final String INCLUDE_LINKED_ACCOUNTS_ENV_VAR = "include_linked_accounts";
+
     private MetricUtils() {}
+
+    /**
+     * Checks if cross-account metrics should be included based on environment variable
+     *
+     * @return True if cross-account metrics should be included, false otherwise
+     */
+    private static boolean shouldIncludeLinkedAccounts()
+    {
+        String includeLinkedAccounts = System.getenv(INCLUDE_LINKED_ACCOUNTS_ENV_VAR);
+        return Boolean.parseBoolean(includeLinkedAccounts);
+    }
 
     /**
      * Filters metrics who have at least 1 metric dimension that matches DIMENSION_NAME_FIELD and DIMENSION_VALUE_FIELD filters.
@@ -70,11 +82,11 @@ public class MetricUtils
      */
     protected static boolean applyMetricConstraints(ConstraintEvaluator evaluator, Metric metric, String statistic)
     {
-        if (!evaluator.apply(NAMESPACE_FIELD, metric.getNamespace())) {
+        if (!evaluator.apply(NAMESPACE_FIELD, metric.namespace())) {
             return false;
         }
 
-        if (!evaluator.apply(METRIC_NAME_FIELD, metric.getMetricName())) {
+        if (!evaluator.apply(METRIC_NAME_FIELD, metric.metricName())) {
             return false;
         }
 
@@ -82,13 +94,13 @@ public class MetricUtils
             return false;
         }
 
-        for (Dimension next : metric.getDimensions()) {
-            if (evaluator.apply(DIMENSION_NAME_FIELD, next.getName()) && evaluator.apply(DIMENSION_VALUE_FIELD, next.getValue())) {
+        for (Dimension next : metric.dimensions()) {
+            if (evaluator.apply(DIMENSION_NAME_FIELD, next.name()) && evaluator.apply(DIMENSION_VALUE_FIELD, next.value())) {
                 return true;
             }
         }
 
-        if (metric.getDimensions().isEmpty() &&
+        if (metric.dimensions().isEmpty() &&
                 evaluator.apply(DIMENSION_NAME_FIELD, null) &&
                 evaluator.apply(DIMENSION_VALUE_FIELD, null)) {
             return true;
@@ -100,28 +112,31 @@ public class MetricUtils
     /**
      * Attempts to push the supplied predicate constraints onto the Cloudwatch Metrics request.
      */
-    protected static void pushDownPredicate(Constraints constraints, ListMetricsRequest listMetricsRequest)
+    protected static void pushDownPredicate(Constraints constraints, ListMetricsRequest.Builder listMetricsRequest)
     {
         Map<String, ValueSet> summary = constraints.getSummary();
 
+        listMetricsRequest.includeLinkedAccounts(shouldIncludeLinkedAccounts());
+
         ValueSet namespaceConstraint = summary.get(NAMESPACE_FIELD);
         if (namespaceConstraint != null && namespaceConstraint.isSingleValue()) {
-            listMetricsRequest.setNamespace(namespaceConstraint.getSingleValue().toString());
+            listMetricsRequest.namespace(namespaceConstraint.getSingleValue().toString());
         }
 
         ValueSet metricConstraint = summary.get(METRIC_NAME_FIELD);
         if (metricConstraint != null && metricConstraint.isSingleValue()) {
-            listMetricsRequest.setMetricName(metricConstraint.getSingleValue().toString());
+            listMetricsRequest.metricName(metricConstraint.getSingleValue().toString());
         }
 
         ValueSet dimensionNameConstraint = summary.get(DIMENSION_NAME_FIELD);
         ValueSet dimensionValueConstraint = summary.get(DIMENSION_VALUE_FIELD);
         if (dimensionNameConstraint != null && dimensionNameConstraint.isSingleValue() &&
                 dimensionValueConstraint != null && dimensionValueConstraint.isSingleValue()) {
-            DimensionFilter filter = new DimensionFilter()
-                    .withName(dimensionNameConstraint.getSingleValue().toString())
-                    .withValue(dimensionValueConstraint.getSingleValue().toString());
-            listMetricsRequest.setDimensions(Collections.singletonList(filter));
+            DimensionFilter filter = DimensionFilter.builder()
+                    .name(dimensionNameConstraint.getSingleValue().toString())
+                    .value(dimensionValueConstraint.getSingleValue().toString())
+                    .build();
+            listMetricsRequest.dimensions(Collections.singletonList(filter));
         }
     }
 
@@ -134,20 +149,11 @@ public class MetricUtils
     protected static GetMetricDataRequest makeGetMetricDataRequest(ReadRecordsRequest readRecordsRequest)
     {
         Split split = readRecordsRequest.getSplit();
-        String serializedMetricStats = split.getProperty(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME);
-        List<MetricStat> metricStats = MetricStatSerDe.deserialize(serializedMetricStats);
-        GetMetricDataRequest dataRequest = new GetMetricDataRequest();
-        com.amazonaws.services.cloudwatch.model.Metric metric = new com.amazonaws.services.cloudwatch.model.Metric();
-        metric.setNamespace(split.getProperty(NAMESPACE_FIELD));
-        metric.setMetricName(split.getProperty(METRIC_NAME_FIELD));
+        String serializedMetricDataQueries = split.getProperty(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME);
+        List<MetricDataQuery> metricDataQueries = MetricDataQuerySerDe.deserialize(serializedMetricDataQueries);
+        GetMetricDataRequest.Builder dataRequestBuilder = GetMetricDataRequest.builder();
 
-        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
-        int metricId = 1;
-        for (MetricStat nextMetricStat : metricStats) {
-            metricDataQueries.add(new MetricDataQuery().withMetricStat(nextMetricStat).withId("m" + metricId++));
-        }
-
-        dataRequest.withMetricDataQueries(metricDataQueries);
+        dataRequestBuilder.metricDataQueries(metricDataQueries);
 
         ValueSet timeConstraint = readRecordsRequest.getConstraints().getSummary().get(TIMESTAMP_FIELD);
         if (timeConstraint instanceof SortedRangeSet && !timeConstraint.isNullAllowed()) {
@@ -162,30 +168,30 @@ public class MetricUtils
                 Long lowerBound = (Long) basicPredicate.getLow().getValue();
                 //TODO: confirm timezone handling
                 logger.info("makeGetMetricsRequest: with startTime " + (lowerBound * 1000) + " " + new Date(lowerBound * 1000));
-                dataRequest.withStartTime(new Date(lowerBound * 1000));
+                dataRequestBuilder.startTime(new Date(lowerBound * 1000).toInstant());
             }
             else {
                 //TODO: confirm timezone handling
-                dataRequest.withStartTime(new Date(0));
+                dataRequestBuilder.startTime(new Date(0).toInstant());
             }
 
             if (!basicPredicate.getHigh().isNullValue()) {
                 Long upperBound = (Long) basicPredicate.getHigh().getValue();
                 //TODO: confirm timezone handling
                 logger.info("makeGetMetricsRequest: with endTime " + (upperBound * 1000) + " " + new Date(upperBound * 1000));
-                dataRequest.withEndTime(new Date(upperBound * 1000));
+                dataRequestBuilder.endTime(new Date(upperBound * 1000).toInstant());
             }
             else {
                 //TODO: confirm timezone handling
-                dataRequest.withEndTime(new Date(System.currentTimeMillis()));
+                dataRequestBuilder.endTime(new Date(System.currentTimeMillis()).toInstant());
             }
         }
         else {
             //TODO: confirm timezone handling
-            dataRequest.withStartTime(new Date(0));
-            dataRequest.withEndTime(new Date(System.currentTimeMillis()));
+            dataRequestBuilder.startTime(new Date(0).toInstant());
+            dataRequestBuilder.endTime(new Date(System.currentTimeMillis()).toInstant());
         }
 
-        return dataRequest;
+        return dataRequestBuilder.build();
     }
 }

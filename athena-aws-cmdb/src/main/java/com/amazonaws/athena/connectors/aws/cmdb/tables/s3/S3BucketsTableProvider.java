@@ -29,10 +29,15 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.Bucket;
-import com.amazonaws.services.s3.model.Owner;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Bucket;
+import software.amazon.awssdk.services.s3.model.GetBucketAclRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketAclResponse;
+import software.amazon.awssdk.services.s3.model.Owner;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
  * Maps your S3 Objects to a table.
@@ -41,9 +46,10 @@ public class S3BucketsTableProvider
         implements TableProvider
 {
     private static final Schema SCHEMA;
-    private AmazonS3 amazonS3;
+    private static final Logger log = LoggerFactory.getLogger(S3BucketsTableProvider.class);
+    private S3Client amazonS3;
 
-    public S3BucketsTableProvider(AmazonS3 amazonS3)
+    public S3BucketsTableProvider(S3Client amazonS3)
     {
         this.amazonS3 = amazonS3;
     }
@@ -84,7 +90,7 @@ public class S3BucketsTableProvider
     @Override
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        for (Bucket next : amazonS3.listBuckets()) {
+        for (Bucket next : amazonS3.listBuckets().buckets()) {
             toRow(next, spiller);
         }
     }
@@ -102,13 +108,20 @@ public class S3BucketsTableProvider
     {
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
-            matched &= block.offerValue("bucket_name", row, bucket.getName());
-            matched &= block.offerValue("create_date", row, bucket.getCreationDate());
+            matched &= block.offerValue("bucket_name", row, bucket.name());
+            matched &= block.offerValue("create_date", row, bucket.creationDate());
+            try {
+                GetBucketAclResponse response = amazonS3.getBucketAcl(GetBucketAclRequest.builder().bucket(bucket.name()).build());
 
-            Owner owner = bucket.getOwner();
-            if (owner != null) {
-                matched &= block.offerValue("owner_name", row, bucket.getOwner().getDisplayName());
-                matched &= block.offerValue("owner_id", row, bucket.getOwner().getId());
+                Owner owner = response.owner();
+                if (owner != null) {
+                    matched &= block.offerValue("owner_name", row, owner.displayName());
+                    matched &= block.offerValue("owner_id", row, owner.id());
+                }
+            }
+            catch (S3Exception s3Exception) {
+                log.warn("Skipping S3 bucket: {}, due to exception from S3:getBucketAcl, message: {}", bucket.name(), s3Exception.getMessage());
+                matched = false;
             }
 
             return matched ? 1 : 0;

@@ -33,6 +33,7 @@ public class ImpalaCompositeHandler
 {
     public ImpalaCompositeHandler()
     {
-        super(new ImpalaMetadataHandler(System.getenv()), new ImpalaRecordHandler(System.getenv()));
+        super(new ImpalaMetadataHandler(new ImpalaEnvironmentProperties().createEnvironment()),
+                new ImpalaRecordHandler(new ImpalaEnvironmentProperties().createEnvironment()));
     }
 }

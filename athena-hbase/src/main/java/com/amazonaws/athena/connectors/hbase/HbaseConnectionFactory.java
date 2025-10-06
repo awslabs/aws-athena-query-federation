@@ -125,7 +125,7 @@ public class HbaseConnectionFactory
                 config.set(nextConfig.getKey(), nextConfig.getValue());
             }
 
-            Map<String, String> configOptions = System.getenv();
+            Map<String, String> configOptions = new HbaseEnvironmentProperties().createEnvironment();
             boolean kerberosAuthEnabled = configOptions.get(KERBEROS_AUTH_ENABLED) != null && "true".equalsIgnoreCase(configOptions.get(KERBEROS_AUTH_ENABLED));
             logger.info("Kerberos Authentication Enabled: " + kerberosAuthEnabled);
             if (kerberosAuthEnabled) {

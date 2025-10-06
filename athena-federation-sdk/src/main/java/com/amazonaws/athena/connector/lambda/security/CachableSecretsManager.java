@@ -20,12 +20,14 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -52,11 +54,21 @@ public class CachableSecretsManager
     private static final Pattern NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN);
 
     private final LinkedHashMap<String, CacheEntry> cache = new LinkedHashMap<>();
-    private final AWSSecretsManager secretsManager;
+    private final SecretsManagerClient secretsManager;
 
-    public CachableSecretsManager(AWSSecretsManager secretsManager)
+    public CachableSecretsManager(SecretsManagerClient secretsManager)
     {
         this.secretsManager = secretsManager;
+    }
+
+    /**
+     * Gets the underlying SecretsManagerClient instance.
+     *
+     * @return The SecretsManagerClient instance.
+     */
+    public SecretsManagerClient getSecretsManager()
+    {
+        return secretsManager;
     }
 
     /**
@@ -85,6 +97,35 @@ public class CachableSecretsManager
         return result;
     }
 
+    public String resolveWithDefaultCredentials(String rawString)
+    {
+        if (rawString == null) {
+            return rawString;
+        }
+
+        Matcher m = PATTERN.matcher(rawString);
+        String result = rawString;
+        while (m.find()) {
+            String nextSecret = m.group(1);
+            Matcher m1 = NAME_PATTERN.matcher(nextSecret);
+            m1.find();
+            try {
+                result = result.replace(nextSecret, useDefaultCredentials(m1.group(1)));
+            }
+            catch (RuntimeException e) {
+                logger.info("Credentials are not in json format. Falling back to <username>:<password>...");
+                result = result.replace(nextSecret, getSecret(m1.group(1)));
+            }
+        }
+        return result;
+    }
+
+    private String useDefaultCredentials(String secret) throws RuntimeException
+    {
+        DefaultCredentials defaultCredentials = new DefaultCredentialsProvider(getSecret(secret)).getCredential();
+        return defaultCredentials.getUser() + ":" + defaultCredentials.getPassword();
+    }
+
     /**
      * Retrieves a secret from SecretsManager, first checking the cache. Newly fetched secrets are added to the cache.
      *
@@ -97,9 +138,10 @@ public class CachableSecretsManager
 
         if (cacheEntry == null || cacheEntry.getAge() > MAX_CACHE_AGE_MS) {
             logger.info("getSecret: Resolving secret[{}].", secretName);
-            GetSecretValueResult secretValueResult = secretsManager.getSecretValue(new GetSecretValueRequest()
-                    .withSecretId(secretName));
-            cacheEntry = new CacheEntry(secretName, secretValueResult.getSecretString());
+            GetSecretValueResponse secretValueResult = secretsManager.getSecretValue(GetSecretValueRequest.builder()
+                    .secretId(secretName)
+                    .build());
+            cacheEntry = new CacheEntry(secretName, secretValueResult.secretString());
             evictCache(cache.size() >= MAX_CACHE_SIZE);
             cache.put(secretName, cacheEntry);
         }
