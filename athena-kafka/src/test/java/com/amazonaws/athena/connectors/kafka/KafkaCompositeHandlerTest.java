@@ -29,7 +29,6 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 
@@ -58,7 +57,7 @@ public class KafkaCompositeHandlerTest {
     private MockedStatic<KafkaUtils> mockedKafkaUtils;
     private MockedStatic<SecretsManagerClient> mockedSecretsManagerClient;
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         mockedSecretsManagerClient = Mockito.mockStatic(SecretsManagerClient.class);
         mockedSecretsManagerClient.when(()-> SecretsManagerClient.create()).thenReturn(secretsManager);
         mockedKafkaUtils = Mockito.mockStatic(KafkaUtils.class);
