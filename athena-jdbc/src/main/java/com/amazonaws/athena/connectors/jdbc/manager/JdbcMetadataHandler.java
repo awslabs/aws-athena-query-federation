@@ -77,6 +77,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -308,7 +309,9 @@ public abstract class JdbcMetadataHandler
             throws Exception
     {
         LOGGER.debug("doGetTable getTableName:{}", getTableRequest.getTableName());
-        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(getTableRequest)))) {
+        AwsRequestOverrideConfiguration requestOverrideConfig = getRequestOverrideConfig(getTableRequest);
+
+        try (Connection connection = jdbcConnectionFactory.getConnection(getCredentialProvider(requestOverrideConfig))) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName adjustedTableNameObject = caseResolver.getAdjustedTableNameObject(connection,
                     new TableName(getTableRequest.getTableName().getSchemaName(), getTableRequest.getTableName().getTableName()),
@@ -316,7 +319,9 @@ public abstract class JdbcMetadataHandler
 
             return new GetTableResponse(getTableRequest.getCatalogName(),
                     adjustedTableNameObject,
-                    getSchema(connection, adjustedTableNameObject, partitionSchema, getRequestOverrideConfig(getTableRequest)),
+                    Objects.nonNull(requestOverrideConfig)
+                            ? getSchema(connection, adjustedTableNameObject, partitionSchema, requestOverrideConfig)
+                            : getSchema(connection, adjustedTableNameObject, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
