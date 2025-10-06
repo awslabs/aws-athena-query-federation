@@ -119,7 +119,7 @@ public final class SubstraitFunctionParser
     }
 
     /**
-     * Parses a Substrait expression into a logical expression tree that preserves AND/OR hierarchy.
+     * Parses a Substrait expression into a logical expression tree that preserves AND/OR/NOT hierarchy.
      * This method maintains the original logical structure instead of flattening it.
      *
      * @param extensionDeclarationList List of function extension declarations from the Substrait plan
@@ -131,7 +131,6 @@ public final class SubstraitFunctionParser
                                                            Expression expression,
                                                            List<String> columnNames)
     {
-        // Handle null expression gracefully
         if (expression == null) {
             return null;
         }
@@ -140,6 +139,16 @@ public final class SubstraitFunctionParser
         ScalarFunctionInfo functionInfo = extractScalarFunctionInfo(expression, extensionDeclarationList);
 
         if (functionInfo == null) {
+            return null;
+        }
+
+        // Handle NOT operator by delegating to handleNotOperator which converts NOT(expr)
+        // to appropriate predicates (NOT_EQUAL, NAND, NOR) based on the inner expression type
+        if ("not:bool".equals(functionInfo.getFunctionName())) {
+            ColumnPredicate notPredicate = handleNotOperator(functionInfo, extensionDeclarationList, columnNames);
+            if (notPredicate != null) {
+                return new LogicalExpression(notPredicate);
+            }
             return null;
         }
 

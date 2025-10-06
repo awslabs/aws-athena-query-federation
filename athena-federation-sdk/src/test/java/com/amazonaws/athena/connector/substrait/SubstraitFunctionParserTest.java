@@ -541,6 +541,26 @@ class SubstraitFunctionParserTest
         assertTrue(orResult.hasComplexLogic()); // OR operations have complex logic
     }
 
+    @Test
+    void testParseLogicalExpressionWithNotOperator()
+    {
+        // Test NOT operation: NOT(id = 123) -> should use handleNotOperator logic
+        SimpleExtensionDeclaration notExt = createExtensionDeclaration(1, "not:bool");
+        SimpleExtensionDeclaration equalExt = createExtensionDeclaration(2, "equal:any_any");
+        List<SimpleExtensionDeclaration> extensions = Arrays.asList(notExt, equalExt);
+        
+        Expression equalExpression = createBinaryExpression(2, 0, 123);
+        Expression notExpression = createNotExpression(1, equalExpression);
+        
+        LogicalExpression result = SubstraitFunctionParser.parseLogicalExpression(extensions, notExpression, COLUMN_NAMES);
+        
+        // Should return a leaf expression with NOT_EQUAL predicate (from handleNotOperator)
+        assertTrue(result.isLeaf());
+        assertEquals(SubstraitOperator.NOT_EQUAL, result.getOperator());
+        assertEquals("id", result.getLeafPredicate().getColumn());
+        assertEquals(123, result.getLeafPredicate().getValue());
+    }
+
     // Helper method to create logical expressions (AND/OR)
     private Expression createLogicalExpression(int functionRef, Expression left, Expression right)
     {
