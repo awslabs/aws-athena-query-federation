@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -69,18 +70,25 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     private final String oauthSecretName;
     private final CachableSecretsManager secretsManager;
     private final ObjectMapper objectMapper;
+    private final AwsRequestOverrideConfiguration requestOverrideConfiguration;
 
     public SnowflakeCredentialsProvider(String oauthSecretName)
     {
-        this(oauthSecretName, SecretsManagerClient.create());
+        this(oauthSecretName, SecretsManagerClient.create(), null);
+    }
+
+    public SnowflakeCredentialsProvider(String oauthSecretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        this(oauthSecretName, SecretsManagerClient.create(), requestOverrideConfiguration);
     }
 
     @VisibleForTesting
-    public SnowflakeCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient)
+    public SnowflakeCredentialsProvider(String oauthSecretName, SecretsManagerClient secretsClient, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
         this.oauthSecretName = Validate.notNull(oauthSecretName, "oauthSecretName must not be null");
         this.secretsManager = new CachableSecretsManager(secretsClient);
         this.objectMapper = new ObjectMapper();
+        this.requestOverrideConfiguration = requestOverrideConfiguration;
     }
 
     @Override
@@ -97,7 +105,7 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
     public Map<String, String> getCredentialMap()
     {
         try {
-            String secretString = secretsManager.getSecret(oauthSecretName);
+            String secretString = secretsManager.getSecret(oauthSecretName, this.requestOverrideConfiguration);
             Map<String, String> secretMap = objectMapper.readValue(secretString, Map.class);
 
             // Determine authentication type based on secret contents
@@ -186,6 +194,7 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
             secretsManager.getSecretsManager().putSecretValue(builder -> builder
                     .secretId(this.oauthSecretName)
                     .secretString(updatedSecretString)
+                    .overrideConfiguration(this.requestOverrideConfiguration)
                     .build());
         }
         catch (Exception e) {

@@ -76,6 +76,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -162,7 +163,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         }
         else {
             // Use traditional direct query path
-            handleDirectRead(spiller, recordsRequest, queryStatusChecker);
+        handleDirectRead(spiller, recordsRequest, queryStatusChecker);
         }
     }
 
@@ -451,9 +452,15 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     @Override
     protected CredentialsProvider getCredentialProvider()
     {
+        return getCredentialProvider(null);
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider(AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
         final String secretName = getDatabaseConnectionConfig().getSecret();
         if (StringUtils.isNotBlank(secretName)) {
-            return new SnowflakeCredentialsProvider(secretName);
+            return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
         }
 
         return null;

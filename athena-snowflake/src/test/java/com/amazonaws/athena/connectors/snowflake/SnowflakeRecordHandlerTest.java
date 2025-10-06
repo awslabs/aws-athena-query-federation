@@ -163,7 +163,7 @@ public class SnowflakeRecordHandlerTest
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
         this.handler = new SnowflakeRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
-
+    
     @Test
     public void doReadRecordsNoSpill()
             throws Exception

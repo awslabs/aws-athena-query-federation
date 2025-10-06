@@ -316,7 +316,7 @@ public abstract class JdbcMetadataHandler
 
             return new GetTableResponse(getTableRequest.getCatalogName(),
                     adjustedTableNameObject,
-                    getSchema(connection, adjustedTableNameObject, partitionSchema),
+                    getSchema(connection, adjustedTableNameObject, partitionSchema, getRequestOverrideConfig(getTableRequest)),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
@@ -400,6 +400,12 @@ public abstract class JdbcMetadataHandler
     protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
+        return getSchema(jdbcConnection, tableName, partitionSchema, null);
+    }
+
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+            throws Exception
+    {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
@@ -476,6 +482,9 @@ public abstract class JdbcMetadataHandler
     protected List<String> getSplitClauses(final TableName tableName)
     {
         List<String> splitClauses = new ArrayList<>();
+        // getSplitClauses is only used by PostgreSQL connector as of now,
+        // and it does not require AwsRequestOverrideConfiguration for FAS_TOKEN query federation.
+        // So keep it as is.
         try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
                 ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
             List<String> primaryKeyColumns = new ArrayList<>();
