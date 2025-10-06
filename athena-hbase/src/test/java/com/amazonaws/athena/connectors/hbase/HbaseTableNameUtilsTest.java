@@ -42,6 +42,17 @@ public class HbaseTableNameUtilsTest
     public void getQualifiedTableName()
     {
         String table = "table";
+        testGetQualifiedTableName(table);
+    }
+
+    @Test
+    public void getQualifiedTableNameWithNamespace()
+    {
+        String table = "schema:table";
+        testGetQualifiedTableName(table);
+    }
+
+    private void testGetQualifiedTableName(String table) {
         String schema = "schema";
         String expected = "schema:table";
         String actualWithTable = HbaseTableNameUtils.getQualifiedTableName(new TableName(schema, table));

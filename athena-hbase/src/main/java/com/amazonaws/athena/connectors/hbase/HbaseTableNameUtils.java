@@ -60,7 +60,8 @@ public final class HbaseTableNameUtils
      */
    public static String getQualifiedTableName(String schema, String table)
    {
-       return schema + NAMESPACE_QUALIFIER + table;
+       String namespacePrefix = schema + NAMESPACE_QUALIFIER;
+       return table.startsWith(namespacePrefix) ? table : namespacePrefix + table;
    }
 
     /**

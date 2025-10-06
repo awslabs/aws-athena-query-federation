@@ -51,6 +51,7 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
 import software.amazon.awssdk.services.cloudwatch.model.ListMetricsResponse;
 import software.amazon.awssdk.services.cloudwatch.model.Metric;
+import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
 import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.utils.CollectionUtils;
@@ -243,19 +244,29 @@ public class MetricsMetadataHandler
             ListMetricsRequest listMetricsRequest = listMetricsRequestBuilder.build();
             ListMetricsResponse result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
 
-            List<MetricStat> metricStats = new ArrayList<>(100);
-            for (Metric nextMetric : result.metrics()) {
+            List<MetricDataQuery> metricDataQueries = new ArrayList<>(100);
+            List<Metric> metrics = result.metrics();
+            List<String> accounts = result.owningAccounts();
+
+            // There is a 1:1 mapping between each metric that is returned and the ID of the owning account.
+            for (int i = 0; i < metrics.size(); i++) {
+                Metric metric = metrics.get(i);
                 for (String nextStatistic : STATISTICS) {
-                    if (MetricUtils.applyMetricConstraints(constraintEvaluator, nextMetric, nextStatistic)) {
-                        metricStats.add(MetricStat.builder()
-                                .metric(Metric.builder()
-                                        .namespace(nextMetric.namespace())
-                                        .metricName(nextMetric.metricName())
-                                        .dimensions(nextMetric.dimensions())
-                                        .build())
-                                .period(Integer.valueOf(period))
-                                .stat(nextStatistic)
-                                .build());
+                    if (MetricUtils.applyMetricConstraints(constraintEvaluator, metric, nextStatistic)) {
+                        metricDataQueries.add(MetricDataQuery.builder()
+                                .metricStat(MetricStat.builder()
+                                    .metric(Metric.builder()
+                                            .namespace(metric.namespace())
+                                            .metricName(metric.metricName())
+                                            .dimensions(metric.dimensions())
+                                            .build())
+                                    .period(Integer.valueOf(period))
+                                    .stat(nextStatistic)
+                                    .build())
+                                .id("m" + (i + 1))
+                                .accountId(accounts.isEmpty() ? null : accounts.get(i))
+                                .build()
+                        );
                     }
                 }
             }
@@ -266,16 +277,16 @@ public class MetricsMetadataHandler
                 continuationToken = result.nextToken();
             }
 
-            if (CollectionUtils.isNullOrEmpty(metricStats)) {
-                logger.info("No metric stats present after filtering predicates.");
+            if (CollectionUtils.isNullOrEmpty(metricDataQueries)) {
+                logger.info("No metric data queries present after filtering predicates.");
                 return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);
             }
 
-            List<List<MetricStat>> partitions = Lists.partition(metricStats, calculateSplitSize(metricStats.size()));
-            for (List<MetricStat> partition : partitions) {
-                String serializedMetricStats = MetricStatSerDe.serialize(partition);
+            List<List<MetricDataQuery>> partitions = Lists.partition(metricDataQueries, calculateSplitSize(metricDataQueries.size()));
+            for (List<MetricDataQuery> partition : partitions) {
+                String serializedMetricDataQueries = MetricDataQuerySerDe.serialize(partition);
                 splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
-                        .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, serializedMetricStats)
+                        .add(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME, serializedMetricDataQueries)
                         .build());
             }
 

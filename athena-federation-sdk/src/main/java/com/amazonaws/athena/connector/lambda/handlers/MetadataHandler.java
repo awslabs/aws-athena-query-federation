@@ -218,6 +218,16 @@ public abstract class MetadataHandler
         return secretsManager.getSecret(secretName);
     }
 
+    /**
+     * Gets the CachableSecretsManager instance used by this handler.
+     * This is used by credential providers to reuse the same secrets manager instance.
+     * @return The CachableSecretsManager instance
+     */
+    protected CachableSecretsManager getCachableSecretsManager()
+    {
+        return secretsManager;
+    }
+
     protected EncryptionKey makeEncryptionKey()
     {
         return (encryptionKeyFactory != null) ? encryptionKeyFactory.create() : null;
