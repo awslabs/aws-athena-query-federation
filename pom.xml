@@ -16,7 +16,7 @@
         <!--- to meet engine version 1.12.533-->
         <aws-sdk-v2.version>2.34.5</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
-        <aws-sdk.version>1.12.791</aws-sdk.version>
+        <aws-sdk.version>1.12.792</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
