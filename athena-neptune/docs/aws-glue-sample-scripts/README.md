@@ -15,6 +15,7 @@ We support the following datatypes for table columns:
 |string|VARCHAR|
 |timestamp|DATEMILLI|
 
+> NOTE: A datatype of `array` is not supported with the Athena Federated Query connector for Amazon Neptune.  For multi-valued properties, include the data type of the resident values (one of the data types in the table above).  If the multi-valued property is a set of strings, a semi-colon (`;`) delimited string of all values will be returned.  If the multi-valued property is a set of numeric or datetime values, the first value in the set will be returned.
 
 ## CloudFormation Template for Air Routes
 
