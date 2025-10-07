@@ -468,7 +468,7 @@ public class SnowflakeMetadataHandlerTest
         when(connection.prepareStatement(contains("select COLUMN_NAME, DATA_TYPE"))).thenReturn(typeStmt);
         when(typeStmt.executeQuery()).thenReturn(typeResultSet);
         
-        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema, null);
         assertNotNull(schema);
         assertEquals(4, schema.getFields().size());
         assertEquals(org.apache.arrow.vector.types.Types.MinorType.INT.getType(), schema.findField("intCol").getType());
@@ -490,7 +490,7 @@ public class SnowflakeMetadataHandlerTest
         when(connection.getMetaData().getColumns(nullable(String.class), eq(tableName.getSchemaName()), eq(tableName.getTableName()), nullable(String.class)))
             .thenReturn(metadataResultSet);
             
-        snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+        snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema, null);
     }
 
     @Test
@@ -520,7 +520,7 @@ public class SnowflakeMetadataHandlerTest
         when(connection.prepareStatement(contains("select COLUMN_NAME, DATA_TYPE"))).thenReturn(typeStmt);
         when(typeStmt.executeQuery()).thenReturn(typeResultSet);
         
-        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema);
+        Schema schema = snowflakeMetadataHandler.getSchema(connection, tableName, partitionSchema, null);
         assertNotNull(schema);
         assertEquals(2, schema.getFields().size());
         assertEquals(org.apache.arrow.vector.types.Types.MinorType.LIST.getType(), schema.findField("arrayCol").getType());

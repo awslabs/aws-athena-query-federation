@@ -26,15 +26,26 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
+import com.amazonaws.athena.connectors.jdbc.visitor.FilterRemovalVisitor;
+import com.amazonaws.athena.connectors.jdbc.visitor.SubstraitAccumulatorVisitor;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.calcite.util.BitString;
+import org.apache.calcite.util.DateString;
+import org.apache.calcite.util.TimestampString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
@@ -55,6 +66,11 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static org.apache.calcite.sql.type.SqlTypeName.BIGINT;
+import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
+import static org.apache.calcite.sql.type.SqlTypeName.DOUBLE;
+import static org.apache.calcite.sql.type.SqlTypeName.FLOAT;
 
 /**
  * Query builder for database table split.
@@ -130,6 +146,11 @@ public abstract class JdbcSplitQueryBuilder
             final String columnNames)
             throws SQLException
     {
+        if (constraints.getQueryPlan() != null) {
+            SqlDialect sqlDialect = getSqlDialect();
+            return prepareStatementWithSqlDialect(jdbcConnection, constraints, sqlDialect, split, catalog, schema, table, columnNames, tableSchema);
+        }
+
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT ");
         sql.append(columnNames);
@@ -366,5 +387,157 @@ public abstract class JdbcSplitQueryBuilder
     protected String appendLimitOffset(Split split, Constraints constraints)
     {
         return " LIMIT " + constraints.getLimit();
+    }
+
+    protected String appendLimitOffsetWithValue(String limit, String offset)
+    {
+        return "LIMIT " + limit;
+    }
+
+    protected SqlDialect getSqlDialect()
+    {
+        return AnsiSqlDialect.DEFAULT;
+    }
+
+    protected PreparedStatement prepareStatementWithSqlDialect(Connection jdbcConnection, Constraints constraints, SqlDialect sqlDialect,
+                                                        Split split, final String catalog,
+                                                        final String schema,
+                                                        final String table, final String columnNames,
+                                                        final Schema tableSchema)
+    {
+        try {
+            String base64EncodedPlan = constraints.getQueryPlan().getSubstraitPlan();
+
+            SqlNode sqlNode = SubstraitSqlUtils.deserializeSubstraitPlan(base64EncodedPlan, sqlDialect);
+            List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
+
+            SqlSelect select;
+
+            if (!(sqlNode instanceof SqlSelect)) {
+                throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
+            }
+
+            select = (SqlSelect) sqlNode;
+
+            StringBuilder sql = new StringBuilder();
+            sql.append("SELECT ");
+            sql.append(columnNames);
+
+            if (columnNames.isEmpty()) {
+                sql.append("null");
+            }
+
+            sql.append(getFromClauseWithSplit(catalog, schema, table, split));
+
+            SqlNode whereClause = select.getWhere();
+            List<String> clauses = new ArrayList<>();
+            List<String> partitionWhereClauses = getPartitionWhereClauses(split);
+            if (partitionWhereClauses != null && !partitionWhereClauses.isEmpty()) {
+                clauses.addAll(partitionWhereClauses);
+            }
+            if (whereClause != null) {
+                whereClause.accept(new FilterRemovalVisitor(split.getProperties().keySet()));
+                whereClause.accept(new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), tableSchema));
+                clauses.add(whereClause.toSqlString(sqlDialect).getSql());
+            }
+
+            if (!clauses.isEmpty()) {
+                sql.append(" WHERE ");
+                sql.append(String.join(" AND ", clauses));
+            }
+
+            if (select.getOrderList() != null) {
+                List<String> orderParts = new ArrayList<>();
+                for (SqlNode orderExpr : select.getOrderList()) {
+                    String part = orderExpr.toSqlString(sqlDialect).getSql();
+                    orderParts.add(part);
+                }
+                String orderByClause = " ORDER BY " + String.join(", ", orderParts);
+                sql.append(orderByClause);
+            }
+
+            String limit = select.getFetch() == null ? null : select.getFetch().toSqlString(sqlDialect).getSql();
+            String offset = select.getOffset() == null ? null : select.getOffset().toSqlString(sqlDialect).getSql();
+
+            if (limit != null) {
+                sql.append(appendLimitOffsetWithValue(limit, offset));
+            }
+
+            PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
+
+            for (int i = 0; i < accumulator.size(); i++) {
+                SubstraitTypeAndValue typeAndValue = accumulator.get(i);
+                switch (typeAndValue.getType()) {
+                    case BIGINT:
+                        statement.setLong(i + 1, ((Number) typeAndValue.getValue()).longValue());
+                        break;
+                    case DOUBLE:
+                        statement.setDouble(i + 1, ((Number) typeAndValue.getValue()).doubleValue());
+                        break;
+                    case INTEGER:
+                        statement.setInt(i + 1, ((Number) typeAndValue.getValue()).intValue());
+                        break;
+                    case SMALLINT:
+                        statement.setShort(i + 1, ((Number) typeAndValue.getValue()).shortValue());
+                        break;
+                    case TINYINT:
+                        statement.setByte(i + 1, ((Number) typeAndValue.getValue()).byteValue());
+                        break;
+                    case CHAR:
+                    case VARCHAR:
+                        statement.setString(i + 1, typeAndValue.getValue().toString());
+                        break;
+                    case VARBINARY:
+                        BitString bitString = (BitString) typeAndValue.getValue();
+                        statement.setBytes(i + 1, bitString.getAsByteArray());
+                        break;
+                    case FLOAT:
+                        statement.setFloat(i + 1, ((Number) typeAndValue.getValue()).floatValue());
+                        break;
+                    case DECIMAL:
+                        statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
+                        break;
+                    case DATE:
+                        ArrowType.Date dateType = (ArrowType.Date) tableSchema.findField(typeAndValue.getColumnName()).getType();
+                        if (typeAndValue.getValue() instanceof Number) {
+                            long numericValue = ((Number) typeAndValue.getValue()).longValue();
+                            if (dateType.getUnit() == DateUnit.DAY) {
+                                long utcMillis = numericValue * 24L * 60L * 60L * 1000L; // days → ms
+                                int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
+                                utcMillis -= offsetVal;
+                                statement.setDate(i + 1, new Date(utcMillis));
+                            }
+                            else if (dateType.getUnit() == DateUnit.MILLISECOND) {
+                                long utcMillis = numericValue;
+                                int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
+                                utcMillis -= offsetVal;
+                                statement.setDate(i + 1, new Date(utcMillis));
+                            }
+                        }
+                        else if (typeAndValue.getValue() instanceof DateString) {
+                            statement.setDate(i + 1, Date.valueOf(typeAndValue.getValue().toString()));
+                        }
+                        else if (typeAndValue.getValue() instanceof TimestampString) {
+                            statement.setTimestamp(i + 1, Timestamp.valueOf(typeAndValue.getValue().toString()));
+                        }
+                        else {
+                            throw new AthenaConnectorException(
+                                    String.format("Can't handle date format: %s", typeAndValue.getType()),
+                                    ErrorDetails.builder()
+                                            .errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString())
+                                            .build());
+                        }
+                        break;
+                    default:
+                        throw new AthenaConnectorException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), typeAndValue.getType()),
+                                ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+                }
+            }
+            return statement;
+        }
+        catch (Exception e) {
+            LOGGER.error("prepareStatementWithSqlDialect failed", e);
+            throw new RuntimeException("prepareStatementWithSqlDialect Error", e);
+        }
     }
 }

@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connector.lambda.handlers;
 
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -84,5 +86,12 @@ public interface FederationRequestHandler extends RequestStreamHandler
         else {
             return defaultAthena;
         }
+    }
+
+    default boolean isRequestFederated(FederationRequest req) 
+    {
+        FederatedIdentity federatedIdentity = req.getIdentity();
+        Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
+        return (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null);
     }
 }
