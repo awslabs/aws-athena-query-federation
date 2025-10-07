@@ -35,7 +35,7 @@ jobs:
       - name: Setup Repo Root Directory
         run: echo "REPOSITORY_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       - name: Setup AWS Cred
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: us-east-1
           role-duration-seconds: 18000
