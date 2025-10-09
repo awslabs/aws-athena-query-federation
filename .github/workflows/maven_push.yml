@@ -19,7 +19,7 @@ jobs:
   build:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
-    runs-on: aws-athena-query-federation_ubuntu-latest_16-core
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Set up JDK 11
