@@ -14,9 +14,9 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.34.5</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.35.1</aws-sdk-v2.version>
         <!-- for redshift iam auth still using sdkv1 -->
-        <aws-sdk.version>1.12.791</aws-sdk.version>
+        <aws-sdk.version>1.12.792</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
@@ -26,12 +26,12 @@
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.9.3</jqwik.version>
-        <assertj.version>3.27.4</assertj.version>
+        <assertj.version>3.27.6</assertj.version>
         <testng.version>7.11.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
         <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.5.4</surefire.failsafe.version>
-        <log4j2Version>2.25.1</log4j2Version>
+        <log4j2Version>2.25.2</log4j2Version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
         <guava.version>33.4.0-jre</guava.version>
         <protobuf3.version>3.25.5</protobuf3.version>
@@ -48,7 +48,7 @@
         <mvn.source.plugin.version>3.3.1</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.11.3</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.4.2</mvn.jar.plugin.version>
-        <io.substrait.version>0.52.0</io.substrait.version>
+        <io.substrait.version>0.65.0</io.substrait.version>
         <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
         <com.google.protobuf.version>4.32.1</com.google.protobuf.version>
         <doclint>none</doclint>
@@ -368,7 +368,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.6.0</version>
+                <version>2.7.0</version>
                 <configuration>
                     <verbose>false</verbose>
                     <addSvnKeyWords>false</addSvnKeyWords>
@@ -549,7 +549,7 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.8.0</version>
+                        <version>0.9.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>

@@ -38,12 +38,12 @@
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
-            <version>5.17.0</version>
+            <version>5.18.1</version>
         </dependency>
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
-            <version>5.17.0</version>
+            <version>5.18.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -60,7 +60,7 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.81</version>
+            <version>1.82</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
@@ -70,7 +70,7 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcutil-jdk18on</artifactId>
-            <version>1.81</version>
+            <version>1.82</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/rds -->
         <dependency>
