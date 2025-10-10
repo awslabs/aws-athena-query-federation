@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -27,12 +28,19 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.*;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.oracle.resolver.OracleJDBCCaseResolver;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -40,6 +48,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -62,14 +71,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.oracle.OracleConstants.ORACLE_NAME;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.verify;
 
 public class OracleMetadataHandlerTest
         extends TestBase
 {
+    private static final String CATALOG_NAME = "testCatalog";
+    private static final String QUERY_ID = "queryId";
+    private static final String BASE_CONNECTION_STRING = "oracle://jdbc:oracle:thin:@//testHost:1521/orcl";
+    private static final String SECRET_NAME = "testSecret";
+
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("partition_name", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
-    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ORACLE_NAME,
-            "oracle://jdbc:oracle:thin:username/password@//127.0.0.1:1521/orcl");
+    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(CATALOG_NAME, ORACLE_NAME,
+            BASE_CONNECTION_STRING);
     private OracleMetadataHandler oracleMetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
@@ -86,7 +104,7 @@ public class OracleMetadataHandlerTest
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId(SECRET_NAME).build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.oracleMetadataHandler = new OracleMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new OracleJDBCCaseResolver(ORACLE_NAME));
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
@@ -137,7 +155,7 @@ public class OracleMetadataHandlerTest
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
+        verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
     }
 
     @Test
@@ -178,7 +196,7 @@ public class OracleMetadataHandlerTest
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
+        verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
     }
 
     @Test(expected = RuntimeException.class)
@@ -289,7 +307,7 @@ public class OracleMetadataHandlerTest
 
         ListTablesResponse listTablesResponse = this.oracleMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "testSchema", null, 1));
+                        CATALOG_NAME, "testSchema", null, 1));
         Assert.assertEquals("1", listTablesResponse.getNextToken());
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
 
@@ -302,7 +320,7 @@ public class OracleMetadataHandlerTest
 
         listTablesResponse = this.oracleMetadataHandler.doListTables(
                 blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "testSchema", "1", 1));
+                        CATALOG_NAME, "testSchema", "1", 1));
         Assert.assertEquals("2", listTablesResponse.getNextToken());
         Assert.assertArrayEquals(nextExpected, listTablesResponse.getTables().toArray());
     }
@@ -329,14 +347,57 @@ public class OracleMetadataHandlerTest
         Schema expected = expectedSchemaBuilder.build();
 
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
-        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
-        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        Mockito.when(connection.getMetaData().getColumns(CATALOG_NAME, inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
+        Mockito.when(connection.getCatalog()).thenReturn(CATALOG_NAME);
 
         GetTableResponse getTableResponse = this.oracleMetadataHandler.doGetTable(
-                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+                blockAllocator, new GetTableRequest(this.federatedIdentity, QUERY_ID, CATALOG_NAME, inputTableName, Collections.emptyMap()));
 
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
-        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+        Assert.assertEquals(CATALOG_NAME, getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void testGetCredentialProvider_withSecret() throws Exception
+    {
+        DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig(
+                CATALOG_NAME, ORACLE_NAME,
+                BASE_CONNECTION_STRING.replace("@//", "${" + SECRET_NAME + "}@//"), SECRET_NAME);
+
+        CredentialsProvider provider = captureCredentialsProvider(configWithSecret);
+
+        assertNotNull("CredentialsProvider should not be null when secret is configured", provider);
+        assertTrue("CredentialsProvider should be an instance of OracleCredentialsProvider",
+                provider instanceof OracleCredentialsProvider);
+    }
+
+    @Test
+    public void testGetCredentialProvider_withoutSecret() throws Exception
+    {
+        DatabaseConnectionConfig configWithoutSecret = new DatabaseConnectionConfig(
+                CATALOG_NAME, ORACLE_NAME,
+                BASE_CONNECTION_STRING);
+
+        CredentialsProvider provider = captureCredentialsProvider(configWithoutSecret);
+
+        assertNull("CredentialsProvider should be null when no secret is configured", provider);
+    }
+
+    /**
+     * Captures the CredentialsProvider used by the JDBC connection factory
+     */
+    private CredentialsProvider captureCredentialsProvider(DatabaseConnectionConfig config) throws Exception
+    {
+        OracleMetadataHandler handler = new OracleMetadataHandler(
+                config, secretsManager, athena, jdbcConnectionFactory,
+                com.google.common.collect.ImmutableMap.of(), new OracleJDBCCaseResolver(ORACLE_NAME));
+
+        handler.doListSchemaNames(new BlockAllocatorImpl(),
+                new ListSchemasRequest(federatedIdentity, QUERY_ID, CATALOG_NAME));
+
+        ArgumentCaptor<CredentialsProvider> captor = ArgumentCaptor.forClass(CredentialsProvider.class);
+        verify(jdbcConnectionFactory).getConnection(captor.capture());
+        return captor.getValue();
     }
 }
