@@ -132,6 +132,133 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <configuration>
+                    <minimizeJar>false</minimizeJar>
+                    <createDependencyReducedPom>true</createDependencyReducedPom>
+                    
+                    <!-- Enhanced artifact exclusions -->
+                    <artifactSet>
+                        <excludes>
+                            <!-- Test dependencies -->
+                            <exclude>*:*:*:*:test</exclude>
+                            <exclude>*:*:*:*:provided</exclude>
+                            <exclude>*:*:*:sources:*</exclude>
+                            <exclude>*:*:*:javadoc:*</exclude>
+                            
+                            <!-- Exclude test-only AWS SDK components -->
+                            <exclude>software.amazon.awssdk:rds</exclude>
+                            <exclude>software.amazon.awscdk:rds</exclude>
+                            <exclude>org.mockito:*</exclude>
+                            
+                            <!-- Exclude integration test framework -->
+                            <exclude>com.amazonaws:athena-federation-integ-test</exclude>
+                        </excludes>
+                    </artifactSet>
+                    
+                    <filters>
+                        <!-- Snowflake JDBC - Remove shaded duplicates -->
+                        <filter>
+                            <artifact>net.snowflake:snowflake-jdbc</artifact>
+                            <excludes>
+                                <!-- Remove shaded/internal duplicates -->
+                                <exclude>net/snowflake/client/jdbc/internal/grpc/xds/shaded/**</exclude>
+                                <exclude>net/snowflake/client/jdbc/internal/io/netty/util/internal/shaded/**</exclude>
+                                <exclude>net/snowflake/client/jdbc/internal/opentelemetry/*/shaded/**</exclude>
+                                <exclude>net/snowflake/client/jdbc/internal/google/*/testing/**</exclude>
+                                <exclude>net/snowflake/client/jdbc/internal/amazonaws/*/testing/**</exclude>
+                                
+                                <!-- Remove test classes -->
+                                <exclude>**/*Test*.class</exclude>
+                                <exclude>**/*Mock*.class</exclude>
+                                <exclude>**/testing/**</exclude>
+                                
+                                <!-- Remove attestation classes (dev/test related) -->
+                                <exclude>**/auth/wif/*Attestation*.class</exclude>
+                            </excludes>
+                        </filter>
+                        
+                        <!-- Apache Arrow - Keep only essential classes -->
+                        <filter>
+                            <artifact>org.apache.arrow:*</artifact>
+                            <includes>
+                                <include>org/apache/arrow/vector/**</include>
+                                <include>org/apache/arrow/memory/**</include>
+                                <include>org/apache/arrow/dataset/**</include>
+                            </includes>
+                            <excludes>
+                                <exclude>**/*Test*.class</exclude>
+                                <exclude>**/testing/**</exclude>
+                            </excludes>
+                        </filter>
+                        
+                        <!-- AWS SDK - Remove unused services -->
+                        <filter>
+                            <artifact>software.amazon.awssdk:*</artifact>
+                            <excludes>
+                                <!-- Remove unused AWS services -->
+                                <exclude>software/amazon/awssdk/services/*/internal/**</exclude>
+                                <exclude>**/*Test*.class</exclude>
+                                <exclude>**/testing/**</exclude>
+                            </excludes>
+                        </filter>
+                        
+                        <!-- BouncyCastle - Keep only crypto essentials -->
+                        <filter>
+                            <artifact>org.bouncycastle:*</artifact>
+                            <includes>
+                                <include>org/bouncycastle/crypto/**</include>
+                                <include>org/bouncycastle/asn1/**</include>
+                                <include>org/bouncycastle/x509/**</include>
+                                <include>org/bouncycastle/jce/**</include>
+                            </includes>
+                            <excludes>
+                                <exclude>**/*Test*.class</exclude>
+                                <exclude>**/testing/**</exclude>
+                            </excludes>
+                        </filter>
+                        
+                        <!-- Google libraries - Remove testing utilities -->
+                        <filter>
+                            <artifact>com.google.*:*</artifact>
+                            <excludes>
+                                <exclude>**/testing/**</exclude>
+                                <exclude>**/*Test*.class</exclude>
+                                <exclude>**/*Mock*.class</exclude>
+                                <exclude>**/VisibleForTesting.class</exclude>
+                            </excludes>
+                        </filter>
+                        
+                        <!-- General cleanup for all artifacts -->
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <!-- Signature files -->
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                                
+                                <!-- Documentation -->
+                                <exclude>META-INF/DEPENDENCIES</exclude>
+                                <exclude>META-INF/LICENSE*</exclude>
+                                <exclude>META-INF/NOTICE*</exclude>
+                                <exclude>META-INF/README*</exclude>
+                                <exclude>META-INF/CHANGELOG*</exclude>
+                                <exclude>**/*.md</exclude>
+                                <exclude>**/*.txt</exclude>
+                                <exclude>**/*.html</exclude>
+                                
+                                <!-- Build/development files -->
+                                <exclude>**/.gitignore</exclude>
+                                <exclude>**/pom.xml</exclude>
+                                <exclude>**/pom.properties</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
     <repositories>
