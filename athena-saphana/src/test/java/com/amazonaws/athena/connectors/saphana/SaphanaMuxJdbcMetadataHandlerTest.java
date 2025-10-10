@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-Teradata
+ * athena-saphana
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%

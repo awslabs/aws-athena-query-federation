@@ -23,7 +23,7 @@
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
-            <version>5.17.0</version>
+            <version>5.18.1</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
         <dependency>
@@ -78,7 +78,7 @@
         <dependency>
             <groupId>nl.jqno.equalsverifier</groupId>
             <artifactId>equalsverifier</artifactId>
-            <version>4.1.1</version>
+            <version>4.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
