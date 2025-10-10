@@ -72,7 +72,6 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class Db2MetadataHandlerTest extends TestBase {
@@ -351,6 +350,73 @@ public class Db2MetadataHandlerTest extends TestBase {
                 new TableName("TESTSCHEMA", "testtable"),
                 new TableName("TESTSCHEMA", "testTABLE")};
         Assert.assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTables().toString());
+    }
+
+    @Test
+    public void doListPaginatedTables()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+
+        //Test 1: Testing Single table returned in request of page size 1 and nextToken null
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}};
+        TableName[] expected = {new TableName("testSchema", "testTable")};
+        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        ListTablesResponse listTablesResponse = this.db2MetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", null, 1));
+
+        Assert.assertEquals("1", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        // Test 2: Testing next table returned of page size 1 and nextToken 1
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable2"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable2")};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        listTablesResponse = this.db2MetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "1", 1));
+        Assert.assertEquals("2", listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        // Test 3: Testing single table returned when requesting pageSize 2 signifying end of pagination where nextToken is null.
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable2"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable2")};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        listTablesResponse = this.db2MetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "2", 2));
+        Assert.assertNull(listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
+
+        // Test 4: Testing unlimited page size (UNLIMITED_PAGE_SIZE_VALUE) which should set pageSize to Integer.MAX_VALUE
+        preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        values = new Object[][]{{"testSchema", "testTable1"}, {"testSchema", "testTable2"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable1"), new TableName("testSchema", "testTable2")};
+        resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+
+        // Use a non-null token to force pagination path, which will trigger the listPaginatedTables method
+        listTablesResponse = this.db2MetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", "0", UNLIMITED_PAGE_SIZE_VALUE));
+
+        // With unlimited page size, there should be no next token (null) since all results are returned
+        Assert.assertNull(listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
     }
 }
 
