@@ -20,12 +20,16 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DataKeySpec;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
 import software.amazon.awssdk.services.kms.model.GenerateRandomRequest;
 import software.amazon.awssdk.services.kms.model.GenerateRandomResponse;
+import software.amazon.awssdk.services.kms.model.NotFoundException;
 
 /**
  * An EncryptionKeyFactory that is backed by AWS KMS.
@@ -49,12 +53,17 @@ public class KmsKeyFactory
      */
     public EncryptionKey create()
     {
-        GenerateDataKeyResponse dataKeyResponse =
-                kmsClient.generateDataKey(
-                        GenerateDataKeyRequest.builder()
-                                .keyId(masterKeyId)
-                                .keySpec(DataKeySpec.AES_128)
-                                .build());
+        GenerateDataKeyResponse dataKeyResponse;
+        try {
+            dataKeyResponse = kmsClient.generateDataKey(
+                            GenerateDataKeyRequest.builder()
+                                    .keyId(masterKeyId)
+                                    .keySpec(DataKeySpec.AES_128)
+                                    .build());
+        }
+        catch (NotFoundException e) {
+            throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
+        }
 
         GenerateRandomRequest randomRequest = GenerateRandomRequest.builder()
                 .numberOfBytes(AesGcmBlockCrypto.NONCE_BYTES)
