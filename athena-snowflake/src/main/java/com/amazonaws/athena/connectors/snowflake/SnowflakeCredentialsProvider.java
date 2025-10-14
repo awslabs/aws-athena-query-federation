@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.snowflake;
 
 import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.credentials.DefaultCredentials;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthType;
 import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeAuthUtils;
@@ -29,6 +30,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.utils.Validate;
 
@@ -261,7 +264,8 @@ public class SnowflakeCredentialsProvider implements CredentialsProvider
                 .reduce("", (acc, line) -> acc + line);
 
         if (responseCode != 200) {
-            throw new RuntimeException("Failed: " + responseCode + " - " + response);
+            LOGGER.error("OAuth token request failed with status: {} - {}", responseCode, response);
+            throw new AthenaConnectorException("OAuth authentication failed with status: " + responseCode, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_RESPONSE_EXCEPTION.toString()).build());
         }
 
         ObjectNode tokenJson = objectMapper.readValue(response, ObjectNode.class);
