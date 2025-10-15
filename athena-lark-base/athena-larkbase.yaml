@@ -1,0 +1,241 @@
+Transform: AWS::Serverless-2016-10-31
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaLarkBaseConnector
+    Description: 'This connector enables Amazon Athena to communicate with Lark Base.'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels:
+      - athena-federation
+      - lark-base
+    HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+    SemanticVersion: 2022.47.1
+    SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+Parameters:
+  LarkAppSecretManager:
+    Description: '(Optional) The Name or ARN of the AWS Secrets Manager secret containing the Lark App ID and Secret (e.g., my-lark-secret or arn:aws:secretsmanager:...). If empty, a new secret named {StackName}-LarkAppSecret will be created.'
+    Type: String
+    Default: ''
+  ActivateExperimentalFeature:
+    Description: 'Activate experimental features in connector.'
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  ActivateLarkBaseSource:
+    Description: 'Activate direct Lark Base table discovery via environment mapping in connector.'
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  ActivateLarkDriveSource:
+    Description: 'Activate Lark Drive source in connector (if implemented).'
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  ActivateParallelSplit:
+    Description: 'Activate parallel split for Lark Base source in connector.'
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  LarkBaseSources:
+    Description: 'Lark Base sources to be activated in the connector. Format: "larkBaseId1:larkBaseTableId1,larkBaseId2:larkBaseTableId2"'
+    Type: String
+    Default: ''
+  LarkDriveSources:
+    Description: 'Lark Drive sources to be activated in the connector. Format: "larkDrivePageToken1,larkDrivePageToken2"'
+    Type: String
+    Default: ''
+  LarkPageSize:
+    Description: 'Page size for Lark API calls from connector.'
+    Type: Number
+    Default: 500
+  AthenaCatalogName:
+    Description: 'The name for the Athena Data Catalog. Must satisfy the pattern ^[a-zA-Z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-zA-Z0-9-_]{1,64}$
+  LambdaFunctionName:
+    Description: '(Optional) The name of the Lambda function. If empty, the AthenaCatalogName is used. Must satisfy the pattern ^[a-zA-Z0-9-_]{1,64}$'
+    Type: String
+    Default: ''
+    AllowedPattern: '^[a-zA-Z0-9-_]{1,64}$'
+  SpillBucket:
+    Description: 'The S3 bucket name where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  LambdaRole:
+    Description: "(Optional) A custom role ARN to be used by the Connector lambda. If empty, a new role is created."
+    Type: String
+    Default: ""
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: 'false'
+    Type: String
+    AllowedValues: ['true', 'false']
+  KMSKeyId:
+    Description: "(Optional) KMS Key ID for spill encryption. If empty, a random key is used by the connector runtime."
+    Type: String
+    Default: ""
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+
+Conditions:
+  HasLambdaFunctionName: !Not [!Equals [!Ref LambdaFunctionName, ""]]
+  HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
+  NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  CreateKMSPolicy: !And [!Condition HasKMSKeyId, !Condition NotHasLambdaRole]
+  NotHasLarkAppSecretManager: !Equals [!Ref LarkAppSecretManager, ""]
+  IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
+  IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
+
+Resources:
+  LarkAppSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: NotHasLarkAppSecretManager
+    Properties:
+      Description: !Sub "Secret containing the Lark Application ID and Secret for ${AthenaCatalogName} connector."
+      Name: !Sub "${AthenaCatalogName}-LarkAppSecret"
+
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: !If [HasLambdaFunctionName, !Ref LambdaFunctionName, !Ref AthenaCatalogName]
+      Description: !Sub "Enables Amazon Athena to communicate with Lark Base (${AthenaCatalogName})."
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
+      Environment:
+        Variables:
+          default_secret_manager_lark_app_key: !If
+            - NotHasLarkAppSecretManager
+            - !Ref LarkAppSecret
+            - !Ref LarkAppSecretManager
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          default_page_size: !Ref LarkPageSize
+          default_does_activate_lark_base_source: !Ref ActivateLarkBaseSource
+          default_does_activate_lark_drive_source: !Ref ActivateLarkDriveSource
+          default_does_activate_experimental_feature: !Ref ActivateExperimentalFeature
+          default_does_activate_parallel_split: !Ref ActivateParallelSplit
+          default_lark_base_sources: !Ref LarkBaseSources
+          default_lark_drive_sources: !Ref LarkDriveSources
+          JAVA_TOOL_OPTIONS: '--add-opens=java.base/java.nio=ALL-UNNAMED' #https://arrow.apache.org/docs/java/install.html
+      PackageType: "Image"
+      ImageUri: !Sub
+        - '${Account}.dkr.ecr.${AWS::Region}.amazonaws.com/athena-federation-repository-lark-base:2022.47.1' # TODO: Update with your actual ECR image tag/repo
+        - Account: !If [IsRegionBAH, 084828588479, !If [IsRegionHKG, 183295418215, 292517598671]] # TODO: Update with correct account IDs per region if needed
+      ImageConfig:
+        Command: [ "com.amazonaws.athena.connectors.lark.base.BaseCompositeHandler" ]
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+
+  FunctionRole:
+    Condition: NotHasLambdaRole
+    Type: AWS::IAM::Role
+    Properties:
+      PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue"]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: !Sub ${AthenaCatalogName}-ConnectorAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !If
+                  - NotHasLarkAppSecretManager
+                  - !Ref LarkAppSecret
+                  - !Ref LarkAppSecretManager
+              - Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetDatabases
+                  - glue:GetTable
+                  - glue:GetTables
+                  - glue:GetPartition
+                  - glue:GetPartitions
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${SpillBucket}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${SpillBucket}/${SpillPrefix}/*"
+              - Effect: Allow
+                Action:
+                  - athena:GetQueryExecution
+                Resource: '*'
+
+  FunctionKMSPolicy:
+    Condition: CreateKMSPolicy
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub ${AthenaCatalogName}-KMSPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - kms:GenerateRandom
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
+      Roles:
+        - !Ref FunctionRole
+
+  DataCatalog:
+    Type: AWS::Athena::DataCatalog
+    Properties:
+      Name: !Ref AthenaCatalogName
+      Type: LAMBDA
+      Description: !Sub 'Athena Data Catalog for Lark Base Connector (${AthenaCatalogName})'
+      Parameters:
+        function: !GetAtt ConnectorConfig.Arn
+
+Outputs:
+  AthenaCatalogName:
+    Description: Name of the Athena Data Catalog created.
+    Value: !Ref AthenaCatalogName
+  ConnectorLambdaArn:
+    Description: ARN of the Athena Connector Lambda function.
+    Value: !GetAtt ConnectorConfig.Arn
+  ConnectorLambdaFunctionName:
+    Description: Name of the Athena Connector Lambda function.
+    Value: !If [HasLambdaFunctionName, !Ref LambdaFunctionName, !Ref AthenaCatalogName]
+  ConnectorRoleArn:
+    Description: ARN of the IAM Role for the Athena Connector Lambda.
+    Value: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
+  LarkAppSecretArn:
+    Description: ARN of the Lark Application secret in Secrets Manager. Only output if created by this stack.
+    Value: !Ref LarkAppSecret
+    Condition: NotHasLarkAppSecretManager

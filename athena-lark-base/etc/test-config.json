@@ -1,0 +1,25 @@
+{
+  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "athena_result_location": "<bucket_path (without s3://)>", /* The s3 bucket path used to store results of Athena queries */
+  "secrets_manager_secret" : "<secret name>",         /* Secret name used to retrieve Lark credentials from SecretsManager. Format: {"app_id":"cli_xxx","app_secret":"xxx"} */
+  "environment_vars" : {                  /* Parameters used by the connector's internal logic */
+    "spill_bucket" : "<spill bucket>",    /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill",      /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false",  /* If set to true encryption for spilled data is disabled (default: false) */
+    "default_secret_manager_lark_app_key": "<secret name>", /* AWS Secrets Manager secret containing Lark App ID and Secret */
+    "default_page_size": "500",            /* Page size for Lark API calls (default: 500) */
+    "default_does_activate_lark_base_source": "true",  /* Activate direct Lark Base table discovery (default: true) */
+    "default_does_activate_lark_drive_source": "false", /* Activate Lark Drive source (default: false) */
+    "default_does_activate_experimental_feature": "false", /* Activate experimental features (default: false) */
+    "default_does_activate_parallel_split": "false",  /* Activate parallel split execution (default: false) */
+    "default_lark_base_sources": "<larkBaseId1:larkBaseTableId1,larkBaseId2:larkBaseTableId2>", /* Lark Base sources for direct mapping */
+    "default_lark_drive_sources": ""       /* Lark Drive sources (if using Lark Drive discovery) */
+  },
+  "user_settings" : {                     /* User customizable settings */
+    "lark_base_id": "<Lark Base ID>",     /* Lark Base ID for testing (e.g. EEMGbnS87a2W1IsaJKhjds3fpwe) */
+    "lark_table_id": "<Lark Table ID>",   /* Lark Table ID for testing (e.g. tblehzVRm83N1vOX) */
+    "test_database": "<Database Name>",   /* Name of the database/schema used for tests */
+    "test_table": "<Table Name>",         /* Name of the test table */
+    "catalog_name": "<Catalog Name>"      /* Athena Data Catalog name for the connector */
+  }
+}
