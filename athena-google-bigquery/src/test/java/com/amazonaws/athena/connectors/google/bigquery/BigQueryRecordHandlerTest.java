@@ -79,6 +79,8 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -196,8 +198,16 @@ public class BigQueryRecordHandlerTest
     {
         System.setProperty("aws.region", "us-east-1");
         logger.info("Starting init.");
-        mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
+        mockedStatic = Mockito.mockStatic(BigQueryUtils.class);
+        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class), any(String.class))).thenReturn(bigQuery);
         mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
+        mockedStatic.when(() -> BigQueryUtils.getEnvBigQueryCredsSmId(any(Map.class))).thenReturn("dummySecret");
+        
+        // Mock the SecretsManager response
+        GetSecretValueResponse secretResponse = GetSecretValueResponse.builder()
+                .secretString("dummy-secret-value")
+                .build();
+        when(awsSecretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretResponse);
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         allocator = new BlockAllocatorImpl();
         amazonS3 = mock(S3Client.class);
@@ -220,18 +230,22 @@ public class BigQueryRecordHandlerTest
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
         //Mock the BigQuery Client to return Datasets, and Table Schema information.
-        BigQueryPage<Dataset> datasets = new BigQueryPage<Dataset>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, 2));
-        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasets);
-        BigQueryPage<Table> tables = new BigQueryPage<Table>(BigQueryTestUtils.getTableList(BigQueryTestUtils.PROJECT_1_NAME, "dataset1", 2));
-        when(bigQuery.listTables(nullable(DatasetId.class))).thenReturn(tables);
         Table table = mock(Table.class);
         TableDefinition def = mock(TableDefinition.class);
         when(bigQuery.getTable(any())).thenReturn(table);
         when(table.getDefinition()).thenReturn(def);
         when(def.getType()).thenReturn(TableDefinition.Type.TABLE);
+        
+        // Mock the fixCaseForDatasetName and fixCaseForTableName methods
+        mockedStatic.when(() -> BigQueryUtils.fixCaseForDatasetName(any(String.class), any(String.class), any(BigQuery.class))).thenReturn("dataset1");
+        mockedStatic.when(() -> BigQueryUtils.fixCaseForTableName(any(String.class), any(String.class), any(String.class), any(BigQuery.class))).thenReturn("table1");
 
         //The class we want to test.
-        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of(BigQueryConstants.GCP_PROJECT_ID, "test"), rootAllocator);
+        Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
+                BigQueryConstants.GCP_PROJECT_ID, "test",
+                BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "dummySecret"
+        );
+        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena, configOptions, rootAllocator);
 
         logger.info("Completed init.");
     }
