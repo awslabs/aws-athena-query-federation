@@ -38,7 +38,7 @@ public class SnowflakeJDBCCaseResolver
 
     public SnowflakeJDBCCaseResolver(String sourceType)
     {
-        super(sourceType, FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH, FederationSDKCasingMode.NONE);
+        super(sourceType, FederationSDKCasingMode.NONE, FederationSDKCasingMode.NONE);
     }
 
     @VisibleForTesting

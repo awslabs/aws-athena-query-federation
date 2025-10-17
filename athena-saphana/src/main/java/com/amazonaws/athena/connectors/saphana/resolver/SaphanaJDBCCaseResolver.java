@@ -38,7 +38,7 @@ public class SaphanaJDBCCaseResolver
 
     public SaphanaJDBCCaseResolver(String sourceType)
     {
-        super(sourceType, FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH, FederationSDKCasingMode.NONE);
+        super(sourceType, FederationSDKCasingMode.NONE, FederationSDKCasingMode.NONE);
     }
 
     @VisibleForTesting

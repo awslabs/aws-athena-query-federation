@@ -442,7 +442,7 @@ public class SaphanaMetadataHandlerTest
         Assert.assertEquals(expectedSplits, actualSplits);
     }
 
-    @Test(expected = AthenaConnectorException.class)
+    @Test(expected = SQLException.class)
     public void doGetTableSQLException()
             throws Exception
     {
@@ -523,5 +523,43 @@ public class SaphanaMetadataHandlerTest
 
         Assert.assertThrows(Exception.class, () -> this.saphanaMetadataHandler.doGetTable(
                 this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap())));
+    }
+
+    @Test
+    public void doGetTableWithNoneCasing()
+            throws Exception
+    {
+        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
+        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
+                {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol2", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol3", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+        expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol4", org.apache.arrow.vector.types.Types.MinorType.DATEMILLI.getType()).build());
+
+        PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
+        Schema expected = expectedSchemaBuilder.build();
+
+        String schemaName = "TestSchema";
+        String tableName = "TestTable";
+        TableName inputTableName = new TableName(schemaName, tableName);
+
+        SaphanaMetadataHandler saphanaMetadataHandlerNone = new SaphanaMetadataHandler(databaseConnectionConfig,
+                this.secretsManager, this.athena, this.jdbcConnectionFactory,
+                com.google.common.collect.ImmutableMap.of(CaseResolver.CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.NONE.name()),
+                new SaphanaJDBCCaseResolver(SAPHANA_NAME, CaseResolver.FederationSDKCasingMode.NONE));
+
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", schemaName, tableName, null)).thenReturn(resultSet);
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+
+        GetTableResponse getTableResponse = saphanaMetadataHandlerNone.doGetTable(
+                this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
+
+        Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(new TableName(schemaName, tableName), getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 }
