@@ -34,7 +34,7 @@
         <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>kafka-avro-serializer</artifactId>
-            <version>8.0.0</version>
+            <version>8.1.0</version>
         </dependency>
         <dependency>
             <groupId>io.confluent</groupId>
@@ -182,7 +182,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.13</version>
+                <version>0.8.14</version>
                 <configuration>
                     <excludes>
                         <exclude>com/athena/connectors/kafka/dto/*.*</exclude>
