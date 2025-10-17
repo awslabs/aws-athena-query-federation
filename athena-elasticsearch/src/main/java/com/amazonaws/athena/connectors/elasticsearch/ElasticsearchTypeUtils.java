@@ -35,6 +35,8 @@ import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWrit
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -67,6 +69,7 @@ import java.util.Map;
  */
 class ElasticsearchTypeUtils
 {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchTypeUtils.class);
     private final ElasticsearchFieldResolver fieldResolver;
 
@@ -110,7 +113,8 @@ class ElasticsearchTypeUtils
 
     /**
      * Create a VARCHAR field extractor to extract a string value from a Document. The Document value can be returned
-     * as a String or a List. For the latter, extract the first element only.
+     * as a String, List, or Map. For Maps with json="true" metadata, converts to JSON string. For other Lists and Maps,
+     * uses toString() representation.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -122,6 +126,15 @@ class ElasticsearchTypeUtils
             dst.isSet = 1;
             if (fieldValue instanceof String) {
                 dst.value = (String) fieldValue;
+            }
+            else if (fieldValue instanceof Map && "true".equals(field.getMetadata().get("json"))) {
+                try {
+                    dst.value = OBJECT_MAPPER.writeValueAsString(fieldValue);
+                }
+                catch (JsonProcessingException e) {
+                    logger.warn("Error serializing object to JSON for field {}: {}", field.getName(), e.getMessage());
+                    dst.isSet = 0;
+                }
             }
             else if (fieldValue instanceof List || fieldValue instanceof Map) {
                 dst.value = fieldValue.toString();

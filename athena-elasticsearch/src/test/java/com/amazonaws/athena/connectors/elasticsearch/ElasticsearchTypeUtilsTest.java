@@ -101,6 +101,40 @@ public class ElasticsearchTypeUtilsTest
     }
 
     /**
+     * Test the VARCHAR extractor to extract a map as a JSON string.
+     * @throws Exception
+     */
+    @Test
+    public void makeVarCharExtractorJsonTest()
+            throws Exception
+    {
+        logger.info("makeVarCharExtractorJsonTest - enter");
+
+        mapping = SchemaBuilder.newBuilder()
+                .addField(new Field("myjsonobject",
+                        new FieldType(true, Types.MinorType.VARCHAR.getType(), null,
+                                ImmutableMap.of("json", "true")), null))
+                .build();
+
+        Map<String, Object> document = new ObjectMapper().readValue(
+                "{\n" +
+                "  \"myjsonobject\": {\n" +
+                "    \"nestedkey\": \"nestedvalue\",\n" +
+                "    \"nestednumber\": 123\n" +
+                "  }\n" +
+                "}\n", HashMap.class);
+
+        Map<String, Object> expectedResults = new HashMap<>();
+        expectedResults.put("myjsonobject", "{\"nestedkey\":\"nestedvalue\",\"nestednumber\":123}");
+
+        Map<String, Object> results = testField(mapping, document);
+
+        assertEquals("Extracted results are not as expected!", expectedResults, results);
+
+        logger.info("makeVarCharExtractorJsonTest - exit");
+    }
+
+    /**
      * Test the BIGINT extractor to extract long and scaled_float values.
      * @throws Exception
      */
