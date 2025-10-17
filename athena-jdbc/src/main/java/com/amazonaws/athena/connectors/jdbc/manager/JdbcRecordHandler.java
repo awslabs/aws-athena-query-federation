@@ -74,6 +74,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -139,9 +140,14 @@ public abstract class JdbcRecordHandler
 
     protected CredentialsProvider getCredentialProvider()
     {
+        return getCredentialProvider(null);
+    }
+
+    protected CredentialsProvider getCredentialProvider(AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
         final String secretName = this.databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
-            return new DefaultCredentialsProvider(getSecret(secretName));
+            return new DefaultCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
         }
 
         return null;
@@ -153,7 +159,7 @@ public abstract class JdbcRecordHandler
     {
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
-        try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+        try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider(getRequestOverrideConfig(readRecordsRequest)))) {
             String databaseProductName = connection.getMetaData().getDatabaseProductName();
 
             // clickhouse does not support disabling auto-commit
