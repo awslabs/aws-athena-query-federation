@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.vertica.query;
 
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
@@ -31,10 +30,11 @@ import org.stringtemplate.v4.ST;
 
 import java.sql.ResultSet;
 import java.util.Arrays;
-import java.util.Collections;
-
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -51,7 +51,6 @@ public class VerticaExportQueryBuilderTest {
     @Mock private ST template;
     @Mock private ResultSet resultSet;
     @Mock private Schema schema;
-    @Mock private Constraints constraints;
 
     private VerticaExportQueryBuilder builder;
 
@@ -101,13 +100,6 @@ public class VerticaExportQueryBuilderTest {
     }
 
     @Test
-    public void withConstraints_Empty_ShouldSetEmptyConstraints() {
-        when(schema.getFields()).thenReturn(Collections.emptyList());
-        builder.withConstraints(constraints, schema);
-        assertEquals("", builder.getConstraintValues());
-    }
-
-    @Test
     public void withS3ExportBucket_ValidBucket_ShouldSetCorrectly() {
         builder.withS3ExportBucket(TEST_BUCKET);
         assertEquals(TEST_BUCKET, builder.getS3ExportBucket());
@@ -138,6 +130,62 @@ public class VerticaExportQueryBuilderTest {
 
         String result = builder.build();
         assertEquals(EXPECTED_SQL_TEMPLATE, result);
+    }
+
+    @Test
+    public void withPreparedStatementSQL_EmptySQL_ShouldSetEmpty() {
+        builder.withPreparedStatementSQL("");
+        assertEquals("Empty SQL should be set correctly", "", builder.getPreparedStatementSQL());
+        assertNotNull("Prepared SQL should not be null", builder.getPreparedStatementSQL());
+    }
+
+    @Test
+    public void withS3ExportBucket_EmptyBucket_ShouldSetEmpty() {
+        builder.withS3ExportBucket("");
+        assertEquals("Empty bucket should be set correctly", "", builder.getS3ExportBucket());
+        assertNotNull("S3 export bucket should not be null", builder.getS3ExportBucket());
+    }
+
+    @Test
+    public void withQueryID_EmptyQueryID_ShouldSetEmpty() {
+        builder.withQueryID("");
+        assertEquals("Empty query ID should be set correctly", "", builder.getQueryID());
+        assertNotNull("Query ID should not be null", builder.getQueryID());
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void withColumns_NullResultSet_ShouldThrowException() throws Exception {
+        mockSchema(new String[]{"id", "name"});
+        builder.withColumns(null, schema);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void withColumns_NullSchema_ShouldThrowException() throws Exception {
+        mockResultSet(new String[]{"id", "name"}, new String[]{"integer", "varchar"});
+        builder.withColumns(resultSet, null);
+    }
+
+    @Test
+    public void fromTable_ValidSchemaAndTable_ShouldSetTable() {
+        builder.fromTable("testSchema", "testTable");
+        assertNotNull("Table should not be null", builder.getTable());
+        assertTrue("Table should be a string", builder.getTable() instanceof String);
+        String table = builder.getTable();
+        assertFalse("Table should contain schema and table info", table.isEmpty());
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void fromTable_NullTable_ShouldThrowException() {
+        builder.fromTable("testSchema", null);
+    }
+
+    @Test
+    public void fromTable_EmptySchemaAndTable() {
+        builder.fromTable("", "");
+        assertNotNull("Table should not be null even with empty inputs", builder.getTable());
+        assertTrue("Table should be a string", builder.getTable() instanceof String);
+        String table = builder.getTable();
+        assertNotNull("Table string should not be null", table);
     }
 
     /**

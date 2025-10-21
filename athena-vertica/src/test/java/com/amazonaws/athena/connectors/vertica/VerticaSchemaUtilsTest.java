@@ -151,4 +151,19 @@ public class VerticaSchemaUtilsTest extends TestBase
         assertEquals(expected, result);
     }
 
+    @Test
+    public void formatCrtFileContents_NullCertificate() throws Exception
+    {
+        Method formatMethod = VerticaSchemaUtils.class.getDeclaredMethod("formatCrtFileContents", Certificate.class);
+        formatMethod.setAccessible(true);
+
+        try {
+            formatMethod.invoke(null, (Certificate) null);
+            fail("Expected NullPointerException for null certificate");
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            assertTrue("Should throw NullPointerException for null certificate",
+                e.getCause() instanceof NullPointerException);
+        }
+    }
+
 }

@@ -95,6 +95,7 @@ import static com.amazonaws.athena.connectors.vertica.VerticaConstants.VERTICA_N
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 
@@ -183,6 +184,34 @@ public class VerticaMetadataHandlerTest extends TestBase
         assertEquals(tableName, response.getTableName());
         assertEquals(tableSchema, response.getSchema());
         assertTrue(response.getPartitionColumns().isEmpty());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetTable_SchemaUtilsFailure_ShouldThrowException() throws Exception {
+        Mockito.when(verticaSchemaUtils.buildTableSchema(connection, tableName))
+                .thenThrow(new RuntimeException("Schema build failed"));
+
+        GetTableRequest request = new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, Collections.emptyMap());
+        verticaMetadataHandler.doGetTable(allocator, request);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void doGetTable_NullRequest_ShouldThrowException() throws Exception {
+        verticaMetadataHandler.doGetTable(allocator, null);
+    }
+
+    @Test
+    public void doGetTable_EmptySchema() throws Exception {
+        Schema emptySchema = SchemaBuilder.newBuilder().build();
+        Mockito.when(verticaSchemaUtils.buildTableSchema(connection, tableName)).thenReturn(emptySchema);
+
+        GetTableRequest request = new GetTableRequest(federatedIdentity, "testQueryId", "testCatalog", tableName, Collections.emptyMap());
+        GetTableResponse response = verticaMetadataHandler.doGetTable(allocator, request);
+
+        assertEquals("testCatalog", response.getCatalogName());
+        assertEquals(tableName, response.getTableName());
+        assertEquals(emptySchema, response.getSchema());
+        assertNotNull("Response should not be null", response);
     }
 
     @Test
@@ -505,9 +534,54 @@ public class VerticaMetadataHandlerTest extends TestBase
             assertNotNull(nextSplit.getProperty("s3ObjectKey"));
         }
 
-        assertTrue(!response.getSplits().isEmpty());
+        assertFalse(response.getSplits().isEmpty());
     }
 
+    @Test(expected = NullPointerException.class)
+    public void doGetSplits_NullRequest_ShouldThrowException() {
+        verticaMetadataHandlerMocked.doGetSplits(allocator, null);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetSplits_InvalidPartitionData_ShouldThrowException() {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("invalidField")
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        BlockUtils.setValue(partitions.getFieldVector("invalidField"), 0, "invalid");
+
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, "queryId", "catalog_name",
+                new TableName("schema", "table_name"), partitions, Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
+
+        verticaMetadataHandlerMocked.doGetSplits(allocator, req);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void doGetSplits_S3AccessFailure_ShouldThrowException() {
+        Mockito.when(amazonS3.listObjects(nullable(ListObjectsRequest.class)))
+                .thenThrow(new RuntimeException("S3 access failed"));
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField("awsRegionSql")
+                .build();
+
+        Block partitions = allocator.createBlock(schema);
+        BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), 0, "test");
+        BlockUtils.setValue(partitions.getFieldVector("queryId"), 0, "123");
+        BlockUtils.setValue(partitions.getFieldVector("awsRegionSql"), 0, "us-west-2");
+
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
+
+        GetSplitsRequest req = new GetSplitsRequest(federatedIdentity, "queryId", "catalog_name",
+                new TableName("schema", "table_name"), partitions, Collections.emptyList(),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
+
+        verticaMetadataHandlerMocked.doGetSplits(allocator, req);
+    }
     @Test
     public void doGetQueryPassthroughSchema() throws Exception {
         String query = "SELECT id, name FROM testTable";
@@ -561,7 +635,5 @@ public class VerticaMetadataHandlerTest extends TestBase
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("No Query passed through"));
         }
-    }
-
-
+        }
 }

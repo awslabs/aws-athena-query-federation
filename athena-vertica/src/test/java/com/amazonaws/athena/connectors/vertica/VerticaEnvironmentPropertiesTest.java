@@ -31,6 +31,7 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class VerticaEnvironmentPropertiesTest {
     private Map<String, String> connectionProperties;
@@ -52,5 +53,22 @@ public class VerticaEnvironmentPropertiesTest {
 
         String expectedConnectionString = "vertica://jdbc:vertica://vertica-cluster-endpoint:1234/verticadb?${vertica-secret}";
         assertEquals(expectedConnectionString, verticaConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void verticaConnectionPropertiesTest_EmptyStringValues() {
+        connectionProperties.put(HOST, "");
+        connectionProperties.put(DATABASE, "");
+        connectionProperties.put(SECRET_NAME, "");
+        connectionProperties.put(PORT, "");
+        Map<String, String> result = verticaEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expectedConnectionString = "vertica://jdbc:vertica://:/?${}";
+        assertEquals(expectedConnectionString, result.get(DEFAULT));
+        assertNotNull(result);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void verticaConnectionPropertiesTest_NullConnectionProperties_ShouldThrowException() {
+        verticaEnvironmentProperties.connectionPropertiesToEnvironment(null);
     }
 }
