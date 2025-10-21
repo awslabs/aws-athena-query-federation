@@ -3,6 +3,10 @@ on:
   schedule:
     - cron: '15 15 * * *' # Run every day at 15:15 UTC / 7:15 PST / 8:15 PDT
   workflow_dispatch:
+permissions:
+  pull-requests: write
+  issues: write
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest
