@@ -504,7 +504,7 @@ public class DocDBMetadataHandlerTest
         assertNotNull("SubType properties (function names) should not be null", actualFunctions);
 
         List<String> expectedFunctions = Arrays.asList(
-                "$and", "$in", "$not", "$or", "$is_null",
+                "$and", "$in", "$not", "$is_null",
                 "$equal", "$greater_than", "$less_than",
                 "$greater_than_or_equal", "$less_than_or_equal", "$not_equal"
         );

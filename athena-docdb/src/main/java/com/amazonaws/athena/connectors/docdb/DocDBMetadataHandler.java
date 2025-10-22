@@ -169,7 +169,6 @@ public class DocDBMetadataHandler
         supportedFunctions.add(StandardFunctions.AND_FUNCTION_NAME);
         supportedFunctions.add(StandardFunctions.IN_PREDICATE_FUNCTION_NAME);
         supportedFunctions.add(StandardFunctions.NOT_FUNCTION_NAME);
-        supportedFunctions.add(StandardFunctions.OR_FUNCTION_NAME);
         supportedFunctions.add(StandardFunctions.IS_NULL_FUNCTION_NAME);
         supportedFunctions.add(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME);
         supportedFunctions.add(StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME);
