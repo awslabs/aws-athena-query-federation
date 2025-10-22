@@ -20,13 +20,16 @@
 package com.amazonaws.athena.connector.lambda.security;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import software.amazon.awssdk.core.SdkBytes;
@@ -35,6 +38,7 @@ import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
 import software.amazon.awssdk.services.kms.model.GenerateRandomRequest;
 import software.amazon.awssdk.services.kms.model.GenerateRandomResponse;
+import software.amazon.awssdk.services.kms.model.NotFoundException;
 
 public class KmsKeyFactoryTest {
 
@@ -78,5 +82,17 @@ public class KmsKeyFactoryTest {
         // Verify interactions
         verify(mockKmsClient).generateDataKey((GenerateDataKeyRequest) any());
         verify(mockKmsClient).generateRandom((GenerateRandomRequest) any());
+    }
+
+    @Test
+    public void testNotFoundException() {
+        NotFoundException exception = NotFoundException.builder()
+                .message("Key not found")
+                .build();
+        when(mockKmsClient.generateDataKey((GenerateDataKeyRequest) any())).thenThrow(exception);
+
+        assertThrows(AthenaConnectorException.class, () -> {
+            kmsKeyFactory.create();
+        });
     }
 }
