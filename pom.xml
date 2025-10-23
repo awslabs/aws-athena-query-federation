@@ -33,7 +33,7 @@
         <surefire.failsafe.version>3.5.4</surefire.failsafe.version>
         <log4j2Version>2.25.2</log4j2Version>
         <apache.arrow.version>18.3.0</apache.arrow.version>
-        <guava.version>33.4.0-jre</guava.version>
+        <guava.version>33.4.8-jre</guava.version>
         <protobuf3.version>3.25.5</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
