@@ -10,7 +10,7 @@
     <version>2022.47.1</version>
     <properties>
         <jetty.version>11.0.24</jetty.version>
-        <hbase.version>2.6.2-hadoop3</hbase.version>
+        <hbase.version>2.6.3-hadoop3</hbase.version>
     </properties>
     <dependencies>
         <dependency>
@@ -32,6 +32,22 @@
             <version>2022.47.1</version>
             <classifier>withdep</classifier>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j-log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>${slf4j-log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j2Version}</version>
+            <scope>runtime</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/emr -->
         <dependency>

@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-federation-sdk
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -22,44 +22,24 @@ package com.amazonaws.athena.connector.credentials;
 import java.util.Map;
 
 /**
- * JDBC username and password provider.
+ * Provider interface for database credentials.
  */
 public interface CredentialsProvider
 {
-    String USER = "user";
-    String PASSWORD = "password";
-
     /**
-     * Retrieves credential for database.
-     *
-     * @return JDBC credential. See {@link DefaultCredentials}.
+     * Retrieves credentials for database connection.
+     * @return Credentials object (username/password or OAuth)
      */
-    DefaultCredentials getCredential();
+    Credentials getCredential();
 
     /**
-     * Retrieves credential properties as a map for database connection.
-     *
-     * Default Behavior:
-     * The default implementation returns a map containing only the basic "user" and "password" 
-     * properties extracted from the {@link DefaultCredentials} object returned by {@link #getCredential()}.
-     * This maintains backward compatibility with existing JDBC connection patterns.
-     *
-     * Extended Behavior:
-     * Implementations can override this method to provide additional connection properties beyond 
-     * just username and password. This enables support for advanced authentication mechanisms.
-     *
-     * Usage:
-     * The returned map is directly applied to JDBC connection properties, allowing for seamless 
-     * integration with various database drivers and authentication schemes without requiring 
-     * custom connection factory implementations.
-     *
+     * Retrieves credential properties for database connection.
      * @return Map containing credential properties for database connection. The default implementation
      *         returns a map with "user" and "password" keys. Overriding implementations may return
      *         additional properties as needed for their specific authentication requirements.
      */
     default Map<String, String> getCredentialMap()
     {
-        DefaultCredentials credential = getCredential();
-        return Map.of(USER, credential.getUser(), PASSWORD, credential.getPassword());
+        return getCredential().getProperties();
     }
 }

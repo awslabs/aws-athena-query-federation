@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <name>Amazon Athena Oracle Connector</name>
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
@@ -30,7 +31,7 @@
         <dependency>
             <groupId>com.oracle.database.jdbc</groupId>
             <artifactId>ojdbc8</artifactId>
-            <version>23.8.0.25.04</version>
+            <version>23.9.0.25.07</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/rds -->
         <dependency>

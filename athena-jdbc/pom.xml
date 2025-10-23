@@ -32,12 +32,12 @@
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
-            <version>6.3.0</version>
+            <version>7.0.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
-            <version>1.13.1</version>
+            <version>1.14.0</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
@@ -146,7 +146,7 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
-            <version>4.9.3</version>
+            <version>4.9.7</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

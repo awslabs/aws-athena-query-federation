@@ -42,7 +42,7 @@ class SnowflakeMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, Map<String, String> configOptions)
     {
         return new SnowflakeMetadataHandler(config, configOptions);
     }
@@ -51,14 +51,14 @@ class SnowflakeMetadataHandlerFactory
 public class SnowflakeMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public SnowflakeMuxMetadataHandler(java.util.Map<String, String> configOptions)
+    public SnowflakeMuxMetadataHandler(Map<String, String> configOptions)
     {
         super(new SnowflakeMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
     protected SnowflakeMuxMetadataHandler(SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory,
-                                     Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
+                                     Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, Map<String, String> configOptions)
     {
         super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions, new SnowflakeJDBCCaseResolver(SnowflakeConstants.SNOWFLAKE_NAME));
     }
