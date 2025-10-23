@@ -20,13 +20,16 @@
 package com.amazonaws.athena.connectors.cloudera;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import java.util.Collections;
+
 import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QUOTE_CHARACTER;
+import static org.junit.Assert.assertEquals;
 
 @SuppressWarnings("deprecation")
 @RunWith(MockitoJUnitRunner.class)
@@ -44,8 +47,17 @@ public class ImpalaQueryStringBuilderTest
 		ImpalaQueryStringBuilder builder = new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER));
 		String fromResult1 = builder.getFromClauseWithSplit("default", "schema", "table", split);
 		String fromResult2 = builder.getFromClauseWithSplit("default", "", "table", split);
-		Assert.assertEquals(expectedFrom1, fromResult1);
-		Assert.assertEquals(expectedFrom2, fromResult2);
+		assertEquals(expectedFrom1, fromResult1);
+		assertEquals(expectedFrom2, fromResult2);
 	}
 
+	@Test
+	public void testGetPartitionWhereClauses_withAllPartitions()
+	{
+		Mockito.when(split.getProperty(ImpalaConstants.BLOCK_PARTITION_COLUMN_NAME)).thenReturn("*");
+
+		ImpalaQueryStringBuilder builder = new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER));
+
+		assertEquals(Collections.emptyList(), builder.getPartitionWhereClauses(split));
+	}
 }
