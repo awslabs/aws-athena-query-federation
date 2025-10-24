@@ -27,19 +27,32 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DATABASE;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.DEFAULT;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HIVE_CONFS;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HIVE_VARS;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SESSION_CONFS;
 import static org.junit.Assert.assertEquals;
 
-public class ClouderaHiveEnvironmentPropertiesTest {
+public class ClouderaHiveEnvironmentPropertiesTest
+{
+    private static final String BASE_CONNECTION_STRING = "hive://jdbc:hive2://localhost:49100/default;";
+    private static final String HIVE_EXECUTION_ENGINE_MR = "hive.execution.engine=mr";
+    private static final String MAPREDUCE_QA = "mapreduce.job.queuename=qa";
+    private static final String ENV_QA = "env=qa";
+    private static final String MAPREDUCE_TESTING = "mapreduce.job.queuename=testing";
+    private static final String ENV_TEST = "env=test";
+    private static final String TEST_SECRET = "${testSecret}";
+    
     Map<String, String> connectionProperties;
     ClouderaHiveEnvironmentProperties clouderaHiveEnvironmentProperties;
 
     @Before
-    public void setUp() {
+    public void setUp()
+    {
         connectionProperties = new HashMap<>();
-        connectionProperties.put(HOST, "50.100.00.10");
+        connectionProperties.put(HOST, "localhost");
         connectionProperties.put(DATABASE, "default");
         connectionProperties.put(SECRET_NAME, "testSecret");
         connectionProperties.put(PORT, "49100");
@@ -47,11 +60,60 @@ public class ClouderaHiveEnvironmentPropertiesTest {
     }
 
     @Test
-    public void clouderaHiveConnectionPropertiesTest() {
-
+    public void testClouderaHiveConnectionProperties()
+    {
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
 
-        String expectedConnectionString = "hive://jdbc:hive2://50.100.00.10:49100/default;${testSecret}";
+        String expectedConnectionString = BASE_CONNECTION_STRING + TEST_SECRET;
+        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void testClouderaHiveConnectionProperties_withSessionConfsOnly()
+    {
+        connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
+        Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + TEST_SECRET;
+        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void testClouderaHiveConnectionProperties_withSessionAndHiveConfs()
+    {
+        connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
+        connectionProperties.put(HIVE_CONFS, MAPREDUCE_TESTING);
+        Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + ";" + MAPREDUCE_TESTING + TEST_SECRET;
+        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void testClouderaHiveConnectionProperties_withAllConfigs()
+    {
+        connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
+        connectionProperties.put(HIVE_CONFS, MAPREDUCE_TESTING);
+        connectionProperties.put(HIVE_VARS, ENV_TEST);
+        Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + ";" + MAPREDUCE_TESTING + ";" + ENV_TEST + ";" + TEST_SECRET;
+        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void testClouderaHiveConnectionProperties_withHiveVarsOnly()
+    {
+        connectionProperties.put(HIVE_VARS, ENV_TEST);
+        Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expectedConnectionString = BASE_CONNECTION_STRING + ENV_TEST + ";" + TEST_SECRET;
+        assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
+    }
+
+    @Test
+    public void testClouderaHiveConnectionProperties_withHiveConfsAndVars()
+    {
+        connectionProperties.put(HIVE_CONFS, MAPREDUCE_QA);
+        connectionProperties.put(HIVE_VARS, ENV_QA);
+        Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
+        String expectedConnectionString = BASE_CONNECTION_STRING + MAPREDUCE_QA + ";" + ENV_QA + ";" + TEST_SECRET;
         assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
     }
 }
