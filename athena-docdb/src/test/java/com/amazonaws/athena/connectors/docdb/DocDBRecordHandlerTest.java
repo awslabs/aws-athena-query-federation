@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -47,6 +48,15 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import io.substrait.proto.Expression;
+import io.substrait.proto.FetchRel;
+import io.substrait.proto.Plan;
+import io.substrait.proto.PlanRel;
+import io.substrait.proto.ReadRel;
+import io.substrait.proto.Rel;
+import io.substrait.proto.RelRoot;
+import io.substrait.proto.SortField;
+import io.substrait.proto.SortRel;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -80,6 +90,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -88,11 +99,13 @@ import java.util.UUID;
 
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -110,6 +123,13 @@ public class DocDBRecordHandlerTest
     private Schema schemaForRead;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private DocDBMetadataHandler mdHandler;
+
+    private static final SpillLocation SPILL_LOCATION = S3SpillLocation.newBuilder()
+            .withBucket(UUID.randomUUID().toString())
+            .withSplitId(UUID.randomUUID().toString())
+            .withQueryId(UUID.randomUUID().toString())
+            .withIsDirectory(true)
+            .build();
 
     @Rule
     public TestName testName = new TestName();
@@ -145,6 +165,9 @@ public class DocDBRecordHandlerTest
     public void setUp()
     {
         logger.info("{}: enter", testName.getMethodName());
+
+        // Set AWS region for tests to avoid SdkClientException
+        System.setProperty("aws.region", "us-east-1");
 
         schemaForRead = SchemaBuilder.newBuilder()
                 .addField("col1", new ArrowType.Int(32, true))
@@ -206,6 +229,8 @@ public class DocDBRecordHandlerTest
                     }
                     return new ResponseInputStream<>(GetObjectResponse.builder().build(), new ByteArrayInputStream(byteHolder.getBytes()));
                 });
+
+
 
         handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, mockAthena, connectionFactory, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
@@ -443,9 +468,7 @@ public class DocDBRecordHandlerTest
     }
 
     @Test
-    public void dbRefTest()
-            throws Exception
-    {
+    public void dbRefTest() throws Exception {
         ObjectId id = ObjectId.get();
 
         List<Document> documents = new ArrayList<>();
@@ -510,6 +533,155 @@ public class DocDBRecordHandlerTest
         assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
     }
 
+    @Test
+    public void testReadWithLimitFromQueryPlan() throws Exception
+    {
+        // SELECT col1, col2, col3 FROM test_table WHERE col1 IN (123, 456, 789) limit 5
+        QueryPlan queryPlan = getQueryPlan("ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBINGgsIARoHb3I6Ym9vbBIVGhMIAhABGg1lcXVhbDphbnlfYW55Go4CEosCCvYBGvMBCgIKABLqATrnAQoHEgUKAwMEBRK5ARK2AQoCCgASPgo8CgIKABIoCgRDT0wxCgRDT0wyCgRDT0wzEhQKBCoCEAEKBGICEAEKBFoCEAEYAjoMCgpURVNUX1RBQkxFGnAabhoECgIQASIgGh4aHAgBGgQKAhABIgoaCBIGCgISACIAIgYaBAoCKHsiIRofGh0IARoECgIQASIKGggSBgoCEgAiACIHGgUKAyjIAyIhGh8aHQgBGgQKAhABIgoaCBIGCgISACIAIgcaBQoDKJUGGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiACAFEgRDT0wxEgRDT0wyEgRDT0wz");
+
+        // Prepare docs > limit
+        List<Document> documents = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            documents.add(DocumentGenerator.makeRandomRow(schemaForRead.getFields(), i));
+        }
+
+        // Mock Mongo iterable
+        when(mockCollection.find(any(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.projection(any(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(DOCDB_CONN_STR, CONNECTION_STRING)
+                .build();
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                queryPlan
+        );
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schemaForRead,
+                split,
+                constraints,
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        assertEquals(5, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void testReadWithLimitAndOrderByFromQueryPlan() throws Exception
+    {
+        // SELECT * FROM test_table ORDER BY col1 DESC LIMIT 5
+        QueryPlan queryPlan = getQueryPlan("GqgBEqUBCpABGo0BCgIKABKEASqBAQoCCgASbTprCgcSBQoDAwQFEj4KPAoCCgASKAoEQ09MMQoEQ09MMgoEQ09MMxIUCgQqAhABCgRiAhABCgRaAhABGAI6DAoKVEVTVF9UQUJMRRoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaDAoIEgYKAhIAIgAQAyAFEgRDT0wxEgRDT0wyEgRDT0wz");
+
+        List<Document> documents = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            documents.add(DocumentGenerator.makeRandomRow(schemaForRead.getFields(), i));
+        }
+
+        when(mockCollection.find(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.projection(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.sort(any(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(DOCDB_CONN_STR, CONNECTION_STRING)
+                .build();
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                DEFAULT_NO_LIMIT,
+                Collections.emptyMap(),
+                queryPlan
+        );
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schemaForRead,
+                split,
+                constraints,
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        assertEquals(5, response.getRecords().getRowCount());
+    }
+
+    @Test
+    public void testReadWithLimitFromConstraintsOnly() throws Exception
+    {
+        int limitValue = 4;
+
+        List<Document> documents = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            documents.add(DocumentGenerator.makeRandomRow(schemaForRead.getFields(), i));
+        }
+
+        when(mockCollection.find(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.projection(nullable(Document.class))).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(DOCDB_CONN_STR, CONNECTION_STRING)
+                .build();
+
+        Constraints constraints = new Constraints(
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                limitValue, // limit from constraints
+                Collections.emptyMap(),
+                null
+        );
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                IDENTITY,
+                DEFAULT_CATALOG,
+                QUERY_ID,
+                TABLE_NAME,
+                schemaForRead,
+                split,
+                constraints,
+                100_000_000_000L,
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        assertEquals(limitValue, response.getRecords().getRowCount());
+    }
+
     private class ByteHolder
     {
         private byte[] bytes;
@@ -523,5 +695,64 @@ public class DocDBRecordHandlerTest
         {
             return bytes;
         }
+    }
+
+    private Expression createFieldReference(int fieldIndex)
+    {
+        return Expression.newBuilder()
+                .setSelection(Expression.FieldReference.newBuilder()
+                        .setDirectReference(Expression.ReferenceSegment.newBuilder()
+                                .setStructField(Expression.ReferenceSegment.StructField.newBuilder()
+                                        .setField(fieldIndex)
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+    }
+
+    private String buildBase64SubstraitPlan(int limit, boolean withOrderBy, int... sortFieldIndexes)
+    {
+        Rel inputRel = Rel.newBuilder()
+                .setRead(ReadRel.newBuilder().build()) // base scan placeholder
+                .build();
+
+        if (withOrderBy && sortFieldIndexes != null && sortFieldIndexes.length > 0) {
+            // Build SortRel first
+            SortRel.Builder sortBuilder = SortRel.newBuilder();
+            for (int idx : sortFieldIndexes) {
+                SortField sortField = SortField.newBuilder()
+                        .setExpr(createFieldReference(idx))
+                        .setDirection(SortField.SortDirection.SORT_DIRECTION_ASC_NULLS_FIRST)
+                        .build();
+                sortBuilder.addSorts(sortField);
+            }
+            sortBuilder.setInput(inputRel);
+            inputRel = Rel.newBuilder().setSort(sortBuilder.build()).build();
+        }
+
+        // Wrap the input (sort or plain read) inside FetchRel for LIMIT
+        FetchRel fetchRel = FetchRel.newBuilder()
+                .setInput(inputRel)
+                .setCount(limit)
+                .build();
+
+        RelRoot relRoot = RelRoot.newBuilder()
+                .setInput(Rel.newBuilder().setFetch(fetchRel).build())
+                .build();
+
+        PlanRel planRel = PlanRel.newBuilder()
+                .setRoot(relRoot)
+                .build();
+
+        Plan plan = Plan.newBuilder()
+                .addRelations(planRel)
+                .build();
+
+        return Base64.getEncoder().encodeToString(plan.toByteArray());
+    }
+
+    private QueryPlan getQueryPlan(String base64Plan)
+    {
+        return new QueryPlan("1.0", base64Plan);
     }
 }
