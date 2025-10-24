@@ -71,11 +71,8 @@ public class LogicalExpression
     public boolean hasComplexLogic()
     {
         if (isLeaf()) {
-            System.out.println(">>> hasComplexLogic: isLeaf=true, returning false");
             return false;
         }
-        boolean isComplex = operator == SubstraitOperator.AND || operator == SubstraitOperator.OR;
-        System.out.println(">>> hasComplexLogic: operator=" + operator + ", isComplex=" + isComplex);
-        return isComplex;
+        return operator == SubstraitOperator.AND || operator == SubstraitOperator.OR;
     }
 }
