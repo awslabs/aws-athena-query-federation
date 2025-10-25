@@ -23,6 +23,12 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>athena-federation-sdk-tools</artifactId>
+            <version>2022.47.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
             <version>5.18.1</version>
