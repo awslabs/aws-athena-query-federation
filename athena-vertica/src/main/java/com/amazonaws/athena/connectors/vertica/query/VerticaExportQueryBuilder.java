@@ -322,7 +322,7 @@ public class VerticaExportQueryBuilder {
                 }
             }
             
-            sql.append(String.join(", ", projectedColumns));
+            sql.append(String.join(",", projectedColumns));
 
             if (projectedColumns.isEmpty()) {
                 sql.append("null");
@@ -338,10 +338,13 @@ public class VerticaExportQueryBuilder {
             }
 
             if (!clauses.isEmpty()) {
-                sql.append(" WHERE ");
-                sql.append(String.join(" AND ", clauses));
+                String completeWhereClause = " WHERE " + String.join(" AND ", clauses);
+                sql.append(completeWhereClause);
+                LOGGER.info("Complete WHERE clause: {}", completeWhereClause);
+            } else {
+                LOGGER.info("No WHERE clauses generated");
             }
-
+            // ORDER BY clause is not handled in Constraints, it is currently handled by Data Pane
             if (select.getOrderList() != null) {
                 List<String> orderParts = new ArrayList<>();
                 for (SqlNode orderExpr : select.getOrderList()) {
@@ -352,18 +355,21 @@ public class VerticaExportQueryBuilder {
                 sql.append(orderByClause);
             }
 
+            // LIMIT and offset is not handled in Constraints, it is currently handled by Data Pane
             String limit = select.getFetch() == null ? null : select.getFetch().toSqlString(sqlDialect).getSql();
             String offset = select.getOffset() == null ? null : select.getOffset().toSqlString(sqlDialect).getSql();
 
             if (limit != null) {
                 sql.append(appendLimitOffsetWithValue(limit, offset));
             }
-            ST sqlTemplate = new ST(sql.toString());
-            System.out.println("accumulator size " + accumulator.size());
-            System.out.println("Accumulator " + accumulator);
+
+            /**
+             * Uses custom delimiters in StringTemplate to avoid conflicts with SQL operators like `<` and `>`.
+             * Fixes rendering issues by replacing default `< >` delimiters with `{ }`.
+             */
+            ST sqlTemplate = new ST(sql.toString(), '{', '}');
             for (int i = 0; i < accumulator.size(); i++) {
                 SubstraitTypeAndValue typeAndValue = accumulator.get(i);
-                System.out.println("typeAndValue " + typeAndValue);
                 SqlTypeName sqlTypeName = typeAndValue.getType();
                 String colName = typeAndValue.getColumnName();
                 switch (sqlTypeName)
