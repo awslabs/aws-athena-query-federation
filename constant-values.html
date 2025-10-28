@@ -1442,27 +1442,34 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast"><code>"com.ibm.db2.jcc.DB2Driver"</code></td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a id="com.amazonaws.athena.connectors.db2.Db2Constants.LIST_PAGINATED_TABLES_QUERY">
+<!--   -->
+</a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
+<th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/db2/Db2Constants.html#LIST_PAGINATED_TABLES_QUERY">LIST_PAGINATED_TABLES_QUERY</a></code></th>
+<td class="colLast"><code>"select tabschema AS \"TABLE_SCHEM\", tabname AS \"TABLE_NAME\" from syscat.tables where type in (\'T\', \'U\', \'V\', \'W\') and tabschema = ? ORDER BY tabname OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"</code></td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.db2.Db2Constants.NAME">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/db2/Db2Constants.html#NAME">NAME</a></code></th>
 <td class="colLast"><code>"dbtwo"</code></td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.db2.Db2Constants.QRY_TO_LIST_SCHEMAS">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/db2/Db2Constants.html#QRY_TO_LIST_SCHEMAS">QRY_TO_LIST_SCHEMAS</a></code></th>
 <td class="colLast"><code>"select schemaname as name from syscat.schemata where schemaname not like \'SYS%\' and  schemaname not IN (\'SQLJ\', \'NULLID\') order by name"</code></td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.db2.Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
 <th class="colSecond" scope="row"><code><a href="com/amazonaws/athena/connectors/db2/Db2Constants.html#QRY_TO_LIST_TABLES_AND_VIEWS">QRY_TO_LIST_TABLES_AND_VIEWS</a></code></th>
 <td class="colLast"><code>"select tabname as name from syscat.tables where type in (\'T\', \'U\', \'V\', \'W\') and tabschema = ? order by tabname"</code></td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a id="com.amazonaws.athena.connectors.db2.Db2Constants.QUOTE_CHARACTER">
 <!--   -->
 </a><code>public&nbsp;static&nbsp;final&nbsp;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a></code></td>
