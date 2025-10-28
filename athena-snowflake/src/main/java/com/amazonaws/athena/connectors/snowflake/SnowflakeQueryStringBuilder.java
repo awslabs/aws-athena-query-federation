@@ -285,10 +285,6 @@ public class SnowflakeQueryStringBuilder
                     return new SimpleDateFormat("yyyy-MM-dd").format(new Date(milliseconds));
                 }
             case Timestamp:
-                long millis = ((Number) value).longValue();
-                Timestamp timestamp = new Timestamp(millis);
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                return sdf.format(timestamp);
             case Time:
             case Interval:
             case Binary:
