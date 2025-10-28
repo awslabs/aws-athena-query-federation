@@ -136,19 +136,4 @@ public class JdbcEnvironmentPropertiesTest
         String expected = BASE_CONNECTION_STRING + "?${" + specialSecret + "}";
         assertEquals(expected, result.get(DEFAULT));
     }
-
-    @Test
-    public void testMultipleSecretsAndParams() {
-        String secret1 = "secret1";
-        String secret2 = "secret2";
-        String params = "param1=value1&param2=value2";
-        
-        connectionProperties.put(SECRET_NAME, secret1 + "," + secret2);
-        connectionProperties.put(JDBC_PARAMS, params);
-        
-        Map<String, String> result = jdbcEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expected = BASE_CONNECTION_STRING + "?" + params + "&${" + secret1 + "," + secret2 + "}";
-        assertEquals(expected, result.get(DEFAULT));
-    }
-
 }

@@ -135,7 +135,7 @@ public class FederationExpressionParserTest {
     }
 
     @Test(expected = AthenaConnectorException.class)
-    public void parseFunctionCallExpression_withUnknownArgument_throwsAthenaConnectorException() {
+    public void testParseFunctionCallExpressionWithUnknownArgument() {
         FederationExpression unknown = mock(FederationExpression.class);
         FunctionCallExpression functionCall = new FunctionCallExpression(
                 new ArrowType.Bool(),
@@ -147,7 +147,7 @@ public class FederationExpressionParserTest {
     }
 
     @Test
-    public void parseComplexExpressions_withNullOrEmptyConstraints_shouldReturnEmptyList() {
+    public void testParseComplexExpressionsWithEmptyConstraints() {
         Constraints emptyConstraints = createEmptyConstraints();
         List<String> result = parser.parseComplexExpressions(List.of(), emptyConstraints, new ArrayList<>());
         assertTrue(result.isEmpty());

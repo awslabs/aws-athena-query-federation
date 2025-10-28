@@ -138,10 +138,11 @@ public class JDBCUtilTest
     @Test(expected = IllegalArgumentException.class)
     public void createJdbcMetadataHandlerMapDifferentDatabasesThrows()
     {
+        // Mux with different database types is not supported.
         JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
-                .put("testCatalog1_connection_string", CONNECTION_STRING1)
-                .put("testCatalog2_connection_string", CONNECTION_STRING2)
-                .put(DEFAULT, CONNECTION_STRING2)
+                .put("testCatalog_connection_string", CONNECTION_STRING1)
+                .put("wrong_connection_string", CONNECTION_STRING2)
+                .put(DEFAULT, CONNECTION_STRING1)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build(), new FakeDatabaseMetadataHandlerFactory());
     }
@@ -179,10 +180,11 @@ public class JDBCUtilTest
     @Test(expected = IllegalArgumentException.class)
     public void createJdbcRecordHandlerMapDifferentDatabasesThrows()
     {
+        // Mux with different database types is not supported.
         JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
-                .put("testCatalog1_connection_string", CONNECTION_STRING1)
-                .put("testCatalog2_connection_string", CONNECTION_STRING2)
-                .put(DEFAULT, CONNECTION_STRING2)
+                .put("testCatalog_connection_string", CONNECTION_STRING1)
+                .put("wrong_connection_string", CONNECTION_STRING2)
+                .put(DEFAULT, CONNECTION_STRING1)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build(), new FakeDatabaseRecordHandlerFactory());
     }
