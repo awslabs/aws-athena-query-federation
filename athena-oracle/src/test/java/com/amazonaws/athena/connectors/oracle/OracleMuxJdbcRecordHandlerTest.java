@@ -68,7 +68,7 @@ public class OracleMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint()
+    public void readWithConstraint_whenCalled_delegatesToOracleHandler()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -79,7 +79,7 @@ public class OracleMuxJdbcRecordHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void readWithConstraintWithUnsupportedCatalog()
+    public void readWithConstraint_whenCatalogIsUnsupported_throwsRuntimeException()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -89,7 +89,7 @@ public class OracleMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_whenCalled_delegatesToOracleHandler()
             throws SQLException
     {
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);

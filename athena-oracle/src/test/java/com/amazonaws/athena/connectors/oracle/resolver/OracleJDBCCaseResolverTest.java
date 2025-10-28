@@ -42,6 +42,12 @@ import static org.mockito.Mockito.when;
 
 public class OracleJDBCCaseResolverTest extends TestBase
 {
+    private static final String ORACLE_ENGINE = "oracle";
+    private static final String SCHEMA_NAME = "oRaNgE";
+    private static final String TABLE_NAME = "ApPlE";
+    private static final String SCHEMA_COLUMN = "OWNER";
+    private static final String TABLE_COLUMN = "TABLE_NAME";
+
     private Connection mockConnection;
     private PreparedStatement preparedStatement;
 
@@ -54,61 +60,73 @@ public class OracleJDBCCaseResolverTest extends TestBase
     }
 
     @Test
-    public void testCaseInsensitiveCaseOnName() throws SQLException {
-            String schemaName = "oRaNgE";
-            String tableName = "ApPlE";
-            DefaultJDBCCaseResolver resolver = new OracleJDBCCaseResolver("oracle");
+    public void getAdjustedSchemaNameString_whenCaseInsensitiveMode_schemaNameCasingAdjusted() throws SQLException
+    {
+        DefaultJDBCCaseResolver resolver = new OracleJDBCCaseResolver(ORACLE_ENGINE);
 
-            // Mock schema name result
-            String[] schemaCols = {"OWNER"};
-            int[] schemaTypes = {Types.VARCHAR};
-            Object[][] schemaData = {{schemaName.toLowerCase()}};
+        // Mock schema name result
+        String[] schemaCols = {SCHEMA_COLUMN};
+        int[] schemaTypes = {Types.VARCHAR};
+        Object[][] schemaData = {{SCHEMA_NAME.toLowerCase()}};
+        ResultSet schemaResultSet = mockResultSet(schemaCols, schemaTypes, schemaData, new AtomicInteger(-1));
+        when(preparedStatement.executeQuery()).thenReturn(schemaResultSet);
 
-            ResultSet schemaResultSet = mockResultSet(schemaCols, schemaTypes, schemaData, new AtomicInteger(-1));
-            when(preparedStatement.executeQuery()).thenReturn(schemaResultSet);
+        String adjustedSchemaName = resolver.getAdjustedSchemaNameString(
+                mockConnection,
+                SCHEMA_NAME,
+                Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())
+        );
 
-            String adjustedSchemaName = resolver.getAdjustedSchemaNameString(mockConnection, schemaName, Map.of(
-                    CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()));
-            assertEquals(schemaName.toLowerCase(), adjustedSchemaName);
-
-            // Mock table name result
-            String[] tableCols = {"TABLE_NAME"};
-            int[] tableTypes = {Types.VARCHAR};
-            Object[][] tableData = {{tableName.toUpperCase()}};
-
-            ResultSet tableResultSet = mockResultSet(tableCols, tableTypes, tableData, new AtomicInteger(-1));
-            when(preparedStatement.executeQuery()).thenReturn(tableResultSet);
-
-            String adjustedTableName = resolver.getAdjustedTableNameString(mockConnection, schemaName, tableName, Map.of(
-                    CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()));
-            assertEquals(tableName.toUpperCase(), adjustedTableName);
+        assertEquals(SCHEMA_NAME.toLowerCase(), adjustedSchemaName);
     }
 
     @Test
-    public void testCaseInsensitiveCaseOnObject() throws SQLException {
-            String schemaName = "oRaNgE";
-            String tableName = "ApPlE";
-            DefaultJDBCCaseResolver resolver = new OracleJDBCCaseResolver("oracle");
+    public void getAdjustedTableNameString_whenCaseInsensitiveMode_tableNameCasingAdjusted() throws SQLException
+    {
+        DefaultJDBCCaseResolver resolver = new OracleJDBCCaseResolver(ORACLE_ENGINE);
 
-            // Mock schema and table result sets
-            ResultSet schemaResultSet = mockResultSet(
-                    new String[]{"OWNER"},
-                    new int[]{Types.VARCHAR},
-                    new Object[][]{{schemaName.toLowerCase()}},
-                    new AtomicInteger(-1));
+        // Mock table name result
+        String[] tableCols = {TABLE_COLUMN};
+        int[] tableTypes = {Types.VARCHAR};
+        Object[][] tableData = {{TABLE_NAME.toUpperCase()}};
+        ResultSet tableResultSet = mockResultSet(tableCols, tableTypes, tableData, new AtomicInteger(-1));
+        when(preparedStatement.executeQuery()).thenReturn(tableResultSet);
 
-            ResultSet tableResultSet = mockResultSet(
-                    new String[]{"TABLE_NAME"},
-                    new int[]{Types.VARCHAR},
-                    new Object[][]{{tableName.toUpperCase()}},
-                    new AtomicInteger(-1));
+        String adjustedTableName = resolver.getAdjustedTableNameString(
+                mockConnection,
+                SCHEMA_NAME,
+                TABLE_NAME,
+                Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())
+        );
 
-            when(preparedStatement.executeQuery()).thenReturn(schemaResultSet).thenReturn(tableResultSet);
+        assertEquals(TABLE_NAME.toUpperCase(), adjustedTableName);
+    }
 
-            TableName adjusted = resolver.getAdjustedTableNameObject(
-                    mockConnection,
-                    new TableName(schemaName, tableName),
-                    Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name()));
-            assertEquals(new TableName(schemaName.toLowerCase(), tableName.toUpperCase()), adjusted);
+    @Test
+    public void getAdjustedTableNameObject_whenCaseInsensitiveMode_objectCasingAdjusted() throws SQLException
+    {
+        DefaultJDBCCaseResolver resolver = new OracleJDBCCaseResolver(ORACLE_ENGINE);
+
+        // Mock schema and table result sets
+        ResultSet schemaResultSet = mockResultSet(
+                new String[]{SCHEMA_COLUMN},
+                new int[]{Types.VARCHAR},
+                new Object[][]{{SCHEMA_NAME.toLowerCase()}},
+                new AtomicInteger(-1));
+
+        ResultSet tableResultSet = mockResultSet(
+                new String[]{TABLE_COLUMN},
+                new int[]{Types.VARCHAR},
+                new Object[][]{{TABLE_NAME.toUpperCase()}},
+                new AtomicInteger(-1));
+
+        when(preparedStatement.executeQuery()).thenReturn(schemaResultSet).thenReturn(tableResultSet);
+
+        TableName adjusted = resolver.getAdjustedTableNameObject(
+                mockConnection,
+                new TableName(SCHEMA_NAME, TABLE_NAME),
+                Map.of(CASING_MODE_CONFIGURATION_KEY, CaseResolver.FederationSDKCasingMode.CASE_INSENSITIVE_SEARCH.name())
+        );
+        assertEquals(new TableName(SCHEMA_NAME.toLowerCase(), TABLE_NAME.toUpperCase()), adjusted);
     }
 }

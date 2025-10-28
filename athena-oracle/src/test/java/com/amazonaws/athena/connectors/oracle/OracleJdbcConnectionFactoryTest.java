@@ -49,24 +49,9 @@ public class OracleJdbcConnectionFactoryTest
     private static final String USERNAME = "user";
     private static final String PASSWORD = "password";
 
-
-    @Test(expected = RuntimeException.class)
-    public void testGetConnection() throws SQLException
-    {
-        DefaultCredentials expectedCredential = new DefaultCredentials(USERNAME, PASSWORD);
-        CredentialsProvider credentialsProvider = new StaticCredentialsProvider(expectedCredential);
-        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, OracleConstants.ORACLE_NAME,
-                CONNECTION_STRING, TEST_SECRET);
-        DatabaseConnectionInfo databaseConnectionInfo = new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT);
-        Connection connection =  new OracleJdbcConnectionFactory(databaseConnectionConfig, databaseConnectionInfo).getConnection(credentialsProvider);
-        String originalURL = connection.getMetaData().getURL();
-        Driver drv = DriverManager.getDriver(originalURL);
-        String driverClass = drv.getClass().getName();
-        assertEquals("oracle.jdbc.OracleDriver", driverClass);
-    }
-
     @Test
-    public void testGetConnection_withSsl() throws Exception {
+    public void getConnection_whenUsingSslConnection_setsSslProperties() throws Exception
+    {
         Driver mockDriver = mock(Driver.class);
 
         DefaultCredentials expectedCredential = new DefaultCredentials(USERNAME, PASSWORD);
@@ -93,34 +78,38 @@ public class OracleJdbcConnectionFactoryTest
                     return mock(Connection.class);
                 });
 
-        DriverManager.registerDriver(mockDriver);
+        try {
+            DriverManager.registerDriver(mockDriver);
 
-        // Create a test connection factory with custom environment
-        OracleJdbcConnectionFactory connectionFactory = new OracleJdbcConnectionFactory(databaseConnectionConfig, databaseConnectionInfo) {
-            @Override
-            protected Map<String, String> getEnvMap() {
-                Map<String, String> env = new HashMap<>();
-                env.put(IS_FIPS_ENABLED, "true");
-                return env;
-            }
-        };
+            // Create a test connection factory with custom environment
+            OracleJdbcConnectionFactory connectionFactory = new OracleJdbcConnectionFactory(databaseConnectionConfig, databaseConnectionInfo) {
+                @Override
+                protected Map<String, String> getEnvMap()
+                {
+                    Map<String, String> env = new HashMap<>();
+                    env.put(IS_FIPS_ENABLED, "true");
+                    return env;
+                }
+            };
 
-        connectionFactory.getConnection(credentialsProvider);
+            connectionFactory.getConnection(credentialsProvider);
 
-        Properties sslProps = capturedProps[0];
-        assertEquals("JKS", sslProps.getProperty("javax.net.ssl.trustStoreType"));
-        assertEquals("changeit", sslProps.getProperty("javax.net.ssl.trustStorePassword"));
-        assertEquals("true", sslProps.getProperty("oracle.net.ssl_server_dn_match"));
-        assertEquals(
-                "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)",
-                sslProps.getProperty("oracle.net.ssl_cipher_suites")
-        );
-
-        DriverManager.deregisterDriver(mockDriver);
+            Properties sslProps = capturedProps[0];
+            assertEquals("JKS", sslProps.getProperty("javax.net.ssl.trustStoreType"));
+            assertEquals("changeit", sslProps.getProperty("javax.net.ssl.trustStorePassword"));
+            assertEquals("true", sslProps.getProperty("oracle.net.ssl_server_dn_match"));
+            assertEquals(
+                    "(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)",
+                    sslProps.getProperty("oracle.net.ssl_cipher_suites")
+            );
+        }
+        finally {
+            DriverManager.deregisterDriver(mockDriver);
+        }
     }
 
     @Test(expected = RuntimeException.class)
-    public void testGetConnection_withNullCredentialsProvider_throwsRuntimeException()
+    public void getConnection_whenCredentialsProviderIsNull_throwsRuntimeException()
     {
         DatabaseConnectionConfig config = new DatabaseConnectionConfig(
                 TEST_CATALOG, OracleConstants.ORACLE_NAME,
@@ -131,7 +120,7 @@ public class OracleJdbcConnectionFactoryTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void testGetConnection_whenDriverFailsToConnect_throwsRuntimeException() throws Exception
+    public void getConnection_whenDriverFailsToConnect_throwsRuntimeException() throws Exception
     {
         DefaultCredentials credentials = new DefaultCredentials(USERNAME, PASSWORD);
         CredentialsProvider credentialsProvider = new StaticCredentialsProvider(credentials);
@@ -144,10 +133,13 @@ public class OracleJdbcConnectionFactoryTest
         when(mockDriver.connect(anyString(), any(Properties.class)))
                 .thenThrow(new SQLException("DB down", "08001", 1234));
 
-        DriverManager.registerDriver(mockDriver);
-
+        try {
+            DriverManager.registerDriver(mockDriver);
             new OracleJdbcConnectionFactory(config, info).getConnection(credentialsProvider);
+        }
+        finally {
             DriverManager.deregisterDriver(mockDriver);
+        }
     }
 
     @Test(expected = RuntimeException.class)

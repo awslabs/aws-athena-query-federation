@@ -19,20 +19,20 @@
  */
 package com.amazonaws.athena.connectors.oracle;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -47,24 +47,24 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
+import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
 import static com.amazonaws.athena.connectors.oracle.OracleConstants.ORACLE_NAME;
 import static org.mockito.ArgumentMatchers.nullable;
-import static com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough.QUERY;
-import static com.amazonaws.athena.connector.lambda.metadata.optimizations.querypassthrough.QueryPassthroughSignature.SCHEMA_FUNCTION_NAME;
 
 public class OracleRecordHandlerTest
 {
@@ -106,7 +106,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_whenCalledWithConstraints_returnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName("testSchema", "testTable");
@@ -189,7 +189,8 @@ public class OracleRecordHandlerTest
         Mockito.verify(preparedStatement, Mockito.times(1)).setDate(13, expectedDatePost1970);
     }
 
-    private ValueSet getSingleValueSet(Object value) {
+    private ValueSet getSingleValueSet(Object value)
+    {
         Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range.isSingleValue()).thenReturn(true);
         Mockito.when(range.getLow().getValue()).thenReturn(value);
@@ -198,7 +199,8 @@ public class OracleRecordHandlerTest
         return valueSet;
     }
 
-    private ValueSet getRangeSet(Marker.Bound lowerBound, Object lowerValue, Marker.Bound upperBound, Object upperValue) {
+    private ValueSet getRangeSet(Marker.Bound lowerBound, Object lowerValue, Marker.Bound upperBound, Object upperValue)
+    {
         Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range.isSingleValue()).thenReturn(false);
         Mockito.when(range.getLow().getBound()).thenReturn(lowerBound);
@@ -211,7 +213,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSqlWithComplexExpressions() throws SQLException {
+    public void buildSplitSql_whenCalledWithComplexExpressions_buildsCorrectSQL() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         schemaBuilder.addField(FieldBuilder.newBuilder("col1", Types.MinorType.INT.getType()).build());
@@ -253,7 +256,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSqlWithTopN() throws SQLException {
+    public void buildSplitSql_whenCalledWithTopN_buildsCorrectSQL() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithValueField().build();
         Split split = createMockSplit();
@@ -269,7 +273,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSqlWithOrderBy() throws SQLException {
+    public void buildSplitSql_whenCalledWithOrderBy_buildsCorrectSQL() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createSchemaWithCommonFields();
         schemaBuilder.addField(FieldBuilder.newBuilder(VALUE, Types.MinorType.FLOAT8.getType()).build());
@@ -299,7 +304,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSqlWithLimitOffset() throws SQLException {
+    public void buildSplitSql_whenCalledWithLimitOffset_buildsCorrectSQL() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithValueField().build();
         Split split = createMockSplit();
@@ -315,7 +321,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSqlWithRangeAndInPredicatesTest() throws SQLException {
+    public void buildSplitSql_whenCalledWithRangeAndInPredicates_buildsCorrectSQL() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createBasicSchemaBuilder();
         schemaBuilder.addField(FieldBuilder.newBuilder("intCol", Types.MinorType.INT.getType()).build());
@@ -362,7 +369,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void testComplexExpressionWithDifferentDataTypes() throws SQLException {
+    public void buildSplitSql_whenCalledWithDifferentDataTypes_buildsCorrectSQL() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createBasicSchemaBuilder();
         schemaBuilder.addField(FieldBuilder.newBuilder("dateCol", Types.MinorType.DATEDAY.getType()).build());
@@ -403,7 +411,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSqlWithQueryPassthrough() throws SQLException {
+    public void buildSplitSql_whenCalledWithQueryPassthrough_returnsPassthroughQuery() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithCommonFields().build();
 
@@ -430,7 +439,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void testEmptyConstraints() throws SQLException {
+    public void buildSplitSql_whenCalledWithEmptyConstraints_buildsBasicQuery() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithCommonFields().build();
         Split split = createMockSplit();
@@ -453,7 +463,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void testEmptyConstraintsWithOrderBy() throws SQLException {
+    public void buildSplitSql_whenCalledWithEmptyConstraintsAndOrderBy_buildsQueryWithOrderBy() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithCommonFields().build();
         Split split = createMockSplit();
@@ -480,7 +491,8 @@ public class OracleRecordHandlerTest
     }
 
     @Test(expected = AthenaConnectorException.class)
-    public void buildSqlWithInvalidQueryPassthrough() throws SQLException {
+    public void buildSplitSql_whenCalledWithInvalidQueryPassthrough_throwsAthenaConnectorException() throws SQLException
+    {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createBasicSchemaBuilder();
         schemaBuilder.addField(FieldBuilder.newBuilder(COL_ID, Types.MinorType.INT.getType()).build());
@@ -501,7 +513,8 @@ public class OracleRecordHandlerTest
         oracleRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
     }
 
-    private ValueSet getSingleValueSet(List<?> values) {
+    private ValueSet getSingleValueSet(List<?> values)
+    {
         List<Range> ranges = values.stream().map(value -> {
             Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
             Mockito.when(range.isSingleValue()).thenReturn(true);
@@ -514,25 +527,29 @@ public class OracleRecordHandlerTest
         return valueSet;
     }
 
-    private SchemaBuilder createBasicSchemaBuilder() {
+    private SchemaBuilder createBasicSchemaBuilder()
+    {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_COLUMN, Types.MinorType.VARCHAR.getType()).build());
         return schemaBuilder;
     }
 
-    private SchemaBuilder createSchemaWithCommonFields() {
+    private SchemaBuilder createSchemaWithCommonFields()
+    {
         return createBasicSchemaBuilder()
                 .addField(FieldBuilder.newBuilder(COL_ID, Types.MinorType.INT.getType()).build())
                 .addField(FieldBuilder.newBuilder(COL_NAME, Types.MinorType.VARCHAR.getType()).build());
     }
 
-    private SchemaBuilder createSchemaWithValueField() {
+    private SchemaBuilder createSchemaWithValueField()
+    {
         return createBasicSchemaBuilder()
                 .addField(FieldBuilder.newBuilder(COL_ID, Types.MinorType.INT.getType()).build())
                 .addField(FieldBuilder.newBuilder(VALUE, Types.MinorType.FLOAT8.getType()).build());
     }
 
-    private Split createMockSplit() {
+    private Split createMockSplit()
+    {
         Split split = Mockito.mock(Split.class);
         Map<String, String> splitProperties = Collections.singletonMap(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, TEST_PARTITION);
         Mockito.when(split.getProperties()).thenReturn(splitProperties);
@@ -540,8 +557,8 @@ public class OracleRecordHandlerTest
         return split;
     }
 
-
-    private Constraints createConstraintsWithLimit(long limit) {
+    private Constraints createConstraintsWithLimit(long limit)
+    {
         return new Constraints(
                 Collections.emptyMap(),
                 Collections.emptyList(),
@@ -552,13 +569,15 @@ public class OracleRecordHandlerTest
         );
     }
 
-    private PreparedStatement createMockPreparedStatement(String expectedSql) throws SQLException {
+    private PreparedStatement createMockPreparedStatement(String expectedSql) throws SQLException
+    {
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
         return expectedPreparedStatement;
     }
 
-    private void verifyFetchSize(PreparedStatement preparedStatement) throws SQLException {
+    private void verifyFetchSize(PreparedStatement preparedStatement) throws SQLException
+    {
         Mockito.verify(preparedStatement, Mockito.atLeastOnce()).setFetchSize(1000);
     }
 }
