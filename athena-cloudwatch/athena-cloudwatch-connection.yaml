@@ -23,7 +23,7 @@ Parameters:
   GlueConnection:
     Description: "Name of glue connection storing connection details for Federated Data source."
     Type: String
-  LambdaRole:
+  LambdaRoleArn:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Type: String
     Default: ""
@@ -34,7 +34,7 @@ Parameters:
 
 Conditions:
   HasKmsKeyId: !Not [!Equals [!Ref KmsKeyId, ""]]
-  NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
+  NotHasLambdaRole: !Equals [!Ref LambdaRoleArn, ""]
   CreateKmsPolicy: !And [ !Condition HasKmsKeyId, !Condition NotHasLambdaRole ]
   IsRegionBAH: !Equals [!Ref "AWS::Region", "me-south-1"]
   IsRegionHKG: !Equals [!Ref "AWS::Region", "ap-east-1"]
@@ -56,7 +56,7 @@ Resources:
       Description: "Enables Amazon Athena to communicate with Cloudwatch, making your log accessible via SQL"
       Timeout: 900
       MemorySize: 3008
-      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleArn]
 
   FunctionRole:
     Condition: NotHasLambdaRole
