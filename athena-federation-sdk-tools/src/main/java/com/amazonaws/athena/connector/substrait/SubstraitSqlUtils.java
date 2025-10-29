@@ -28,15 +28,16 @@ import org.apache.calcite.rel.rel2sql.RelToSqlConverter;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
-
-import java.io.IOException;
-import java.util.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for working with Calcite's abstract syntax tree representation of Substrait plans.
  */
 public final class SubstraitSqlUtils
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubstraitSqlUtils.class);
+
     private SubstraitSqlUtils()
     {
     }
@@ -44,21 +45,29 @@ public final class SubstraitSqlUtils
     public static SqlNode deserializeSubstraitPlan(String planString, SqlDialect sqlDialect)
     {
         try {
+            LOGGER.debug("substrait plan: {}", planString);
+
+            // 1. Deserialize Substrait plan from base64
+            Plan protoPlan = SubstraitRelUtils.deserializeSubstraitPlan(planString);
+
+            // 2. Convert proto plan to Substrait plan object
             ProtoPlanConverter protoPlanConverter = new ProtoPlanConverter();
+            io.substrait.plan.Plan substraitPlan = protoPlanConverter.from(protoPlan);
+
+            // 3. Convert Substrait plan to Calcite RelNode with schema extraction
             SubstraitToCalcite substraitToCalcite = new SubstraitToCalcite(
                     SimpleExtension.loadDefaults(),
                     new SqlTypeFactoryImpl(sqlDialect.getTypeSystem())
             );
+            RelNode node = substraitToCalcite.convert(substraitPlan.getRoots().get(0).getInput());
 
-            byte[] planBytes = Base64.getDecoder().decode(planString);
-            Plan substraitPlan = Plan.parseFrom(planBytes);
-
-            io.substrait.plan.Plan root = protoPlanConverter.from(substraitPlan);
-            RelNode node = substraitToCalcite.convert(root.getRoots().get(0).getInput());
+            // 4. Convert RelNode to SQL using RelToSqlConverter
             RelToSqlConverter converter = new RelToSqlConverter(sqlDialect);
+            
             return converter.visitRoot(node).asStatement();
         }
-        catch (IOException e) {
+        catch (Exception e) {
+            LOGGER.error("Failed to parse Substrait plan", e);
             throw new RuntimeException("Failed to parse Substrait plan", e);
         }
     }
