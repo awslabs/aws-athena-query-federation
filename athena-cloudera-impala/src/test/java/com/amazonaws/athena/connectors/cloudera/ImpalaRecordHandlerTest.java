@@ -20,6 +20,9 @@
 
 package com.amazonaws.athena.connectors.cloudera;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -28,15 +31,10 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
-import software.amazon.awssdk.services.athena.AthenaClient;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
@@ -44,21 +42,38 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.cloudera.ImpalaConstants.IMPALA_QUOTE_CHARACTER;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class ImpalaRecordHandlerTest
 {
+    private static final String CATALOG_NAME = "testCatalog";
+    private static final String QUERY_ID = "queryId";
+    private static final String BASE_CONNECTION_STRING = "impala://jdbc:impala://testHost:10000/default;AuthMech=3;";
+    private static final String SECRET_NAME = "testSecret";
+    
     private ImpalaRecordHandler impalaRecordHandler;
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
@@ -74,19 +89,20 @@ public class ImpalaRecordHandlerTest
         this.amazonS3 = Mockito.mock(S3Client.class);
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
-        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
+        Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId(SECRET_NAME).build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}").build());
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new ImpalaQueryStringBuilder(IMPALA_QUOTE_CHARACTER, new ImpalaFederationExpressionParser(IMPALA_QUOTE_CHARACTER));
 
-        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ImpalaConstants.IMPALA_NAME,
-                "impala://jdbc:impala://54.89.6.2:10000/authena;{testSecret}","testSecret");
+        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(CATALOG_NAME, ImpalaConstants.IMPALA_NAME,
+                BASE_CONNECTION_STRING + "{" + SECRET_NAME + "}", SECRET_NAME);
 
         this.impalaRecordHandler = new ImpalaRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
-    private ValueSet getSingleValueSet(Object value) {
+    private ValueSet getSingleValueSet(Object value)
+    {
         Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range.isSingleValue()).thenReturn(true);
         Mockito.when(range.getLow().getValue()).thenReturn(value);
@@ -135,5 +151,106 @@ public class ImpalaRecordHandlerTest
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
                 .setDate(1, expectedDate);
+    }
+
+    @Test
+    public void testGetCredentialProvider_withSecret() throws Exception
+    {
+        DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig(
+                CATALOG_NAME, ImpalaConstants.IMPALA_NAME,
+                BASE_CONNECTION_STRING + "{" + SECRET_NAME + "}", SECRET_NAME);
+
+        mockSecretManagerResponse();
+        CredentialsProvider provider = captureCredentialsProvider(configWithSecret, true);
+
+        assertNotNull("Expected non-null CredentialsProvider when secret configured", provider);
+        assertTrue("Expected ImpalaCredentialsProvider type", provider instanceof ImpalaCredentialsProvider);
+    }
+
+    @Test
+    public void testGetCredentialProvider_withoutSecret() throws Exception
+    {
+        DatabaseConnectionConfig configWithoutSecret = new DatabaseConnectionConfig(
+                CATALOG_NAME, ImpalaConstants.IMPALA_NAME,
+                BASE_CONNECTION_STRING);
+
+        CredentialsProvider provider = captureCredentialsProvider(configWithoutSecret, false);
+
+        assertNull("Expected null CredentialsProvider when no secret configured", provider);
+    }
+
+    /**
+     * Captures the CredentialsProvider used by the JDBC connection factory
+     */
+    private CredentialsProvider captureCredentialsProvider(DatabaseConnectionConfig config, boolean hasSecret) throws Exception
+    {
+        Connection mockConn = mockConnectionAndMetadata();
+        if (hasSecret) {
+            when(jdbcConnectionFactory.getConnection(Mockito.any(CredentialsProvider.class)))
+                    .thenReturn(mockConn);
+        }
+        else {
+            when(jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class)))
+                    .thenReturn(mockConn);
+        }
+
+        ImpalaRecordHandler handler = new ImpalaRecordHandler(
+                config, amazonS3, secretsManager, athena, jdbcConnectionFactory,
+                jdbcSplitQueryBuilder, ImmutableMap.of());
+
+        handler.readWithConstraint(
+                mock(BlockSpiller.class),
+                mockReadRecordsRequest(),
+                mock(QueryStatusChecker.class));
+
+        ArgumentCaptor<CredentialsProvider> captor = ArgumentCaptor.forClass(CredentialsProvider.class);
+        verify(jdbcConnectionFactory).getConnection(captor.capture());
+        return captor.getValue();
+    }
+
+    private void mockSecretManagerResponse()
+    {
+        GetSecretValueResponse mockResponse =
+                GetSecretValueResponse.builder()
+                        .secretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}")
+                        .build();
+
+        when(secretsManager.getSecretValue(
+                        Mockito.any(GetSecretValueRequest.class)))
+                .thenReturn(mockResponse);
+    }
+
+    private Connection mockConnectionAndMetadata() throws Exception
+    {
+        Connection mockConn = mock(Connection.class);
+        java.sql.DatabaseMetaData metaData = mock(java.sql.DatabaseMetaData.class);
+        when(metaData.getDatabaseProductName()).thenReturn("Impala");
+        when(mockConn.getMetaData()).thenReturn(metaData);
+
+        PreparedStatement stmt = mock(PreparedStatement.class);
+        ResultSet rs = mock(ResultSet.class);
+        when(mockConn.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        when(stmt.executeQuery()).thenReturn(rs);
+        when(rs.next()).thenReturn(false);
+
+        return mockConn;
+    }
+
+    private ReadRecordsRequest mockReadRecordsRequest()
+    {
+        ReadRecordsRequest req = mock(ReadRecordsRequest.class);
+        Split split = mock(Split.class);
+        SchemaBuilder sb = SchemaBuilder.newBuilder();
+        sb.addField(FieldBuilder.newBuilder("testCol", Types.MinorType.VARCHAR.getType()).build());
+
+        when(req.getQueryId()).thenReturn(QUERY_ID);
+        when(req.getCatalogName()).thenReturn(CATALOG_NAME);
+        when(req.getTableName()).thenReturn(new TableName("testSchema", "testTable"));
+        when(req.getSplit()).thenReturn(split);
+        when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "*"));
+        when(split.getProperty("partition")).thenReturn("*");
+        when(req.getSchema()).thenReturn(sb.build());
+        when(req.getConstraints()).thenReturn(mock(Constraints.class));
+        return req;
     }
 }
