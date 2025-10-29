@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.redshift;
 
+import com.amazonaws.athena.connector.credentials.CredentialsProvider;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -31,7 +32,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connector.credentials.CredentialsProvider;
+import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlQueryStringBuilder;
@@ -55,13 +56,18 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
-import java.sql.Date;
-import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.SQLException;
+import java.sql.PreparedStatement;
+import java.sql.Date;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_NAME;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -70,6 +76,37 @@ public class RedshiftRecordHandlerTest
         extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedshiftRecordHandlerTest.class);
+    private MockedStatic<JDBCUtil> mockedJDBCUtil;
+
+    // SQL command constants
+    private static final String ENABLE_CASE_SENSITIVE = "SET enable_case_sensitive_identifier to TRUE;";
+    private static final String DISABLE_CASE_SENSITIVE = "SET enable_case_sensitive_identifier to FALSE;";
+
+    // Test data constants
+    private static final String TEST_CATALOG = "testCatalog";
+    private static final String TEST_CONNECTION_STRING = "redshift://jdbc:redshift://hostname/user=A&password=B";
+    private static final String TEST_SCHEMA = "testSchema";
+    private static final String TEST_TABLE = "testTable";
+    private static final String TEST_COL_1 = "testCol1";
+    private static final String TEST_COL_2 = "testCol2";
+    private static final String TEST_COL_3 = "testCol3";
+    private static final String TEST_COL_4 = "testCol4";
+    private static final String TEST_COL_5 = "testCol5";
+    private static final String TEST_COL_6 = "testCol6";
+    private static final String TEST_COL_7 = "testCol7";
+    private static final String TEST_COL_8 = "testCol8";
+    private static final String TEST_COL_9 = "testCol9";
+    private static final String TEST_COL_10 = "testCol10";
+    private static final String TEST_DATE = "testDate";
+    private static final String PARTITION_SCHEMA_NAME = "partition_schema_name";
+    private static final String PARTITION_NAME = "partition_name";
+    private static final String S0 = "s0";
+    private static final String P0 = "p0";
+    private static final String TEST_DATE_VALUE = "2020-01-05";
+
+    // Expected SQL query constants
+    private static final String EXPECTED_SQL_WITH_CONSTRAINTS = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\", RTRIM(\"testCol10\") AS \"testCol10\" FROM \"s0\".\"p0\"  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?) AND (\"testCol10\" = ?)";
+    private static final String EXPECTED_SQL_FOR_DATE = "SELECT \"testDate\" FROM \"s0\".\"p0\"  WHERE (\"testDate\" = ?)";
 
     private RedshiftRecordHandler redshiftRecordHandler;
     private Connection connection;
@@ -79,6 +116,7 @@ public class RedshiftRecordHandlerTest
     private SecretsManagerClient secretsManager;
     private AthenaClient athena;
     private MockedStatic<PostGreSqlMetadataHandler> mockedPostGreSqlMetadataHandler;
+    private Statement mockStatement;
 
     @Before
     public void setup()
@@ -91,17 +129,36 @@ public class RedshiftRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(CredentialsProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""));
-        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", REDSHIFT_NAME,
-                "redshift://jdbc:redshift://hostname/user=A&password=B");
+        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig(TEST_CATALOG, REDSHIFT_NAME, TEST_CONNECTION_STRING);
 
         this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
         mockedPostGreSqlMetadataHandler = Mockito.mockStatic(PostGreSqlMetadataHandler.class);
-        mockedPostGreSqlMetadataHandler.when(() -> PostGreSqlMetadataHandler.getCharColumns(any(), anyString(), anyString())).thenReturn(Collections.singletonList("testCol10"));
+        mockedPostGreSqlMetadataHandler.when(() -> PostGreSqlMetadataHandler.getCharColumns(any(), anyString(), anyString())).thenReturn(Collections.singletonList(TEST_COL_10));
+        mockStatement = Mockito.mock(Statement.class);
+        Mockito.when(connection.createStatement()).thenReturn(mockStatement);
     }
 
     @After
     public void close(){
         mockedPostGreSqlMetadataHandler.close();
+        if (mockedJDBCUtil != null) {
+            mockedJDBCUtil.close();
+        }
+    }
+
+    @Test
+    public void testConstructorWithConfigOptions() {
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("redshift_connection_string", TEST_CONNECTION_STRING);
+        DatabaseConnectionConfig expectedConfig = new DatabaseConnectionConfig(TEST_CATALOG, REDSHIFT_NAME, TEST_CONNECTION_STRING);
+        mockedJDBCUtil = Mockito.mockStatic(JDBCUtil.class);
+        mockedJDBCUtil.when(() -> JDBCUtil.getSingleDatabaseConfigFromEnv(REDSHIFT_NAME, configOptions))
+                .thenReturn(expectedConfig);
+
+        RedshiftRecordHandler handler = new RedshiftRecordHandler(configOptions);
+
+        Assert.assertNotNull(handler);
+        mockedJDBCUtil.verify(() -> JDBCUtil.getSingleDatabaseConfigFromEnv(REDSHIFT_NAME, configOptions), Mockito.times(1));
     }
 
     @Test
@@ -110,27 +167,27 @@ public class RedshiftRecordHandlerTest
     {
         logger.info("buildSplitSqlTest - enter");
 
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol1", Types.MinorType.INT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol2", Types.MinorType.VARCHAR.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol3", Types.MinorType.BIGINT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol4", Types.MinorType.FLOAT4.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol5", Types.MinorType.SMALLINT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol6", Types.MinorType.TINYINT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol7", Types.MinorType.FLOAT8.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol8", Types.MinorType.BIT.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol9", new ArrowType.Decimal(8, 2)).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("testCol10", new ArrowType.Utf8()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition_schema_name", Types.MinorType.VARCHAR.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_1, Types.MinorType.INT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_2, Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_3, Types.MinorType.BIGINT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_4, Types.MinorType.FLOAT4.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_5, Types.MinorType.SMALLINT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_6, Types.MinorType.TINYINT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_7, Types.MinorType.FLOAT8.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_8, Types.MinorType.BIT.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_9, new ArrowType.Decimal(8, 2)).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_COL_10, new ArrowType.Utf8()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_SCHEMA_NAME, Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_NAME, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(ImmutableMap.of("partition_schema_name", "s0", "partition_name", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME))).thenReturn("s0");
-        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn("p0");
+        Mockito.when(split.getProperties()).thenReturn(ImmutableMap.of(PARTITION_SCHEMA_NAME, S0, PARTITION_NAME, P0));
+        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME))).thenReturn(S0);
+        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn(P0);
 
         Range range1a = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range1a.isSingleValue()).thenReturn(true);
@@ -153,25 +210,24 @@ public class RedshiftRecordHandlerTest
 
         Constraints constraints = Mockito.mock(Constraints.class);
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
-                .put("testCol1", valueSet1)
-                .put("testCol2", valueSet2)
-                .put("testCol3", valueSet3)
-                .put("testCol4", valueSet4)
-                .put("testCol5", valueSet5)
-                .put("testCol6", valueSet6)
-                .put("testCol7", valueSet7)
-                .put("testCol8", valueSet8)
-                .put("testCol9", valueSet9)
-                .put("testCol10", valueSet10)
+                .put(TEST_COL_1, valueSet1)
+                .put(TEST_COL_2, valueSet2)
+                .put(TEST_COL_3, valueSet3)
+                .put(TEST_COL_4, valueSet4)
+                .put(TEST_COL_5, valueSet5)
+                .put(TEST_COL_6, valueSet6)
+                .put(TEST_COL_7, valueSet7)
+                .put(TEST_COL_8, valueSet8)
+                .put(TEST_COL_9, valueSet9)
+                .put(TEST_COL_10, valueSet10)
                 .build());
 
-        String expectedSql = "SELECT \"testCol1\", \"testCol2\", \"testCol3\", \"testCol4\", \"testCol5\", \"testCol6\", \"testCol7\", \"testCol8\", \"testCol9\", RTRIM(\"testCol10\") AS \"testCol10\" FROM \"s0\".\"p0\"  WHERE (\"testCol1\" IN (?,?)) AND ((\"testCol2\" >= ? AND \"testCol2\" < ?)) AND ((\"testCol3\" > ? AND \"testCol3\" <= ?)) AND (\"testCol4\" = ?) AND (\"testCol5\" = ?) AND (\"testCol6\" = ?) AND (\"testCol7\" = ?) AND (\"testCol8\" = ?) AND (\"testCol9\" = ?) AND (\"testCol10\" = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(Mockito.eq(EXPECTED_SQL_WITH_CONSTRAINTS))).thenReturn(expectedPreparedStatement);
 
-        PreparedStatement preparedStatement = this.redshiftRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
+        PreparedStatement preparedStatement = this.redshiftRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
 
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        Assert.assertSame(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
         Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "1");
@@ -194,33 +250,32 @@ public class RedshiftRecordHandlerTest
     {
         logger.info("buildSplitSqlForDateTest - enter");
 
-        TableName tableName = new TableName("testSchema", "testTable");
+        TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        schemaBuilder.addField(FieldBuilder.newBuilder("testDate", Types.MinorType.DATEDAY.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition_schema_name", Types.MinorType.VARCHAR.getType()).build());
-        schemaBuilder.addField(FieldBuilder.newBuilder("partition_name", Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(TEST_DATE, Types.MinorType.DATEDAY.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_SCHEMA_NAME, Types.MinorType.VARCHAR.getType()).build());
+        schemaBuilder.addField(FieldBuilder.newBuilder(PARTITION_NAME, Types.MinorType.VARCHAR.getType()).build());
         Schema schema = schemaBuilder.build();
 
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(ImmutableMap.of("partition_schema_name", "s0", "partition_name", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME))).thenReturn("s0");
-        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn("p0");
+        Mockito.when(split.getProperties()).thenReturn(ImmutableMap.of(PARTITION_SCHEMA_NAME, S0, PARTITION_NAME, P0));
+        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME))).thenReturn(S0);
+        Mockito.when(split.getProperty(Mockito.eq(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME))).thenReturn(P0);
 
-        final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf("2020-01-05").getTime());
+        final long dateDays = TimeUnit.MILLISECONDS.toDays(Date.valueOf(TEST_DATE_VALUE).getTime());
         ValueSet valueSet = getSingleValueSet(dateDays);
 
         Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getSummary()).thenReturn(Collections.singletonMap("testDate", valueSet));
+        Mockito.when(constraints.getSummary()).thenReturn(Collections.singletonMap(TEST_DATE, valueSet));
 
-        String expectedSql = "SELECT \"testDate\" FROM \"s0\".\"p0\"  WHERE (\"testDate\" = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(Mockito.eq(EXPECTED_SQL_FOR_DATE))).thenReturn(expectedPreparedStatement);
 
-        PreparedStatement preparedStatement = this.redshiftRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
+        PreparedStatement preparedStatement = this.redshiftRecordHandler.buildSplitSql(this.connection, TEST_CATALOG, tableName, schema, constraints, split);
 
         Date expectedDate = new Date(120, 0, 5);
-        Assert.assertEquals(expectedPreparedStatement, preparedStatement);
+        Assert.assertSame(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))
                 .setDate(1, expectedDate);
 
@@ -246,5 +301,41 @@ public class RedshiftRecordHandlerTest
         ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
+    }
+
+    @Test
+    public void testEnableCaseSensitivelyLookUpSessionSuccess() throws SQLException {
+        Mockito.when(mockStatement.execute(ENABLE_CASE_SENSITIVE)).thenReturn(true);
+        boolean result = redshiftRecordHandler.enableCaseSensitivelyLookUpSession(connection);
+
+        assertTrue(result);
+        Mockito.verify(mockStatement, Mockito.times(1)).execute(ENABLE_CASE_SENSITIVE);
+    }
+
+    @Test
+    public void testEnableCaseSensitivelyLookUpSessionFailure() throws SQLException {
+        Mockito.when(mockStatement.execute(ENABLE_CASE_SENSITIVE)).thenThrow(new SQLException("Simulated failure"));
+        boolean result = redshiftRecordHandler.enableCaseSensitivelyLookUpSession(connection);
+
+        assertFalse(result);
+        Mockito.verify(mockStatement, Mockito.times(1)).execute(ENABLE_CASE_SENSITIVE);
+    }
+
+    @Test
+    public void testDisableCaseSensitivelyLookUpSessionSuccess() throws SQLException {
+        Mockito.when(mockStatement.execute(DISABLE_CASE_SENSITIVE)).thenReturn(true);
+        boolean result = redshiftRecordHandler.disableCaseSensitivelyLookUpSession(connection);
+
+        assertTrue(result);
+        Mockito.verify(mockStatement, Mockito.times(1)).execute(DISABLE_CASE_SENSITIVE);
+    }
+
+    @Test
+    public void testDisableCaseSensitivelyLookUpSessionFailure() throws SQLException {
+        Mockito.when(mockStatement.execute(DISABLE_CASE_SENSITIVE)).thenThrow(new SQLException("Simulated failure"));
+        boolean result = redshiftRecordHandler.disableCaseSensitivelyLookUpSession(connection);
+
+        assertFalse(result);
+        Mockito.verify(mockStatement, Mockito.times(1)).execute(DISABLE_CASE_SENSITIVE);
     }
 }
