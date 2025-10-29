@@ -10,17 +10,18 @@ jobs:
     steps:
       - name: Setup dependencies
         run: |
+          sudo apt update --fix-missing
           sudo apt-get install -y libxml2-utils python3
           pip3 install lxml beautifulsoup4
 
       - name: Set up JDK 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'corretto'
           java-version: '11'
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 

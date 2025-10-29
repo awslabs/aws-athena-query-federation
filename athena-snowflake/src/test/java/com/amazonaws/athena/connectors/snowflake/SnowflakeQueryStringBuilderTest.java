@@ -18,41 +18,119 @@
  * #L%
  */
 package com.amazonaws.athena.connectors.snowflake;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import org.junit.Assert;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-public class SnowflakeQueryStringBuilderTest
-{
+class SnowflakeQueryStringBuilderTest {
+
+    private SnowflakeQueryStringBuilder queryBuilder;
+
     @Mock
-    Split split;
+    private Connection mockConnection;
 
-    @Test
-    public void testQueryBuilderNew()
-    {
-        Split split = Mockito.mock(Split.class);
-        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
-        Mockito.when(split.getProperties()).thenReturn(Collections.singletonMap("partition", "p0"));
-        Mockito.when(split.getProperty(Mockito.eq("partition"))).thenReturn("p1-p2-p3-p4-p5-p6-p7");
-        builder.getFromClauseWithSplit("default", "", "table", split);
-        builder.appendLimitOffset(split);
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        queryBuilder = new SnowflakeQueryStringBuilder("\"", null);
     }
 
     @Test
-    public void testGetPartitionWhereClauses()
-    {
-        SnowflakeQueryStringBuilder builder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
-        List<String> fromClauseWithSplit = builder.getPartitionWhereClauses(split);
-        List<String> expected = new ArrayList<>();
-        Assert.assertEquals(expected, fromClauseWithSplit);
+    void testGetFromClauseWithSplit() {
+        String result = queryBuilder.getFromClauseWithSplit(null, "public", "users", null);
+        assertEquals(" FROM \"public\".\"users\" ", result);
+    }
+
+    @Test
+    void testGetPartitionWhereClauses() {
+        List<String> result = queryBuilder.getPartitionWhereClauses(null);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testBuildSqlString_NoConstraints() throws SQLException {
+        Schema tableSchema = new Schema(List.of(new Field("id", new FieldType(true, new ArrowType.Int(32, true), null), null)));
+
+        Constraints constraints = mock(Constraints.class);
+        when(constraints.getLimit()).thenReturn(0L);
+
+        String sql = queryBuilder.buildSqlString(mockConnection, null, "public", "users", tableSchema, constraints, null);
+        assertTrue(sql.contains("SELECT \"id\" FROM \"public\".\"users\" "));
+    }
+
+    @Test
+    void testBuildSqlString_WithConstraints() throws SQLException {
+        Schema tableSchema = new Schema(List.of(new Field("id", new FieldType(true, new ArrowType.Int(32, true), null), null)));
+
+        Constraints constraints = mock(Constraints.class);
+        when(constraints.getLimit()).thenReturn(10L);
+
+        String sql = queryBuilder.buildSqlString(mockConnection, null, "public", "users", tableSchema, constraints, null);
+        assertTrue(sql.contains("LIMIT 10"));
+    }
+
+    @Test
+    void testQuote() {
+        String result = queryBuilder.quote("users");
+        assertEquals("\"users\"", result);
+    }
+
+    @Test
+    void testSingleQuote() {
+        String result = queryBuilder.singleQuote("O'Reilly");
+        assertEquals("'O''Reilly'", result);
+    }
+
+    @Test
+    void testToPredicate_SingleValue() {
+        List<TypeAndValue> accumulator = new ArrayList<>();
+        String predicate = queryBuilder.toPredicate("age", "=", 30, new ArrowType.Int(32, true));
+        assertEquals("age = 30", predicate);
+    }
+
+    @Test
+    void testGetObjectForWhereClause_Int() {
+        Object result = queryBuilder.getObjectForWhereClause("age", 42, new ArrowType.Int(32, true));
+        assertEquals(42L, result);
+    }
+
+    @Test
+    void testGetObjectForWhereClause_Decimal() {
+        Object result = queryBuilder.getObjectForWhereClause("price", new BigDecimal("99.99"), new ArrowType.Decimal(10, 2));
+        assertEquals(new BigDecimal("99.99"), result);
+    }
+
+    @Test
+    void testGetObjectForWhereClause_Date() {
+        Object result = queryBuilder.getObjectForWhereClause("date", "2023-03-15T00:00", new ArrowType.Date(DateUnit.DAY));
+        assertEquals("2023-03-15 00:00:00", result);
+    }
+
+    @Test
+    void testToPredicateWithUnsupportedType() {
+        assertThrows(UnsupportedOperationException.class, () ->
+                queryBuilder.getObjectForWhereClause("unsupported", "value", new ArrowType.Struct())
+        );
     }
 }
-

@@ -44,6 +44,11 @@ public class JDBCUtilTest
 {
     private static final String CONNECTION_STRING1 = "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}";
     private static final String CONNECTION_STRING2 = "notrealdb://jdbc:notrealdb://hostname/user=testUser&password=testPassword";
+    private static final String DEFAULT="default";
+    private static final String FAKE_DATABASE="fakedatabase";
+    private static final String TEST_SCHEMA="testSchema";
+    private static final String TEST_TABLE="testTable";
+
 
     class FakeDatabaseJdbcMetadataHandler extends JdbcMetadataHandler {
 
@@ -91,13 +96,13 @@ public class JDBCUtilTest
         @Override
         public String getEngine()
         {
-            return "fakedatabase";
+            return FAKE_DATABASE;
         }
 
         @Override
         public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
         {
-            return new FakeDatabaseJdbcMetadataHandler("fakedatabase", configOptions);
+            return new FakeDatabaseJdbcMetadataHandler(FAKE_DATABASE, configOptions);
         }
     }
 
@@ -106,13 +111,13 @@ public class JDBCUtilTest
         @Override
         public String getEngine()
         {
-            return "fakedatabase";
+            return FAKE_DATABASE;
         }
 
         @Override
         public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
         {
-            return new FakeDatabaseJdbcRecordHandler("fakedatabase", configOptions);
+            return new FakeDatabaseJdbcRecordHandler(FAKE_DATABASE, configOptions);
         }
     }
 
@@ -121,22 +126,23 @@ public class JDBCUtilTest
     {
         Map<String, JdbcMetadataHandler> catalogs = JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
-                .put("default", CONNECTION_STRING1)
+                .put(DEFAULT, CONNECTION_STRING1)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build(), new FakeDatabaseMetadataHandlerFactory());
 
         Assert.assertEquals(3, catalogs.size());
-        Assert.assertEquals(catalogs.get("testCatalog1").getClass(), FakeDatabaseJdbcMetadataHandler.class);
-        Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), FakeDatabaseJdbcMetadataHandler.class);
+        Assert.assertEquals(FakeDatabaseJdbcMetadataHandler.class, catalogs.get("testCatalog1").getClass());
+        Assert.assertEquals(FakeDatabaseJdbcMetadataHandler.class, catalogs.get("lambda:functionName").getClass());
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void createJdbcMetadataHandlerMapDifferentDatabasesThrows()
     {
-        Map<String, JdbcMetadataHandler> catalogs = JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
-                .put("testCatalog1_connection_string", CONNECTION_STRING1)
-                .put("testCatalog2_connection_string", CONNECTION_STRING2)
-                .put("default", CONNECTION_STRING2)
+        // Mux with different database types is not supported.
+        JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
+                .put("testCatalog_connection_string", CONNECTION_STRING1)
+                .put("wrong_connection_string", CONNECTION_STRING2)
+                .put(DEFAULT, CONNECTION_STRING1)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build(), new FakeDatabaseMetadataHandlerFactory());
     }
@@ -153,7 +159,7 @@ public class JDBCUtilTest
         JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
-                .put("default", CONNECTION_STRING2)
+                .put(DEFAULT, CONNECTION_STRING2)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build(), new FakeDatabaseMetadataHandlerFactory());
     }
@@ -163,21 +169,22 @@ public class JDBCUtilTest
     {
         Map<String, JdbcRecordHandler> catalogs = JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
-                .put("default", CONNECTION_STRING1)
+                .put(DEFAULT, CONNECTION_STRING1)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build(), new FakeDatabaseRecordHandlerFactory());
 
-        Assert.assertEquals(catalogs.get("testCatalog1").getClass(), FakeDatabaseJdbcRecordHandler.class);
-        Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), FakeDatabaseJdbcRecordHandler.class);
+        Assert.assertEquals(FakeDatabaseJdbcRecordHandler.class, catalogs.get("testCatalog1").getClass());
+        Assert.assertEquals(FakeDatabaseJdbcRecordHandler.class, catalogs.get("lambda:functionName").getClass());
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void createJdbcRecordHandlerMapDifferentDatabasesThrows()
     {
-        Map<String, JdbcRecordHandler> catalogs = JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
-                .put("testCatalog1_connection_string", CONNECTION_STRING1)
-                .put("testCatalog2_connection_string", CONNECTION_STRING2)
-                .put("default", CONNECTION_STRING2)
+        // Mux with different database types is not supported.
+        JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
+                .put("testCatalog_connection_string", CONNECTION_STRING1)
+                .put("wrong_connection_string", CONNECTION_STRING2)
+                .put(DEFAULT, CONNECTION_STRING1)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build(), new FakeDatabaseRecordHandlerFactory());
     }
@@ -196,4 +203,92 @@ public class JDBCUtilTest
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
                 .build(), new FakeDatabaseRecordHandlerFactory());
     }
+
+    @Test
+    public void testGetSingleDatabaseConfigFromEnv()
+    {
+        Map<String, String> configOptions = ImmutableMap.<String, String>builder()
+                .put(DEFAULT, CONNECTION_STRING1)
+                .build();
+        
+        DatabaseConnectionConfig config = JDBCUtil.getSingleDatabaseConfigFromEnv(FAKE_DATABASE, configOptions);
+        
+        Assert.assertNotNull(config);
+        Assert.assertEquals(DEFAULT, config.getCatalog());
+        Assert.assertEquals(FAKE_DATABASE, config.getEngine());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testGetSingleDatabaseConfigFromEnvThrowsWhenNoDefault()
+    {
+        Map<String, String> configOptions = ImmutableMap.<String, String>builder()
+                .put("testCatalog_connection_string", CONNECTION_STRING1)
+                .build();
+        
+        JDBCUtil.getSingleDatabaseConfigFromEnv(FAKE_DATABASE, configOptions);
+    }
+
+    @Test
+    public void testGetTables() throws SQLException
+    {
+        Connection mockConnection = org.mockito.Mockito.mock(Connection.class);
+        PreparedStatement mockStatement = org.mockito.Mockito.mock(PreparedStatement.class);
+        java.sql.ResultSet mockResultSet = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        
+        org.mockito.Mockito.when(mockConnection.prepareStatement(org.mockito.Mockito.anyString())).thenReturn(mockStatement);
+        org.mockito.Mockito.when(mockStatement.executeQuery()).thenReturn(mockResultSet);
+        org.mockito.Mockito.when(mockResultSet.next()).thenReturn(true, false);
+        org.mockito.Mockito.when(mockResultSet.getString("TABLE_NAME")).thenReturn(TEST_TABLE);
+        org.mockito.Mockito.when(mockResultSet.getString("TABLE_SCHEM")).thenReturn(TEST_SCHEMA);
+        
+        java.util.List<TableName> tables = JDBCUtil.getTables(mockConnection, TEST_SCHEMA);
+        
+        Assert.assertEquals(1, tables.size());
+        Assert.assertEquals(TEST_TABLE, tables.get(0).getTableName());
+        Assert.assertEquals(TEST_SCHEMA, tables.get(0).getSchemaName());
+    }
+
+    @Test
+    public void testGetTableMetadataWithSQLException() throws SQLException
+    {
+        PreparedStatement mockStatement = org.mockito.Mockito.mock(PreparedStatement.class);
+        
+        // Mock SQLException to test exception handling
+        org.mockito.Mockito.when(mockStatement.executeQuery()).thenThrow(new SQLException("Test exception"));
+        
+        java.util.List<TableName> tables = JDBCUtil.getTableMetadata(mockStatement, "Tables");
+        
+        // Should return empty list when SQLException occurs
+        Assert.assertTrue(tables.isEmpty());
+    }
+
+    @Test
+    public void testGetSchemaTableName() throws SQLException
+    {
+        java.sql.ResultSet mockResultSet = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        org.mockito.Mockito.when(mockResultSet.getString("TABLE_SCHEM")).thenReturn(TEST_SCHEMA);
+        org.mockito.Mockito.when(mockResultSet.getString("TABLE_NAME")).thenReturn(TEST_TABLE);
+        
+        TableName tableName = JDBCUtil.getSchemaTableName(mockResultSet);
+        
+        Assert.assertEquals(TEST_SCHEMA, tableName.getSchemaName());
+        Assert.assertEquals(TEST_TABLE, tableName.getTableName());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testCreateJdbcMetadataHandlerMapMissingLambdaFunctionName()
+    {
+        JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
+                .put(DEFAULT, CONNECTION_STRING1)
+                .build(), new FakeDatabaseMetadataHandlerFactory());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testCreateJdbcRecordHandlerMapMissingLambdaFunctionName()
+    {
+        JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
+                .put(DEFAULT, CONNECTION_STRING1)
+                .build(), new FakeDatabaseRecordHandlerFactory());
+    }
+
 }

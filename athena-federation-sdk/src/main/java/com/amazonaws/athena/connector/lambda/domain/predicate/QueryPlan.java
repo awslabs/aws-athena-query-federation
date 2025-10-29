@@ -30,23 +30,19 @@ public class QueryPlan
 {
     String substraitVersion;
     String substraitPlan;
-    String sqlConformance;
 
     /**
      *
      * @param substraitVersion
      * @param substraitPlan
-     * @param sqlConformance
      */
     @JsonCreator
     public QueryPlan(@JsonProperty("substraitVersion") String substraitVersion,
-                     @JsonProperty("substraitPlan") String substraitPlan,
-                     @JsonProperty("sqlConformance") String sqlConformance)
+                     @JsonProperty("substraitPlan") String substraitPlan)
     {
         requireNonNull(substraitPlan, "SubstraitPlan is null");
         this.substraitVersion = substraitVersion;
         this.substraitPlan = substraitPlan;
-        this.sqlConformance = sqlConformance;
     }
 
     public String getSubstraitVersion()
@@ -59,18 +55,12 @@ public class QueryPlan
         return substraitPlan;
     }
 
-    public String getSqlConformance()
-    {
-        return sqlConformance;
-    }
-
     @Override
     public String toString()
     {
         return MoreObjects.toStringHelper(this)
                 .add("substraitVersion", substraitVersion)
                 .add("substraitPlan", substraitPlan)
-                .add("sqlConformance", sqlConformance)
                 .toString();
     }
 
@@ -85,13 +75,12 @@ public class QueryPlan
         }
         QueryPlan that = (QueryPlan) o;
         return Objects.equal(this.substraitVersion, that.substraitVersion) &&
-                Objects.equal(this.substraitPlan, that.substraitPlan) &&
-                Objects.equal(this.sqlConformance, that.sqlConformance);
+                Objects.equal(this.substraitPlan, that.substraitPlan);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(this.substraitVersion, this.substraitPlan, this.sqlConformance);
+        return Objects.hashCode(this.substraitVersion, this.substraitPlan);
     }
 }
