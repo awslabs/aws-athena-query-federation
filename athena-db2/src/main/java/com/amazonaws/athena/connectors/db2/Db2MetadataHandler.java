@@ -37,12 +37,15 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.util.PaginationHelper;
 import com.amazonaws.athena.connectors.db2.resolver.Db2JDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
@@ -80,6 +83,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 
 public class Db2MetadataHandler extends JdbcMetadataHandler
@@ -168,6 +172,37 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
         return tableNames.stream()
                 .map(tableName -> new TableName(schemaName, tableName))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    {
+        LOGGER.debug("Starting listPaginatedTables for Db2.");
+        int pageSize = listTablesRequest.getPageSize();
+        int token = PaginationHelper.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
+
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            pageSize = Integer.MAX_VALUE;
+        }
+
+        LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), token, pageSize);
+        String nextToken = PaginationHelper.calculateNextToken(token, pageSize, paginatedTables);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), nextToken);
+
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
+    }
+
+    @VisibleForTesting
+    protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int offset, int limit) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY);
+
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setInt(2, offset);
+        preparedStatement.setInt(3, limit);
+
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
 
     /**
