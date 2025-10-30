@@ -60,7 +60,7 @@ public class ClouderaHiveEnvironmentPropertiesTest
     }
 
     @Test
-    public void testClouderaHiveConnectionProperties()
+    public void connectionPropertiesToEnvironment_WithValidProperties_ReturnsCorrectConnectionString()
     {
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
 
@@ -69,26 +69,26 @@ public class ClouderaHiveEnvironmentPropertiesTest
     }
 
     @Test
-    public void testClouderaHiveConnectionProperties_withSessionConfsOnly()
+    public void connectionPropertiesToEnvironment_WithSessionConfsOnly_ReturnsCorrectConnectionString()
     {
         connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + TEST_SECRET;
+        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + ";" + TEST_SECRET;
         assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
     }
 
     @Test
-    public void testClouderaHiveConnectionProperties_withSessionAndHiveConfs()
+    public void connectionPropertiesToEnvironment_WithSessionAndHiveConfs_ReturnsCorrectConnectionString()
     {
         connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
         connectionProperties.put(HIVE_CONFS, MAPREDUCE_TESTING);
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
-        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + ";" + MAPREDUCE_TESTING + TEST_SECRET;
+        String expectedConnectionString = BASE_CONNECTION_STRING + HIVE_EXECUTION_ENGINE_MR + ";" + MAPREDUCE_TESTING + ";" + TEST_SECRET;
         assertEquals(expectedConnectionString, clouderaHiveConnectionProperties.get(DEFAULT));
     }
 
     @Test
-    public void testClouderaHiveConnectionProperties_withAllConfigs()
+    public void connectionPropertiesToEnvironment_WithAllConfigs_ReturnsCorrectConnectionString()
     {
         connectionProperties.put(SESSION_CONFS, HIVE_EXECUTION_ENGINE_MR);
         connectionProperties.put(HIVE_CONFS, MAPREDUCE_TESTING);
@@ -99,7 +99,7 @@ public class ClouderaHiveEnvironmentPropertiesTest
     }
 
     @Test
-    public void testClouderaHiveConnectionProperties_withHiveVarsOnly()
+    public void connectionPropertiesToEnvironment_WithHiveVarsOnly_ReturnsCorrectConnectionString()
     {
         connectionProperties.put(HIVE_VARS, ENV_TEST);
         Map<String, String> clouderaHiveConnectionProperties = clouderaHiveEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
@@ -108,7 +108,7 @@ public class ClouderaHiveEnvironmentPropertiesTest
     }
 
     @Test
-    public void testClouderaHiveConnectionProperties_withHiveConfsAndVars()
+    public void connectionPropertiesToEnvironment_WithHiveConfsAndVars_ReturnsCorrectConnectionString()
     {
         connectionProperties.put(HIVE_CONFS, MAPREDUCE_QA);
         connectionProperties.put(HIVE_VARS, ENV_QA);
