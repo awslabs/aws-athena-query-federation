@@ -33,7 +33,7 @@ public class HiveFederationExpressionParserTest
     private final HiveFederationExpressionParser parser = new HiveFederationExpressionParser(HIVE_QUOTE_CHARACTER);
 
     @Test
-    public void testWriteArrayConstructorClause_withMultipleElements()
+    public void writeArrayConstructorClause_WithMultipleElements_ReturnsCommaSeparatedString()
     {
         String result = parser.writeArrayConstructorClause(
             new ArrowType.Int(32, true),
@@ -43,7 +43,7 @@ public class HiveFederationExpressionParserTest
     }
 
     @Test
-    public void testWriteArrayConstructorClause_withSingleElement()
+    public void writeArrayConstructorClause_WithSingleElement_ReturnsSingleElement()
     {
         String result = parser.writeArrayConstructorClause(
             new ArrowType.Utf8(),
@@ -53,7 +53,7 @@ public class HiveFederationExpressionParserTest
     }
 
     @Test
-    public void testWriteArrayConstructorClause_withEmptyList()
+    public void writeArrayConstructorClause_WithEmptyList_ReturnsEmptyString()
     {
         String result = parser.writeArrayConstructorClause(
             new ArrowType.Bool(),

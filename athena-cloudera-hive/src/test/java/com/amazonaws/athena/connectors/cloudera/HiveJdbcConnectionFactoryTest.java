@@ -28,17 +28,13 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
 
 public class HiveJdbcConnectionFactoryTest 
 {
     @Test(expected = SQLException.class)
-    public void testGetConnection_withCredentials() throws Exception
+    public void getConnection_WithCredentials_ThrowsSQLException() throws Exception
     {
         DefaultCredentials expectedCredential = new DefaultCredentials("hive", "hive");
         CredentialsProvider credentialsProvider = new StaticCredentialsProvider(expectedCredential);
@@ -47,14 +43,10 @@ public class HiveJdbcConnectionFactoryTest
         Map<String, String> jdbcProperties = ImmutableMap.of("databaseTerm", "SCHEMA");
         DatabaseConnectionInfo databaseConnectionInfo = new DatabaseConnectionInfo(HiveConstants.HIVE_DRIVER_CLASS, HiveConstants.HIVE_DEFAULT_PORT);
         Connection connection =  new HiveJdbcConnectionFactory(databaseConnectionConfig, jdbcProperties, databaseConnectionInfo).getConnection(credentialsProvider);
-        String originalURL = connection.getMetaData().getURL();
-        Driver drv = DriverManager.getDriver(originalURL);
-        String driverClass = drv.getClass().getName();
-        assertEquals("com.cloudera.hive.jdbc.HS2Driver", driverClass);
     }
 
     @Test(expected = SQLException.class)
-    public void testGetConnection_withNullCredentials() throws Exception
+    public void getConnection_WithNullCredentials_ThrowsSQLException() throws Exception
     {
         // Setup the connection config with a test JDBC string
         String testJdbcString = "jdbc:hive2://localhost:10000/default";
@@ -70,12 +62,9 @@ public class HiveJdbcConnectionFactoryTest
 
         // Attempt to get connection with null credentials - this should use the original JDBC string
         Connection connection = connectionFactory.getConnection(null);
-
-        // Verify the connection URL matches the original JDBC string
-        assertEquals(testJdbcString, connection.getMetaData().getURL());
     }
 
-    private static HiveJdbcConnectionFactory getHiveJdbcConnectionFactory(DatabaseConnectionConfig databaseConnectionConfig)
+    private HiveJdbcConnectionFactory getHiveJdbcConnectionFactory(DatabaseConnectionConfig databaseConnectionConfig)
     {
         Map<String, String> jdbcProperties = ImmutableMap.of("databaseTerm", "SCHEMA");
         DatabaseConnectionInfo databaseConnectionInfo = new DatabaseConnectionInfo(
