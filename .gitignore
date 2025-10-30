@@ -11,7 +11,7 @@ dependency-reduced-pom.xml
 */.settings/
 */.DS_Store
 .settings/org.eclipse.m2e.core.prefs
-.vscode/settings.json
+.vscode/*
 */packaged.yaml
 .DS_Store
 */.jqwik-database

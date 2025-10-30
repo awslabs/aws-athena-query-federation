@@ -33,6 +33,8 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.calcite.sql.SqlDialect;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -270,15 +272,15 @@ public class JdbcSplitQueryBuilderTest
         ranges.add(Range.equal(allocator, INT.getType(), 10));
         ranges.add(Range.equal(allocator, INT.getType(), 20));
         ranges.add(Range.equal(allocator, INT.getType(), 30));
-        
+
         SortedRangeSet valueSet = SortedRangeSet.copyOf(INT.getType(), ranges, false);
         Constraints constraintsWithMultipleValues = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithMultipleValues, split);
-        
+
         // Verify IN clause is generated with multiple placeholders
         verify(mockConnection).prepareStatement(contains("\"" + TEST_COL1 + "\" IN (?,?,?)"));
     }
@@ -289,12 +291,12 @@ public class JdbcSplitQueryBuilderTest
         Range range = Range.greaterThan(allocator, INT.getType(), 100);
         SortedRangeSet valueSet = SortedRangeSet.of(range);
         Constraints constraintsWithGreaterThan = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithGreaterThan, split);
-        
+
         // Verify greater than clause is generated
         verify(mockConnection).prepareStatement(contains("\"" + TEST_COL1 + "\" > ?"));
     }
@@ -305,12 +307,12 @@ public class JdbcSplitQueryBuilderTest
         Range range = Range.greaterThanOrEqual(allocator, INT.getType(), 100);
         SortedRangeSet valueSet = SortedRangeSet.of(range);
         Constraints constraintsWithGreaterThanOrEqual = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithGreaterThanOrEqual, split);
-        
+
         // Verify greater than or equal clause is generated
         verify(mockConnection).prepareStatement(contains("\"" + TEST_COL1 + "\" >= ?"));
     }
@@ -321,12 +323,12 @@ public class JdbcSplitQueryBuilderTest
         Range range = Range.lessThanOrEqual(allocator, INT.getType(), 200);
         SortedRangeSet valueSet = SortedRangeSet.of(range);
         Constraints constraintsWithLessThanOrEqual = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithLessThanOrEqual, split);
-        
+
         // Verify less than or equal clause is generated
         verify(mockConnection).prepareStatement(contains("\"" + TEST_COL1 + "\" <= ?"));
     }
@@ -337,12 +339,12 @@ public class JdbcSplitQueryBuilderTest
         Range range = Range.lessThan(allocator, INT.getType(), 200);
         SortedRangeSet valueSet = SortedRangeSet.of(range);
         Constraints constraintsWithLessThan = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithLessThan, split);
-        
+
         // Verify less than clause is generated
         verify(mockConnection).prepareStatement(contains("\"" + TEST_COL1 + "\" < ?"));
     }
@@ -353,7 +355,7 @@ public class JdbcSplitQueryBuilderTest
         Range mockRange = createRangeWithBounds(Marker.Bound.BELOW, Marker.Bound.EXACTLY);
         SortedRangeSet valueSet = createValueSetWithRange(mockRange);
         Constraints constraintsWithInvalidBound = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
@@ -361,7 +363,7 @@ public class JdbcSplitQueryBuilderTest
                 AthenaConnectorException.class,
                 () -> builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithInvalidBound, split)
         );
-        
+
         assertTrue(ex.getMessage().contains(TEST_LOW_MARKER_BELOW_BOUND_MESSAGE));
     }
 
@@ -371,7 +373,7 @@ public class JdbcSplitQueryBuilderTest
         Range mockRange = createRangeWithBounds(Marker.Bound.EXACTLY, Marker.Bound.ABOVE);
         SortedRangeSet valueSet = createValueSetWithRange(mockRange);
         Constraints constraintsWithInvalidHighBound = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
@@ -379,7 +381,7 @@ public class JdbcSplitQueryBuilderTest
                 AthenaConnectorException.class,
                 () -> builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithInvalidHighBound, split)
         );
-        
+
         assertTrue(ex.getMessage().contains(TEST_HIGH_MARKER_ABOVE_BOUND_MESSAGE));
     }
 
@@ -410,7 +412,7 @@ public class JdbcSplitQueryBuilderTest
     {
         OrderByField field1 = new OrderByField(TEST_COL1, OrderByField.Direction.ASC_NULLS_LAST);
         OrderByField field2 = new OrderByField(TEST_COL2, OrderByField.Direction.DESC_NULLS_FIRST);
-        
+
         Constraints constraintsWithMultipleOrderBy = createConstraintsWithOrderBy(List.of(field1, field2));
 
         String clause = builder.extractOrderByClause(constraintsWithMultipleOrderBy);
@@ -430,12 +432,12 @@ public class JdbcSplitQueryBuilderTest
     public void testBuildSqlWithEmptyConstraints() throws SQLException
     {
         Constraints emptyConstraints = createEmptyConstraints();
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, emptyConstraints, split);
-        
+
         assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
         verify(mockConnection).prepareStatement(contains(TEST_SELECT_CLAUSE));
         verify(mockConnection).prepareStatement(contains(TEST_COL1));
@@ -447,12 +449,12 @@ public class JdbcSplitQueryBuilderTest
         // Test ORDER BY with LIMIT
         OrderByField orderByField = new OrderByField(TEST_COL1, OrderByField.Direction.ASC_NULLS_FIRST);
         Constraints constraintsWithOrderByAndLimit = createConstraintsWithOrderByAndLimit(Collections.singletonList(orderByField), 50L);
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithOrderByAndLimit, split);
-        
+
         assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
         verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
         verify(mockConnection).prepareStatement(contains(TEST_LIMIT_CLAUSE));
@@ -464,15 +466,15 @@ public class JdbcSplitQueryBuilderTest
         // Test complex expressions with ORDER BY
         List<String> complexExpressions = List.of("(col1 + col2)", "CASE WHEN col3 > 0 THEN col4 ELSE 0 END");
         when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(complexExpressions);
-        
+
         OrderByField orderByField = new OrderByField(TEST_COL1, OrderByField.Direction.DESC_NULLS_LAST);
         Constraints constraintsWithComplexAndOrderBy = createConstraintsWithOrderBy(Collections.singletonList(orderByField));
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithComplexAndOrderBy, split);
-        
+
         assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
         verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
         verify(expressionParser).parseComplexExpressions(any(), any(), any());
@@ -483,16 +485,16 @@ public class JdbcSplitQueryBuilderTest
     {
         // Test the complete scenario: ORDER BY + LIMIT + complex expressions
         List<String> complexExpressions = List.of(
-            "(col1 * col2 + col3)", 
+            "(col1 * col2 + col3)",
             "CASE WHEN col4 > 100 THEN col5 ELSE col6 END",
             "COALESCE(col7, col8, 'default')"
         );
         when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(complexExpressions);
-        
+
         OrderByField orderByField1 = new OrderByField(TEST_COL1, OrderByField.Direction.ASC_NULLS_FIRST);
         OrderByField orderByField2 = new OrderByField(TEST_COL2, OrderByField.Direction.DESC_NULLS_LAST);
         Constraints constraintsWithAll = createConstraintsWithOrderByAndLimit(List.of(orderByField1, orderByField2), 25L);
-        
+
         List<Field> fields = List.of(
             new Field(TEST_COL1, FieldType.nullable(INT.getType()), null),
             new Field(TEST_COL2, FieldType.nullable(INT.getType()), null),
@@ -501,7 +503,7 @@ public class JdbcSplitQueryBuilderTest
         Schema schema = new Schema(fields);
 
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithAll, split);
-        
+
         assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
         verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
         verify(mockConnection).prepareStatement(contains(TEST_LIMIT_CLAUSE));
@@ -518,15 +520,15 @@ public class JdbcSplitQueryBuilderTest
             "NULLIF(COALESCE(col11, col12), col13)"
         );
         when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(nestedExpressions);
-        
+
         OrderByField orderByField = new OrderByField(TEST_COL1, OrderByField.Direction.ASC_NULLS_FIRST);
         Constraints constraintsWithNested = createConstraintsWithOrderByAndLimit(Collections.singletonList(orderByField), 10L);
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithNested, split);
-        
+
         assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
         verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
         verify(mockConnection).prepareStatement(contains(TEST_LIMIT_CLAUSE));
@@ -543,19 +545,197 @@ public class JdbcSplitQueryBuilderTest
             "COUNT(DISTINCT col5)"
         );
         when(expressionParser.parseComplexExpressions(any(), any(), any())).thenReturn(aggregateExpressions);
-        
+
         OrderByField orderByField = new OrderByField("SUM(col1)", OrderByField.Direction.DESC_NULLS_LAST);
         Constraints constraintsWithAggregates = createConstraintsWithOrderByAndLimit(Collections.singletonList(orderByField), 100L);
-        
+
         Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
         Schema schema = new Schema(List.of(field));
 
         PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithAggregates, split);
-        
+
         assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
         verify(mockConnection).prepareStatement(contains(TEST_ORDER_BY_CLAUSE));
         verify(mockConnection).prepareStatement(contains(TEST_LIMIT_CLAUSE));
         verify(expressionParser).parseComplexExpressions(any(), any(), any());
+    }
+
+    @Test
+    public void testBuildSqlWithDecimalType() throws SQLException
+    {
+        // Test DECIMAL type handling
+        ArrowType decimalType = new ArrowType.Decimal(10, 2, 128);
+        Field decimalField = new Field("decimal_col", FieldType.nullable(decimalType), null);
+        Schema schema = new Schema(List.of(decimalField));
+
+        java.math.BigDecimal decimalValue = new java.math.BigDecimal("123.45");
+        SortedRangeSet valueSet = SortedRangeSet.of(Range.equal(allocator, decimalType, decimalValue));
+        Constraints constraintsWithDecimal = createConstraintsWithSummary(Map.of("decimal_col", valueSet));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithDecimal, split);
+
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains("\"decimal_col\""));
+    }
+
+    @Test
+    public void testBuildSqlWithNullOnlyValueSet() throws SQLException
+    {
+        // Test ValueSet that is none but allows nulls (IS NULL case)
+        SortedRangeSet nullOnlyValueSet = mock(SortedRangeSet.class, RETURNS_DEEP_STUBS);
+        when(nullOnlyValueSet.isNone()).thenReturn(true);
+        when(nullOnlyValueSet.isNullAllowed()).thenReturn(true);
+        when(nullOnlyValueSet.getRanges().getOrderedRanges()).thenReturn(Collections.emptyList());
+
+        Constraints constraintsWithNullOnly = createConstraintsWithSummary(Map.of(TEST_COL1, nullOnlyValueSet));
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithNullOnly, split);
+
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains("IS NULL"));
+    }
+
+    @Test
+    public void testBuildSqlWithNotNullValueSet() throws SQLException
+    {
+        // Test ValueSet that represents NOT NULL (all values except null)
+        SortedRangeSet notNullValueSet = SortedRangeSet.of(false, Range.all(allocator, INT.getType()));
+
+        Constraints constraintsWithNotNull = createConstraintsWithSummary(Map.of(TEST_COL1, notNullValueSet));
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithNotNull, split);
+
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains("IS NOT NULL"));
+    }
+
+    @Test
+    public void testBuildSqlWithNullAllowedAndRanges() throws SQLException
+    {
+        // Test ValueSet that allows nulls AND has ranges (IS NULL OR range conditions)
+        Range range = Range.equal(allocator, INT.getType(), 100);
+        SortedRangeSet nullAndRangeValueSet = mock(SortedRangeSet.class, RETURNS_DEEP_STUBS);
+        when(nullAndRangeValueSet.isNone()).thenReturn(false);
+        when(nullAndRangeValueSet.isNullAllowed()).thenReturn(true);
+        when(nullAndRangeValueSet.getRanges().getOrderedRanges()).thenReturn(List.of(range));
+
+        Constraints constraintsWithNullAndRange = createConstraintsWithSummary(Map.of(TEST_COL1, nullAndRangeValueSet));
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithNullAndRange, split);
+
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains("IS NULL"));
+    }
+
+    @Test
+    public void testBuildSqlWithUnhandledBoundException()
+    {
+        // Test unhandled bound exception for low marker - use NullPointerException since that's what actually gets thrown
+        Range mockRange = mock(Range.class, RETURNS_DEEP_STUBS);
+        when(mockRange.isSingleValue()).thenReturn(false);
+        when(mockRange.getLow().isLowerUnbounded()).thenReturn(false);
+        when(mockRange.getLow().getBound()).thenReturn(null); // This will trigger NPE
+        when(mockRange.getLow().getValue()).thenReturn(100);
+        when(mockRange.getHigh().isUpperUnbounded()).thenReturn(true);
+
+        SortedRangeSet valueSet = createValueSetWithRange(mockRange);
+        Constraints constraintsWithUnhandledBound = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
+
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        NullPointerException ex = assertThrows(
+                NullPointerException.class,
+                () -> builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithUnhandledBound, split)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot invoke"));
+    }
+
+    @Test
+    public void testBuildSqlWithUnhandledHighBoundException()
+    {
+        // Test unhandled bound exception for high marker - use NullPointerException since that's what actually gets thrown
+        Range mockRange = mock(Range.class, RETURNS_DEEP_STUBS);
+        when(mockRange.isSingleValue()).thenReturn(false);
+        when(mockRange.getLow().isLowerUnbounded()).thenReturn(true);
+        when(mockRange.getHigh().isUpperUnbounded()).thenReturn(false);
+        when(mockRange.getHigh().getBound()).thenReturn(null); // This will trigger NPE
+        when(mockRange.getHigh().getValue()).thenReturn(200);
+
+        SortedRangeSet valueSet = createValueSetWithRange(mockRange);
+        Constraints constraintsWithUnhandledHighBound = createConstraintsWithSummary(Map.of(TEST_COL1, valueSet));
+
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        NullPointerException ex = assertThrows(
+                NullPointerException.class,
+                () -> builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraintsWithUnhandledHighBound, split)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot invoke"));
+    }
+
+    @Test
+    public void testBuildSqlWithEmptyColumnNames() throws SQLException
+    {
+        // Test case where all columns are filtered out (empty column names)
+        Map<String, String> splitProperties = Map.of(TEST_COL1, "filtered_value");
+        when(split.getProperties()).thenReturn(splitProperties);
+
+        Field field = new Field(TEST_COL1, FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(field));
+
+        PreparedStatement stmt = builder.buildSql(mockConnection, TEST_CATALOG, TEST_SCHEMA, TEST_TABLE, schema, constraints, split);
+
+        assertEquals(EXPECTED_STATEMENT_NOT_NULL, mockStatement, stmt);
+        verify(mockConnection).prepareStatement(contains("null")); // Should select null when no columns
+    }
+
+    @Test
+    public void testAppendLimitOffsetWithValue()
+    {
+        // Test the appendLimitOffsetWithValue method
+        String result = builder.appendLimitOffsetWithValue("100", "50");
+        assertEquals("LIMIT 100", result);
+    }
+
+    @Test
+    public void testGetSqlDialect()
+    {
+        // Test getSqlDialect method returns AnsiSqlDialect
+        SqlDialect dialect = builder.getSqlDialect();
+        assertEquals(AnsiSqlDialect.DEFAULT, dialect);
+    }
+
+    @Test
+    public void testConstructorWithoutExpressionParser()
+    {
+        // Test constructor that doesn't take expression parser
+        JdbcSplitQueryBuilder builderWithoutParser = new JdbcSplitQueryBuilder(QUOTE_CHAR)
+        {
+            @Override
+            protected String getFromClauseWithSplit(String catalog, String schema, String table, Split split)
+            {
+                return " FROM \"" + schema + "\".\"" + table + "\"";
+            }
+
+            @Override
+            protected List<String> getPartitionWhereClauses(Split split)
+            {
+                return Collections.emptyList();
+            }
+        };
+
+        // Verify it was created successfully
+        assertEquals("\"test\"", builderWithoutParser.quote("test"));
     }
 
     /**
