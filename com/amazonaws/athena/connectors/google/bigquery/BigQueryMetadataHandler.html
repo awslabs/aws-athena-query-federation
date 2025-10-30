@@ -91,13 +91,13 @@ loadScripts(document, 'script');</script>
 <li>Summary:&nbsp;</li>
 <li>Nested&nbsp;|&nbsp;</li>
 <li><a href="#field.summary">Field</a>&nbsp;|&nbsp;</li>
-<li>Constr&nbsp;|&nbsp;</li>
+<li><a href="#constructor.summary">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.summary">Method</a></li>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
 <li>Field&nbsp;|&nbsp;</li>
-<li>Constr&nbsp;|&nbsp;</li>
+<li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
 </div>
@@ -163,6 +163,33 @@ extends <a href="../../../connector/lambda/handlers/MetadataHandler.html" title=
 <h3>Fields inherited from class&nbsp;com.amazonaws.athena.connector.lambda.handlers.<a href="../../../connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></h3>
 <code><a href="../../../connector/lambda/handlers/MetadataHandler.html#configOptions">configOptions</a>, <a href="../../../connector/lambda/handlers/MetadataHandler.html#DISABLE_SPILL_ENCRYPTION">DISABLE_SPILL_ENCRYPTION</a>, <a href="../../../connector/lambda/handlers/MetadataHandler.html#KMS_KEY_ID_ENV">KMS_KEY_ID_ENV</a>, <a href="../../../connector/lambda/handlers/MetadataHandler.html#SPILL_BUCKET_ENV">SPILL_BUCKET_ENV</a>, <a href="../../../connector/lambda/handlers/MetadataHandler.html#SPILL_PREFIX_ENV">SPILL_PREFIX_ENV</a></code></li>
 </ul>
+</li>
+</ul>
+</section>
+<!-- ======== CONSTRUCTOR SUMMARY ======== -->
+<section>
+<ul class="blockList">
+<li class="blockList"><a id="constructor.summary">
+<!--   -->
+</a>
+<h3>Constructor Summary</h3>
+<table class="memberSummary">
+<caption><span>Constructors</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Constructor</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tr class="altColor">
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">BigQueryMetadataHandler</a></span>&#8203;(<a href="../../../connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;encryptionKeyFactory,
+                       software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                       software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
+                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
+                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
+                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
+                       <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</table>
 </li>
 </ul>
 </section>
@@ -269,6 +296,31 @@ extends <a href="../../../connector/lambda/handlers/MetadataHandler.html" title=
 <div class="details">
 <ul class="blockList">
 <li class="blockList">
+<!-- ========= CONSTRUCTOR DETAIL ======== -->
+<section>
+<ul class="blockList">
+<li class="blockList"><a id="constructor.detail">
+<!--   -->
+</a>
+<h3>Constructor Detail</h3>
+<a id="&lt;init&gt;(com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory,software.amazon.awssdk.services.secretsmanager.SecretsManagerClient,software.amazon.awssdk.services.athena.AthenaClient,java.lang.String,java.lang.String,java.lang.String,java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>BigQueryMetadataHandler</h4>
+<pre>public&nbsp;BigQueryMetadataHandler&#8203;(<a href="../../../connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;encryptionKeyFactory,
+                               software.amazon.awssdk.services.secretsmanager.SecretsManagerClient&nbsp;secretsManager,
+                               software.amazon.awssdk.services.athena.AthenaClient&nbsp;athena,
+                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;sourceType,
+                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillBucket,
+                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;spillPrefix,
+                               <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Map.html?is-external=true" title="class or interface in java.util" class="externalLink">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>,&#8203;<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&gt;&nbsp;configOptions)</pre>
+</li>
+</ul>
+</li>
+</ul>
+</section>
 <!-- ============ METHOD DETAIL ========== -->
 <section>
 <ul class="blockList">
@@ -499,13 +551,13 @@ extends <a href="../../../connector/lambda/handlers/MetadataHandler.html" title=
 <li>Summary:&nbsp;</li>
 <li>Nested&nbsp;|&nbsp;</li>
 <li><a href="#field.summary">Field</a>&nbsp;|&nbsp;</li>
-<li>Constr&nbsp;|&nbsp;</li>
+<li><a href="#constructor.summary">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.summary">Method</a></li>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
 <li>Field&nbsp;|&nbsp;</li>
-<li>Constr&nbsp;|&nbsp;</li>
+<li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
 </div>
