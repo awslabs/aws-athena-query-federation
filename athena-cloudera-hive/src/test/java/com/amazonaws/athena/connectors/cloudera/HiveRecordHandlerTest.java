@@ -211,7 +211,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSql_withQueryPassthrough() 
+    public void buildSplitSql_WithQueryPassthrough_ReturnsPreparedStatement() 
             throws Exception
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -246,7 +246,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSql_withoutQueryPassthrough() 
+    public void buildSplitSql_WithoutQueryPassthrough_ReturnsPreparedStatement() 
             throws Exception
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -273,7 +273,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSql_withMissingQueryArg()
+    public void buildSplitSql_WithMissingQueryArg_ThrowsRuntimeException()
             throws Exception
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -309,7 +309,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSql_withWrongSchemaFunctionName() 
+    public void buildSplitSql_WithWrongSchemaFunctionName_ThrowsRuntimeException() 
             throws Exception
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -346,7 +346,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithComplexConstraints()
+    public void buildSplitSql_WithComplexConstraints_ReturnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -413,7 +413,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithOrderByAndLimit()
+    public void buildSplitSql_WithOrderByAndLimit_ReturnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -448,7 +448,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithTopNQuery()
+    public void buildSplitSql_WithTopNQuery_ReturnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -491,7 +491,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithDateConstraints()
+    public void buildSplitSql_WithDateConstraints_ReturnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -536,7 +536,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithNullConstraints()
+    public void buildSplitSql_WithNullConstraints_ReturnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -569,7 +569,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithEmptyConstraints()
+    public void buildSplitSql_WithEmptyConstraints_ReturnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -596,7 +596,7 @@ public class HiveRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithMultipleOrderByFields()
+    public void buildSplitSql_WithMultipleOrderByFields_ReturnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);

@@ -284,15 +284,16 @@ public class HiveMetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void testDoGetSplits_withQueryPassthrough() {
+    public void doGetSplits_WithQueryPassthrough_ReturnsPassthroughSplit() {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(TEST_CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream()
                 .map(Field::getName)
                 .collect(Collectors.toSet());
 
+        String query = "SELECT * FROM testSchema.testTable WHERE testCol1 = 1";
         Map<String, String> queryPassthroughArgs = new ImmutableMap.Builder<String, String>()
-                .put(QUERY, "SELECT * FROM testSchema.testTable WHERE testCol1 = 1")
+                .put(QUERY, query)
                 .put(SCHEMA_FUNCTION_NAME, "system.query")
                 .put(ENABLE_QUERY_PASSTHROUGH, "true")
                 .put("name", "query")
@@ -318,10 +319,11 @@ public class HiveMetadataHandlerTest extends TestBase {
 
         assertEquals(1, getSplitsResponse.getSplits().size());
         assertEquals(TEST_CATALOG_NAME, getSplitsResponse.getCatalogName());
+        assertEquals(query, getSplitsResponse.getSplits().stream().findAny().get().getProperties().get(QUERY));
     }
 
     @Test
-    public void testDoGetSplits_withContinuationToken() {
+    public void doGetSplits_WithContinuationToken_ReturnsSplitsFromToken() {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(TEST_CATALOG_NAME);
         Set<String> partitionCols = partitionSchema.getFields().stream()
@@ -361,7 +363,7 @@ public class HiveMetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void decodeContinuationToken() throws Exception {
+    public void decodeContinuationToken_WithValidToken_DecodesToken() throws Exception {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Constraints constraints = Mockito.mock(Constraints.class);
         Schema partitionSchema = this.hiveMetadataHandler.getPartitionSchema(TEST_CATALOG_NAME);
@@ -439,7 +441,7 @@ public class HiveMetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void testDoGetDataSourceCapabilities() {
+    public void doGetDataSourceCapabilities_WithValidRequest_ReturnsCapabilities() {
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, TEST_QUERY_ID, TEST_CATALOG_NAME);
         GetDataSourceCapabilitiesResponse response = hiveMetadataHandler.doGetDataSourceCapabilities(blockAllocator, request);
 
