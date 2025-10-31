@@ -50,7 +50,6 @@ import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFact
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -77,6 +76,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
@@ -104,7 +104,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private static final int FETCH_SIZE = 1000;
-    private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
+    private final SnowflakeQueryStringBuilder jdbcSplitQueryBuilder;
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -130,7 +130,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     }
 
     @VisibleForTesting
-    SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
+    public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, S3Client amazonS3, SecretsManagerClient secretsManager, AthenaClient athena, JdbcConnectionFactory jdbcConnectionFactory, SnowflakeQueryStringBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
         super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcConnectionFactory = jdbcConnectionFactory;
@@ -156,7 +156,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
             throws Exception
     {
         SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
-        
+
         if (envProperties.isS3ExportEnabled()) {
             // Use S3 export path for data transfer
             handleS3ExportRead(spiller, recordsRequest, queryStatusChecker);
@@ -452,9 +452,15 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     @Override
     protected CredentialsProvider getCredentialProvider()
     {
+        return getCredentialProvider(null);
+    }
+
+    @Override
+    protected CredentialsProvider getCredentialProvider(AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
         final String secretName = getDatabaseConnectionConfig().getSecret();
         if (StringUtils.isNotBlank(secretName)) {
-            return new SnowflakeCredentialsProvider(secretName);
+            return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
         }
 
         return null;
