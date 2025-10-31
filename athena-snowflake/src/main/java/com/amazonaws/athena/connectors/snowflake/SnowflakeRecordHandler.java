@@ -156,14 +156,14 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
             throws Exception
     {
         SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
-        
+
         if (envProperties.isS3ExportEnabled()) {
             // Use S3 export path for data transfer
             handleS3ExportRead(spiller, recordsRequest, queryStatusChecker);
         }
         else {
             // Use traditional direct query path
-        handleDirectRead(spiller, recordsRequest, queryStatusChecker);
+            handleDirectRead(spiller, recordsRequest, queryStatusChecker);
         }
     }
 

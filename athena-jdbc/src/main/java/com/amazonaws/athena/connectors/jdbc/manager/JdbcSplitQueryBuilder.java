@@ -27,7 +27,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
-import com.amazonaws.athena.connectors.jdbc.visitor.FilterRemovalVisitor;
 import com.amazonaws.athena.connectors.jdbc.visitor.SubstraitAccumulatorVisitor;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -399,145 +398,133 @@ public abstract class JdbcSplitQueryBuilder
         return AnsiSqlDialect.DEFAULT;
     }
 
-    protected PreparedStatement prepareStatementWithSqlDialect(Connection jdbcConnection, Constraints constraints, SqlDialect sqlDialect,
-                                                        Split split, final String catalog,
-                                                        final String schema,
-                                                        final String table, final String columnNames,
-                                                        final Schema tableSchema)
+    protected PreparedStatement prepareStatementWithSqlDialect(Connection jdbcConnection,
+            Constraints constraints, SqlDialect sqlDialect, Split split, final String catalog,
+            final String schema, final String table, final String columnNames,
+            final Schema tableSchema)
     {
         try {
             String base64EncodedPlan = constraints.getQueryPlan().getSubstraitPlan();
 
-            SqlNode sqlNode = SubstraitSqlUtils.deserializeSubstraitPlan(base64EncodedPlan, sqlDialect);
+            LOGGER.error("base64EncodedPlan: {}", base64EncodedPlan);
+
+            SqlNode sqlNode =
+                    SubstraitSqlUtils.deserializeSubstraitPlan(base64EncodedPlan, sqlDialect);
             List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
 
-            SqlSelect select;
+            SqlSelect root;
 
             if (!(sqlNode instanceof SqlSelect)) {
-                throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
+                throw new RuntimeException(
+                        "Unsupported Query Type. Only SELECT Query is supported.");
             }
 
-            select = (SqlSelect) sqlNode;
+            root = (SqlSelect) sqlNode;
 
-            StringBuilder sql = new StringBuilder();
-            sql.append("SELECT ");
-            sql.append(columnNames);
+            LOGGER.error("table Schema: {}", tableSchema.toJson());
+            LOGGER.error("split properties: {}", split.getProperties());
 
-            if (columnNames.isEmpty()) {
-                sql.append("null");
-            }
+            // Build the SubstraitTypeAndValue accumulator by visiting the SQL tree
+            SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), tableSchema);
+            root.accept(visitor);
 
-            sql.append(getFromClauseWithSplit(catalog, schema, table, split));
+            LOGGER.error("calcite SQL: {}", root.toSqlString(sqlDialect).getSql());
 
-            SqlNode whereClause = select.getWhere();
-            List<String> clauses = new ArrayList<>();
-            List<String> partitionWhereClauses = getPartitionWhereClauses(split);
-            if (partitionWhereClauses != null && !partitionWhereClauses.isEmpty()) {
-                clauses.addAll(partitionWhereClauses);
-            }
-            if (whereClause != null) {
-                whereClause.accept(new FilterRemovalVisitor(split.getProperties().keySet()));
-                whereClause.accept(new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), tableSchema));
-                clauses.add(whereClause.toSqlString(sqlDialect).getSql());
-            }
+            PreparedStatement statement =
+                    jdbcConnection.prepareStatement(root.toSqlString(sqlDialect).getSql());
 
-            if (!clauses.isEmpty()) {
-                sql.append(" WHERE ");
-                sql.append(String.join(" AND ", clauses));
-            }
+            handleDataTypesForPreparedStatement(statement, accumulator, tableSchema);
 
-            if (select.getOrderList() != null) {
-                List<String> orderParts = new ArrayList<>();
-                for (SqlNode orderExpr : select.getOrderList()) {
-                    String part = orderExpr.toSqlString(sqlDialect).getSql();
-                    orderParts.add(part);
-                }
-                String orderByClause = " ORDER BY " + String.join(", ", orderParts);
-                sql.append(orderByClause);
-            }
+            LOGGER.error("PreparedStatement toString: {}", statement.toString());
 
-            String limit = select.getFetch() == null ? null : select.getFetch().toSqlString(sqlDialect).getSql();
-            String offset = select.getOffset() == null ? null : select.getOffset().toSqlString(sqlDialect).getSql();
-
-            if (limit != null) {
-                sql.append(appendLimitOffsetWithValue(limit, offset));
-            }
-
-            PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
-
-            for (int i = 0; i < accumulator.size(); i++) {
-                SubstraitTypeAndValue typeAndValue = accumulator.get(i);
-                switch (typeAndValue.getType()) {
-                    case BIGINT:
-                        statement.setLong(i + 1, ((Number) typeAndValue.getValue()).longValue());
-                        break;
-                    case DOUBLE:
-                        statement.setDouble(i + 1, ((Number) typeAndValue.getValue()).doubleValue());
-                        break;
-                    case INTEGER:
-                        statement.setInt(i + 1, ((Number) typeAndValue.getValue()).intValue());
-                        break;
-                    case SMALLINT:
-                        statement.setShort(i + 1, ((Number) typeAndValue.getValue()).shortValue());
-                        break;
-                    case TINYINT:
-                        statement.setByte(i + 1, ((Number) typeAndValue.getValue()).byteValue());
-                        break;
-                    case CHAR:
-                    case VARCHAR:
-                        statement.setString(i + 1, typeAndValue.getValue().toString());
-                        break;
-                    case VARBINARY:
-                        BitString bitString = (BitString) typeAndValue.getValue();
-                        statement.setBytes(i + 1, bitString.getAsByteArray());
-                        break;
-                    case FLOAT:
-                        statement.setFloat(i + 1, ((Number) typeAndValue.getValue()).floatValue());
-                        break;
-                    case DECIMAL:
-                        statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
-                        break;
-                    case DATE:
-                        ArrowType.Date dateType = (ArrowType.Date) tableSchema.findField(typeAndValue.getColumnName()).getType();
-                        if (typeAndValue.getValue() instanceof Number) {
-                            long numericValue = ((Number) typeAndValue.getValue()).longValue();
-                            if (dateType.getUnit() == DateUnit.DAY) {
-                                long utcMillis = numericValue * 24L * 60L * 60L * 1000L; // days → ms
-                                int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
-                                utcMillis -= offsetVal;
-                                statement.setDate(i + 1, new Date(utcMillis));
-                            }
-                            else if (dateType.getUnit() == DateUnit.MILLISECOND) {
-                                long utcMillis = numericValue;
-                                int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
-                                utcMillis -= offsetVal;
-                                statement.setDate(i + 1, new Date(utcMillis));
-                            }
-                        }
-                        else if (typeAndValue.getValue() instanceof DateString) {
-                            statement.setDate(i + 1, Date.valueOf(typeAndValue.getValue().toString()));
-                        }
-                        else if (typeAndValue.getValue() instanceof TimestampString) {
-                            statement.setTimestamp(i + 1, Timestamp.valueOf(typeAndValue.getValue().toString()));
-                        }
-                        else {
-                            throw new AthenaConnectorException(
-                                    String.format("Can't handle date format: %s", typeAndValue.getType()),
-                                    ErrorDetails.builder()
-                                            .errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString())
-                                            .build());
-                        }
-                        break;
-                    default:
-                        throw new AthenaConnectorException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), typeAndValue.getType()),
-                                ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
-                }
-            }
             return statement;
         }
         catch (Exception e) {
             LOGGER.error("prepareStatementWithSqlDialect failed", e);
             throw new RuntimeException("prepareStatementWithSqlDialect Error", e);
         }
+    }
+
+    private PreparedStatement handleDataTypesForPreparedStatement(PreparedStatement statement,
+            List<SubstraitTypeAndValue> accumulator, Schema tableSchema) throws SQLException
+    {
+        for (int i = 0; i < accumulator.size(); i++) {
+            SubstraitTypeAndValue typeAndValue = accumulator.get(i);
+            switch (typeAndValue.getType()) {
+                case BIGINT:
+                    statement.setLong(i + 1, ((Number) typeAndValue.getValue()).longValue());
+                    break;
+                case DOUBLE:
+                    statement.setDouble(i + 1, ((Number) typeAndValue.getValue()).doubleValue());
+                    break;
+                case INTEGER:
+                    statement.setInt(i + 1, ((Number) typeAndValue.getValue()).intValue());
+                    break;
+                case SMALLINT:
+                    statement.setShort(i + 1, ((Number) typeAndValue.getValue()).shortValue());
+                    break;
+                case TINYINT:
+                    statement.setByte(i + 1, ((Number) typeAndValue.getValue()).byteValue());
+                    break;
+                case CHAR:
+                case VARCHAR:
+                    statement.setString(i + 1, typeAndValue.getValue().toString());
+                    break;
+                case VARBINARY:
+                    BitString bitString = (BitString) typeAndValue.getValue();
+                    statement.setBytes(i + 1, bitString.getAsByteArray());
+                    break;
+                case FLOAT:
+                    statement.setFloat(i + 1, ((Number) typeAndValue.getValue()).floatValue());
+                    break;
+                case DECIMAL:
+                    statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
+                    break;
+                case DATE:
+                    ArrowType.Date dateType = (ArrowType.Date) tableSchema
+                            .findField(typeAndValue.getColumnName()).getType();
+                    if (typeAndValue.getValue() instanceof Number) {
+                        long numericValue = ((Number) typeAndValue.getValue()).longValue();
+                        if (dateType.getUnit() == DateUnit.DAY) {
+                            long utcMillis = numericValue * 24L * 60L * 60L * 1000L; // days → ms
+                            int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
+                            utcMillis -= offsetVal;
+                            statement.setDate(i + 1, new Date(utcMillis));
+                        }
+                        else if (dateType.getUnit() == DateUnit.MILLISECOND) {
+                            long utcMillis = numericValue;
+                            int offsetVal = TimeZone.getDefault().getOffset(utcMillis);
+                            utcMillis -= offsetVal;
+                            statement.setDate(i + 1, new Date(utcMillis));
+                        }
+                    }
+                    else if (typeAndValue.getValue() instanceof DateString) {
+                        statement.setDate(i + 1, Date.valueOf(typeAndValue.getValue().toString()));
+                    }
+                    else if (typeAndValue.getValue() instanceof TimestampString) {
+                        statement.setTimestamp(i + 1,
+                                Timestamp.valueOf(typeAndValue.getValue().toString()));
+                    }
+                    else {
+                        throw new AthenaConnectorException(
+                                String.format("Can't handle date format: %s",
+                                        typeAndValue.getType()),
+                                ErrorDetails.builder().errorCode(
+                                        FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION
+                                                .toString())
+                                        .build());
+                    }
+                    break;
+                default:
+                    throw new AthenaConnectorException(
+                            String.format("Can't handle type: %s, %s", typeAndValue.getType(),
+                                    typeAndValue.getType()),
+                            ErrorDetails.builder().errorCode(
+                                    FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION
+                                            .toString())
+                                    .build());
+            }
+        }
+        return statement;
     }
 }
