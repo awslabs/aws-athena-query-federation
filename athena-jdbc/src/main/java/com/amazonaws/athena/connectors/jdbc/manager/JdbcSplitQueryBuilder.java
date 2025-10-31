@@ -425,7 +425,7 @@ public abstract class JdbcSplitQueryBuilder
             LOGGER.error("split properties: {}", split.getProperties());
 
             // Build the SubstraitTypeAndValue accumulator by visiting the SQL tree
-            SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), tableSchema);
+            SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect));
             root.accept(visitor);
 
             LOGGER.error("calcite SQL: {}", root.toSqlString(sqlDialect).getSql());
