@@ -26,18 +26,11 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
+import com.amazonaws.athena.connector.lambda.metadata.*;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.google.common.collect.ImmutableList;
 import com.mongodb.client.FindIterable;
@@ -64,11 +57,7 @@ import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -113,6 +102,9 @@ public class DocDBMetadataHandlerTest
             throws Exception
     {
         logger.info("{}: enter", testName.getMethodName());
+
+        // Set AWS region for tests to avoid SdkClientException
+        System.setProperty("aws.region", "us-east-1");
 
         when(connectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
@@ -478,5 +470,46 @@ public class DocDBMetadataHandlerTest
 
         assertTrue("Continuation criteria violated", response.getSplits().size() == 1);
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
+    }
+
+    @Test
+    public void testDoGetDataSourceCapabilities() throws Exception
+    {
+        GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(
+                IDENTITY, QUERY_ID, DEFAULT_CATALOG);
+        GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(allocator, request);
+        Map<String, List<OptimizationSubType>> capabilities = response.getCapabilities();
+
+        assertTrue(capabilities.containsKey("supports_limit_pushdown"));
+
+        List<OptimizationSubType> limitTypes =
+                capabilities.get("supports_limit_pushdown");
+
+        boolean containsIntegerConstant = limitTypes.stream()
+                .map(OptimizationSubType::getSubType)
+                .anyMatch("integer_constant"::equals);
+
+        assertTrue(containsIntegerConstant);
+        assertTrue("Should contain complex expression pushdown capability",
+                capabilities.containsKey("supports_complex_expression_pushdown"));
+
+        List<OptimizationSubType> complexTypes =
+                capabilities.get("supports_complex_expression_pushdown");
+
+        assertTrue(!complexTypes.isEmpty());
+
+        OptimizationSubType subType = complexTypes.get(0);
+        List<String> actualFunctions = subType.getProperties();
+
+        assertNotNull("SubType properties (function names) should not be null", actualFunctions);
+
+        List<String> expectedFunctions = Arrays.asList(
+                "$and", "$in", "$not", "$is_null",
+                "$equal", "$greater_than", "$less_than",
+                "$greater_than_or_equal", "$less_than_or_equal", "$not_equal"
+        );
+        for (String expected : expectedFunctions) {
+            assertTrue("Should contain expected function: " + expected, actualFunctions.contains(expected));
+        }
     }
 }
