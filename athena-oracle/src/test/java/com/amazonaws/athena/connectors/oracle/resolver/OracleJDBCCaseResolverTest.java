@@ -60,7 +60,7 @@ public class OracleJDBCCaseResolverTest extends TestBase
     }
 
     @Test
-    public void getAdjustedSchemaNameString_whenCaseInsensitiveMode_schemaNameCasingAdjusted() throws SQLException
+    public void getAdjustedSchemaNameString_withCaseInsensitiveMode_schemaNameIsLowerCased() throws SQLException
     {
         DefaultJDBCCaseResolver resolver = new OracleJDBCCaseResolver(ORACLE_ENGINE);
 
@@ -81,7 +81,7 @@ public class OracleJDBCCaseResolverTest extends TestBase
     }
 
     @Test
-    public void getAdjustedTableNameString_whenCaseInsensitiveMode_tableNameCasingAdjusted() throws SQLException
+    public void getAdjustedTableNameString_withCaseInsensitiveMode_tableNameIsUpperCased() throws SQLException
     {
         DefaultJDBCCaseResolver resolver = new OracleJDBCCaseResolver(ORACLE_ENGINE);
 
@@ -103,7 +103,7 @@ public class OracleJDBCCaseResolverTest extends TestBase
     }
 
     @Test
-    public void getAdjustedTableNameObject_whenCaseInsensitiveMode_objectCasingAdjusted() throws SQLException
+    public void getAdjustedTableNameObject_withCaseInsensitiveMode_schemaIsLowerCasedAndTableIsUpperCased() throws SQLException
     {
         DefaultJDBCCaseResolver resolver = new OracleJDBCCaseResolver(ORACLE_ENGINE);
 

@@ -121,7 +121,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void getPartitionSchema_whenCalled_returnsPartitionSchema()
+    public void getPartitionSchema_returnsPartitionSchema()
     {
         assertEquals(SchemaBuilder.newBuilder()
                         .addField(OracleMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
@@ -129,7 +129,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout_whenTableHasPartitions_returnsPartitionLayout()
+    public void doGetTableLayout_withPartitions_returnsPartitionLayout()
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -169,7 +169,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout_whenTableHasNoPartitions_returnsDefaultPartition()
+    public void doGetTableLayout_withoutPartitions_returnsDefaultPartition()
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -228,7 +228,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits_whenPartitionsExist_returnsSplitsForAllPartitions()
+    public void doGetSplits_withPartitions_returnsSplitsForAllPartitions()
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -264,7 +264,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits_whenContinuationTokenProvided_returnsRemainingSplits()
+    public void doGetSplits_withContinuationToken_returnsRemainingSplits()
             throws Exception
     {
         Constraints constraints = Mockito.mock(Constraints.class);
@@ -298,7 +298,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits_whenQueryPassthroughArgsProvided_returnsSplitWithPassthroughArgs()
+    public void doGetSplits_withQueryPassthroughArgs_returnsSplitWithPassthroughArgs()
     {
         TableName tableName = new TableName("testSchema", "testTable");
 
@@ -339,7 +339,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doListTables_whenCalledWithPagination_returnsPaginatedTables()
+    public void doListTables_withPagination_returnsPaginatedTables()
             throws Exception
     {
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
@@ -371,7 +371,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable_whenCalled_returnsTableSchemaWithColumns()
+    public void doGetTable_returnsTableSchemaWithColumns()
             throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
@@ -410,7 +410,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable_whenUnsupportedColumnTypes_fallbackToVarchar() throws Exception
+    public void doGetTable_withUnsupportedColumnTypes_fallsBackToVarchar() throws Exception
     {
             String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
 
@@ -444,7 +444,7 @@ public class OracleMetadataHandlerTest
     }
 
     @Test
-    public void doGetDataSourceCapabilities_whenCalled_returnsSupportedCapabilities()
+    public void doGetDataSourceCapabilities_returnsSupportedCapabilities()
     {
         GetDataSourceCapabilitiesRequest request =
                 new GetDataSourceCapabilitiesRequest(federatedIdentity, QUERY_ID, CATALOG_NAME);

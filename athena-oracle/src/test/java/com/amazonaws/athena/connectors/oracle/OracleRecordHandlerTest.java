@@ -106,7 +106,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithConstraints_returnsPreparedStatement()
+    public void buildSplitSql_withConstraints_returnsPreparedStatement()
             throws SQLException
     {
         TableName tableName = new TableName("testSchema", "testTable");
@@ -213,7 +213,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithComplexExpressions_buildsCorrectSQL() throws SQLException
+    public void buildSplitSql_withComplexExpressions_buildsSQLWithNestedPredicates() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -256,7 +256,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithTopN_buildsCorrectSQL() throws SQLException
+    public void buildSplitSql_withTopN_includesFetchFirstClause() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithValueField().build();
@@ -273,7 +273,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithOrderBy_buildsCorrectSQL() throws SQLException
+    public void buildSplitSql_withOrderBy_includesOrderByClause() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createSchemaWithCommonFields();
@@ -304,7 +304,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithLimitOffset_buildsCorrectSQL() throws SQLException
+    public void buildSplitSql_withLimitOffset_includesLimitAndOffsetClauses() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithValueField().build();
@@ -321,7 +321,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithRangeAndInPredicates_buildsCorrectSQL() throws SQLException
+    public void buildSplitSql_withRangeAndInPredicates_buildsSQLWithCombinedWhereClause() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createBasicSchemaBuilder();
@@ -369,7 +369,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithDifferentDataTypes_buildsCorrectSQL() throws SQLException
+    public void buildSplitSql_withDifferentDataTypes_handlesAllDataTypesCorrectly() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createBasicSchemaBuilder();
@@ -411,7 +411,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithQueryPassthrough_returnsPassthroughQuery() throws SQLException
+    public void buildSplitSql_withQueryPassthrough_returnsPassthroughQuery() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithCommonFields().build();
@@ -439,7 +439,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithEmptyConstraints_buildsBasicQuery() throws SQLException
+    public void buildSplitSql_withEmptyConstraints_buildsBasicQuery() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithCommonFields().build();
@@ -463,7 +463,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithEmptyConstraintsAndOrderBy_buildsQueryWithOrderBy() throws SQLException
+    public void buildSplitSql_withEmptyConstraintsAndOrderBy_buildsQueryWithOrderBy() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createSchemaWithCommonFields().build();
@@ -491,7 +491,7 @@ public class OracleRecordHandlerTest
     }
 
     @Test(expected = AthenaConnectorException.class)
-    public void buildSplitSql_whenCalledWithInvalidQueryPassthrough_throwsAthenaConnectorException() throws SQLException
+    public void buildSplitSql_withInvalidQueryPassthrough_throwsAthenaConnectorException() throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         SchemaBuilder schemaBuilder = createBasicSchemaBuilder();

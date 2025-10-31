@@ -50,7 +50,7 @@ public class OracleJdbcConnectionFactoryTest
     private static final String PASSWORD = "password";
 
     @Test
-    public void getConnection_whenUsingSslConnection_setsSslProperties() throws Exception
+    public void getConnection_withSslConnection_setsSslProperties() throws Exception
     {
         Driver mockDriver = mock(Driver.class);
 
@@ -109,7 +109,7 @@ public class OracleJdbcConnectionFactoryTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void getConnection_whenCredentialsProviderIsNull_throwsRuntimeException()
+    public void getConnection_withNullCredentialsProvider_throwsRuntimeException()
     {
         DatabaseConnectionConfig config = new DatabaseConnectionConfig(
                 TEST_CATALOG, OracleConstants.ORACLE_NAME,
@@ -143,7 +143,7 @@ public class OracleJdbcConnectionFactoryTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void getConnection_whenDriverClassNotFound_throwsRuntimeException()
+    public void getConnection_withInvalidDriverClass_throwsRuntimeException()
     {
         DefaultCredentials credentials = new DefaultCredentials(USERNAME, PASSWORD);
         CredentialsProvider credentialsProvider = new StaticCredentialsProvider(credentials);

@@ -50,7 +50,7 @@ public class OracleEnvironmentPropertiesTest
     }
 
     @Test
-    public void connectionPropertiesToEnvironment_whenSSLNotEnabled_returnsConnectionStringWithoutSSL()
+    public void connectionPropertiesToEnvironment_withoutSSLEnabled_returnsConnectionStringWithoutSSL()
     {
         Map<String, String> oracleConnectionProperties = oracleEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
         String expectedConnectionString = "oracle://jdbc:oracle:thin:${oracle-secret}@//test.oracle.com:1521/orcl";
@@ -58,7 +58,7 @@ public class OracleEnvironmentPropertiesTest
     }
 
     @Test
-    public void connectionPropertiesToEnvironment_whenSSLEnabled_returnsConnectionStringWithSSL()
+    public void connectionPropertiesToEnvironment_withSSLEnabled_returnsConnectionStringWithSSL()
     {
         connectionProperties.put(ENFORCE_SSL, "true");
         Map<String, String> oracleConnectionProperties = oracleEnvironmentProperties.connectionPropertiesToEnvironment(connectionProperties);
