@@ -57,7 +57,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Hin
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 
 import org.apache.arrow.vector.types.DateUnit;
@@ -337,18 +337,15 @@ public class PostGreSqlMetadataHandlerTest
     }
 
     @Test
-    public void testListTablesWithDatabaseConnectionError() {
-        try {
-            Connection jdbcConnection = Mockito.mock(Connection.class);
-            when(jdbcConnection.prepareStatement(anyString())).thenThrow(new SQLException("Database error"));
+    public void testListTablesWithDatabaseConnectionError() throws SQLException {
+        Connection jdbcConnection = Mockito.mock(Connection.class);
+        when(jdbcConnection.prepareStatement(anyString())).thenThrow(new SQLException("Database error"));
 
-            postGreSqlMetadataHandler.listTables(jdbcConnection, TEST_SCHEMA);
-            fail("Expected SQLException was not thrown");
-        } catch (SQLException e) {
-            assertEquals("Database error", e.getMessage());
-        } catch (Exception e) {
-            fail("Unexpected exception occurred: " + e.getMessage());
-        }
+        SQLException thrown = assertThrows(SQLException.class, () ->
+                postGreSqlMetadataHandler.listTables(jdbcConnection, TEST_SCHEMA)
+        );
+
+        assertEquals("Database error", thrown.getMessage());
     }
 
     @Test
