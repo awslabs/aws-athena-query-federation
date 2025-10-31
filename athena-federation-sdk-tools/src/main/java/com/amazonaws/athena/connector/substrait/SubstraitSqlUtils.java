@@ -87,7 +87,8 @@ public final class SubstraitSqlUtils
         }
     }
 
-    public static Schema getTableSchemaFromSubstraitPlan(final String planString, final SqlDialect sqlDialect) {
+    public static Schema getTableSchemaFromSubstraitPlan(final String planString, final SqlDialect sqlDialect)
+    {
         try {
             LOGGER.debug("Extracting table schema from Substrait plan: {}", planString);
 
