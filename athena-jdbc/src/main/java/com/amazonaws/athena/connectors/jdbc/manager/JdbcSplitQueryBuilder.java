@@ -41,7 +41,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
-import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.util.BitString;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimestampString;
@@ -65,11 +64,6 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import static org.apache.calcite.sql.type.SqlTypeName.BIGINT;
-import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
-import static org.apache.calcite.sql.type.SqlTypeName.DOUBLE;
-import static org.apache.calcite.sql.type.SqlTypeName.FLOAT;
 
 /**
  * Query builder for database table split.
@@ -147,7 +141,7 @@ public abstract class JdbcSplitQueryBuilder
     {
         if (constraints.getQueryPlan() != null) {
             SqlDialect sqlDialect = getSqlDialect();
-            return prepareStatementWithSqlDialect(jdbcConnection, constraints, sqlDialect, split, catalog, schema, table, columnNames, tableSchema);
+            return prepareStatementWithCalciteSql(jdbcConnection, constraints, sqlDialect, split);
         }
 
         StringBuilder sql = new StringBuilder();
@@ -388,60 +382,41 @@ public abstract class JdbcSplitQueryBuilder
         return " LIMIT " + constraints.getLimit();
     }
 
-    protected String appendLimitOffsetWithValue(String limit, String offset)
-    {
-        return "LIMIT " + limit;
-    }
+    protected abstract String appendLimitOffsetWithValue(String limit, String offset);
 
-    protected SqlDialect getSqlDialect()
-    {
-        return AnsiSqlDialect.DEFAULT;
-    }
+    protected abstract SqlDialect getSqlDialect();
 
-    protected PreparedStatement prepareStatementWithSqlDialect(Connection jdbcConnection,
-            Constraints constraints, SqlDialect sqlDialect, Split split, final String catalog,
-            final String schema, final String table, final String columnNames,
-            final Schema tableSchema)
+    protected PreparedStatement prepareStatementWithCalciteSql(
+            final Connection jdbcConnection,
+            final Constraints constraints,
+            final SqlDialect sqlDialect,
+            final Split split)
     {
         try {
-            String base64EncodedPlan = constraints.getQueryPlan().getSubstraitPlan();
-
-            LOGGER.error("base64EncodedPlan: {}", base64EncodedPlan);
-
-            SqlNode sqlNode =
-                    SubstraitSqlUtils.deserializeSubstraitPlan(base64EncodedPlan, sqlDialect);
+            SqlSelect root;
             List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
 
-            SqlSelect root;
+            String base64EncodedPlan = constraints.getQueryPlan().getSubstraitPlan();
 
+            SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(base64EncodedPlan, sqlDialect);
             if (!(sqlNode instanceof SqlSelect)) {
-                throw new RuntimeException(
-                        "Unsupported Query Type. Only SELECT Query is supported.");
+                throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
             }
 
             root = (SqlSelect) sqlNode;
-
-            LOGGER.error("table Schema: {}", tableSchema.toJson());
-            LOGGER.error("split properties: {}", split.getProperties());
-
-            // Build the SubstraitTypeAndValue accumulator by visiting the SQL tree
-            SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect));
+            Schema tableSchema = SubstraitSqlUtils.getTableSchemaFromSubstraitPlan(base64EncodedPlan, sqlDialect);
+            SubstraitAccumulatorVisitor visitor = new SubstraitAccumulatorVisitor(accumulator, split.getProperties(), tableSchema);
             root.accept(visitor);
 
-            LOGGER.error("calcite SQL: {}", root.toSqlString(sqlDialect).getSql());
-
-            PreparedStatement statement =
-                    jdbcConnection.prepareStatement(root.toSqlString(sqlDialect).getSql());
+            PreparedStatement statement = jdbcConnection.prepareStatement(root.toSqlString(sqlDialect).getSql());
 
             handleDataTypesForPreparedStatement(statement, accumulator, tableSchema);
-
-            LOGGER.error("PreparedStatement toString: {}", statement.toString());
 
             return statement;
         }
         catch (Exception e) {
-            LOGGER.error("prepareStatementWithSqlDialect failed", e);
-            throw new RuntimeException("prepareStatementWithSqlDialect Error", e);
+            LOGGER.error("Failed to prepare statement with Calcite", e);
+            throw new RuntimeException("Failed to prepare statement with Calcite", e);
         }
     }
 

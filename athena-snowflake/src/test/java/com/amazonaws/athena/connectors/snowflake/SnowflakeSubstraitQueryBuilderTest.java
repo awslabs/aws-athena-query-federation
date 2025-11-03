@@ -143,7 +143,7 @@ class SnowflakeSubstraitQueryBuilderTest {
                 .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "\"id\" > 10"));
 
         try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
-            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.deserializeSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
                     .thenReturn(mockSqlSelect);
 
             // Act
@@ -173,7 +173,7 @@ class SnowflakeSubstraitQueryBuilderTest {
 
             // Verify SubstraitSqlUtils was called with SnowflakeSqlDialect
             mockedSubstraitUtils.verify(() ->
-                SubstraitSqlUtils.deserializeSubstraitPlan(eq(base64Plan), eq(SnowflakeSqlDialect.DEFAULT)));
+                SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SnowflakeSqlDialect.DEFAULT)));
         }
     }
 
@@ -201,7 +201,7 @@ class SnowflakeSubstraitQueryBuilderTest {
                 .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\""));
 
         try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
-            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.deserializeSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
                     .thenReturn(mockSqlSelect);
 
             // Act
@@ -220,7 +220,7 @@ class SnowflakeSubstraitQueryBuilderTest {
 
             // Verify that the correct SQL dialect (SnowflakeSqlDialect) was used
             mockedSubstraitUtils.verify(() ->
-                SubstraitSqlUtils.deserializeSubstraitPlan(eq(base64Plan), eq(SnowflakeSqlDialect.DEFAULT)));
+                SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), eq(SnowflakeSqlDialect.DEFAULT)));
         }
     }
 
@@ -253,7 +253,7 @@ class SnowflakeSubstraitQueryBuilderTest {
                 .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "\"name\" = ?"));
 
         try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
-            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.deserializeSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
                     .thenReturn(mockSqlSelect);
 
             // Act
@@ -309,7 +309,7 @@ class SnowflakeSubstraitQueryBuilderTest {
                 .thenReturn(new SqlString(SnowflakeSqlDialect.DEFAULT, "SELECT \"id\", \"name\", \"age\", \"created_at\" FROM \"test_schema\".\"test_table\""));
 
         try (MockedStatic<SubstraitSqlUtils> mockedSubstraitUtils = mockStatic(SubstraitSqlUtils.class)) {
-            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.deserializeSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
+            mockedSubstraitUtils.when(() -> SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(eq(base64Plan), any(SqlDialect.class)))
                     .thenReturn(mockSqlSelect);
 
             // Act

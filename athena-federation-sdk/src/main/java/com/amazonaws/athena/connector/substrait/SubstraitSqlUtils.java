@@ -43,12 +43,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 
 /**
- * Utility class for working with Calcite's abstract syntax tree representation of Substrait plans.
+ * Utility class for converting Substrait plans to SQL and extracting schema information.
+ * <p>
+ * Provides methods to:
+ * - Convert Substrait plans (serialized as base64 strings) to Calcite SqlNode representations
+ * - Extract Arrow Schema from Substrait plans
+ * - Convert between Calcite RelDataType and Apache Arrow types
+ * <p>
+ * This class uses Apache Calcite as an intermediate representation to bridge Substrait plans
+ * and SQL dialects, enabling connectors to work with query pushdown capabilities.
  */
+
 public final class SubstraitSqlUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SubstraitSqlUtils.class);
@@ -57,29 +65,11 @@ public final class SubstraitSqlUtils
     {
     }
 
-    public static SqlNode deserializeSubstraitPlan(final String planString, final SqlDialect sqlDialect)
+    public static SqlNode getSqlNodeFromSubstraitPlan(final String planString, final SqlDialect sqlDialect)
     {
         try {
-            LOGGER.debug("substrait plan: {}", planString);
-
-            // 1. Deserialize Substrait plan from base64
             final Plan protoPlan = SubstraitRelUtils.deserializeSubstraitPlan(planString);
-
-            // 2. Convert proto plan to Substrait plan object
-            final ProtoPlanConverter protoPlanConverter = new ProtoPlanConverter();
-            final io.substrait.plan.Plan substraitPlan = protoPlanConverter.from(protoPlan);
-
-            // 3. Convert Substrait plan to Calcite RelNode with schema extraction
-            final SubstraitToCalcite substraitToCalcite = new SubstraitToCalcite(
-                    SimpleExtension.loadDefaults(),
-                    new SqlTypeFactoryImpl(sqlDialect.getTypeSystem())
-            );
-            final RelNode node = substraitToCalcite.convert(substraitPlan.getRoots().get(0).getInput());
-
-            // 4. Convert RelNode to SQL using RelToSqlConverter
-            final RelToSqlConverter converter = new RelToSqlConverter(sqlDialect);
-
-            return converter.visitRoot(node).asStatement();
+            return getSqlNodeFromSubstraitPlan(protoPlan, sqlDialect);
         }
         catch (final Exception e) {
             LOGGER.error("Failed to parse Substrait plan", e);
@@ -87,32 +77,48 @@ public final class SubstraitSqlUtils
         }
     }
 
+    private static SqlNode getSqlNodeFromSubstraitPlan(final Plan protoPlan, final SqlDialect sqlDialect)
+    {
+        final RelNode node = getRelNodeFromSubstraitPlan(protoPlan, sqlDialect);
+        final RelToSqlConverter converter = new RelToSqlConverter(sqlDialect);
+        return converter.visitRoot(node).asStatement();
+    }
+
     public static Schema getTableSchemaFromSubstraitPlan(final String planString, final SqlDialect sqlDialect)
     {
         try {
-            LOGGER.debug("Extracting table schema from Substrait plan: {}", planString);
-
-            // 1. Deserialize Substrait plan from base64
             final Plan protoPlan = SubstraitRelUtils.deserializeSubstraitPlan(planString);
-
-            // 2. Convert proto plan to Substrait plan object
-            final ProtoPlanConverter protoPlanConverter = new ProtoPlanConverter();
-            final io.substrait.plan.Plan substraitPlan = protoPlanConverter.from(protoPlan);
-
-            // 3. Convert Substrait plan to Calcite RelNode to extract schema
-            final SubstraitToCalcite substraitToCalcite = new SubstraitToCalcite(
-                    SimpleExtension.loadDefaults(),
-                    new SqlTypeFactoryImpl(sqlDialect.getTypeSystem())
-            );
-            final RelNode node = substraitToCalcite.convert(substraitPlan.getRoots().get(0).getInput());
-
-            // 4. Extract schema from RelNode and convert to Arrow Schema
-            final RelDataType relDataType = node.getRowType();
-            return convertRelDataTypeToArrowSchema(relDataType);
+            return getTableSchemaFromSubstraitPlan(protoPlan, sqlDialect);
         }
         catch (final Exception e) {
             LOGGER.error("Failed to extract table schema from Substrait plan", e);
             throw new RuntimeException("Failed to extract table schema from Substrait plan", e);
+        }
+    }
+
+    private static Schema getTableSchemaFromSubstraitPlan(final Plan protoPlan, final SqlDialect sqlDialect)
+    {
+        final RelNode node = getRelNodeFromSubstraitPlan(protoPlan, sqlDialect);
+        final RelDataType relDataType = node.getRowType();
+        return convertRelDataTypeToArrowSchema(relDataType);
+    }
+
+    private static RelNode getRelNodeFromSubstraitPlan(final Plan protoPlan, final SqlDialect sqlDialect)
+    {
+        try {
+            final ProtoPlanConverter protoPlanConverter = new ProtoPlanConverter();
+            final io.substrait.plan.Plan substraitPlan = protoPlanConverter.from(protoPlan);
+
+            final SubstraitToCalcite substraitToCalcite = new SubstraitToCalcite(
+                    SimpleExtension.loadDefaults(),
+                    new SqlTypeFactoryImpl(sqlDialect.getTypeSystem())
+            );
+
+            return substraitToCalcite.convert(substraitPlan.getRoots().get(0).getInput());
+        }
+        catch (final Exception e) {
+            LOGGER.error("Failed to convert from Substrait plan to RelNode", e);
+            throw new RuntimeException("Failed to convert from Substrait plan to RelNode", e);
         }
     }
 
@@ -202,36 +208,6 @@ public final class SubstraitSqlUtils
             default:
                 LOGGER.warn("Unsupported SQL type: {}, defaulting to Utf8", sqlTypeName);
                 return ArrowType.Utf8.INSTANCE;
-        }
-    }
-
-    /**
-     * Utility class for working with Substrait plans and RelNodes.
-     */
-    public static final class SubstraitRelUtils
-    {
-        private SubstraitRelUtils()
-        {
-        }
-
-        /**
-         * Deserializes a base64-encoded Substrait plan string into a Plan proto object.
-         *
-         * @param planString The base64-encoded Substrait plan string
-         * @return The deserialized Plan proto object
-         * @throws RuntimeException if deserialization fails
-         */
-        public static Plan deserializeSubstraitPlan(final String planString)
-        {
-            try {
-                LOGGER.debug("Deserializing Substrait plan from base64 string");
-                final byte[] planBytes = Base64.getDecoder().decode(planString);
-                return Plan.parseFrom(planBytes);
-            }
-            catch (final Exception e) {
-                LOGGER.error("Failed to deserialize Substrait plan", e);
-                throw new RuntimeException("Failed to deserialize Substrait plan", e);
-            }
         }
     }
 }

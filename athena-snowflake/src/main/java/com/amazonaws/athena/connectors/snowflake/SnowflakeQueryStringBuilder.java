@@ -343,6 +343,6 @@ public class SnowflakeQueryStringBuilder
         if (offset == null) {
             return " limit " + limit;
         }
-        return " limit " + limit + " offset" + offset;
+        return " limit " + limit + " offset " + offset;
     }
 }
