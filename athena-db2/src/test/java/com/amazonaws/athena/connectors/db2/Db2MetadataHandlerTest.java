@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connectors.db2.resolver.Db2JDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -69,8 +70,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 
 public class Db2MetadataHandlerTest extends TestBase {
@@ -96,7 +97,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         this.secretsManager = Mockito.mock(SecretsManagerClient.class);
         this.athena = Mockito.mock(AthenaClient.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(GetSecretValueRequest.builder().secretId("testSecret").build()))).thenReturn(GetSecretValueResponse.builder().secretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}").build());
-        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
+        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of(), new Db2JDBCCaseResolver(Db2Constants.NAME));
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = new BlockAllocatorImpl();
     }
@@ -337,7 +338,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     @Test
     public void doListTables() throws Exception {
         String schemaName = "TESTSCHEMA";
-        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 0);
+        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, UNLIMITED_PAGE_SIZE_VALUE);
 
         PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS)).thenReturn(stmt);
@@ -349,6 +350,55 @@ public class Db2MetadataHandlerTest extends TestBase {
                 new TableName("TESTSCHEMA", "testtable"),
                 new TableName("TESTSCHEMA", "testTABLE")};
         Assert.assertEquals(Arrays.toString(expectedTables), listTablesResponse.getTables().toString());
+    }
+
+    @Test
+    public void doListPaginatedTables()
+            throws Exception
+    {
+        //Test 1: Testing Single table returned in request of page size 1 and nextToken null
+        Object[][] values = {{"testSchema", "testTable"}};
+        TableName[] expected = {new TableName("testSchema", "testTable")};
+        executePaginatedTableTest(values, expected, null, 1, "1");
+
+        // Test 2: Testing next table returned of page size 1 and nextToken 1
+        executePaginatedTableTest(values, expected, "1", 1, "2");
+
+        // Test 3: Testing single table returned when requesting pageSize 2 signifying end of pagination where nextToken is null.
+        executePaginatedTableTest(values, expected, "2", 2, null);
+
+        // Test 4: Testing unlimited page size (UNLIMITED_PAGE_SIZE_VALUE) which should set pageSize to Integer.MAX_VALUE
+        values = new Object[][]{{"testSchema", "testTable1"}, {"testSchema", "testTable2"}};
+        expected = new TableName[]{new TableName("testSchema", "testTable1"), new TableName("testSchema", "testTable2")};
+        // Use a non-null token to force pagination path, which will trigger the listPaginatedTables method
+        // With unlimited page size, there should be no next token (null) since all results are returned
+        executePaginatedTableTest(values, expected, "0", UNLIMITED_PAGE_SIZE_VALUE, null);
+    }
+
+    /**
+     * Helper method to execute paginated table test and verify results
+     * @param values the table data to return in the ResultSet
+     * @param expected the expected TableName array
+     * @param nextToken the nextToken to use in the request
+     * @param pageSize the pageSize to use in the request
+     * @param expectedNextToken the expected nextToken in the response
+     * @throws Exception if there's an error during execution
+     */
+    private void executePaginatedTableTest(Object[][] values,
+                                           TableName[] expected, String nextToken, int pageSize,
+                                           String expectedNextToken) throws Exception {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY)).thenReturn(preparedStatement);
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
+        Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        ListTablesResponse listTablesResponse = this.db2MetadataHandler.doListTables(
+                blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", nextToken, pageSize));
+
+        Assert.assertEquals(expectedNextToken, listTablesResponse.getNextToken());
+        Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
     }
 }
 

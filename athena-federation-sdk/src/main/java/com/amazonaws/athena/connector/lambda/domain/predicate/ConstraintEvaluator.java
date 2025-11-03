@@ -84,7 +84,7 @@ public class ConstraintEvaluator
      */
     public static ConstraintEvaluator emptyEvaluator()
     {
-        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
+        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null));
     }
 
     /**
@@ -98,6 +98,9 @@ public class ConstraintEvaluator
     public boolean apply(String fieldName, Object value)
     {
         try {
+            if (constraints.getSummary() == null) {
+                return true;
+            }
             ValueSet constraint = constraints.getSummary().get(fieldName);
             if (constraint != null && typeMap.get(fieldName) != null) {
                 try (Marker marker = markerFactory.createNullable(typeMap.get(fieldName),

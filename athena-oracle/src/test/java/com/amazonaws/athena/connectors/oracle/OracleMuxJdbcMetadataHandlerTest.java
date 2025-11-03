@@ -72,7 +72,7 @@ public class OracleMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNames()
+    public void doListSchemaNames_delegatesToOracleMetadataHandler()
             throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
@@ -82,7 +82,7 @@ public class OracleMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
+    public void doListTables_delegatesToOracleMetadataHandler()
             throws Exception
     {
         ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
@@ -92,7 +92,7 @@ public class OracleMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
+    public void doGetTable_delegatesToOracleMetadataHandler()
             throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
@@ -102,7 +102,7 @@ public class OracleMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doGetTableLayout()
+    public void doGetTableLayout_delegatesToOracleMetadataHandler()
             throws Exception
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
@@ -113,21 +113,20 @@ public class OracleMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void getPartitionSchema()
+    public void getPartitionSchema_delegatesToOracleMetadataHandler()
     {
         this.jdbcMetadataHandler.getPartitionSchema("fakedatabase");
         Mockito.verify(this.oracleMetadataHandler, Mockito.times(1)).getPartitionSchema(Mockito.eq("fakedatabase"));
     }
 
     @Test(expected = RuntimeException.class)
-    public void getPartitionSchemaForUnsupportedCatalog()
+    public void getPartitionSchema_withUnsupportedCatalog_throwsRuntimeException()
     {
         this.jdbcMetadataHandler.getPartitionSchema("unsupportedCatalog");
     }
 
-
     @Test
-    public void getPartitions()
+    public void getPartitions_delegatesToOracleMetadataHandler()
             throws Exception
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
@@ -137,7 +136,7 @@ public class OracleMuxJdbcMetadataHandlerTest
     }
 
     @Test
-    public void doGetSplits()
+    public void doGetSplits_delegatesToOracleMetadataHandler()
     {
         GetSplitsRequest getSplitsRequest = Mockito.mock(GetSplitsRequest.class);
         Mockito.when(getSplitsRequest.getCatalogName()).thenReturn("fakedatabase");

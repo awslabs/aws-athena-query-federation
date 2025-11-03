@@ -33,7 +33,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
@@ -48,7 +47,6 @@ import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableResult;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,6 +56,10 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -85,6 +87,9 @@ public class BigQueryMetadataHandlerTest
     @Mock
     BigQuery bigQuery;
 
+    @Mock
+    SecretsManagerClient secretsManagerClient;
+
     private BigQueryMetadataHandler bigQueryMetadataHandler;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
@@ -93,7 +98,8 @@ public class BigQueryMetadataHandlerTest
 
     private Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
             "gcp_project_id", "testProject",
-            "concurrencyLimit", "10"
+            "concurrencyLimit", "10",
+            BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "dummySecret"
     );
     private MockedStatic<BigQueryUtils> mockedStatic;
 
@@ -102,13 +108,26 @@ public class BigQueryMetadataHandlerTest
     {
         System.setProperty("aws.region", "us-east-1");
         MockitoAnnotations.initMocks(this);
-        bigQueryMetadataHandler = new BigQueryMetadataHandler(configOptions);
+        
+        // Mock the SecretsManager response
+        GetSecretValueResponse secretResponse = GetSecretValueResponse.builder()
+                .secretString("dummy-secret-value")
+                .build();
+        when(secretsManagerClient.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretResponse);
+        
+        bigQueryMetadataHandler = new BigQueryMetadataHandler(new LocalKeyFactory(), secretsManagerClient, null, "BigQuery", "spill-bucket", "spill-prefix", configOptions);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         job = mock(Job.class);
         jobStatus = mock(JobStatus.class);
-        mockedStatic = Mockito.mockStatic(BigQueryUtils.class, Mockito.CALLS_REAL_METHODS);
+        mockedStatic = Mockito.mockStatic(BigQueryUtils.class);
+        mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class), any(String.class))).thenReturn(bigQuery);
         mockedStatic.when(() -> BigQueryUtils.getBigQueryClient(any(Map.class))).thenReturn(bigQuery);
+        mockedStatic.when(() -> BigQueryUtils.getEnvBigQueryCredsSmId(any(Map.class))).thenReturn("dummySecret");
+        mockedStatic.when(() -> BigQueryUtils.fixCaseForDatasetName(any(String.class), any(String.class), any(BigQuery.class))).thenCallRealMethod();
+        mockedStatic.when(() -> BigQueryUtils.fixCaseForTableName(any(String.class), any(String.class), any(String.class), any(BigQuery.class))).thenCallRealMethod();
+        mockedStatic.when(() -> BigQueryUtils.translateToArrowType(any(LegacySQLTypeName.class))).thenCallRealMethod();
+        mockedStatic.when(() -> BigQueryUtils.getChildFieldList(any(com.google.cloud.bigquery.Field.class))).thenCallRealMethod();
     }
 
     @After
@@ -234,7 +253,7 @@ public class BigQueryMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                mock(Block.class), Collections.<String>emptyList(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT), null);
+                mock(Block.class), Collections.<String>emptyList(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null), null);
         // added schema with integer column countCol
         List<Field> testSchemaFields = Arrays.asList(Field.of("countCol", LegacySQLTypeName.INTEGER));
         Schema tableSchema = Schema.of(testSchemaFields);
@@ -244,10 +263,6 @@ public class BigQueryMetadataHandlerTest
         FieldValueList fieldValueList = FieldValueList.of(bigQueryRowValue,
                 FieldList.of(testSchemaFields));
         List<FieldValueList> tableRows = Arrays.asList(fieldValueList);
-
-        Page<FieldValueList> pageNoSchema = new BigQueryPage<>(tableRows);
-        TableResult result = new TableResult(tableSchema, tableRows.size(), pageNoSchema);
-//        when(job.getQueryResults()).thenReturn(result);
 
         GetSplitsResponse response = bigQueryMetadataHandler.doGetSplits(blockAllocator, request);
 
@@ -261,5 +276,16 @@ public class BigQueryMetadataHandlerTest
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());
         when(bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request)).thenThrow(new BigQueryExceptions.TooManyTablesException());
         bigQueryMetadataHandler.doListSchemaNames(blockAllocator, request);
+    }
+
+    @Test
+    public void testDoGetDataSourceCapabilities()
+    {
+        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest request = 
+            new com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest(federatedIdentity, QUERY_ID, CATALOG);
+        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse response = 
+            bigQueryMetadataHandler.doGetDataSourceCapabilities(blockAllocator, request);
+        assertNotNull(response);
+        assertNotNull(response.getCapabilities());
     }
 }

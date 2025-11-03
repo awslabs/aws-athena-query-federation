@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.vertica;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,6 +32,12 @@ import java.util.UUID;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
@@ -107,7 +114,7 @@ public class VerticaRecordHandlerTest
     private BlockAllocator allocator;
     private List<ByteHolder> mockS3Storage = new ArrayList<>();
     private S3BlockSpillReader spillReader;
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
 
     private static final BufferAllocator bufferAllocator = new RootAllocator();
@@ -164,6 +171,7 @@ public class VerticaRecordHandlerTest
         logger.info("{}: exit ", testName.getMethodName());
     }
 
+
     @Test
     public void doReadRecordsNoSpill()
             throws Exception
@@ -199,7 +207,7 @@ public class VerticaRecordHandlerTest
                 TABLE_NAME, 
                 schemaRoot.getSchema(),
                 splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );
@@ -257,7 +265,7 @@ public class VerticaRecordHandlerTest
                 TABLE_NAME, 
                 schemaRoot.getSchema(),
                 splitBuilder.build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 1_500_000L, //~1.5MB so we should see some spill
                 0L
         );
@@ -305,45 +313,97 @@ public class VerticaRecordHandlerTest
     private VectorSchemaRoot createRoot()
     {
         Schema schema = SchemaBuilder.newBuilder()
+                .addBitField("bitField")
+                .addTinyIntField("tinyIntField")
+                .addSmallIntField("smallIntField")
                 .addBigIntField("day")
                 .addBigIntField("month")
                 .addBigIntField("year")
+                .addFloat4Field("float4Field")
+                .addFloat8Field("float8Field")
+                .addDecimalField("decimalField", 38, 10)
+
                 .addStringField("preparedStmt")
                 .addStringField("queryId")
                 .addStringField("awsRegionSql")
                 .build();
+
         VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(schema, bufferAllocator);
+
+        BitVector bitVector = (BitVector) schemaRoot.getVector("bitField");
+        bitVector.allocateNew(2);
+        bitVector.set(0, 1);
+        bitVector.set(1, 0);
+        bitVector.setValueCount(2);
+
+        TinyIntVector tinyIntVector = (TinyIntVector) schemaRoot.getVector("tinyIntField");
+        tinyIntVector.allocateNew(2);
+        tinyIntVector.set(0, (byte) 10);
+        tinyIntVector.set(1, (byte) 20);
+        tinyIntVector.setValueCount(2);
+
+        SmallIntVector smallIntVector = (SmallIntVector) schemaRoot.getVector("smallIntField");
+        smallIntVector.allocateNew(2);
+        smallIntVector.set(0, (short) 100);
+        smallIntVector.set(1, (short) 200);
+        smallIntVector.setValueCount(2);
+
         BigIntVector dayVector = (BigIntVector) schemaRoot.getVector("day");
         dayVector.allocateNew(2);
         dayVector.set(0, 0);
         dayVector.set(1, 1);
         dayVector.setValueCount(2);
+
         BigIntVector monthVector = (BigIntVector) schemaRoot.getVector("month");
         monthVector.allocateNew(2);
         monthVector.set(0, 0);
         monthVector.set(1, 1);
         monthVector.setValueCount(2);
+
         BigIntVector yearVector = (BigIntVector) schemaRoot.getVector("year");
         yearVector.allocateNew(2);
         yearVector.set(0, 2000);
         yearVector.set(1, 2001);
         yearVector.setValueCount(2);
+
+        Float4Vector float4Vector = (Float4Vector) schemaRoot.getVector("float4Field");
+        float4Vector.allocateNew(2);
+        float4Vector.set(0, 1.5f);
+        float4Vector.set(1, 2.5f);
+        float4Vector.setValueCount(2);
+
+        Float8Vector float8Vector = (Float8Vector) schemaRoot.getVector("float8Field");
+        float8Vector.allocateNew(2);
+        float8Vector.set(0, 3.141592653);
+        float8Vector.set(1, 2.718281828);
+        float8Vector.setValueCount(2);
+
+        DecimalVector decimalVector = (DecimalVector) schemaRoot.getVector("decimalField");
+        decimalVector.allocateNew(2);
+        decimalVector.set(0, new BigDecimal("123.4567890123"));
+        decimalVector.set(1, new BigDecimal("987.6543210987"));
+        decimalVector.setValueCount(2);
+
         VarCharVector stmtVector = (VarCharVector) schemaRoot.getVector("preparedStmt");
         stmtVector.allocateNew(2);
         stmtVector.set(0, new Text("test1"));
         stmtVector.set(1, new Text("test2"));
         stmtVector.setValueCount(2);
+
         VarCharVector idVector = (VarCharVector) schemaRoot.getVector("queryId");
         idVector.allocateNew(2);
         idVector.set(0, new Text("queryID1"));
         idVector.set(1, new Text("queryID2"));
         idVector.setValueCount(2);
+
         VarCharVector regionVector = (VarCharVector) schemaRoot.getVector("awsRegionSql");
         regionVector.allocateNew(2);
         regionVector.set(0, new Text("region1"));
         regionVector.set(1, new Text("region2"));
         regionVector.setValueCount(2);
+
         schemaRoot.setRowCount(2);
         return schemaRoot;
     }
+
 }

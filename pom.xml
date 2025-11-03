@@ -12,40 +12,45 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.release>11</maven.compiler.release>
-        <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
         <!--- to meet engine version 1.12.533-->
-        <aws-sdk-v2.version>2.31.49</aws-sdk-v2.version>
+        <aws-sdk-v2.version>2.35.8</aws-sdk-v2.version>
+        <!-- for redshift iam auth still using sdkv1 -->
+        <aws-sdk.version>1.12.792</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.6.0</aws.lambda-java-log4j2.version>
         <aws-cdk.version>1.204.0</aws-cdk.version>
-        <jsii.version>1.112.0</jsii.version>
+        <jsii.version>1.115.0</jsii.version>
         <!--- to meet engine version 2.0.7-->
         <slf4j-log4j.version>2.0.17</slf4j-log4j.version>
         <mockito.version>4.11.0</mockito.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.9.2</jqwik.version>
-        <assertj.version>3.27.3</assertj.version>
+        <jqwik.version>1.9.3</jqwik.version>
+        <assertj.version>3.27.6</assertj.version>
         <testng.version>7.11.0</testng.version>
          <!--- to meet engine version 2.12.6 -->
-        <fasterxml.jackson.version>2.19.0</fasterxml.jackson.version>
-        <surefire.failsafe.version>3.5.3</surefire.failsafe.version>
-        <log4j2Version>2.24.2</log4j2Version>
-        <apache.arrow.version>18.1.0</apache.arrow.version>
-        <guava.version>33.4.0-jre</guava.version>
-        <protobuf3.version>3.25.3</protobuf3.version>
+        <fasterxml.jackson.version>2.19.2</fasterxml.jackson.version>
+        <surefire.failsafe.version>3.5.4</surefire.failsafe.version>
+        <log4j2Version>2.25.2</log4j2Version>
+        <apache.arrow.version>18.3.0</apache.arrow.version>
+        <guava.version>33.4.8-jre</guava.version>
+        <protobuf3.version>3.25.5</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <mssql.jdbc.version>12.10.0.jre11</mssql.jdbc.version>
-        <commons.cli.version>1.9.0</commons.cli.version>
+        <commons.cli.version>1.10.0</commons.cli.version>
         <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
         <mvn.checkstyle.version>3.6.0</mvn.checkstyle.version>
-        <mvn.shade.plugin.version>3.6.0</mvn.shade.plugin.version>
+        <mvn.shade.plugin.version>3.6.1</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.3.1</mvn.source.plugin.version>
-        <mvn.javadoc.plugin.version>3.11.2</mvn.javadoc.plugin.version>
+        <mvn.javadoc.plugin.version>3.12.0</mvn.javadoc.plugin.version>
         <mvn.jar.plugin.version>3.4.2</mvn.jar.plugin.version>
+        <io.substrait.version>0.66.0</io.substrait.version>
+        <org.apache.calcite.version>1.40.0</org.apache.calcite.version>
+        <com.google.protobuf.version>4.32.1</com.google.protobuf.version>
         <doclint>none</doclint>
     </properties>
     <dependencyManagement>
@@ -53,7 +58,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.12.2</version>
+                <version>5.13.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -172,6 +177,13 @@
             <version>${fasterxml.jackson.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-bom</artifactId>
+            <version>${com.google.protobuf.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>${fasterxml.jackson.version}</version>
@@ -232,6 +244,37 @@
             <version>${testng.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.substrait</groupId>
+            <artifactId>isthmus</artifactId>
+            <version>${io.substrait.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.substrait</groupId>
+            <artifactId>core</artifactId>
+            <version>${io.substrait.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.calcite</groupId>
+            <artifactId>calcite-server</artifactId>
+            <version>${org.apache.calcite.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.calcite</groupId>
+            <artifactId>calcite-linq4j</artifactId>
+            <version>${org.apache.calcite.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.calcite</groupId>
+            <artifactId>calcite-core</artifactId>
+            <version>${org.apache.calcite.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <pluginManagement>
@@ -239,7 +282,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.8.1</version>
+                    <version>3.9.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -284,7 +327,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.13</version>
+                <version>0.8.14</version>
                 <executions>
                     <execution>
                         <goals>
@@ -325,7 +368,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>2.5.0</version>
+                <version>2.7.0</version>
                 <configuration>
                     <verbose>false</verbose>
                     <addSvnKeyWords>false</addSvnKeyWords>
@@ -485,7 +528,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.7</version>
+                        <version>3.2.8</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -506,7 +549,7 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.7.0</version>
+                        <version>0.9.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>

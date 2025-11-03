@@ -69,7 +69,6 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
@@ -86,7 +85,7 @@ public class MetricsMetadataHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(MetricsMetadataHandlerTest.class);
 
     private final String defaultSchema = "default";
-    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
 
     private MetricsMetadataHandler handler;
     private BlockAllocator allocator;
@@ -199,7 +198,7 @@ public class MetricsMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName(defaultSchema, "metrics"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -232,7 +231,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metrics"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 continuationToken);
         int numContinuations = 0;
         do {
@@ -311,7 +310,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 continuationToken);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
@@ -339,7 +338,7 @@ public class MetricsMetadataHandlerTest
         logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
         assertEquals(3, response.getSplits().size());
         for (Split nextSplit : response.getSplits()) {
-            assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
+            assertNotNull(nextSplit.getProperty(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME));
         }
         assertNull(continuationToken);
 
@@ -385,7 +384,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);

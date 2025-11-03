@@ -29,6 +29,7 @@ import com.google.common.collect.Multimap;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.ListTablesRequest;
 import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
@@ -73,13 +74,16 @@ public class DynamoDBTableResolver
      *
      * @return the list of tables in DynamoDB
      */
-    public DynamoDBPaginatedTables listTables(String token, int pageSize)
+    public DynamoDBPaginatedTables listTables(String token, int pageSize,
+                                              AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
             throws TimeoutException
     {
-        return listPaginatedTables(token, pageSize);
+        return listPaginatedTables(token, pageSize, awsRequestOverrideConfiguration);
     }
 
-    private DynamoDBPaginatedTables listPaginatedTables(String token, int pageSize) throws TimeoutException
+    private DynamoDBPaginatedTables listPaginatedTables(String token,
+                                                        int pageSize,
+                                                        AwsRequestOverrideConfiguration awsRequestOverrideConfiguration) throws TimeoutException
     {
         List<String> tables = new ArrayList<>();
         String nextToken = token;
@@ -89,9 +93,10 @@ public class DynamoDBTableResolver
         }
         do {
             ListTablesRequest ddbRequest = ListTablesRequest.builder()
-                        .exclusiveStartTableName(nextToken)
-                        .limit(limit)
-                        .build();
+                    .exclusiveStartTableName(nextToken)
+                    .limit(limit)
+                    .overrideConfiguration(awsRequestOverrideConfiguration)
+                    .build();
             ListTablesResponse response = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
             tables.addAll(response.tableNames());
             nextToken = response.lastEvaluatedTableName();
@@ -109,16 +114,16 @@ public class DynamoDBTableResolver
      * @param tableName the case insensitive table name
      * @return the table's schema
      */
-    public Schema getTableSchema(String tableName)
+    public Schema getTableSchema(String tableName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws TimeoutException
     {
         try {
-            return DDBTableUtils.peekTableForSchema(tableName, invoker, ddbClient);
+            return DDBTableUtils.peekTableForSchema(tableName, invoker, ddbClient, requestOverrideConfiguration);
         }
         catch (ResourceNotFoundException e) {
-            Optional<String> caseInsensitiveMatch = tryCaseInsensitiveSearch(tableName);
+            Optional<String> caseInsensitiveMatch = tryCaseInsensitiveSearch(tableName, requestOverrideConfiguration);
             if (caseInsensitiveMatch.isPresent()) {
-                return DDBTableUtils.peekTableForSchema(caseInsensitiveMatch.get(), invoker, ddbClient);
+                return DDBTableUtils.peekTableForSchema(caseInsensitiveMatch.get(), invoker, ddbClient, requestOverrideConfiguration);
             }
             else {
                 throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
@@ -133,19 +138,20 @@ public class DynamoDBTableResolver
      * @param tableName the case insensitive table name
      * @return the table's metadata
      */
-    public DynamoDBTable getTableMetadata(String tableName)
+    public DynamoDBTable getTableMetadata(String tableName,
+                                          AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
             throws TimeoutException
     {
         try {
-            return DDBTableUtils.getTable(tableName, invoker, ddbClient);
+            return DDBTableUtils.getTable(tableName, invoker, ddbClient, awsRequestOverrideConfiguration);
         }
         catch (ResourceNotFoundException e) {
-            Optional<String> caseInsensitiveMatch = tryCaseInsensitiveSearch(tableName);
+            Optional<String> caseInsensitiveMatch = tryCaseInsensitiveSearch(tableName, awsRequestOverrideConfiguration);
             if (caseInsensitiveMatch.isPresent()) {
-                return DDBTableUtils.getTable(caseInsensitiveMatch.get(), invoker, ddbClient);
+                return DDBTableUtils.getTable(caseInsensitiveMatch.get(), invoker, ddbClient, awsRequestOverrideConfiguration);
             }
             else {
-                throw e;
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
         }
     }
@@ -155,12 +161,12 @@ public class DynamoDBTableResolver
     and then mapping the given tableName back to a unique table. To prevent ambiguity, an IllegalStateException is
     thrown if multiple tables map to the given tableName.
      */
-    private Optional<String> tryCaseInsensitiveSearch(String tableName)
+    private Optional<String> tryCaseInsensitiveSearch(String tableName, AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
             throws TimeoutException
     {
         logger.info("Table {} not found.  Falling back to case insensitive search.", tableName);
         Multimap<String, String> lowerCaseNameMapping = ArrayListMultimap.create();
-        List<String> tableNames = listPaginatedTables(null, UNLIMITED_PAGE_SIZE_VALUE).getTables();
+        List<String> tableNames = listPaginatedTables(null, UNLIMITED_PAGE_SIZE_VALUE, awsRequestOverrideConfiguration).getTables();
         for (String nextTableName : tableNames) {
             lowerCaseNameMapping.put(nextTableName.toLowerCase(Locale.ENGLISH), nextTableName);
         }

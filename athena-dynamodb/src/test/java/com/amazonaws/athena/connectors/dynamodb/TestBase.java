@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
@@ -84,7 +85,7 @@ import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExcept
 
 public class TestBase
 {
-    protected FederatedIdentity TEST_IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    protected FederatedIdentity TEST_IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap());
     protected static final String TEST_QUERY_ID = "queryId";
     protected static final String TEST_CATALOG_NAME = "default";
     protected static final String TEST_TABLE = "test_table";
@@ -113,12 +114,16 @@ public class TestBase
     {
         ddbClient = setupLocalDDB();
         ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, com.google.common.collect.ImmutableMap.of()).build();
-        schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, invoker, ddbClient);
+        schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, invoker, ddbClient, null);
     }
 
     @AfterClass
     public static void tearDownOnce() throws Exception {
         server.stop();
+    }
+
+    public QueryPlan getQueryPlan(String plan) {
+        return new QueryPlan("", plan);
     }
 
     private static String waitForTableToBecomeActive(DynamoDbClient ddb, DynamoDbWaiter dbWaiter, CreateTableResponse createTableResponse, String tableName) {

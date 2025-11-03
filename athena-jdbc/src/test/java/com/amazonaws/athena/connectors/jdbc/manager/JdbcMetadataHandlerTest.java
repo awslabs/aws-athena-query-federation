@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -55,7 +56,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -198,7 +198,7 @@ public class JdbcMetadataHandlerTest
 
         TableName[] expected = {new TableName("testSchema", "testTable"), new TableName("testSchema", "testTable2"), new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4"), new TableName("testSchema", "testTable5")};
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        Assert.assertNull(listTablesResponse.getNextToken());
     }
 
     @Test
@@ -218,10 +218,10 @@ public class JdbcMetadataHandlerTest
 
         TableName[] expected = {new TableName("testSchema", "testTable2"), new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4"), new TableName("testSchema", "testTable5")};
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        Assert.assertNull(listTablesResponse.getNextToken());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void doListTablesNumberFormatException()
             throws Exception {
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
@@ -234,6 +234,36 @@ public class JdbcMetadataHandlerTest
         // Test: startToken is not a valid number with pageSize unlimited (all items)
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
                 "testCatalog", "testSchema", "not_a_valid_number", UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void doListTablesInvalidArgumentExceptionNegativeToken()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: startToken is not a valid number with pageSize unlimited. (all items)
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "-1", UNLIMITED_PAGE_SIZE_VALUE));
+    }
+
+    @Test(expected = AthenaConnectorException.class)
+    public void doListTablesInvalidArgumentExceptionNegativePageSize()
+            throws Exception {
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}, {"testSchema", "testTable3"}, {"testSchema", "testTable4"}, {"testSchema", "testTable5"}};
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW", "EXTERNAL TABLE", "MATERIALIZED VIEW"})).thenReturn(resultSet);
+
+        // Test: pageSize is negative and invalid.
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                "testCatalog", "testSchema", "0", -3));
     }
 
     @Test
@@ -303,7 +333,6 @@ public class JdbcMetadataHandlerTest
     {
         String query = "select testCol1 from testTable";
 
-        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "TYPE_NAME"};
         Object[][] values = {
                 {Types.INTEGER, 12, "testCol1", 0, 0, "_int4"}
         };
@@ -346,9 +375,8 @@ public class JdbcMetadataHandlerTest
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
-        Object[][] values1 = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}};
 
-        setupMocksDoGetTableCaseInsensitive(inputTableName, values1, "testTable");
+        setupMocksDoGetTableCaseInsensitive(inputTableName);
 
         GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
                 new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
@@ -396,8 +424,7 @@ public class JdbcMetadataHandlerTest
                 "testQueryId", "testCatalog", "testSchema", null, UNLIMITED_PAGE_SIZE_VALUE));
     }
 
-    private void setupMocksDoGetTableCaseInsensitive(TableName inputTableName, Object[][] resultSetRows,
-                                                     String expectedTableName) throws Exception
+    private void setupMocksDoGetTableCaseInsensitive(TableName inputTableName) throws Exception
     {
         // mock first call to getSchema() to simulate no table found for original lowercase table name
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
@@ -406,7 +433,7 @@ public class JdbcMetadataHandlerTest
         // mock second call to getSchema()
         ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(),
-                        expectedTableName, null))
+                        "testTable", null))
                 .thenReturn(resultSet);
     }
 }

@@ -18,16 +18,16 @@ jobs:
           sudo apt update && sudo apt install -y tar gzip unzip wget less groff vim git python3 python3-pip unixodbc-dev curl jq;
           pip3 install boto3;
       - name: install node and npm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 18
       - name: Set up JDK 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'corretto'
           java-version: '11'
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Build jars
@@ -35,7 +35,7 @@ jobs:
       - name: Setup Repo Root Directory
         run: echo "REPOSITORY_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       - name: Setup AWS Cred
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: us-east-1
           role-duration-seconds: 18000
@@ -55,3 +55,4 @@ jobs:
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          slug: awslabs/aws-athena-query-federation

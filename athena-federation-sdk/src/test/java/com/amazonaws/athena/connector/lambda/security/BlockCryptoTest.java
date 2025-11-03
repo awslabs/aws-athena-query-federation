@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -36,11 +37,15 @@ public class BlockCryptoTest
 {
     private final EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private BlockAllocatorImpl allocator;
+    private AesGcmBlockCrypto crypto;
+    private EncryptionKey key;
 
     @Before
     public void setup()
     {
         allocator = new BlockAllocatorImpl();
+        crypto = new AesGcmBlockCrypto(new BlockAllocatorImpl());
+        key = keyFactory.create();
     }
 
     @After
@@ -64,11 +69,50 @@ public class BlockCryptoTest
         BlockUtils.setValue(expected.getFieldVector("col2"), 1, "VarChar1");
         expected.setRowCount(2);
 
-        AesGcmBlockCrypto crypto = new AesGcmBlockCrypto(new BlockAllocatorImpl());
-        EncryptionKey key = keyFactory.create();
-
         byte[] cypher = crypto.encrypt(key, expected);
         Block actual = crypto.decrypt(key, cypher, schema);
         assertEquals(expected, actual);
+    }
+
+    @Test
+    public void decryptWithInvalidBytes()
+    {
+        EncryptionKey key = keyFactory.create();
+        byte[] invalidBytes = new byte[16]; // Not valid cipher text
+
+        try {
+            crypto.decrypt(key, invalidBytes);
+            fail("Expected AthenaConnectorException was not thrown");
+        } catch (AthenaConnectorException ex) {
+            assertTrue(ex.getMessage().toLowerCase().contains("mac check in gcm failed"));
+        }
+    }
+
+    @Test
+    public void makeCipherWithInvalidNonce()
+    {
+        try {
+            byte[] badNonce = new byte[5]; // should be 12 bytes
+            byte[] validKey = new byte[32]; // valid AES-256 key
+            EncryptionKey invalidKey = new EncryptionKey(validKey, badNonce);
+            crypto.decrypt(invalidKey, new byte[16]);
+            fail("Expected AthenaConnectorException due to invalid nonce");
+        } catch (AthenaConnectorException ex) {
+            assertTrue(ex.getMessage().contains("Expected 12 nonce bytes"));
+        }
+    }
+
+    @Test
+    public void makeCipherWithEmptyKey()
+    {
+        try {
+            byte[] emptyKey = new byte[0];
+            byte[] validNonce = new byte[12];
+            EncryptionKey invalidKey = new EncryptionKey(emptyKey, validNonce);
+            crypto.decrypt(invalidKey, new byte[16]);
+            fail("Expected AthenaConnectorException due to empty key");
+        } catch (AthenaConnectorException ex) {
+            assertTrue(ex.getMessage().contains("Invalid key"));
+        }
     }
 }

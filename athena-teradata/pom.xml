@@ -62,7 +62,7 @@
         <dependency>
             <groupId>com.teradata.jdbc</groupId>
             <artifactId>terajdbc</artifactId>
-            <version>20.00.00.46</version>
+            <version>20.00.00.51</version>
         </dependency>
     </dependencies>
     <build>

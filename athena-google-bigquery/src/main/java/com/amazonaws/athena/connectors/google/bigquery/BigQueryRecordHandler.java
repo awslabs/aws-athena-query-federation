@@ -50,6 +50,8 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import io.grpc.LoadBalancerRegistry;
+import io.grpc.internal.PickFirstLoadBalancerProvider;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -71,6 +73,7 @@ import java.util.concurrent.TimeoutException;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
+import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.getEnvBigQueryCredsSmId;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.getObjectFromFieldValue;
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
@@ -101,6 +104,7 @@ public class BigQueryRecordHandler
         super(amazonS3, secretsManager, athena, BigQueryConstants.SOURCE_TYPE, configOptions);
         this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.allocator = allocator;
+        LoadBalancerRegistry.getDefaultRegistry().register(new PickFirstLoadBalancerProvider());
     }
 
     @Override
@@ -108,7 +112,7 @@ public class BigQueryRecordHandler
     {
         List<QueryParameterValue> parameterValues = new ArrayList<>();
         invoker.setBlockSpiller(spiller);
-        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions);
+        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(configOptions, getSecret(getEnvBigQueryCredsSmId(configOptions)));
 
         if (recordsRequest.getConstraints().isQueryPassThrough()) {
             handleQueryPassthrough(spiller, recordsRequest, queryStatusChecker, parameterValues, bigQueryClient);

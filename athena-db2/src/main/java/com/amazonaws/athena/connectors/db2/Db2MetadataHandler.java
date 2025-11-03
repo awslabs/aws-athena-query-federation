@@ -45,6 +45,8 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Com
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
+import com.amazonaws.athena.connector.util.PaginationHelper;
+import com.amazonaws.athena.connectors.db2.resolver.Db2JDBCCaseResolver;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -53,6 +55,7 @@ import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
+import com.amazonaws.athena.connectors.jdbc.resolver.JDBCCaseResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -68,6 +71,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -79,6 +83,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions.NULLIF_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.db2.Db2Constants.PARTITION_NUMBER;
 
 public class Db2MetadataHandler extends JdbcMetadataHandler
@@ -121,18 +126,19 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
         JdbcConnectionFactory jdbcConnectionFactory,
         java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions, new Db2JDBCCaseResolver(Db2Constants.NAME));
     }
 
     @VisibleForTesting
     protected Db2MetadataHandler(
-        DatabaseConnectionConfig databaseConnectionConfig,
-        SecretsManagerClient secretsManager,
-        AthenaClient athena,
-        JdbcConnectionFactory jdbcConnectionFactory,
-        java.util.Map<String, String> configOptions)
+            DatabaseConnectionConfig databaseConnectionConfig,
+            SecretsManagerClient secretsManager,
+            AthenaClient athena,
+            JdbcConnectionFactory jdbcConnectionFactory,
+            java.util.Map<String, String> configOptions,
+            JDBCCaseResolver caseResolver)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions, caseResolver);
     }
 
     /**
@@ -152,21 +158,51 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
     }
 
     /**
-     * Overridden this method to fetch table(s) for selected schema in Athena Data window.
+     * Overridden the base class method to provide DB2-specific table listing functionality.
      *
-     * @param blockAllocator
-     * @param listTablesRequest
-     * @return
+     * @param connection The JDBC connection to use for querying DB2
+     * @param schemaName The name of the schema to list tables from
+     * @return A list of {@link TableName} objects representing the tables and views in the specified schema
+     * @throws SQLException if there is an error executing the query or processing the results
      */
     @Override
-    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest) throws Exception
+    protected List<TableName> listTables(Connection connection, String schemaName) throws SQLException
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-            List<String> tableNames = getTableList(connection, Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
-            List<TableName> tables = tableNames.stream().map(tableName -> new TableName(listTablesRequest.getSchemaName(), tableName)).collect(Collectors.toList());
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
+        List<String> tableNames = getTableList(connection, schemaName);
+        return tableNames.stream()
+                .map(tableName -> new TableName(schemaName, tableName))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public ListTablesResponse listPaginatedTables(final Connection connection, final ListTablesRequest listTablesRequest) throws SQLException
+    {
+        LOGGER.debug("Starting listPaginatedTables for Db2.");
+        int pageSize = listTablesRequest.getPageSize();
+        int token = PaginationHelper.validateAndParsePaginationArguments(listTablesRequest.getNextToken(), pageSize);
+
+        if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+            pageSize = Integer.MAX_VALUE;
         }
+
+        LOGGER.info("Starting pagination at {} with page size {}", token, pageSize);
+        List<TableName> paginatedTables = getPaginatedTables(connection, listTablesRequest.getSchemaName(), token, pageSize);
+        String nextToken = PaginationHelper.calculateNextToken(token, pageSize, paginatedTables);
+        LOGGER.info("{} tables returned. Next token is {}", paginatedTables.size(), nextToken);
+
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), paginatedTables, nextToken);
+    }
+
+    @VisibleForTesting
+    protected List<TableName> getPaginatedTables(Connection connection, String databaseName, int offset, int limit) throws SQLException
+    {
+        PreparedStatement preparedStatement = connection.prepareStatement(Db2Constants.LIST_PAGINATED_TABLES_QUERY);
+
+        preparedStatement.setString(1, databaseName);
+        preparedStatement.setInt(2, offset);
+        preparedStatement.setInt(3, limit);
+
+        return JDBCUtil.getTableMetadata(preparedStatement, TABLES_AND_VIEWS);
     }
 
     /**
@@ -395,18 +431,17 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * Logic to fetch table name(s) for given schema. Through jdbc call and executing sql query pulling
      * all the table names from Db2 for a given schema.
      *
-     * @param connection
-     * @param query
-     * @param schemaName
-     * @return List<String>
-     * @throws Exception
+     * @param connection The JDBC connection to use for querying DB2
+     * @param schemaName The name of the schema to list tables from
+     * @return List of table names in the specified schema
+     * @throws SQLException if any error occurs while executing the query or processing results
      */
-    private List<String> getTableList(final Connection connection, String query, String schemaName) throws Exception
+    private List<String> getTableList(final Connection connection, String schemaName) throws SQLException
     {
         List<String> list = new ArrayList<>();
-        try (PreparedStatement ps = connection.prepareStatement(query)) {
+        try (PreparedStatement ps = connection.prepareStatement(Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS)) {
             ps.setString(1, schemaName);
-            try (ResultSet rs = ps.executeQuery();) {
+            try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(rs.getString("NAME"));
                 }

@@ -34,9 +34,7 @@ import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
 import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
 import software.amazon.awssdk.services.cloudwatch.model.Metric;
 import software.amazon.awssdk.services.cloudwatch.model.MetricDataQuery;
-import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -59,7 +57,21 @@ public class MetricUtils
     //this is a format required by Cloudwatch Metrics
     private static final String METRIC_ID = "m1";
 
+    // Environment variable to control cross-account metrics inclusion
+    private static final String INCLUDE_LINKED_ACCOUNTS_ENV_VAR = "include_linked_accounts";
+
     private MetricUtils() {}
+
+    /**
+     * Checks if cross-account metrics should be included based on environment variable
+     *
+     * @return True if cross-account metrics should be included, false otherwise
+     */
+    private static boolean shouldIncludeLinkedAccounts()
+    {
+        String includeLinkedAccounts = System.getenv(INCLUDE_LINKED_ACCOUNTS_ENV_VAR);
+        return Boolean.parseBoolean(includeLinkedAccounts);
+    }
 
     /**
      * Filters metrics who have at least 1 metric dimension that matches DIMENSION_NAME_FIELD and DIMENSION_VALUE_FIELD filters.
@@ -104,6 +116,8 @@ public class MetricUtils
     {
         Map<String, ValueSet> summary = constraints.getSummary();
 
+        listMetricsRequest.includeLinkedAccounts(shouldIncludeLinkedAccounts());
+
         ValueSet namespaceConstraint = summary.get(NAMESPACE_FIELD);
         if (namespaceConstraint != null && namespaceConstraint.isSingleValue()) {
             listMetricsRequest.namespace(namespaceConstraint.getSingleValue().toString());
@@ -135,15 +149,9 @@ public class MetricUtils
     protected static GetMetricDataRequest makeGetMetricDataRequest(ReadRecordsRequest readRecordsRequest)
     {
         Split split = readRecordsRequest.getSplit();
-        String serializedMetricStats = split.getProperty(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME);
-        List<MetricStat> metricStats = MetricStatSerDe.deserialize(serializedMetricStats);
+        String serializedMetricDataQueries = split.getProperty(MetricDataQuerySerDe.SERIALIZED_METRIC_DATA_QUERIES_FIELD_NAME);
+        List<MetricDataQuery> metricDataQueries = MetricDataQuerySerDe.deserialize(serializedMetricDataQueries);
         GetMetricDataRequest.Builder dataRequestBuilder = GetMetricDataRequest.builder();
-
-        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
-        int metricId = 1;
-        for (MetricStat nextMetricStat : metricStats) {
-            metricDataQueries.add(MetricDataQuery.builder().metricStat(nextMetricStat).id("m" + metricId++).build());
-        }
 
         dataRequestBuilder.metricDataQueries(metricDataQueries);
 

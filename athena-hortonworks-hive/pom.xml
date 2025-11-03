@@ -27,6 +27,17 @@
             <groupId>Hive</groupId>
             <artifactId>HiveJDBC42</artifactId>
             <version>${clouderaVersion}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.zookeeper</groupId>
+                    <artifactId>zookeeper</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>3.9.4</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -85,6 +96,14 @@
                                 <exclude>META-INF/*.RSA</exclude>
                             </excludes>
                         </filter>
+                        <filter>
+                            <artifact>Hive:HiveJDBC42</artifact>
+                            <excludes>
+                                <exclude>org/apache/zookeeper/**</exclude>
+                                <exclude>com/cloudera/hive/jdbc42/internal/apache/zookeeper/**</exclude>
+                                <exclude>META-INF/maven/org.apache.zookeeper/**</exclude>
+                            </excludes>
+                        </filter>
                     </filters>
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
@@ -111,7 +130,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.13</version>
+                <version>0.8.14</version>
                 <executions>
                     <execution>
                         <goals>

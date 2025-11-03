@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-federation-sdk
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -19,15 +19,27 @@
  */
 package com.amazonaws.athena.connector.credentials;
 
+import java.util.Map;
+
 /**
- * JDBC username and password provider.
+ * Provider interface for database credentials.
  */
 public interface CredentialsProvider
 {
     /**
-     * Retrieves credential for database.
-     *
-     * @return JDBC credential. See {@link DefaultCredentials}.
+     * Retrieves credentials for database connection.
+     * @return Credentials object (username/password or OAuth)
      */
-    DefaultCredentials getCredential();
+    Credentials getCredential();
+
+    /**
+     * Retrieves credential properties for database connection.
+     * @return Map containing credential properties for database connection. The default implementation
+     *         returns a map with "user" and "password" keys. Overriding implementations may return
+     *         additional properties as needed for their specific authentication requirements.
+     */
+    default Map<String, String> getCredentialMap()
+    {
+        return getCredential().getProperties();
+    }
 }

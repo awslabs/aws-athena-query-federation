@@ -1,6 +1,6 @@
 name: Java CI Push
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   # This is from: https://github.com/fkirc/skip-duplicate-actions#example-1-skip-entire-jobs
@@ -21,9 +21,9 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: aws-athena-query-federation_ubuntu-latest_16-core
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up JDK 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'corretto'
           java-version: '11'
@@ -37,12 +37,32 @@ jobs:
       - name: Identify any Maven Build changes
         run: >
           ! (git status | grep "modified: " )
-      - name: Upload coverage reports to Codecov
+
+      # -------- Codecov coverage upload --------
+      # Fork PRs: upload WITHOUT token
+      - name: Upload coverage reports to Codecov (fork PRs, no token)
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
         uses: codecov/codecov-action@v5
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+
+      # Pushes & same-repo PRs: upload WITH token
+      - name: Upload coverage reports to Codecov (internal only)
+        if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) }}
+        uses: codecov/codecov-action@v5
+        with:
+          slug: awslabs/aws-athena-query-federation
+          token: ${{ secrets.CODECOV_TOKEN }}
+      # -------- Codecov test results --------
+      # Fork PRs: no token
+      - name: Upload test results to Codecov (fork PRs, no token)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
         uses: codecov/test-results-action@v1
         with:
+          slug: awslabs/aws-athena-query-federation
+
+      # Pushes & same-repo PRs: with token
+      - name: Upload test results to Codecov (internal only)
+        if: ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)) }}
+        uses: codecov/test-results-action@v1
+        with:
+          slug: awslabs/aws-athena-query-federation
           token: ${{ secrets.CODECOV_TOKEN }}

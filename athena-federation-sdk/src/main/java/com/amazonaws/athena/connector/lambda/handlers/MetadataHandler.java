@@ -56,30 +56,36 @@ import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.security.KmsEncryptionProvider;
 import com.amazonaws.athena.connector.lambda.security.KmsKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.utils.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
 import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_VERSION;
@@ -97,7 +103,7 @@ import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_
  * you can look at the CloudwatchTableResolver in the athena-cloudwatch module for one potential approach to this challenge.
  */
 public abstract class MetadataHandler
-        implements RequestStreamHandler
+        implements FederationRequestHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(MetadataHandler.class);
 
@@ -121,12 +127,14 @@ public abstract class MetadataHandler
     protected static final String DISABLE_SPILL_ENCRYPTION = "disable_spill_encryption";
     private final CachableSecretsManager secretsManager;
     private final AthenaClient athena;
+    private final S3Client s3Client;
     private final ThrottlingInvoker athenaInvoker;
     private final EncryptionKeyFactory encryptionKeyFactory;
     private final String spillBucket;
     private final String spillPrefix;
     private final String sourceType;
-    private final SpillLocationVerifier verifier;
+    private SpillLocationVerifier verifier;
+    private final KmsEncryptionProvider kmsEncryptionProvider;
 
     /**
      * When MetadataHandler is used as a Lambda, the "Main" class will pass in System.getenv() as the configOptions.
@@ -154,8 +162,10 @@ public abstract class MetadataHandler
 
         this.secretsManager = new CachableSecretsManager(SecretsManagerClient.create());
         this.athena = AthenaClient.create();
-        this.verifier = new SpillLocationVerifier(S3Client.create());
+        this.s3Client = S3Client.create();
+        this.verifier = new SpillLocationVerifier(s3Client);
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
+        this.kmsEncryptionProvider = new KmsEncryptionProvider(KmsClient.create());
     }
 
     /**
@@ -177,8 +187,10 @@ public abstract class MetadataHandler
         this.sourceType = sourceType;
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
-        this.verifier = new SpillLocationVerifier(S3Client.create());
+        this.s3Client = S3Client.create();
+        this.verifier = new SpillLocationVerifier(s3Client);
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
+        this.kmsEncryptionProvider = new KmsEncryptionProvider(KmsClient.create());
     }
 
     /**
@@ -206,6 +218,16 @@ public abstract class MetadataHandler
         return secretsManager.getSecret(secretName);
     }
 
+    /**
+     * Gets the CachableSecretsManager instance used by this handler.
+     * This is used by credential providers to reuse the same secrets manager instance.
+     * @return The CachableSecretsManager instance
+     */
+    protected CachableSecretsManager getCachableSecretsManager()
+    {
+        return secretsManager;
+    }
+
     protected EncryptionKey makeEncryptionKey()
     {
         return (encryptionKeyFactory != null) ? encryptionKeyFactory.create() : null;
@@ -219,10 +241,20 @@ public abstract class MetadataHandler
      */
     protected SpillLocation makeSpillLocation(MetadataRequest request)
     {
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        Map<String, String> configOptions = federatedIdentity.getConfigOptions();
+        String queryId = request.getQueryId();
+        String prefix = StringUtils.isBlank(configOptions.get(SPILL_PREFIX_ENV))
+                ? spillPrefix : configOptions.get(SPILL_PREFIX_ENV);
+        String bucket = StringUtils.isBlank(configOptions.get(SPILL_BUCKET_ENV))
+                ? spillBucket : configOptions.get(SPILL_BUCKET_ENV);
+        if (Objects.nonNull(prefix) && prefix.contains(request.getQueryId())) {
+            queryId = "";
+        }
         return S3SpillLocation.newBuilder()
-                .withBucket(spillBucket)
-                .withPrefix(spillPrefix)
-                .withQueryId(request.getQueryId())
+                .withBucket(bucket)
+                .withPrefix(prefix)
+                .withQueryId(queryId)
                 .withSplitId(UUID.randomUUID().toString())
                 .build();
     }
@@ -293,6 +325,12 @@ public abstract class MetadataHandler
                 }
                 return;
             case GET_SPLITS:
+                FederatedIdentity federatedIdentity = req.getIdentity();
+                Map<String, String> connectorRequestOptions = federatedIdentity.getConfigOptions();
+                if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
+                    AwsRequestOverrideConfiguration awsRequestOverrideConfiguration = getRequestOverrideConfig(connectorRequestOptions);
+                    verifier = new SpillLocationVerifier(getS3Client(awsRequestOverrideConfiguration, s3Client));
+                }
                 verifier.checkBucketAuthZ(spillBucket);
                 try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
@@ -412,7 +450,8 @@ public abstract class MetadataHandler
             Block partitions = BlockUtils.newBlock(allocator, PARTITION_ID_COL, Types.MinorType.INT.getType(), 1);
             return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions);
         }
-
+        FederatedIdentity federatedIdentity = request.getIdentity();
+        AwsRequestOverrideConfiguration overrideConfig = getRequestOverrideConfig(federatedIdentity.getConfigOptions());
         /**
          * Now use the constraint that was in the request to do some partition pruning. Here we are just
          * generating some fake values for the partitions but in a real implementation you'd use your metastore
@@ -421,7 +460,8 @@ public abstract class MetadataHandler
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
                 constraintSchema.build(),
                 request.getConstraints());
-                QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, request.getQueryId())
+                QueryStatusChecker queryStatusChecker = new QueryStatusChecker(getAthenaClient(overrideConfig, athena),
+                        athenaInvoker, request.getQueryId())
         ) {
             Block partitions = allocator.createBlock(partitionSchemaBuilder.build());
             partitions.constrain(constraintEvaluator);
@@ -528,6 +568,11 @@ public abstract class MetadataHandler
     public void onPing(PingRequest request)
     {
         //NoOp
+    }
+
+    public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)
+    {
+        return getRequestOverrideConfig(configOptions, kmsEncryptionProvider);
     }
 
     /**
