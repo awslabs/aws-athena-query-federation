@@ -249,11 +249,11 @@ public class BigQueryQueryBuilderTest
 
     private Constraints createConstraintsWithOrderBy(List<OrderByField> orderByFields)
     {
-        return new Constraints(new HashMap<>(), Collections.emptyList(), orderByFields, DEFAULT_NO_LIMIT,Collections.emptyMap());
+        return new Constraints(new HashMap<>(), Collections.emptyList(), orderByFields, DEFAULT_NO_LIMIT,Collections.emptyMap(), null);
     }
 
     private Constraints createConstraintsWithLimit()
     {
-        return new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), TEST_LIMIT_VALUE,Collections.emptyMap());
+        return new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), TEST_LIMIT_VALUE,Collections.emptyMap(), null);
     }
 } 

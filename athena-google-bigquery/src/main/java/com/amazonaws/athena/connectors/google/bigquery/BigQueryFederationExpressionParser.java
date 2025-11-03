@@ -39,6 +39,7 @@ import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
@@ -52,7 +53,7 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
 
     public String writeArrayConstructorClause(List<String> arguments)
     {
-        return BigQuerySqlUtils.renderTemplate("comma_separated_list_with_parentheses", "items", arguments);
+        return BigQuerySqlUtils.renderTemplate("comma_separated_list_with_parentheses", Map.of("items", arguments));
     }
 
     public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints)
@@ -115,7 +116,7 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
                     .collect(Collectors.toList());
         }
 
-        return BigQuerySqlUtils.renderTemplate("comma_separated_list", "items", constants);
+        return BigQuerySqlUtils.renderTemplate("comma_separated_list", Map.of("items", constants));
     }
 
     @Override
@@ -147,67 +148,67 @@ public class BigQueryFederationExpressionParser extends FederationExpressionPars
         String clause = "";
         switch (functionEnum) {
             case ADD_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " + ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " + "));
                 break;
             case AND_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " AND ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " AND "));
                 break;
             case ARRAY_CONSTRUCTOR_FUNCTION_NAME: // up to subclass
                 clause = writeArrayConstructorClause(arguments);
                 break;
             case DIVIDE_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " / ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " / "));
                 break;
             case EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " = ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " = "));
                 break;
             case GREATER_THAN_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " > ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " > "));
                 break;
             case GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " >= ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " >= "));
                 break;
             case IN_PREDICATE_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("in_expression", "column", arguments.get(0), "values", arguments.get(1));
+                clause = BigQuerySqlUtils.renderTemplate("in_expression", Map.of("column", arguments.get(0), "values", arguments.get(1)));
                 break;
             case IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("is_distinct_from", "left", arguments.get(0), "right", arguments.get(1));
+                clause = BigQuerySqlUtils.renderTemplate("is_distinct_from", Map.of("left", arguments.get(0), "right", arguments.get(1)));
                 break;
             case IS_NULL_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("null_predicate", "columnName", arguments.get(0), "isNull", true);
+                clause = BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", arguments.get(0), "isNull", true));
                 break;
             case LESS_THAN_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " < ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " < "));
                 break;
             case LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " <= ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " <= "));
                 break;
             case LIKE_PATTERN_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("like_expression", "column", arguments.get(0), "pattern", arguments.get(1));
+                clause = BigQuerySqlUtils.renderTemplate("like_expression", Map.of("column", arguments.get(0), "pattern", arguments.get(1)));
                 break;
             case MODULUS_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("function_call_2args", "functionName", "MOD", "arg1", arguments.get(0), "arg2", arguments.get(1));
+                clause = BigQuerySqlUtils.renderTemplate("function_call_2args", Map.of("functionName", "MOD", "arg1", arguments.get(0), "arg2", arguments.get(1)));
                 break;
             case MULTIPLY_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " * ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " * "));
                 break;
             case NEGATE_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("unary_operator", "operator", "-", "operand", arguments.get(0));
+                clause = BigQuerySqlUtils.renderTemplate("unary_operator", Map.of("operator", "-", "operand", arguments.get(0)));
                 break;
             case NOT_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " <> ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " <> "));
                 break;
             case NOT_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("unary_operator", "operator", "NOT ", "operand", arguments.get(0));
+                clause = BigQuerySqlUtils.renderTemplate("unary_operator", Map.of("operator", "NOT ", "operand", arguments.get(0)));
                 break;
             case NULLIF_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("function_call_2args", "functionName", "NULLIF", "arg1", arguments.get(0), "arg2", arguments.get(1));
+                clause = BigQuerySqlUtils.renderTemplate("function_call_2args", Map.of("functionName", "NULLIF", "arg1", arguments.get(0), "arg2", arguments.get(1)));
                 break;
             case OR_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " OR ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " OR "));
                 break;
             case SUBTRACT_FUNCTION_NAME:
-                clause = BigQuerySqlUtils.renderTemplate("join_expression", "items", arguments, "separator", " - ");
+                clause = BigQuerySqlUtils.renderTemplate("join_expression", Map.of("items", arguments, "separator", " - "));
                 break;
             default:
                 throw new NotImplementedException("The function " + functionName.getFunctionName() + " does not have an implementation");

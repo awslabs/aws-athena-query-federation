@@ -45,6 +45,11 @@ public class BigQueryQueryFactory
     private static final String TEST_TEMPLATE = "test_template";
     private volatile boolean useLocalFallback = false;
 
+    /**
+     * Due to a concurrency bug in StringTemplate, we are extracting creation of the template file.
+     *
+     * @return An STGroupFile instance for the given templateFile.
+     */
     private STGroupFile createGroupFile()
     {
         if (!useLocalFallback) {
