@@ -137,21 +137,6 @@ public class JdbcSplitQueryBuilderTest
             {
                 return Collections.singletonList("\"" + TEST_PARTITION_COL + "\" = '" + TEST_PARTITION_VALUE + "'");
             }
-
-            @Override
-            protected String appendLimitOffsetWithValue(String limit, String offset)
-            {
-                if (offset == null) {
-                    return " limit " + limit;
-                }
-                return " limit " + limit + " offset " + offset;
-            }
-
-            @Override
-            protected SqlDialect getSqlDialect()
-            {
-                return AnsiSqlDialect.DEFAULT;
-            }
         };
 
         mockConnection = mock(Connection.class);
@@ -739,21 +724,6 @@ public class JdbcSplitQueryBuilderTest
             protected List<String> getPartitionWhereClauses(Split split)
             {
                 return Collections.emptyList();
-            }
-
-            @Override
-            protected String appendLimitOffsetWithValue(String limit, String offset)
-            {
-                if (offset == null) {
-                    return " limit " + limit;
-                }
-                return " limit " + limit + " offset " + offset;
-            }
-
-            @Override
-            protected SqlDialect getSqlDialect()
-            {
-                return AnsiSqlDialect.DEFAULT;
             }
         };
 

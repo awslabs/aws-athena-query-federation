@@ -41,6 +41,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.util.BitString;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimestampString;
@@ -382,9 +383,18 @@ public abstract class JdbcSplitQueryBuilder
         return " LIMIT " + constraints.getLimit();
     }
 
-    protected abstract String appendLimitOffsetWithValue(String limit, String offset);
+    protected String appendLimitOffsetWithValue(String limit, String offset)
+    {
+        if (offset == null) {
+            return " LIMIT " + limit;
+        }
+        return " LIMIT " + limit + " OFFSET " + offset;
+    }
 
-    protected abstract SqlDialect getSqlDialect();
+    protected SqlDialect getSqlDialect()
+    {
+        return AnsiSqlDialect.DEFAULT;
+    }
 
     protected PreparedStatement prepareStatementWithCalciteSql(
             final Connection jdbcConnection,
