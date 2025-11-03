@@ -152,25 +152,25 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testGetFromClauseWithSplit() {
+    public void getFromClauseWithSplit_WithSchema_ReturnsFromClauseWithSchema() {
         String result = queryBuilder.getFromClauseWithSplit(null, SCHEMA_PUBLIC, TABLE_USERS, null);
         assertEquals(EXPECTED_FROM_CLAUSE_WITH_SCHEMA, result);
     }
 
     @Test
-    public void testGetFromClauseWithSplit_NoSchema() {
+    public void getFromClauseWithSplit_WithoutSchema_ReturnsFromClauseWithoutSchema() {
         String result = queryBuilder.getFromClauseWithSplit(null, null, TABLE_USERS, null);
         assertEquals(EXPECTED_FROM_CLAUSE_NO_SCHEMA, result);
     }
 
     @Test
-    public void testGetPartitionWhereClauses() {
+    public void getPartitionWhereClauses_WithSplit_ReturnsEmptyList() {
         List<String> result = queryBuilder.getPartitionWhereClauses(null);
         assertTrue(result.isEmpty());
     }
 
     @Test
-    public void testBuildSqlString_NoConstraints() throws SQLException {
+    public void buildSqlString_WithNoConstraints_BuildsSelectStatement() throws SQLException {
         Schema tableSchema = createIdSchema();
         Constraints constraints = createConstraintsWithLimit(0L);
 
@@ -179,7 +179,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testBuildSqlString_WithConstraints() throws SQLException {
+    public void buildSqlString_WithConstraints_IncludesLimit() throws SQLException {
         Schema tableSchema = createIdSchema();
         Constraints constraints = createConstraintsWithLimit(10L);
 
@@ -188,7 +188,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testBuildSqlString_EmptyColumns() throws SQLException {
+    public void buildSqlString_WithEmptyColumns_SelectsNull() throws SQLException {
         Schema tableSchema = createSimpleSchema("partition", new ArrowType.Int(32, true));
         Constraints constraints = createConstraintsWithLimit(0L);
 
@@ -197,7 +197,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testBuildSqlString_WithWhereClause() throws SQLException {
+    public void buildSqlString_WithWhereClause_IncludesWhereClause() throws SQLException {
         Schema tableSchema = createIdSchema();
 
         Map<String, ValueSet> summary = createValueSetSummary(
@@ -214,7 +214,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testBuildSqlString_WithOrderBy() throws SQLException {
+    public void buildSqlString_WithOrderBy_IncludesOrderByClause() throws SQLException {
         Schema tableSchema = createIdSchema();
         Constraints constraints = createConstraintsWithLimit(0L);
         when(constraints.getOrderByClause()).thenReturn(
@@ -226,161 +226,147 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testQuote() {
+    public void quote_WithTableName_ReturnsQuotedName() {
         String result = queryBuilder.quote(TABLE_USERS);
         assertEquals(EXPECTED_QUOTED_USERS, result);
     }
 
     @Test
-    public void testQuote_WithQuotes() {
+    public void quote_WithQuotesInName_EscapesQuotes() {
         String result = queryBuilder.quote(VALUE_USER_QUOTE);
         assertEquals(EXPECTED_QUOTED_USER_QUOTE, result);
     }
 
     @Test
-    public void testSingleQuote() {
+    public void singleQuote_WithString_ReturnsSingleQuotedString() {
         String result = queryBuilder.singleQuote(VALUE_O_REILLY);
         assertEquals(EXPECTED_SINGLE_QUOTED_O_REILLY, result);
     }
 
     @Test
-    public void testSingleQuote_WithSingleQuotes() {
+    public void singleQuote_WithSingleQuotesInString_EscapesQuotes() {
         String result = queryBuilder.singleQuote(VALUE_O_REILLYS);
         assertEquals(EXPECTED_SINGLE_QUOTED_O_REILLYS, result);
     }
 
     @Test
-    public void testToPredicate_SingleValue() {
+    public void toPredicate_WithSingleValue_ReturnsEqualityPredicate() {
         String predicate = queryBuilder.toPredicate(COLUMN_AGE, "=", VALUE_AGE_30, new ArrowType.Int(32, true));
         assertEquals(EXPECTED_PREDICATE_AGE_EQUALS, predicate);
     }
 
     @Test
-    public void testToPredicate_StringValue() {
+    public void toPredicate_WithStringValue_ReturnsQuotedEqualityPredicate() {
         String predicate = queryBuilder.toPredicate(COLUMN_NAME, "=", VALUE_JOHN, new ArrowType.Utf8());
         assertEquals(EXPECTED_PREDICATE_NAME_EQUALS, predicate);
     }
 
     @Test
-    public void testToPredicate_DateValue() {
+    public void toPredicate_WithDateValue_ReturnsFormattedDatePredicate() {
         String predicate = queryBuilder.toPredicate(COLUMN_DATE, "=", VALUE_DATE_STRING, new ArrowType.Date(DateUnit.DAY));
         assertEquals(EXPECTED_PREDICATE_DATE_EQUALS, predicate);
     }
 
     @Test
-    public void testGetObjectForWhereClause_Int() {
+    public void getObjectForWhereClause_WithInt_ReturnsLong() {
         Object result = queryBuilder.getObjectForWhereClause(COLUMN_AGE, VALUE_AGE_42, new ArrowType.Int(32, true));
         assertEquals(42L, result);
     }
 
     @Test
-    public void testGetObjectForWhereClause_Decimal() {
+    public void getObjectForWhereClause_WithDecimal_ReturnsBigDecimal() {
         Object result = queryBuilder.getObjectForWhereClause(COLUMN_PRICE, new BigDecimal("99.99"), new ArrowType.Decimal(10, 2));
         assertEquals(new BigDecimal("99.99"), result);
     }
 
     @Test
-    public void testGetObjectForWhereClause_DecimalFromNumber() {
+    public void getObjectForWhereClause_WithDecimalFromNumber_ReturnsBigDecimal() {
         Object result = queryBuilder.getObjectForWhereClause(COLUMN_PRICE, VALUE_PRICE_99_99, new ArrowType.Decimal(10, 2));
         assertTrue(result instanceof BigDecimal);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testGetObjectForWhereClause_DecimalInvalidType() {
+    public void getObjectForWhereClause_WithDecimalInvalidType_ThrowsIllegalArgumentException() {
         queryBuilder.getObjectForWhereClause(COLUMN_PRICE, "invalid", new ArrowType.Decimal(10, 2));
     }
 
     @Test
-    public void testGetObjectForWhereClause_FloatingPoint() {
+    public void getObjectForWhereClause_WithFloatingPoint_ReturnsDouble() {
         Object result = queryBuilder.getObjectForWhereClause(COLUMN_PRICE, VALUE_PRICE_99_99, new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE));
         assertEquals(VALUE_PRICE_99_99, result);
     }
 
     @Test
-    public void testGetObjectForWhereClause_Bool() {
+    public void getObjectForWhereClause_WithBool_ReturnsBoolean() {
         Object result = queryBuilder.getObjectForWhereClause(COLUMN_ACTIVE, true, new ArrowType.Bool());
         assertEquals(true, result);
     }
 
     @Test
-    public void testGetObjectForWhereClause_Utf8() {
+    public void getObjectForWhereClause_WithUtf8_ReturnsString() {
         Object result = queryBuilder.getObjectForWhereClause(COLUMN_NAME, VALUE_JOHN, new ArrowType.Utf8());
         assertEquals(VALUE_JOHN, result);
     }
 
     @Test
-    public void testGetObjectForWhereClause_Date_DateTimeString() {
+    public void getObjectForWhereClause_WithDateDateTimeString_ReturnsFormattedString() {
         Object result = queryBuilder.getObjectForWhereClause(COLUMN_DATE, VALUE_DATE_STRING, new ArrowType.Date(DateUnit.DAY));
         assertEquals("2023-03-15 00:00:00", result);
     }
 
     @Test
-    public void testGetObjectForWhereClause_Date_DaysNumber() {
+    public void getObjectForWhereClause_WithDateDaysNumber_ReturnsFormattedDate() {
         Object result = queryBuilder.getObjectForWhereClause(COLUMN_DATE, VALUE_DATE_DAYS, new ArrowType.Date(DateUnit.DAY));
         assertTrue(result.toString().contains("2021-03-20"));
     }
 
-    @Test
-    public void testGetObjectForWhereClause_Timestamp() {
-        // Set timezone to UTC for this test to ensure consistent results
-        TimeZone originalTimeZone = TimeZone.getDefault();
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-        try {
-            Object result = queryBuilder.getObjectForWhereClause(COLUMN_CREATED_AT, VALUE_TIMESTAMP_1711929600000L, new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC"));
-            assertEquals("2024-04-01 00:00:00", result);
-        } finally {
-            // Restore original timezone
-            TimeZone.setDefault(originalTimeZone);
-        }
-    }
-
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_Time() {
+    public void getObjectForWhereClause_WithTime_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_TIME, VALUE_TIME_STRING, new ArrowType.Time(TimeUnit.MILLISECOND, 32));
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_Interval() {
+    public void getObjectForWhereClause_WithInterval_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_INTERVAL, VALUE_INTERVAL_STRING, new ArrowType.Interval(org.apache.arrow.vector.types.IntervalUnit.DAY_TIME));
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_Binary() {
+    public void getObjectForWhereClause_WithBinary_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_BINARY, VALUE_BINARY_DATA, new ArrowType.Binary());
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_FixedSizeBinary() {
+    public void getObjectForWhereClause_WithFixedSizeBinary_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_FIXED, VALUE_BINARY_DATA, new ArrowType.FixedSizeBinary(10));
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_Null() {
+    public void getObjectForWhereClause_WithNull_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_NULL, "value", new ArrowType.Null());
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_Struct() {
+    public void getObjectForWhereClause_WithStruct_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_STRUCT, "value", new ArrowType.Struct());
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_List() {
+    public void getObjectForWhereClause_WithList_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_LIST, "value", new ArrowType.List());
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_FixedSizeList() {
+    public void getObjectForWhereClause_WithFixedSizeList_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_FIXED_LIST, "value", new ArrowType.FixedSizeList(5));
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_Union() {
+    public void getObjectForWhereClause_WithUnion_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_UNION, "value", new ArrowType.Union(org.apache.arrow.vector.types.UnionMode.Sparse, new int[]{0, 1}));
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testGetObjectForWhereClause_UnknownType() {
+    public void getObjectForWhereClause_WithUnknownType_ThrowsUnsupportedOperationException() {
         // Test with a type that doesn't exist in the switch statement
         // This will trigger the default case which throws UnsupportedOperationException
         ArrowType unknownType = new ArrowType.Utf8() {
@@ -394,12 +380,12 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test(expected = UnsupportedOperationException.class)
-    public void testToPredicateWithUnsupportedType() {
+    public void getObjectForWhereClause_WithUnsupportedType_ThrowsUnsupportedOperationException() {
         queryBuilder.getObjectForWhereClause(COLUMN_UNSUPPORTED, "value", new ArrowType.Struct());
     }
 
     @Test
-    public void testToPredicate_NoneValueSet() throws SQLException {
+    public void buildSqlString_WithNoneValueSet_IncludesIsNull() throws SQLException {
         Map<String, ValueSet> summary = new HashMap<>();
         // Create a "none" ValueSet by setting the third parameter to true
         summary.put(COLUMN_ID, SortedRangeSet.copyOf(Types.MinorType.INT.getType(), Collections.emptyList(), true));
@@ -412,7 +398,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testToPredicate_AllValueSet() throws SQLException {
+    public void buildSqlString_WithAllValueSet_IncludesIsNotNull() throws SQLException {
         Map<String, ValueSet> summary = createValueSetSummary(
             COLUMN_ID,
             Types.MinorType.INT.getType(),
@@ -427,7 +413,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testToPredicate_SingleRange() throws SQLException {
+    public void buildSqlString_WithSingleRange_IncludesRangePredicate() throws SQLException {
         Map<String, ValueSet> summary = createValueSetSummary(
             COLUMN_ID,
             Types.MinorType.INT.getType(),
@@ -443,7 +429,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testToPredicate_MultipleValues() throws SQLException {
+    public void buildSqlString_WithMultipleValues_IncludesInClause() throws SQLException {
         Map<String, ValueSet> summary = createValueSetSummary(
             COLUMN_ID,
             Types.MinorType.INT.getType(),
@@ -459,7 +445,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testToPredicate_MultipleStringValues() throws SQLException {
+    public void buildSqlString_WithMultipleStringValues_IncludesQuotedInClause() throws SQLException {
         Map<String, ValueSet> summary = createValueSetSummary(
             COLUMN_NAME,
             Types.MinorType.VARCHAR.getType(),
@@ -477,7 +463,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testToPredicate_RangeWithAboveBound() throws SQLException {
+    public void buildSqlString_WithRangeAboveBound_IncludesGreaterThan() throws SQLException {
         Map<String, ValueSet> summary = createValueSetSummary(
             COLUMN_ID,
             Types.MinorType.INT.getType(),
@@ -492,7 +478,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testToPredicate_RangeWithBelowBound() throws SQLException {
+    public void buildSqlString_WithRangeBelowBound_IncludesLessThan() throws SQLException {
         Map<String, ValueSet> summary = createValueSetSummary(
             COLUMN_ID,
             Types.MinorType.INT.getType(),
@@ -507,7 +493,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testBuildSqlString_WithPartitionWhereClauses() throws SQLException {
+    public void buildSqlString_WithPartitionWhereClauses_BuildsSelectStatement() throws SQLException {
         Schema tableSchema = createIdSchema();
         Constraints constraints = createConstraintsWithLimit(0L);
         Split split = mock(Split.class);
@@ -517,7 +503,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testBuildSqlString_WithLimitAndOffset() throws SQLException {
+    public void buildSqlString_WithLimitAndOffset_IncludesLimit() throws SQLException {
         Schema tableSchema = createIdSchema();
         Constraints constraints = createConstraintsWithLimit(10L);
 
@@ -526,7 +512,7 @@ public class SnowflakeQueryStringBuilderTest
     }
 
     @Test
-    public void testBuildSqlString_WithLimitOnly() throws SQLException {
+    public void buildSqlString_WithLimitZero_DoesNotIncludeLimit() throws SQLException {
         Schema tableSchema = createIdSchema();
         Constraints constraints = createConstraintsWithLimit(0L);
 

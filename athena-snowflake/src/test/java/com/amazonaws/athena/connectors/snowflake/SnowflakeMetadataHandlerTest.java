@@ -530,7 +530,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetPartitionSchema() {
+    public void getPartitionSchema_WithCatalog_ReturnsSchemaWithPartitionField() {
         Schema schema = snowflakeMetadataHandler.getPartitionSchema(TEST_CATALOG);
         assertNotNull(schema);
         assertEquals(1, schema.getFields().size());
@@ -539,7 +539,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testListDatabaseNames() throws Exception {
+    public void listDatabaseNames_WithConnection_ReturnsFilteredDatabaseNames() throws Exception {
         String[] schema = {TABLE_SCHEM_FIELD, TABLE_CATALOG_FIELD};
         Object[][] values = {
             {TEST_SCHEMA_1, TEST_CATALOG},
@@ -560,7 +560,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetSchemaWithDataTypes() throws Exception {
+    public void getSchema_WithDataTypes_ReturnsCorrectSchema() throws Exception {
         TableName tableName = new TableName(DEFAULT_SCHEMA, DEFAULT_TABLE);
         Schema partitionSchema = SchemaBuilder.newBuilder().build();
         
@@ -600,7 +600,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void testGetSchemaNoMatchingColumns() throws Exception {
+    public void getSchema_WithNoMatchingColumns_ThrowsRuntimeException() throws Exception {
         TableName tableName = new TableName(DEFAULT_SCHEMA, DEFAULT_TABLE);
         Schema partitionSchema = SchemaBuilder.newBuilder().build();
         
@@ -616,7 +616,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetSchemaUnsupportedTypes() throws Exception {
+    public void getSchema_WithUnsupportedTypes_ReturnsSchemaWithListType() throws Exception {
         TableName tableName = new TableName(DEFAULT_SCHEMA, DEFAULT_TABLE);
         Schema partitionSchema = SchemaBuilder.newBuilder().build();
         
@@ -650,7 +650,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetPartitionsForView() throws Exception {
+    public void doGetTableLayout_ForView_ReturnsSinglePartition() throws Exception {
         Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField(COL_1)
                 .addStringField(BLOCK_PARTITION_COLUMN_NAME)
@@ -685,7 +685,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplitsWithQueryPassthrough() {
+    public void doGetSplits_WithQueryPassthrough_ReturnsSingleSplit() {
         Schema schema = createCommonTestSchema();
 
         List<String> partitionCols = getPartitionCols();
@@ -720,7 +720,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetTableLayoutWithQueryPassthrough() throws Exception {
+    public void doGetTableLayout_WithQueryPassthrough_ReturnsEmptyPartitions() throws Exception {
         Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField(COL_1)
                 .addStringField(BLOCK_PARTITION_COLUMN_NAME)
@@ -748,7 +748,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplitsWithS3ExportEnabled() throws Exception {
+    public void doGetSplits_WithS3ExportEnabled_ReturnsSplitsFromS3() throws Exception {
         // Mock SnowflakeEnvironmentProperties to return S3 export enabled
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
                 SnowflakeEnvironmentProperties.class,
@@ -828,7 +828,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplitsWithContinuationToken() throws Exception {
+    public void doGetSplits_WithContinuationToken_ReturnsAllSplits() throws Exception {
         Schema schema = createCommonTestSchema();
 
         List<String> partitionCols = getPartitionCols();
@@ -896,7 +896,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplitsWithS3ExportDisabled() throws Exception {
+    public void doGetSplits_WithS3ExportDisabled_ReturnsDirectQuerySplits() throws Exception {
         // Mock environment properties for S3 export disabled
         Map<String, String> properties = new HashMap<>();
         properties.put(SNOWFLAKE_ENABLE_S_3_EXPORT, "false");
@@ -959,7 +959,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplitsWithS3ExportException() throws Exception {
+    public void doGetSplits_WithS3ExportException_FallsBackToDirectQuery() throws Exception {
         Schema schema = createCommonTestSchema();
 
         List<String> partitionCols = getPartitionCols();
@@ -1014,7 +1014,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplitsWithEmptyS3Objects() throws Exception {
+    public void doGetSplits_WithEmptyS3Objects_FallsBackToDirectQuery() throws Exception {
         Schema schema = createCommonTestSchema();
 
         List<String> partitionCols = getPartitionCols();
@@ -1073,7 +1073,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetDataSourceCapabilities() {
+    public void doGetDataSourceCapabilities_WithRequest_ReturnsCapabilities() {
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(
             this.federatedIdentity, QUERY_ID, CATALOG_NAME);
         
@@ -1085,7 +1085,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testListPaginatedTables() throws Exception {
+    public void listPaginatedTables_WithRequest_ReturnsPaginatedTables() throws Exception {
         ListTablesRequest request = new ListTablesRequest(
             this.federatedIdentity, QUERY_ID, CATALOG_NAME, DEFAULT_SCHEMA, null, 10);
         
@@ -1109,7 +1109,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetPrimaryKey() throws Exception {
+    public void getPrimaryKey_WithTableName_ReturnsPrimaryKey() throws Exception {
         TableName tableName = new TableName(DEFAULT_SCHEMA, DEFAULT_TABLE);
         
         String[] schema = {"column_name"};
@@ -1142,7 +1142,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetPrimaryKeyNoPrimaryKey() throws Exception {
+    public void getPrimaryKey_WithNoPrimaryKey_ReturnsEmpty() throws Exception {
         TableName tableName = new TableName(DEFAULT_SCHEMA, DEFAULT_TABLE);
         
         String[] schema = {"column_name"};
@@ -1164,7 +1164,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testHasUniquePrimaryKey() throws Exception {
+    public void hasUniquePrimaryKey_WithNonUniqueKey_ReturnsFalse() throws Exception {
         TableName tableName = new TableName(DEFAULT_SCHEMA, DEFAULT_TABLE);
         
         String[] schema = {"COUNTS"};
@@ -1186,7 +1186,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testCheckIntegration() throws Exception {
+    public void checkIntegration_WithExistingIntegration_ReturnsTrue() throws Exception {
         String integrationName = "TEST_INTEGRATION";
         
         String[] schema = {"name"};
@@ -1208,7 +1208,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testCheckIntegrationNotFound() throws Exception {
+    public void checkIntegration_WithNonExistentIntegration_ReturnsFalse() throws Exception {
         String integrationName = "TEST_INTEGRATION";
         
         String[] schema = {"name"};
@@ -1230,7 +1230,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetCredentialProviderWithSecret() throws Exception {
+    public void getCredentialProvider_WithSecret_ReturnsSnowflakeCredentialsProvider() throws Exception {
         // Mock database connection config with secret
         DatabaseConnectionConfig configWithSecret = new DatabaseConnectionConfig("testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
                 "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx", "testSecret");
@@ -1243,13 +1243,13 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetCredentialProviderWithoutSecret() {
+    public void getCredentialProvider_WithoutSecret_ReturnsNull() {
         CredentialsProvider provider = snowflakeMetadataHandler.getCredentialProvider();
         assertNull(provider);
     }
 
     @Test
-    public void testEncodeDecodeContinuationToken() throws Exception {
+    public void encodeDecodeContinuationToken_WithToken_EncodesAndDecodesCorrectly() throws Exception {
         // Use reflection to test private methods
         java.lang.reflect.Method encodeMethod = SnowflakeMetadataHandler.class.getDeclaredMethod("encodeContinuationToken", int.class);
         java.lang.reflect.Method decodeMethod = SnowflakeMetadataHandler.class.getDeclaredMethod("decodeContinuationToken", GetSplitsRequest.class);
@@ -1272,7 +1272,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testGetS3ExportBucketWithConfig() throws Exception {
+    public void getS3ExportBucket_WithConfig_ReturnsBucketFromConfig() throws Exception {
         Map<String, String> configOptions = new HashMap<>();
         configOptions.put(SPILL_BUCKET, TEST_BUCKET);
         SnowflakeMetadataHandler handler = new SnowflakeMetadataHandler(databaseConnectionConfig, secretsManager, athena, mockS3, jdbcConnectionFactory, configOptions);
@@ -1282,7 +1282,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testHandleS3ExportPartitions() throws Exception {
+    public void doGetTableLayout_WithS3ExportEnabled_CreatesPartitions() throws Exception {
         Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField(COL_1)
                 .addStringField(BLOCK_PARTITION_COLUMN_NAME)
@@ -1333,7 +1333,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testHandleS3ExportPartitionsWithS3ExportEnabled() throws Exception {
+    public void doGetTableLayout_WithS3ExportEnabledAndExistingIntegration_CreatesPartitions() throws Exception {
         Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField(COL_1)
                 .addStringField(BLOCK_PARTITION_COLUMN_NAME)
@@ -1375,7 +1375,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testHandleS3ExportPartitionsWithQueryPassthrough() throws Exception {
+    public void doGetTableLayout_WithS3ExportEnabledAndQueryPassthrough_CreatesPartitions() throws Exception {
         Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField(COL_1)
                 .addStringField(BLOCK_PARTITION_COLUMN_NAME)
@@ -1428,7 +1428,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testHandleS3ExportPartitionsWithInvalidIntegrationName() throws Exception {
+    public void doGetTableLayout_WithInvalidIntegrationName_FallsBackToDirectQuery() throws Exception {
         Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField(COL_1)
                 .addStringField(BLOCK_PARTITION_COLUMN_NAME)
@@ -1472,7 +1472,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test
-    public void testHandleS3ExportPartitionsWithNullRoleArn() throws Exception {
+    public void doGetTableLayout_WithNullRoleArn_FallsBackToDirectQuery() throws Exception {
         Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField(COL_1)
                 .addStringField(BLOCK_PARTITION_COLUMN_NAME)

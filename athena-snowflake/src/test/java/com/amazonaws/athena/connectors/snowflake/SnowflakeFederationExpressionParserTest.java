@@ -20,20 +20,17 @@ package com.amazonaws.athena.connectors.snowflake;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
-@RunWith(MockitoJUnitRunner.class)
 public class SnowflakeFederationExpressionParserTest
 {
     private static final String QUOTE_CHAR_DOUBLE = "\"";
@@ -69,66 +66,117 @@ public class SnowflakeFederationExpressionParserTest
     }
 
     @Test
-    public void testConstructorWithDifferentQuoteChar()
+    public void constructor_WithDoubleQuoteChar_WrapsColumnNamesCorrectly()
     {
-        SnowflakeFederationExpressionParser parser = new SnowflakeFederationExpressionParser(QUOTE_CHAR_BACKTICK);
-        assertNotNull(parser);
+        SnowflakeFederationExpressionParser parser = new SnowflakeFederationExpressionParser(QUOTE_CHAR_DOUBLE);
+
+        // Test that the parser uses double quotes correctly with different column names
+        VariableExpression variableExpression1 = new VariableExpression("testColumn", ArrowType.Utf8.INSTANCE);
+        String result1 = parser.parseVariableExpression(variableExpression1);
+        assertEquals(QUOTE_CHAR_DOUBLE + "testColumn" + QUOTE_CHAR_DOUBLE, result1);
+
+        VariableExpression variableExpression2 = new VariableExpression("column_name", ArrowType.Utf8.INSTANCE);
+        String result2 = parser.parseVariableExpression(variableExpression2);
+        assertEquals(QUOTE_CHAR_DOUBLE + "column_name" + QUOTE_CHAR_DOUBLE, result2);
+
+        VariableExpression variableExpression3 = new VariableExpression("MyColumn", ArrowType.Utf8.INSTANCE);
+        String result3 = parser.parseVariableExpression(variableExpression3);
+        assertEquals(QUOTE_CHAR_DOUBLE + "MyColumn" + QUOTE_CHAR_DOUBLE, result3);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithSingleArgument()
+    public void parseVariableExpression_WithDoubleQuoteChar_WrapsColumnNamesCorrectly()
+    {
+        // Verify that the parser created in setUp uses double quotes correctly
+        VariableExpression variableExpression = new VariableExpression("testColumn", ArrowType.Utf8.INSTANCE);
+        String result = parser.parseVariableExpression(variableExpression);
+        assertEquals(QUOTE_CHAR_DOUBLE + "testColumn" + QUOTE_CHAR_DOUBLE, result);
+    }
+
+    @Test
+    public void constructor_WithBacktickQuoteChar_WrapsColumnNamesCorrectly()
+    {
+        SnowflakeFederationExpressionParser parser = new SnowflakeFederationExpressionParser(QUOTE_CHAR_BACKTICK);
+
+        // Test that the parser uses backtick quotes correctly with different column names
+        VariableExpression variableExpression1 = new VariableExpression("testColumn", ArrowType.Utf8.INSTANCE);
+        String result1 = parser.parseVariableExpression(variableExpression1);
+        assertEquals(QUOTE_CHAR_BACKTICK + "testColumn" + QUOTE_CHAR_BACKTICK, result1);
+
+        VariableExpression variableExpression2 = new VariableExpression("column_name", ArrowType.Utf8.INSTANCE);
+        String result2 = parser.parseVariableExpression(variableExpression2);
+        assertEquals(QUOTE_CHAR_BACKTICK + "column_name" + QUOTE_CHAR_BACKTICK, result2);
+    }
+
+    @Test
+    public void constructor_WithSingleQuoteChar_WrapsColumnNamesCorrectly()
+    {
+        String singleQuote = "'";
+        SnowflakeFederationExpressionParser parser = new SnowflakeFederationExpressionParser(singleQuote);
+
+        // Test that the parser uses single quotes correctly
+        VariableExpression variableExpression1 = new VariableExpression("testColumn", ArrowType.Utf8.INSTANCE);
+        String result1 = parser.parseVariableExpression(variableExpression1);
+        assertEquals(singleQuote + "testColumn" + singleQuote, result1);
+
+        VariableExpression variableExpression2 = new VariableExpression("MyColumn", ArrowType.Utf8.INSTANCE);
+        String result2 = parser.parseVariableExpression(variableExpression2);
+        assertEquals(singleQuote + "MyColumn" + singleQuote, result2);
+    }
+
+    @Test
+    public void writeArrayConstructorClause_WithSingleArgument_ReturnsCorrectString()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
         List<String> arguments = Collections.singletonList(TEST_ARG_SPECIAL);
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals(EXPECTED_SINGLE_ARG, result);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithMultipleArguments()
+    public void writeArrayConstructorClause_WithMultipleArguments_ReturnsCommaSeparatedString()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
         List<String> arguments = Arrays.asList(TEST_ARG_1, TEST_ARG_2, TEST_ARG_3);
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals(EXPECTED_THREE_ARGS, result);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithEmptyList()
+    public void writeArrayConstructorClause_WithEmptyList_ReturnsEmptyString()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
         List<String> arguments = Collections.emptyList();
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals("", result);
     }
 
-    @Test
-    public void testWriteArrayConstructorClauseWithNullArguments()
+    @Test(expected = NullPointerException.class)
+    public void writeArrayConstructorClause_WithNullArguments_ThrowsNullPointerException()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
-        List<String> arguments = Arrays.asList(TEST_ARG_1, TEST_ARG_2); // Don't include null values
-        
-        String result = parser.writeArrayConstructorClause(type, arguments);
-        assertEquals(EXPECTED_TWO_ARGS, result);
+        List<String> arguments = Arrays.asList(TEST_ARG_1, null, TEST_ARG_2);
+
+        parser.writeArrayConstructorClause(type, arguments);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithDifferentArrowTypes()
+    public void writeArrayConstructorClause_WithDifferentArrowTypes_ReturnsCommaSeparatedString()
     {
         // Test with different Arrow types
         ArrowType[] types = {
-            new ArrowType.Int(32, true),
-            new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE),
-            ArrowType.Bool.INSTANCE,
-            new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY),
-            new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, null)
+                new ArrowType.Int(32, true),
+                new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE),
+                ArrowType.Bool.INSTANCE,
+                new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY),
+                new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, null)
         };
-        
+
         List<String> arguments = Arrays.asList(TEST_ARG_1, TEST_ARG_2);
-        
+
         for (ArrowType type : types) {
             String result = parser.writeArrayConstructorClause(type, arguments);
             assertEquals(EXPECTED_TWO_ARGS, result);
@@ -136,64 +184,64 @@ public class SnowflakeFederationExpressionParserTest
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithSpecialCharacters()
+    public void writeArrayConstructorClause_WithSpecialCharacters_ReturnsCommaSeparatedString()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
         List<String> arguments = Arrays.asList(TEST_ARG_1, TEST_ARG_WITH_COMMA, TEST_ARG_3);
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals(EXPECTED_SPECIAL_CHARS, result);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithNumbers()
+    public void writeArrayConstructorClause_WithNumbers_ReturnsCommaSeparatedString()
     {
         ArrowType type = new ArrowType.Int(32, true);
         List<String> arguments = Arrays.asList("1", "2", "3");
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals(EXPECTED_NUMBERS, result);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithMixedTypes()
+    public void writeArrayConstructorClause_WithMixedTypes_ReturnsCommaSeparatedString()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
         List<String> arguments = Arrays.asList("string", "123", "true", "null");
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals(EXPECTED_MIXED_ARGS, result);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithLargeList()
+    public void writeArrayConstructorClause_WithLargeList_ReturnsCommaSeparatedString()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
         List<String> arguments = Arrays.asList(
-            TEST_ARG_1, TEST_ARG_2, TEST_ARG_3, TEST_ARG_4, TEST_ARG_5, 
-            TEST_ARG_6, TEST_ARG_7, TEST_ARG_8, TEST_ARG_9, TEST_ARG_10
+                TEST_ARG_1, TEST_ARG_2, TEST_ARG_3, TEST_ARG_4, TEST_ARG_5,
+                TEST_ARG_6, TEST_ARG_7, TEST_ARG_8, TEST_ARG_9, TEST_ARG_10
         );
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals(EXPECTED_TEN_ARGS, result);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithEmptyStrings()
+    public void writeArrayConstructorClause_WithEmptyStrings_ReturnsCommaSeparatedStringWithEmptyValues()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
         List<String> arguments = Arrays.asList("", TEST_ARG_2, "");
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals(EXPECTED_EMPTY_STRINGS, result);
     }
 
     @Test
-    public void testWriteArrayConstructorClauseWithWhitespace()
+    public void writeArrayConstructorClause_WithWhitespace_ReturnsCommaSeparatedStringWithWhitespace()
     {
         ArrowType type = ArrowType.Utf8.INSTANCE;
         List<String> arguments = Arrays.asList(" arg1 ", " arg2 ", " arg3 ");
-        
+
         String result = parser.writeArrayConstructorClause(type, arguments);
         assertEquals(EXPECTED_WHITESPACE, result);
     }
