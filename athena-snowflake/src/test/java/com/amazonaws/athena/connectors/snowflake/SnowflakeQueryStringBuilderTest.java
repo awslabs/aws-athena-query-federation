@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.snowflake;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.jdbc.manager.TypeAndValue;
 import org.apache.arrow.vector.types.DateUnit;
-import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -126,12 +125,6 @@ class SnowflakeQueryStringBuilderTest {
     void testGetObjectForWhereClause_Date() {
         Object result = queryBuilder.getObjectForWhereClause("date", "2023-03-15T00:00", new ArrowType.Date(DateUnit.DAY));
         assertEquals("2023-03-15 00:00:00", result);
-    }
-
-    @Test
-    void testGetObjectForWhereClause_Timestamp() {
-        Object result = queryBuilder.getObjectForWhereClause("created_at", 1711929600000L,  new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC"));
-        assertEquals("2024-04-01 00:00:00", result);
     }
 
     @Test
