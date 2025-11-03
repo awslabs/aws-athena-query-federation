@@ -181,7 +181,7 @@ export class RdsGenericStack extends cdk.Stack {
     if (db_type == 'mysql') {
       return rds.DatabaseClusterEngine.auroraMysql({version:rds.AuroraMysqlEngineVersion.VER_3_04_1});
     } else if (db_type == 'postgresql') {
-      return rds.DatabaseClusterEngine.auroraPostgres({version:rds.AuroraPostgresEngineVersion.VER_15_4});
+      return rds.DatabaseClusterEngine.auroraPostgres({version:rds.AuroraPostgresEngineVersion.VER_15_10});
     } else {
       throw new Error("unsupported rds engine version");
     }
