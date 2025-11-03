@@ -28,6 +28,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.stringtemplate.v4.ST;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Utilities that help with Sql operations using StringTemplate.
@@ -73,19 +74,15 @@ public class BigQuerySqlUtils
      * Generic method to render any string template with parameters
      *
      * @param templateName The name of the template to render
-     * @param params Parameters in pairs: (key, value, key, value, ...)
+     * @param params Map of parameter key-value pairs
      * @return The rendered template string
      */
-    public static String renderTemplate(String templateName, Object... params)
+    public static String renderTemplate(String templateName, Map<String, Object> params)
     {
         ST template = queryFactory.getQueryTemplate(templateName);
         
-        // Add parameters in pairs: (key, value, key, value, ...)
-        for (int i = 0; i < params.length; i += 2) {
-            if (i + 1 < params.length) {
-                template.add((String) params[i], params[i + 1]);
-            }
-        }
+        // Add all parameters from the map
+        params.forEach(template::add);
         
         return template.render().trim();
     }

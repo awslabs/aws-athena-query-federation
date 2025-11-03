@@ -40,6 +40,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Utf8;
@@ -87,17 +88,17 @@ public class BigQueryStorageApiUtils
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return BigQuerySqlUtils.renderTemplate("null_predicate", "columnName", columnName, "isNull", true);
+                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", true));
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(BigQuerySqlUtils.renderTemplate("null_predicate", "columnName", columnName, "isNull", true));
+                disjuncts.add(BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", true)));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
 
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return BigQuerySqlUtils.renderTemplate("null_predicate", "columnName", columnName, "isNull", false);
+                return BigQuerySqlUtils.renderTemplate("null_predicate", Map.of("columnName", columnName, "isNull", false));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -136,7 +137,7 @@ public class BigQueryStorageApiUtils
                     }
                     // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
                     Preconditions.checkState(!rangeConjuncts.isEmpty());
-                    disjuncts.add(BigQuerySqlUtils.renderTemplate("range_predicate", "conjuncts", rangeConjuncts));
+                    disjuncts.add(BigQuerySqlUtils.renderTemplate("range_predicate", Map.of("conjuncts", rangeConjuncts)));
                 }
             }
 
@@ -150,12 +151,11 @@ public class BigQueryStorageApiUtils
                     val.add(((type.getTypeID().equals(Utf8) || type.getTypeID().equals(ArrowType.ArrowTypeID.Date)) ? quote(getValueForWhereClause(columnName, value, type).getValue()) : getValueForWhereClause(columnName, value, type).getValue()));
                 }
                 disjuncts.add(BigQuerySqlUtils.renderTemplate("storage_api_in_predicate", 
-                    "columnName", columnName, 
-                    "placeholderList", val));
+                    Map.of("columnName", columnName, "placeholderList", val)));
             }
         }
 
-        return BigQuerySqlUtils.renderTemplate("or_predicate", "disjuncts", disjuncts);
+        return BigQuerySqlUtils.renderTemplate("or_predicate", Map.of("disjuncts", disjuncts));
     }
 
     private static String toPredicate(String columnName, String operator, Object value, ArrowType type)
@@ -165,9 +165,7 @@ public class BigQueryStorageApiUtils
                 getValueForWhereClause(columnName, value, type).getValue();
         
         return BigQuerySqlUtils.renderTemplate("storage_api_comparison_predicate", 
-                "columnName", columnName, 
-                "operator", operator, 
-                "value", formattedValue);
+                Map.of("columnName", columnName, "operator", operator, "value", formattedValue));
     }
 
     //Gets the representation of a value that can be used in a where clause, ie String values need to be quoted, numeric doesn't.
@@ -231,7 +229,7 @@ public class BigQueryStorageApiUtils
         List<String> clauses = toConjuncts(schema.getFields(), constraints);
 
         if (!clauses.isEmpty()) {
-            String clause = BigQuerySqlUtils.renderTemplate("where_clause", "clauses", clauses);
+            String clause = BigQuerySqlUtils.renderTemplate("where_clause", Map.of("clauses", clauses));
             LOGGER.debug("clause {}", clause);
             optionsBuilder = optionsBuilder.setRowRestriction(clause);
         }
