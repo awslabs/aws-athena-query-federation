@@ -556,7 +556,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testDoReadRecordsNoSpill()
+    public void doReadRecords_WithNoSpill_ReturnsInlineRecords()
             throws Exception
     {
         logger.info("doReadRecordsNoSpill: enter");
@@ -593,7 +593,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testDoReadRecordsSpill()
+    public void doReadRecords_WithSpill_ReturnsRemoteRecords()
             throws Exception
     {
         logger.info("doReadRecordsSpill: enter");
@@ -633,7 +633,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testReadWithConstraintS3ExportEnabled()
+    public void readWithConstraint_WithS3ExportEnabled_UsesS3ExportPath()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -660,7 +660,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testReadWithConstraintS3ExportDisabled()
+    public void readWithConstraint_WithS3ExportDisabled_UsesDirectReadPath()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -692,7 +692,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testHandleS3ExportReadWithEmptyObjectKey()
+    public void readWithConstraint_WithEmptyObjectKey_DoesNotWriteRows()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -714,7 +714,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testHandleS3ExportReadWithException()
+    public void readWithConstraint_WithS3ExportException_ThrowsAthenaConnectorException()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -746,7 +746,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithQueryPassthrough()
+    public void buildSplitSql_WithQueryPassthrough_ReturnsPreparedStatement()
             throws Exception
     {
         Connection mockConnection = mock(Connection.class);
@@ -759,7 +759,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithoutQueryPassthrough()
+    public void buildSplitSql_WithoutQueryPassthrough_ReturnsPreparedStatement()
             throws Exception
     {
         Connection mockConnection = mock(Connection.class);
@@ -772,7 +772,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithSQLException()
+    public void buildSplitSql_WithSQLException_ThrowsException()
             throws Exception
     {
         Connection mockConnection = mock(Connection.class);
@@ -792,7 +792,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testGetCredentialProviderWithSecret()
+    public void getCredentialProvider_WithSecret_ReturnsSnowflakeCredentialsProvider()
     {
         DatabaseConnectionConfig configWithSecret = createDatabaseConnectionConfig("test-secret");
         
@@ -805,7 +805,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testGetCredentialProviderWithoutSecret()
+    public void getCredentialProvider_WithoutSecret_ReturnsNull()
     {
         DatabaseConnectionConfig configWithoutSecret = createDatabaseConnectionConfig(null);
         
@@ -818,7 +818,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testConstructArrowReader()
+    public void constructArrowReader_WithUri_ReturnsArrowReader()
     {
         // Mock S3 client to avoid AWS access issues
         S3Client mockS3Client = mock(S3Client.class);
@@ -839,7 +839,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testConstructorWithConfigOptions()
+    public void constructor_WithConfigOptions_CreatesHandler()
     {
         // Set up environment variable for the constructor
         Map<String, String> configOptions = new HashMap<>();
@@ -856,7 +856,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testConstructorWithDatabaseConnectionConfig()
+    public void constructor_WithDatabaseConnectionConfig_CreatesHandler()
     {
         DatabaseConnectionConfig databaseConnectionConfig = createDatabaseConnectionConfig(null);
         Map<String, String> configOptions = new HashMap<>();
@@ -867,7 +867,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testConstructorWithGenericJdbcConnectionFactory()
+    public void constructor_WithGenericJdbcConnectionFactory_CreatesHandler()
     {
         DatabaseConnectionConfig databaseConnectionConfig = createDatabaseConnectionConfig(null);
         Map<String, String> configOptions = new HashMap<>();
@@ -879,7 +879,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithComplexRangePredicates()
+    public void buildSplitSql_WithComplexRangePredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -905,7 +905,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithTopNPredicates()
+    public void buildSplitSql_WithTopNPredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -927,7 +927,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithLimitPredicates()
+    public void buildSplitSql_WithLimitPredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -950,7 +950,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithOrderByPredicates()
+    public void buildSplitSql_WithOrderByPredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -990,7 +990,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithBetweenPredicates()
+    public void buildSplitSql_WithBetweenPredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -1015,7 +1015,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithInPredicates()
+    public void buildSplitSql_WithInPredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -1041,7 +1041,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithNullPredicates()
+    public void buildSplitSql_WithNullPredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -1067,7 +1067,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithComplexCombinedPredicates()
+    public void buildSplitSql_WithComplexCombinedPredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
@@ -1094,7 +1094,7 @@ public class SnowflakeRecordHandlerTest
     }
 
     @Test
-    public void testBuildSplitSqlWithEdgeCasePredicates()
+    public void buildSplitSql_WithEdgeCasePredicates_BuildsCorrectSql()
             throws Exception
     {
         try (MockedConstruction<SnowflakeEnvironmentProperties> mocked = mockConstruction(
