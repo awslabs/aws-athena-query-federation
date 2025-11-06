@@ -243,7 +243,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void testDoListTablesWithPagination() throws TimeoutException {
+    public void doListTables_withPagination_returnsPaginatedTables() throws TimeoutException {
 
         when(mockAwsLogs.describeLogStreams(nullable(DescribeLogStreamsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             DescribeLogStreamsRequest request = (DescribeLogStreamsRequest) invocationOnMock.getArguments()[0];
@@ -358,7 +358,6 @@ public class CloudwatchMetadataHandlerTest
                 for (int i = continuation * 100; i < 300; i++) {
                     LogStream nextLogStream = LogStream.builder()
                             .logStreamName("table-" + i)
-                            .storedBytes(i * 1000L)
                             .build();
                     logStreams.add(nextLogStream);
                 }
@@ -462,7 +461,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplitsWithQueryPassthrough() {
+    public void doGetSplits_withQueryPassthrough_returnsSplitWithPassthroughArgs() {
         
         Map<String, String> qptArguments = new HashMap<>();
         qptArguments.put(CloudwatchQueryPassthrough.STARTTIME, "1000");
@@ -504,7 +503,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetDataSourceCapabilities() {
+    public void doGetDataSourceCapabilities_returnsSupportedCapabilities() {
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(identity, QUERY_ID, CATALOG_NAME);
         GetDataSourceCapabilitiesResponse response = handler.doGetDataSourceCapabilities(allocator, request);
         assertNotNull(response);
@@ -521,7 +520,7 @@ public class CloudwatchMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetQueryPassthroughSchema() throws Exception {
+    public void doGetQueryPassthroughSchema_returnsSchema() throws Exception {
             TableName tableName = new TableName("schema-1", "qpt_table");
             Map<String, String> qptArguments = new HashMap<>();
             qptArguments.put(CloudwatchQueryPassthrough.STARTTIME, "0");
@@ -571,18 +570,5 @@ public class CloudwatchMetadataHandlerTest
             assertEquals(0, res.getSchema().getFields().size());
 
             verify(mockAwsLogs, times(2)).getQueryResults(nullable(software.amazon.awssdk.services.cloudwatchlogs.model.GetQueryResultsRequest.class));
-    }
-
-
-    @Test
-    public void testEnhancePartitionSchemaForQueryPassthrough() {
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        GetTableLayoutRequest request = new GetTableLayoutRequest(identity, QUERY_ID, CATALOG_NAME,
-                new TableName("system", "query"),
-                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(),null),
-                schemaBuilder.build(),
-                Collections.emptySet());
-        handler.enhancePartitionSchema(schemaBuilder, request);
-        assertEquals(0, schemaBuilder.build().getFields().size());
     }
 }

@@ -205,7 +205,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void doReadRecordsNoSpill()
+    public void doReadRecords_withoutSpill_returnsRecords()
             throws Exception
     {
         logger.info("doReadRecordsNoSpill: enter");
@@ -231,7 +231,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void doReadRecordsSpill()
+    public void doReadRecords_withSpill_returnsRecords()
             throws Exception
     {
         logger.info("doReadRecordsSpill: enter");
@@ -270,7 +270,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void testReadWithConstraint_passthrough() throws InterruptedException, TimeoutException {
+    public void readWithConstraint_withPassthrough() throws InterruptedException, TimeoutException {
         CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);
         BlockSpiller mockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest mockRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -292,7 +292,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void testPushDownConstraints_EqualTimeConstraint() throws Exception {
+    public void pushDownConstraints_withEqualTimeConstraint_pushesDownConstraint() throws Exception {
         
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put(CloudwatchMetadataHandler.LOG_TIME_FIELD,
@@ -318,7 +318,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test
-    public void testPushDownConstraints_RangeTimeConstraint() throws Exception {
+    public void pushDownConstraints_withRangeTimeConstraint_pushesDownConstraint() throws Exception {
         
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put(CloudwatchMetadataHandler.LOG_TIME_FIELD,
@@ -343,7 +343,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test(expected = NullPointerException.class)
-    public void testReadRecords_NullConstraints() {
+    public void readRecords_withNullConstraints_throwsException() {
         // ReadRecordsRequest constructor will throw NPE for null constraints
         new ReadRecordsRequest(identity,
                 "catalog",
@@ -364,7 +364,7 @@ public class CloudwatchRecordHandlerTest
     }
 
     @Test(expected = AthenaConnectorException.class)
-    public void testReadWithConstraint_PassthroughMissingArgs() throws InterruptedException, TimeoutException {
+    public void readWithConstraint_withPassthroughAndMissingArgs_throwsException() throws InterruptedException, TimeoutException {
         logger.info("testReadWithConstraint_PassthroughMissingArgs: enter");
         
         CloudwatchRecordHandler handlerSpy = Mockito.spy(handler);

@@ -76,7 +76,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void testStartQueryRequest() {
+    public void startQueryRequest_withValidArguments_returnsRequest() {
         StartQueryRequest request = CloudwatchUtils.startQueryRequest(qptArguments);
 
         assertNotNull(request);
@@ -88,7 +88,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void testGetQueryResult() {
+    public void getQueryResult_withValidRequest_returnsResponse() {
         StartQueryRequest request = CloudwatchUtils.startQueryRequest(qptArguments);
         StartQueryResponse mockResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
 
@@ -102,7 +102,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void testGetQueryResults() {
+    public void getQueryResults_withValidRequest_returnsResults() {
         StartQueryResponse startQueryResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
         GetQueryResultsResponse mockResults = GetQueryResultsResponse.builder()
                 .status(QueryStatus.COMPLETE)
@@ -118,7 +118,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void testGetResult() throws TimeoutException, InterruptedException {
+    public void getResult_withValidArguments_returnsResults() throws TimeoutException, InterruptedException {
             StartQueryResponse startQueryResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
             GetQueryResultsResponse mockResults = GetQueryResultsResponse.builder()
                     .status(QueryStatus.COMPLETE)
@@ -134,7 +134,7 @@ public class CloudwatchUtilsTest {
     }
 
     @Test
-    public void testGetQueryResultsWithNullResponse() {
+    public void getQueryResults_withNullResponse_returnsNull() {
         when(mockAwsLogs.getQueryResults(any(GetQueryResultsRequest.class))).thenReturn(null);
 
         StartQueryResponse startQueryResponse = StartQueryResponse.builder().queryId(TEST_QUERY_ID).build();
