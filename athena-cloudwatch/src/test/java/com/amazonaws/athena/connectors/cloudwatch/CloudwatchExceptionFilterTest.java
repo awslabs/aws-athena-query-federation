@@ -37,7 +37,7 @@ public class CloudwatchExceptionFilterTest
     private CloudWatchLogsException mockCloudWatchLogsException;
 
     @Test
-    public void testIsMatch_CloudWatchLogsExceptionWithRateExceeded()
+    public void isMatch_withCloudWatchLogsExceptionAndRateExceeded_returnsTrue()
     {
         when(mockCloudWatchLogsException.getMessage()).thenReturn("Rate exceeded");
         
@@ -46,7 +46,7 @@ public class CloudwatchExceptionFilterTest
     }
 
     @Test
-    public void testIsMatch_CloudWatchLogsExceptionWithDifferentMessage()
+    public void isMatch_withCloudWatchLogsExceptionAndDifferentMessage_returnsFalse()
     {
         when(mockCloudWatchLogsException.getMessage()).thenReturn("Invalid parameter");
         
@@ -55,14 +55,14 @@ public class CloudwatchExceptionFilterTest
     }
 
     @Test
-    public void testIsMatch_NullException()
+    public void isMatch_withNullException_returnsFalse()
     {
         boolean match = EXCEPTION_FILTER.isMatch(null);
         assertFalse("Should not match null exception", match);
     }
 
     @Test
-    public void testIsMatch_LimitExceededException()
+    public void isMatch_withLimitExceededException_returnsTrue()
     {
         LimitExceededException limitExceededException = LimitExceededException.builder()
                 .message("Limit exceeded")

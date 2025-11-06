@@ -30,14 +30,14 @@ public class CloudwatchTableNameTest {
     private static final String LOG_STREAM = "TestStream";
 
     @Test
-    public void testConstructorAndGetters() {
+    public void constructorAndGetters_withValidInput_succeeds() {
         CloudwatchTableName tableName = new CloudwatchTableName(LOG_GROUP, LOG_STREAM);
         assertEquals(LOG_GROUP, tableName.getLogGroupName());
         assertEquals(LOG_STREAM, tableName.getLogStreamName());
     }
 
     @Test
-    public void testToTableName() {
+    public void toTableName_withValidInput_returnsTableName() {
         CloudwatchTableName tableName = new CloudwatchTableName(LOG_GROUP, LOG_STREAM);
         TableName result = tableName.toTableName();
         assertEquals(LOG_GROUP, result.getSchemaName());
@@ -45,7 +45,7 @@ public class CloudwatchTableNameTest {
     }
 
     @Test
-    public void testToString() {
+    public void toString_withValidInput_returnsString() {
         CloudwatchTableName tableName = new CloudwatchTableName(LOG_GROUP, LOG_STREAM);
         String expected = "CloudwatchTableName{" +
                 "logGroupName='" + LOG_GROUP + '\'' +
@@ -55,7 +55,7 @@ public class CloudwatchTableNameTest {
     }
 
     @Test
-    public void testEquals() {
+    public void equals_withEqualAndUnequalObjects_returnsCorrectResult() {
         CloudwatchTableName tableName1 = new CloudwatchTableName(LOG_GROUP, LOG_STREAM);
         CloudwatchTableName tableName2 = new CloudwatchTableName(LOG_GROUP, LOG_STREAM);
         CloudwatchTableName tableName3 = new CloudwatchTableName("DifferentGroup", LOG_STREAM);
