@@ -85,7 +85,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void testLambdaLogStreamPattern() {
+    public void validateTable_withLambdaLogStreamPattern_returnsCorrectTableName() {
             doReturn(DescribeLogGroupsResponse.builder()
                     .logGroups(LogGroup.builder().logGroupName(TEST_LOG_GROUP).build())
                     .build())
@@ -101,7 +101,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void testCaseInsensitiveMatching() {
+    public void validateTable_withCaseInsensitiveMatching_returnsCorrectTableName() {
             doReturn(DescribeLogGroupsResponse.builder()
                     .logGroups(LogGroup.builder().logGroupName(TEST_LOG_GROUP).build())
                     .build())
@@ -118,7 +118,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void testSchemaNotFound() {
+    public void validateSchema_withNonExistentSchema_throwsException() {
         try {
             doReturn(DescribeLogGroupsResponse.builder().build())
                 .when(mockAwsLogs).describeLogGroups(any(DescribeLogGroupsRequest.class));
@@ -131,7 +131,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void testTableNotFound() {
+    public void validateTable_withNonExistentTable_throwsException() {
         try {
         doReturn(DescribeLogGroupsResponse.builder()
                 .logGroups(LogGroup.builder().logGroupName(TEST_LOG_GROUP).build())
@@ -149,7 +149,7 @@ public class CloudwatchTableResolverTest {
     }
 
     @Test
-    public void testSchemaAndTableValidationWithPagination() {
+    public void validateSchemaAndTable_withPagination_succeeds() {
             List<LogGroup> logGroups = new ArrayList<>();
             List<LogStream> logStreams = new ArrayList<>();
 
