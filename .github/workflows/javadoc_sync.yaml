@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - master
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: aws-athena-query-federation_ubuntu-latest_16-core
