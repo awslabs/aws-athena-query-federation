@@ -126,7 +126,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_whenCalledWithConstraints_returnsPreparedStatement()
+    public void buildSplitSql_withConstraints_returnsPreparedStatement()
             throws SQLException
     {
         final String testCol4 = "testCol4";
@@ -224,7 +224,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withPassthroughEnabledButMissingQuery_throwsAthenaConnectorException() throws SQLException {
+    public void buildSplitSql_withPassthroughEnabledAndMissingQuery_throwsException() throws SQLException {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createTestSchema();
         Split split = createMockSplit();
@@ -254,7 +254,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withPassthroughWithWrongSchemaFunctionName_throwsAthenaConnectorException() throws SQLException {
+    public void buildSplitSql_withPassthroughAndWrongSchemaFunctionName_throwsException() throws SQLException {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
         Schema schema = createTestSchema();
         Split split = createMockSplit();
@@ -286,7 +286,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withSingleValueConstraints_buildsCorrectSQL()
+    public void buildSplitSql_withSingleValueConstraints_returnsCorrectSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -310,7 +310,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withInClauseConstraints_buildsCorrectSQL()
+    public void buildSplitSql_withInClauseConstraints_returnsCorrectSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -334,7 +334,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withRangeConstraints_buildsCorrectSQL()
+    public void buildSplitSql_withRangeConstraints_returnsCorrectSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -357,7 +357,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withComplexExpressions_buildsCorrectSQL()
+    public void buildSplitSql_withComplexExpressions_returnsCorrectSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -389,7 +389,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withOrderBy_buildsCorrectSQL()
+    public void buildSplitSql_withOrderBy_returnsCorrectSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -417,7 +417,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withLimitPushdown_buildsCorrectSQL()
+    public void buildSplitSql_withLimitPushdown_returnsCorrectSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -442,7 +442,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withTopNWithOrderByAndLimit_buildsCorrectSQL()
+    public void buildSplitSql_withTopNOrderByAndLimit_returnsCorrectSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -469,7 +469,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withDifferentDataTypes_buildsCorrectSQL()
+    public void buildSplitSql_withDifferentDataTypes_returnsCorrectSql()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -500,7 +500,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withEmptyConstraints_buildsBasicQuery()
+    public void buildSplitSql_withEmptyConstraints_returnsBasicQuery()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -519,7 +519,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withNullValueSet_buildsBasicQuery()
+    public void buildSplitSql_withNullValueSet_returnsBasicQuery()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);
@@ -540,7 +540,7 @@ public class Db2RecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql_withNegativeLimit_shouldIgnoreLimit()
+    public void buildSplitSql_withNegativeLimit_ignoresLimit()
             throws SQLException
     {
         TableName tableName = new TableName(TEST_SCHEMA, TEST_TABLE);

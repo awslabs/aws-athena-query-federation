@@ -34,7 +34,7 @@ public class Db2QueryStringBuilderTest {
     Split split;
 
     @Test
-    public void getFromClauseWithSplit_whenCalled_returnsFromClause()
+    public void getFromClauseWithSplit_returnsFromClause()
     {
         Split split = Mockito.mock(Split.class);
         Db2QueryStringBuilder builder = new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
@@ -43,7 +43,7 @@ public class Db2QueryStringBuilderTest {
     }
 
     @Test
-    public void getPartitionWhereClauses_whenCalled_returnsPartitionWhereClauses()
+    public void getPartitionWhereClauses_returnsPartitionWhereClauses()
     {
         Db2QueryStringBuilder builder =  new Db2QueryStringBuilder(QUOTE_CHARACTER, new Db2FederationExpressionParser(QUOTE_CHARACTER));
         Split split = Mockito.mock(Split.class);
