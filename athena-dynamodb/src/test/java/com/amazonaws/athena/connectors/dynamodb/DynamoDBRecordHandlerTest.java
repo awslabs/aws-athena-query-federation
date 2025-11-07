@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
@@ -49,6 +50,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,6 +66,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.glue.model.StorageDescriptor;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -96,6 +99,7 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.services.dynamodbv2.document.ItemUtils.toAttributeValue;
 import static com.amazonaws.util.json.Jackson.toJsonString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -962,6 +966,33 @@ public class DynamoDBRecordHandlerTest
         assertEquals(numMapReader.getField().getChildren().size(), 2);
         assertEquals(numMapReader.reader("key1").readInteger(), (Integer) 1);
         assertEquals(numMapReader.reader("key2").readInteger(), (Integer) 2);
+    }
+
+    @Test
+    public void testResourceNotFoundExceptionHandling() throws Exception
+    {
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, "nonexistent_table")
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                new TableName(DEFAULT_SCHEMA, "nonexistent_table"),
+                schema,
+                split,
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), null),
+                100_000_000_000L,
+                100_000_000_000L);
+
+        AthenaConnectorException exception = assertThrows(AthenaConnectorException.class, () -> {
+            handler.doReadRecords(allocator, request);
+        });
+        Assert.assertEquals(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString(),
+                exception.getErrorDetails().errorCode());
     }
 
     private long getPackedDateTimeWithZone(String s)
