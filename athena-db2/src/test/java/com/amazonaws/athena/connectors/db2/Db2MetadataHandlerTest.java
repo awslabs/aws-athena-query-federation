@@ -133,7 +133,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void getPartitionSchema_whenCalled_returnsPartitionSchema()
+    public void getPartitionSchema_returnsPartitionSchema()
     {
         assertEquals(SchemaBuilder.newBuilder()
                         .addField(PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
@@ -141,7 +141,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void doGetSplits_withNoPartition_returnsSplits()
+    public void doGetSplits_withNoPartitions_returnsSplits()
             throws Exception
     {
         Constraints constraints = new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(),
@@ -251,7 +251,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void doGetTable_whenTableExists_returnsTableMetadata()
+    public void doGetTable_withExistingTable_returnsTableMetadata()
             throws Exception
     {
         Statement statement = Mockito.mock(Statement.class);
@@ -317,7 +317,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test(expected = RuntimeException.class)
-    public void doGetTable_whenTableNotFound_throwsRuntimeException()
+    public void doGetTable_withNonExistingTable_throwsRuntimeException()
             throws Exception
     {
         Statement statement = Mockito.mock(Statement.class);
@@ -427,7 +427,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void doListSchemaNames_whenCalled_returnsSchemaNames() throws Exception
+    public void doListSchemaNames_returnsSchemaNames() throws Exception
     {
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, "queryId", "testCatalog");
 
@@ -443,7 +443,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void doListTables_whenCalled_returnsTables() throws Exception
+    public void doListTables_returnsTables() throws Exception
     {
         ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, TEST_QUERY_ID, TEST_CATALOG, TEST_SCHEMA, null, UNLIMITED_PAGE_SIZE_VALUE);
 
@@ -460,7 +460,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void doListPaginatedTables()
+    public void doListTables_withPagination_returnsPaginatedTables()
             throws Exception
     {
         //Test 1: Testing Single table returned in request of page size 1 and nextToken null
@@ -556,7 +556,7 @@ public class Db2MetadataHandlerTest extends TestBase {
 
 
     @Test
-    public void doGetDataSourceCapabilities_whenCalled_returnsCapabilities()
+    public void doGetDataSourceCapabilities_returnsCapabilities()
     {
         GetDataSourceCapabilitiesRequest request = new GetDataSourceCapabilitiesRequest(federatedIdentity, TEST_QUERY_ID, TEST_CATALOG);
         GetDataSourceCapabilitiesResponse response = db2MetadataHandler.doGetDataSourceCapabilities(blockAllocator, request);
