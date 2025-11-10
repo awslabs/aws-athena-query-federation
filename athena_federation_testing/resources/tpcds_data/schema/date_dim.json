@@ -1,0 +1,13 @@
+{
+  "table_setup": {
+    "primary_key": "d_date_sk",
+    "primary_type": "int",
+    "sort_key": "d_date_id",
+    "sort_key_type": "string"
+  },
+  "predicate": {
+    "primary_key_predicate": "d_date_sk = 1",
+    "sort_key_predicate": "d_date_id = AAAAAAAAPKJNECAA",
+    "complex_key_predicate": "(d_date_sk + 10) > 50"
+  }
+}
