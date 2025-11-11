@@ -3,10 +3,10 @@ ARG JAVA_VERSION=11
 # Use the specified version of Java
 FROM public.ecr.aws/lambda/java:${JAVA_VERSION}
 
-# Argument for Java tool options for ssl
-ARG JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/var/lang/lib/security/cacerts"
-# Set the JAVA_TOOL_OPTIONS environment variable for Java 17 and for ssl
-ENV JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
+# Argument for Java tool options
+ARG JAVA_TOOL_OPTIONS=""
+# Set the JAVA_TOOL_OPTIONS environment variable for Java 17 and always include default truststore to avoid SSL handshake issues
+ENV JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/var/lang/lib/security/cacerts ${JAVA_TOOL_OPTIONS}"
 
 # Install necessary tools
 RUN yum update -y
