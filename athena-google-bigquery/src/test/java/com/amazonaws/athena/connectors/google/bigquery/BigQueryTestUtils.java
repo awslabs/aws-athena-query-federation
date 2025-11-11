@@ -149,6 +149,12 @@ public class BigQueryTestUtils
                 case Utf8:
                     builder.addStringField(field.getKey());
                     break;
+                case FloatingPoint:
+                    builder.addFloat8Field(field.getKey());
+                    break;
+                case Date:
+                    builder.addDateDayField(field.getKey());
+                    break;
                 default:
                     throw new UnsupportedOperationException("Type Not Implemented: " + typeId.name());
             }
