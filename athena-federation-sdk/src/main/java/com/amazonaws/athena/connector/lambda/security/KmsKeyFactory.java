@@ -79,13 +79,9 @@ public class KmsKeyFactory
             throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
         }
 
-        GenerateRandomRequest.Builder randomBuilder = GenerateRandomRequest.builder()
-                .numberOfBytes(AesGcmBlockCrypto.NONCE_BYTES);
-        if (awsRequestOverrideConfiguration != null) {
-            logger.info("Using AWS KMS Request Override Configuration for RandomKeyGeneration:");
-            randomBuilder.overrideConfiguration(awsRequestOverrideConfiguration);
-        }
-        GenerateRandomResponse randomResponse = kmsClient.generateRandom(randomBuilder.build());
+        GenerateRandomRequest randomRequest = GenerateRandomRequest.builder()
+                .numberOfBytes(AesGcmBlockCrypto.NONCE_BYTES).build();
+        GenerateRandomResponse randomResponse = kmsClient.generateRandom(randomRequest);
 
         return new EncryptionKey(dataKeyResponse.plaintext().asByteArray(), randomResponse.plaintext().asByteArray());
     }
