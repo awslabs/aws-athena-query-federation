@@ -94,6 +94,32 @@
                 <artifactId>commons-lang3</artifactId>
                 <version>3.19.0</version>
             </dependency>
+            <!-- Fix for CVE-2025-24970, CVE-2025-58056, CVE-2025-58057 and CVE-2025-55163: Override Netty version from transitive dependencies -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.2.5.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Fix for CVE-2025-27820: Override httpclient5 version from AWS SDK transitive dependencies -->
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>5.4.3</version>
+            </dependency>
+            <!-- Fix for CVE-2024-57699: Override json-smart version from transitive dependencies -->
+            <dependency>
+                <groupId>net.minidev</groupId>
+                <artifactId>json-smart</artifactId>
+                <version>2.5.2</version>
+            </dependency>
+            <!-- Fix for CVE-2020-15250: Override junit version from transitive dependencies -->
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>${junit.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <organization>
@@ -337,6 +363,12 @@
                                         <!-- 4. commons-text declares commons-lang3 3.13.0 (< 3.18.0) -->
                                         <exclude>META-INF/maven/org.apache.commons/commons-text/pom.xml</exclude>
                                         <exclude>META-INF/maven/org.apache.commons/commons-text/pom.properties</exclude>
+                                        <!-- 5. Fix for CVE-2020-15250: json-simple declares old junit -->
+                                        <exclude>META-INF/maven/com.googlecode.json-simple/json-simple/pom.xml</exclude>
+                                        <exclude>META-INF/maven/com.googlecode.json-simple/json-simple/pom.properties</exclude>
+                                        <!-- 6. Exclude old junit POM metadata directly -->
+                                        <exclude>META-INF/maven/junit/junit/pom.xml</exclude>
+                                        <exclude>META-INF/maven/junit/junit/pom.properties</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
