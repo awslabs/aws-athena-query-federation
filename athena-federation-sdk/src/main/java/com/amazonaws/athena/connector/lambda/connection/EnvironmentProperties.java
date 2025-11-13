@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.connection;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ public class EnvironmentProperties
 
     public Map<String, String> createEnvironment() throws RuntimeException
     {
-        HashMap<String, String> lambdaEnvironment = new HashMap<>(System.getenv());
+        HashMap<String, String> lambdaEnvironment = new HashMap<>(getEnvMap());
         String glueConnectionName = lambdaEnvironment.get(DEFAULT_GLUE_CONNECTION);
 
         HashMap<String, String> connectionEnvironment = new HashMap<>();
@@ -70,7 +71,7 @@ public class EnvironmentProperties
     public Connection getGlueConnection(String glueConnectionName) throws RuntimeException
     {
         try {
-            HashMap<String, String> lambdaEnvironment = new HashMap<>(System.getenv());
+            HashMap<String, String> lambdaEnvironment = new HashMap<>(getEnvMap());
             GlueClientBuilder awsGlue = GlueClient.builder()
                     .httpClientBuilder(ApacheHttpClient
                             .builder()
@@ -128,5 +129,14 @@ public class EnvironmentProperties
     public Map<String, String> connectionPropertiesToEnvironment(Map<String, String> connectionProperties)
     {
         return connectionProperties;
+    }
+
+    /**
+     * Extracted method for environment variables to allow overriding in tests.
+     */
+    @VisibleForTesting
+    protected Map<String, String> getEnvMap()
+    {
+        return System.getenv();
     }
 }

@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.connection;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.glue.model.AuthenticationConfiguration;
 import software.amazon.awssdk.services.glue.model.Connection;
 import software.amazon.awssdk.services.glue.model.ConnectionPropertyKey;
@@ -32,17 +32,14 @@ import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConsta
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.KMS_KEY_ID;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SECRET_NAME;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.SPILL_KMS_KEY_ID;
-
-import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 
-
-public class EnvironmentPropertiesTest {
-
+public class EnvironmentPropertiesTest
+{
     private static final String glueConnName = "my-glue-conn";
     private static final String secretArn = "arn:aws:secretsmanager:us-east-1:1234567890:secret:my-secret-abc123";
     private static final String expectedSecretName = "my-secret";
@@ -50,56 +47,72 @@ public class EnvironmentPropertiesTest {
     private static final String kmsKeyId = "kms-123";
     private static final String lambdaValue = "lambda-value";
 
+    // Testable subclass to override environment map
+    private static class TestableEnvironmentProperties extends EnvironmentProperties
+    {
+        private final Map<String, String> env;
 
-    @Test
-    public void testCreateEnvironmentWithSystemLambda() throws Exception {
-        withEnvironmentVariable(DEFAULT_GLUE_CONNECTION, glueConnName)
-                .and("OVERRIDE_VAR", lambdaValue)
-                .execute(() -> {
-                    EnvironmentProperties spyProps = spy(new EnvironmentProperties());
+        TestableEnvironmentProperties(Map<String, String> env)
+        {
+            this.env = env;
+        }
 
-                    AuthenticationConfiguration authConfig = AuthenticationConfiguration.builder()
-                            .secretArn(secretArn)
-                            .build();
-
-                    Map<ConnectionPropertyKey, String> connectionProps = new HashMap<>();
-                    connectionProps.put(ConnectionPropertyKey.DATABASE, testValue);
-
-                    Map<String, String> athenaProps = new HashMap<>();
-                    athenaProps.put(SPILL_KMS_KEY_ID, kmsKeyId);
-
-                    Connection glueConnection = Connection.builder()
-                            .name(glueConnName)
-                            .connectionProperties(connectionProps)
-                            .authenticationConfiguration(authConfig)
-                            .athenaProperties(athenaProps)
-                            .build();
-
-                    doReturn(glueConnection).when(spyProps).getGlueConnection(glueConnName);
-
-                    Map<String, String> result = spyProps.createEnvironment();
-
-                    assertEquals(glueConnName, result.get(DEFAULT_GLUE_CONNECTION));
-                    assertEquals(testValue, result.get(DATABASE));
-                    assertEquals(expectedSecretName, result.get(SECRET_NAME));
-                    assertEquals(kmsKeyId, result.get(KMS_KEY_ID));
-                    assertEquals(lambdaValue, result.get("OVERRIDE_VAR"));
-                });
+        @Override
+        protected Map<String, String> getEnvMap()
+        {
+            return env;
+        }
     }
 
     @Test
-    public void testCreateEnvironmentWithSystemLambda_GlueConnectionFails_ThrowsRuntimeException() throws Exception
+    public void testCreateEnvironmentWithOverriddenEnv()
     {
-        withEnvironmentVariable(DEFAULT_GLUE_CONNECTION, glueConnName)
-                .execute(() -> {
-                    EnvironmentProperties spyProps = spy(new EnvironmentProperties());
+        Map<String, String> fakeEnv = new HashMap<>();
+        fakeEnv.put(DEFAULT_GLUE_CONNECTION, glueConnName);
+        fakeEnv.put("OVERRIDE_VAR", lambdaValue);
 
-                    doThrow(new RuntimeException("Simulated failure"))
-                            .when(spyProps).getGlueConnection(glueConnName);
+        EnvironmentProperties spyProps = spy(new TestableEnvironmentProperties(fakeEnv));
 
-                    RuntimeException thrown = assertThrows(RuntimeException.class, spyProps::createEnvironment);
+        AuthenticationConfiguration authConfig = AuthenticationConfiguration.builder()
+                .secretArn(secretArn)
+                .build();
 
-                    assertEquals("Simulated failure", thrown.getMessage());
-                });
+        Map<ConnectionPropertyKey, String> connectionProps = new HashMap<>();
+        connectionProps.put(ConnectionPropertyKey.DATABASE, testValue);
+
+        Map<String, String> athenaProps = new HashMap<>();
+        athenaProps.put(SPILL_KMS_KEY_ID, kmsKeyId);
+
+        Connection glueConnection = Connection.builder()
+                .name(glueConnName)
+                .connectionProperties(connectionProps)
+                .authenticationConfiguration(authConfig)
+                .athenaProperties(athenaProps)
+                .build();
+
+        doReturn(glueConnection).when(spyProps).getGlueConnection(glueConnName);
+
+        Map<String, String> result = spyProps.createEnvironment();
+
+        assertEquals(glueConnName, result.get(DEFAULT_GLUE_CONNECTION));
+        assertEquals(testValue, result.get(DATABASE));
+        assertEquals(expectedSecretName, result.get(SECRET_NAME));
+        assertEquals(kmsKeyId, result.get(KMS_KEY_ID));
+        assertEquals(lambdaValue, result.get("OVERRIDE_VAR"));
+    }
+
+    @Test
+    public void testCreateEnvironmentWithOverriddenEnv_GlueConnectionFails_ThrowsRuntimeException()
+    {
+        Map<String, String> fakeEnv = new HashMap<>();
+        fakeEnv.put(DEFAULT_GLUE_CONNECTION, glueConnName);
+
+        EnvironmentProperties spyProps = spy(new TestableEnvironmentProperties(fakeEnv));
+
+        doThrow(new RuntimeException("Simulated failure"))
+                .when(spyProps).getGlueConnection(glueConnName);
+
+        RuntimeException thrown = assertThrows(RuntimeException.class, spyProps::createEnvironment);
+        assertEquals("Simulated failure", thrown.getMessage());
     }
 }
