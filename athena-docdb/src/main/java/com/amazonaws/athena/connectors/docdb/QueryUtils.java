@@ -466,17 +466,11 @@ public final class QueryUtils
                 case NAND:
                     // NAND operation: NOT(A AND B AND C) - exclude records where ALL conditions are true
                     // Also exclude records where any filtered field is null
-                    List<Document> andConditions = new ArrayList<>();
+                    List<Document> andConditions = buildChildDocuments((List<ColumnPredicate>) value);
                     Set<String> nandColumns = new HashSet<>();
                     
-                    // Process each child predicate and collect column names
+                    // Collect column names for null exclusion (silently skip null column names)
                     for (ColumnPredicate child : (List<ColumnPredicate>) value) {
-                        Document childDoc = convertColumnPredicatesToDoc(
-                                child.getColumn(),
-                                Collections.singletonList(child)
-                        );
-                        andConditions.add(childDoc);
-                        // Collect column names for null exclusion (silently skip null column names)
                         if (child.getColumn() != null) {
                             nandColumns.add(child.getColumn());
                         }
@@ -494,14 +488,9 @@ public final class QueryUtils
                     nandFinalConditions.add(nandCondition);
                     return new Document(AND_OP, nandFinalConditions);
                 case NOR:
-                    List<Document> orConditions = new ArrayList<>();
+                    List<Document> orConditions = buildChildDocuments((List<ColumnPredicate>) value);
                     Set<String> norColumns = new HashSet<>();
                     for (ColumnPredicate child : (List<ColumnPredicate>) value) {
-                        Document childDoc = convertColumnPredicatesToDoc(
-                                child.getColumn(),
-                                Collections.singletonList(child)
-                        );
-                        orConditions.add(childDoc);
                         if (child.getColumn() != null) {
                             norColumns.add(child.getColumn());
                         }
@@ -532,12 +521,7 @@ public final class QueryUtils
                 inPredicate = new Document(IN_OP, equalValues);
             }
             if (!otherPredicates.isEmpty()) {
-                List<Document> andConditions = new ArrayList<>();
-                andConditions.add(new Document(column, inPredicate));
-                for (Document otherPred : otherPredicates) {
-                    andConditions.add(new Document(column, otherPred));
-                }
-                return new Document(AND_OP, andConditions);
+                return buildAndConditionsForColumn(column, inPredicate, otherPredicates);
             }
             return documentOf(column, inPredicate);
         }
@@ -552,12 +536,7 @@ public final class QueryUtils
                 equalPredicate = new Document(EQ_OP, eqValue);
             }
             if (!otherPredicates.isEmpty()) {
-                List<Document> andConditions = new ArrayList<>();
-                andConditions.add(new Document(column, equalPredicate));
-                for (Document otherPred : otherPredicates) {
-                    andConditions.add(new Document(column, otherPred));
-                }
-                return new Document(AND_OP, andConditions);
+                return buildAndConditionsForColumn(column, equalPredicate, otherPredicates);
             }
             return documentOf(column, equalPredicate);
         }
@@ -578,24 +557,7 @@ public final class QueryUtils
             }
             else if (otherPredicates.size() > 1) {
                 // Multiple predicates in OR - handle NOT_EQUAL with null exclusion, others unchanged
-                List<Document> orConditions = new ArrayList<>();
-                for (Document predicate : otherPredicates) {
-                    if (predicate.containsKey(NOT_EQ_OP)) {
-                        // Add null exclusion only for NOT_EQUAL predicates
-                        // Example: {"$and": [{"column": {"$ne": null}}, {"column": {"$ne": "value"}}]}
-                        Document nullExclusion = new Document(column, isNotNullPredicate());
-                        Document notEqualCondition = new Document(column, predicate);
-                        orConditions.add(new Document(AND_OP, Arrays.asList(nullExclusion, notEqualCondition)));
-                    }
-                    else {
-                        // Keep other predicates unchanged (GREATER_THAN, LESS_THAN, etc.)
-                        // Example: {"column": {"$gt": 5}} remains as-is
-                        orConditions.add(new Document(column, predicate));
-                    }
-                }
-                // Combine all conditions with OR
-                // Example: {"$or": [{"$and": [null_check, not_equal]}, {"column": {"$gt": 5}}]}
-                return new Document(OR_OP, orConditions);
+                return buildOrConditionsWithNotEqualHandling(column, otherPredicates);
             }
             else {
                 // Single non-NOT_EQUAL predicate - no null exclusion needed
@@ -658,5 +620,55 @@ public final class QueryUtils
             return ((BigDecimal) value).doubleValue();
         }
         return value;
+    }
+
+    /**
+     * Helper method to build AND conditions for a column with multiple predicates
+     */
+    private static Document buildAndConditionsForColumn(String column, Document firstPredicate, List<Document> otherPredicates)
+    {
+        List<Document> andConditions = new ArrayList<>();
+        andConditions.add(new Document(column, firstPredicate));
+        for (Document otherPred : otherPredicates) {
+            andConditions.add(new Document(column, otherPred));
+        }
+        return new Document(AND_OP, andConditions);
+    }
+
+    /**
+     * Helper method to build OR conditions with special NOT_EQUAL handling
+     */
+    private static Document buildOrConditionsWithNotEqualHandling(String column, List<Document> predicates)
+    {
+        List<Document> orConditions = new ArrayList<>();
+        for (Document predicate : predicates) {
+            if (predicate.containsKey(NOT_EQ_OP)) {
+                // Add null exclusion only for NOT_EQUAL predicates
+                Document nullExclusion = new Document(column, isNotNullPredicate());
+                Document notEqualCondition = new Document(column, predicate);
+                orConditions.add(new Document(AND_OP, Arrays.asList(nullExclusion, notEqualCondition)));
+            }
+            else {
+                // Keep other predicates unchanged (GREATER_THAN, LESS_THAN, etc.)
+                orConditions.add(new Document(column, predicate));
+            }
+        }
+        return new Document(OR_OP, orConditions);
+    }
+
+    /**
+     * Helper method to build conditions from child predicates
+     */
+    private static List<Document> buildChildDocuments(List<ColumnPredicate> children)
+    {
+        List<Document> childDocuments = new ArrayList<>();
+        for (ColumnPredicate child : children) {
+            Document childDoc = convertColumnPredicatesToDoc(
+                    child.getColumn(),
+                    Collections.singletonList(child)
+            );
+            childDocuments.add(childDoc);
+        }
+        return childDocuments;
     }
 }
