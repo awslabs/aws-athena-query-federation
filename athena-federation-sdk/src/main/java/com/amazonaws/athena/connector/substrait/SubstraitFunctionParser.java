@@ -33,6 +33,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.AND_BOOL;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.EQUAL_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GTE_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GTE_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.IS_NOT_NULL_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.IS_NULL_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LTE_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LTE_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.NOT_BOOL;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.NOT_EQUAL_ANY_ANY;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.OR_BOOL;
+
 /**
  * Utility class for parsing Substrait function expressions into filter predicates and column predicates.
  * This parser handles scalar functions, comparison operations, logical operations (AND/OR), and literal values
@@ -87,7 +103,7 @@ public final class SubstraitFunctionParser
         }
 
         // Handle NOT unary operator
-        if ("not:bool".equals(functionInfo.getFunctionName())) {
+        if (NOT_BOOL.equals(functionInfo.getFunctionName())) {
             ColumnPredicate notPredicate = handleNotOperator(functionInfo, extensionDeclarationList, columnNames);
             if (notPredicate != null) {
                 columnPredicates.add(notPredicate);
@@ -144,7 +160,7 @@ public final class SubstraitFunctionParser
 
         // Handle NOT operator by delegating to handleNotOperator which converts NOT(expr)
         // to appropriate predicates (NOT_EQUAL, NAND, NOR) based on the inner expression type
-        if ("not:bool".equals(functionInfo.getFunctionName())) {
+        if (NOT_BOOL.equals(functionInfo.getFunctionName())) {
             ColumnPredicate notPredicate = handleNotOperator(functionInfo, extensionDeclarationList, columnNames);
             if (notPredicate != null) {
                 return new LogicalExpression(notPredicate);
@@ -275,7 +291,7 @@ public final class SubstraitFunctionParser
      */
     private static boolean isLogicalOperator(String functionName)
     {
-        return "and:bool".equals(functionName) || "or:bool".equals(functionName);
+        return AND_BOOL.equals(functionName) || OR_BOOL.equals(functionName);
     }
 
     /**
@@ -290,17 +306,17 @@ public final class SubstraitFunctionParser
     private static SubstraitOperator mapToOperator(String functionName)
     {
         return switch (functionName) {
-            case "gt:any_any", "gt:pts_pts" -> SubstraitOperator.GREATER_THAN;
-            case "gte:any_any", "gte:pts_pts" -> SubstraitOperator.GREATER_THAN_OR_EQUAL_TO;
-            case "lt:any_any", "lt:pts_pts" -> SubstraitOperator.LESS_THAN;
-            case "lte:any_any", "lte:pts_pts" -> SubstraitOperator.LESS_THAN_OR_EQUAL_TO;
-            case "equal:any_any" -> SubstraitOperator.EQUAL;
-            case "not_equal:any_any" -> SubstraitOperator.NOT_EQUAL;
-            case "is_null:any" -> SubstraitOperator.IS_NULL;
-            case "is_not_null:any" -> SubstraitOperator.IS_NOT_NULL;
-            case "and:bool" -> SubstraitOperator.AND;
-            case "or:bool" -> SubstraitOperator.OR;
-            case "not:bool" -> SubstraitOperator.NOT;
+            case GT_ANY_ANY, GT_PTS_PTS -> SubstraitOperator.GREATER_THAN;
+            case GTE_ANY_ANY, GTE_PTS_PTS -> SubstraitOperator.GREATER_THAN_OR_EQUAL_TO;
+            case LT_ANY_ANY, LT_PTS_PTS -> SubstraitOperator.LESS_THAN;
+            case LTE_ANY_ANY, LTE_PTS_PTS -> SubstraitOperator.LESS_THAN_OR_EQUAL_TO;
+            case EQUAL_ANY_ANY -> SubstraitOperator.EQUAL;
+            case NOT_EQUAL_ANY_ANY -> SubstraitOperator.NOT_EQUAL;
+            case IS_NULL_ANY -> SubstraitOperator.IS_NULL;
+            case IS_NOT_NULL_ANY -> SubstraitOperator.IS_NOT_NULL;
+            case AND_BOOL -> SubstraitOperator.AND;
+            case OR_BOOL -> SubstraitOperator.OR;
+            case NOT_BOOL -> SubstraitOperator.NOT;
             default -> throw new UnsupportedOperationException("Unsupported operator function: " + functionName);
         };
     }
@@ -350,7 +366,7 @@ public final class SubstraitFunctionParser
         Expression innerExpression = notFunctionInfo.getArguments().get(0).getValue();
         ScalarFunctionInfo innerFunctionInfo = extractScalarFunctionInfo(innerExpression, extensionDeclarationList);
         // Case: NOT(AND(...)) => NAND
-        if (innerFunctionInfo != null && "and:bool".equals(innerFunctionInfo.getFunctionName())) {
+        if (innerFunctionInfo != null && AND_BOOL.equals(innerFunctionInfo.getFunctionName())) {
             List<ColumnPredicate> childPredicates =
                     parseColumnPredicates(extensionDeclarationList, innerExpression, columnNames);
             return new ColumnPredicate(
@@ -361,7 +377,7 @@ public final class SubstraitFunctionParser
             );
         }
         // Case: NOT(OR(...)) => NOR
-        if (innerFunctionInfo != null && "or:bool".equals(innerFunctionInfo.getFunctionName())) {
+        if (innerFunctionInfo != null && OR_BOOL.equals(innerFunctionInfo.getFunctionName())) {
             List<ColumnPredicate> childPredicates =
                     parseColumnPredicates(extensionDeclarationList, innerExpression, columnNames);
             return new ColumnPredicate(

@@ -38,6 +38,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.EQUAL_ANY_ANY;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,7 +50,7 @@ class SubstraitFunctionParserTest
     @Test
     void testGetColumnPredicatesMapWithSinglePredicate()
     {
-        SimpleExtensionDeclaration extension = createExtensionDeclaration(1, "equal:any_any");
+        SimpleExtensionDeclaration extension = createExtensionDeclaration(1, EQUAL_ANY_ANY);
         List<SimpleExtensionDeclaration> extensions = Arrays.asList(extension);
         Expression expression = createBinaryExpression(1, 0, 123);
         

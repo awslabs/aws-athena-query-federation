@@ -398,9 +398,8 @@ public final class QueryUtils
         return switch (expression.getOperator()) {
             case AND -> new Document(AND_OP, childDocuments); // {"$and": [{"col1": "val1"}, {"col2": "val2"}]}
             case OR -> new Document(OR_OP, childDocuments);   // {"$or": [{"col1": "val1"}, {"col2": "val2"}]}
-            default ->
-                // For unknown operators, default to OR for safety
-                    new Document(OR_OP, childDocuments);
+            default -> throw new UnsupportedOperationException(
+                "Unsupported logical operator: " + expression.getOperator());
         };
     }
 
@@ -412,21 +411,19 @@ public final class QueryUtils
         if (colPreds == null || colPreds.isEmpty()) {
             return new Document();
         }
-        // Special handling for universal constraints (none / all)
-        for (ColumnPredicate pred : colPreds) {
-            if (pred.getOperator() == SubstraitOperator.IS_NULL) {
-                return documentOf(column, isNullPredicate());
-            }
-            if (pred.getOperator() == SubstraitOperator.IS_NOT_NULL) {
-                return documentOf(column, isNotNullPredicate());
-            }
-        }
+        
         List<Object> equalValues = new ArrayList<>();
         List<Document> otherPredicates = new ArrayList<>();
         for (ColumnPredicate pred : colPreds) {
             Object value = convertSubstraitValue(pred);
             SubstraitOperator op = pred.getOperator();
             switch (op) {
+                case IS_NULL:
+                    otherPredicates.add(isNullPredicate());
+                    break;
+                case IS_NOT_NULL:
+                    otherPredicates.add(isNotNullPredicate());
+                    break;
                 case EQUAL:
                     equalValues.add(value);
                     break;
