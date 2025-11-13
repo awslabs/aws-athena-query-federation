@@ -395,12 +395,15 @@ public final class QueryUtils
 
         // Apply the logical operator to combine child documents
         // Example: AND → {"$and": [child1, child2]}, OR → {"$or": [child1, child2]}
-        return switch (expression.getOperator()) {
-            case AND -> new Document(AND_OP, childDocuments); // {"$and": [{"col1": "val1"}, {"col2": "val2"}]}
-            case OR -> new Document(OR_OP, childDocuments);   // {"$or": [{"col1": "val1"}, {"col2": "val2"}]}
-            default -> throw new UnsupportedOperationException(
-                "Unsupported logical operator: " + expression.getOperator());
-        };
+        switch (expression.getOperator()) {
+            case AND:
+                return new Document(AND_OP, childDocuments); // {"$and": [{"col1": "val1"}, {"col2": "val2"}]}
+            case OR:
+                return new Document(OR_OP, childDocuments);   // {"$or": [{"col1": "val1"}, {"col2": "val2"}]}
+            default:
+                throw new UnsupportedOperationException(
+                    "Unsupported logical operator: " + expression.getOperator());
+        }
     }
 
     /**

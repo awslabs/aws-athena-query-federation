@@ -305,20 +305,36 @@ public final class SubstraitFunctionParser
      */
     private static SubstraitOperator mapToOperator(String functionName)
     {
-        return switch (functionName) {
-            case GT_ANY_ANY, GT_PTS_PTS -> SubstraitOperator.GREATER_THAN;
-            case GTE_ANY_ANY, GTE_PTS_PTS -> SubstraitOperator.GREATER_THAN_OR_EQUAL_TO;
-            case LT_ANY_ANY, LT_PTS_PTS -> SubstraitOperator.LESS_THAN;
-            case LTE_ANY_ANY, LTE_PTS_PTS -> SubstraitOperator.LESS_THAN_OR_EQUAL_TO;
-            case EQUAL_ANY_ANY -> SubstraitOperator.EQUAL;
-            case NOT_EQUAL_ANY_ANY -> SubstraitOperator.NOT_EQUAL;
-            case IS_NULL_ANY -> SubstraitOperator.IS_NULL;
-            case IS_NOT_NULL_ANY -> SubstraitOperator.IS_NOT_NULL;
-            case AND_BOOL -> SubstraitOperator.AND;
-            case OR_BOOL -> SubstraitOperator.OR;
-            case NOT_BOOL -> SubstraitOperator.NOT;
-            default -> throw new UnsupportedOperationException("Unsupported operator function: " + functionName);
-        };
+        switch (functionName) {
+            case GT_ANY_ANY:
+            case GT_PTS_PTS:
+                return SubstraitOperator.GREATER_THAN;
+            case GTE_ANY_ANY:
+            case GTE_PTS_PTS:
+                return SubstraitOperator.GREATER_THAN_OR_EQUAL_TO;
+            case LT_ANY_ANY:
+            case LT_PTS_PTS:
+                return SubstraitOperator.LESS_THAN;
+            case LTE_ANY_ANY:
+            case LTE_PTS_PTS:
+                return SubstraitOperator.LESS_THAN_OR_EQUAL_TO;
+            case EQUAL_ANY_ANY:
+                return SubstraitOperator.EQUAL;
+            case NOT_EQUAL_ANY_ANY:
+                return SubstraitOperator.NOT_EQUAL;
+            case IS_NULL_ANY:
+                return SubstraitOperator.IS_NULL;
+            case IS_NOT_NULL_ANY:
+                return SubstraitOperator.IS_NOT_NULL;
+            case AND_BOOL:
+                return SubstraitOperator.AND;
+            case OR_BOOL:
+                return SubstraitOperator.OR;
+            case NOT_BOOL:
+                return SubstraitOperator.NOT;
+            default:
+                throw new UnsupportedOperationException("Unsupported operator function: " + functionName);
+        }
     }
 
     /**
@@ -453,34 +469,34 @@ public final class SubstraitFunctionParser
      */
     private static ColumnPredicate createNegatedPredicate(ColumnPredicate predicate)
     {
-        return switch (predicate.getOperator()) {
-            case EQUAL ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.NOT_EQUAL,
-                            predicate.getValue(), predicate.getArrowType());
-            case NOT_EQUAL ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.EQUAL,
-                            predicate.getValue(), predicate.getArrowType());
-            case GREATER_THAN ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.LESS_THAN_OR_EQUAL_TO,
-                            predicate.getValue(), predicate.getArrowType());
-            case GREATER_THAN_OR_EQUAL_TO ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.LESS_THAN,
-                            predicate.getValue(), predicate.getArrowType());
-            case LESS_THAN ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.GREATER_THAN_OR_EQUAL_TO,
-                            predicate.getValue(), predicate.getArrowType());
-            case LESS_THAN_OR_EQUAL_TO ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.GREATER_THAN,
-                            predicate.getValue(), predicate.getArrowType());
-            case IS_NULL ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.IS_NOT_NULL,
-                            null, predicate.getArrowType());
-            case IS_NOT_NULL ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.IS_NULL,
-                            null, predicate.getArrowType());
-            default ->
-                    new ColumnPredicate(predicate.getColumn(), SubstraitOperator.NOT,
-                            predicate.getValue(), predicate.getArrowType());
-        };
+        switch (predicate.getOperator()) {
+            case EQUAL:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.NOT_EQUAL,
+                        predicate.getValue(), predicate.getArrowType());
+            case NOT_EQUAL:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.EQUAL,
+                        predicate.getValue(), predicate.getArrowType());
+            case GREATER_THAN:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.LESS_THAN_OR_EQUAL_TO,
+                        predicate.getValue(), predicate.getArrowType());
+            case GREATER_THAN_OR_EQUAL_TO:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.LESS_THAN,
+                        predicate.getValue(), predicate.getArrowType());
+            case LESS_THAN:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.GREATER_THAN_OR_EQUAL_TO,
+                        predicate.getValue(), predicate.getArrowType());
+            case LESS_THAN_OR_EQUAL_TO:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.GREATER_THAN,
+                        predicate.getValue(), predicate.getArrowType());
+            case IS_NULL:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.IS_NOT_NULL,
+                        null, predicate.getArrowType());
+            case IS_NOT_NULL:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.IS_NULL,
+                        null, predicate.getArrowType());
+            default:
+                return new ColumnPredicate(predicate.getColumn(), SubstraitOperator.NOT,
+                        predicate.getValue(), predicate.getArrowType());
+        }
     }
 }
