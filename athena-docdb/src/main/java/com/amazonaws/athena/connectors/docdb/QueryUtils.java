@@ -293,7 +293,7 @@ public final class QueryUtils
     }
 
     /**
-     * Enhanced query builder that tries tree-based approach first, then falls back to flattened approach
+     * Enhanced query builder that tries tree-based approach first, then falls back to flattened approach if it fails
      * Example: "job_title IN ('A', 'B') OR job_title < 'C'" → {"$or": [{"job_title": {"$in": ["A", "B"]}}, {"job_title": {"$lt": "C"}}]}
      */
     public static Document makeEnhancedQueryFromPlan(Plan plan)
@@ -326,36 +326,14 @@ public final class QueryUtils
             }
         }
         catch (Exception e) {
-            log.warn("Tree-based parsing failed - fall back to flattened approach  {}", e.getMessage());
+            log.warn("Tree-based parsing failed {}. Returning empty document to return all results.", e.getMessage(), e);
         }
-
-        // Fall back to existing flattened approach for backward compatibility
-        // This maintains support for edge cases where tree-based parsing might fail
-        final Map<String, List<ColumnPredicate>> predicates = SubstraitFunctionParser.getColumnPredicatesMap(
-                extensionDeclarations,
-                substraitRelModel.getFilterRel().getCondition(),
-                tableColumns);
-        return makeQueryFromPlan(predicates);
+        return new Document();
     }
 
     /**
      * Converts Substrait column predicates to MongoDB filter Document
      */
-    public static Document makeQueryFromPlan(Map<String, List<ColumnPredicate>> predicates)
-    {
-        if (Objects.isNull(predicates)) {
-            return new Document();
-        }
-        Document query = new Document();
-        for (Map.Entry<String, List<ColumnPredicate>> entry : predicates.entrySet()) {
-            Document filter = convertColumnPredicatesToDoc(entry.getKey(), entry.getValue());
-            if (filter != null) {
-                query.putAll(filter);
-            }
-        }
-        return query;
-    }
-
     /**
      * Converts a LogicalExpression tree to MongoDB filter Document while preserving logical structure
      * Example: OR(EQUAL(job_title, 'A'), EQUAL(job_title, 'B')) → {"$or": [{"job_title": {"$eq": "A"}}, {"job_title": {"$eq": "B"}}]}
@@ -402,7 +380,7 @@ public final class QueryUtils
                 return new Document(OR_OP, childDocuments);   // {"$or": [{"col1": "val1"}, {"col2": "val2"}]}
             default:
                 throw new UnsupportedOperationException(
-                    "Unsupported logical operator: " + expression.getOperator());
+                        "Unsupported logical operator: " + expression.getOperator());
         }
     }
 
@@ -414,7 +392,7 @@ public final class QueryUtils
         if (colPreds == null || colPreds.isEmpty()) {
             return new Document();
         }
-        
+
         List<Object> equalValues = new ArrayList<>();
         List<Document> otherPredicates = new ArrayList<>();
         for (ColumnPredicate pred : colPreds) {
@@ -468,19 +446,19 @@ public final class QueryUtils
                     // Also exclude records where any filtered field is null
                     List<Document> andConditions = buildChildDocuments((List<ColumnPredicate>) value);
                     Set<String> nandColumns = new HashSet<>();
-                    
+
                     // Collect column names for null exclusion (silently skip null column names)
                     for (ColumnPredicate child : (List<ColumnPredicate>) value) {
                         if (child.getColumn() != null) {
                             nandColumns.add(child.getColumn());
                         }
                     }
-                    
+
                     // NAND = $nor applied to a single $and group, with null exclusion for filtered columns
                     // Example: {"$and": [{"col1": {"$ne": null}}, {"col2": {"$ne": null}}, {"$nor": [{"$and": [conditions]}]}]}
                     Document nandCondition = new Document(NOR_OP, Collections.singletonList(new Document(AND_OP, andConditions)));
                     List<Document> nandFinalConditions = new ArrayList<>();
-                    
+
                     // Add null exclusion for each column involved in NAND operation
                     for (String col : nandColumns) {
                         nandFinalConditions.add(new Document(col, isNotNullPredicate()));
@@ -543,10 +521,11 @@ public final class QueryUtils
         // Handle non-EQUAL predicates with special null exclusion for NOT_EQUAL operations
         // NOT_EQUAL operations should exclude records where the field is null to match SQL semantics
         else if (!otherPredicates.isEmpty()) {
-            // Check if any predicate is NOT_EQUAL - these need null exclusion
+            // Check if any predicate is NOT_EQUAL with a non-null value - these need null exclusion
             // Example: "column <> 'value'" should not match records where column is null
+            // Exclude IS_NOT_NULL predicates (which are {$ne: null}) from this check
             boolean hasNotEqual = otherPredicates.stream()
-                    .anyMatch(doc -> doc.containsKey(NOT_EQ_OP));
+                    .anyMatch(doc -> doc.containsKey(NOT_EQ_OP) && doc.get(NOT_EQ_OP) != null);
 
             if (hasNotEqual && otherPredicates.size() == 1) {
                 // Single NOT_EQUAL case - wrap with null exclusion
@@ -642,8 +621,8 @@ public final class QueryUtils
     {
         List<Document> orConditions = new ArrayList<>();
         for (Document predicate : predicates) {
-            if (predicate.containsKey(NOT_EQ_OP)) {
-                // Add null exclusion only for NOT_EQUAL predicates
+            if (predicate.containsKey(NOT_EQ_OP) && predicate.get(NOT_EQ_OP) != null) {
+                // Add null exclusion only for NOT_EQUAL predicates with non-null values
                 Document nullExclusion = new Document(column, isNotNullPredicate());
                 Document notEqualCondition = new Document(column, predicate);
                 orConditions.add(new Document(AND_OP, Arrays.asList(nullExclusion, notEqualCondition)));

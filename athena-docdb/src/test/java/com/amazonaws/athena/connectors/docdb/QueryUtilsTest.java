@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,9 +20,11 @@
 package com.amazonaws.athena.connectors.docdb;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.substrait.SubstraitRelUtils;
 import com.amazonaws.athena.connector.substrait.model.ColumnPredicate;
 import com.amazonaws.athena.connector.substrait.model.LogicalExpression;
 import com.amazonaws.athena.connector.substrait.model.SubstraitOperator;
@@ -34,18 +36,17 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.bson.Document;
 import org.bson.types.ObjectId;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class QueryUtilsTest
@@ -115,30 +116,6 @@ public class QueryUtilsTest
         });
     }
 
-    @ParameterizedTest
-    @MethodSource("inputTestMakeQueryFromPlanPredicateProvider")
-    public void testMakeQueryFromPlanWithDifferentOperators(final SubstraitOperator operator, final Object value,
-                                                            final String expectedMongoOp, final ArrowType arrowType)
-    {
-        ColumnPredicate pred = new ColumnPredicate("colX", operator, value, arrowType);
-        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("colX",
-                Collections.singletonList(pred));
-
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-
-        assertNotNull(result);
-        Document colDoc = (Document) result.get("colX");
-        if (colDoc != null) {
-            assertTrue(colDoc.containsKey(expectedMongoOp));
-            if (value != null && !operator.equals(SubstraitOperator.IS_NULL) && !operator.equals(SubstraitOperator.IS_NOT_NULL)) {
-                assertEquals(value, colDoc.get(expectedMongoOp));
-            }
-        } else {
-            // Some operators may not be supported or may generate different query structures
-            System.out.println("Query result for operator " + operator + " did not contain expected colX field: " + result.toJson());
-        }
-    }
-
     @Test
     public void testBuildFilterPredicatesFromPlan_withNoRelations()
     {
@@ -155,178 +132,6 @@ public class QueryUtilsTest
         assertTrue(result.isEmpty());
     }
 
-    @ParameterizedTest
-    @MethodSource("multipleEqualPredicatesProvider")
-    public void testMakeQueryFromPlanWithMultipleEqualPredicates(List<Object> values, List<Object> expectedInValues)
-    {
-        List<ColumnPredicate> predicatesList = values.stream()
-                .map(value -> new ColumnPredicate("colX", SubstraitOperator.EQUAL, value, new ArrowType.Int(32, true)))
-                .collect(Collectors.toList());
-        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("colX", predicatesList);
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        assertNotNull(result);
-        Document colDoc = (Document) result.get("colX");
-        if (values.size() == 1) {
-            assertTrue(colDoc.containsKey("$eq"));
-            assertEquals(values.get(0), colDoc.get("$eq"));
-        } else {
-            assertTrue(colDoc.containsKey("$in"));
-            assertEquals(expectedInValues, colDoc.get("$in"));
-        }
-    }
-
-    // Parameterized test for mixed predicate combinations
-    @ParameterizedTest
-    @MethodSource("mixedPredicatesProvider")
-    public void testMakeQueryFromPlanWithMixedPredicates(List<ColumnPredicate> predicatesList,
-                                                         String expectedOperator,
-                                                         Object expectedContent)
-    {
-        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("colX", predicatesList);
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        assertNotNull(result);
-        if ("$and".equals(expectedOperator) || "$or".equals(expectedOperator)) {
-            assertTrue(result.containsKey(expectedOperator));
-            List<Document> conditions = (List<Document>) result.get(expectedOperator);
-            assertEquals(expectedContent, conditions);
-        } else {
-            Document colDoc = (Document) result.get("colX");
-            assertTrue(colDoc.containsKey(expectedOperator));
-            assertEquals(expectedContent, colDoc.get(expectedOperator));
-        }
-    }
-
-    @Test
-    public void testMakeQueryFromPlanWithMultipleColumns()
-    {
-        List<ColumnPredicate> col1Predicates = Arrays.asList(
-                new ColumnPredicate("col1", SubstraitOperator.EQUAL, 123, new ArrowType.Int(32, true)),
-                new ColumnPredicate("col1", SubstraitOperator.EQUAL, 456, new ArrowType.Int(32, true))
-        );
-        List<ColumnPredicate> col2Predicates = Collections.singletonList(
-                new ColumnPredicate("col2", SubstraitOperator.GREATER_THAN, 100, new ArrowType.Int(32, true))
-        );
-        Map<String, List<ColumnPredicate>> predicates = new HashMap<>();
-        predicates.put("col1", col1Predicates);
-        predicates.put("col2", col2Predicates);
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        Document col1Doc = (Document) result.get("col1");
-        assertTrue(col1Doc.containsKey("$in"));
-        assertEquals(Arrays.asList(123, 456), col1Doc.get("$in"));
-        Document col2Doc = (Document) result.get("col2");
-        assertTrue(col2Doc.containsKey("$gt"));
-        assertEquals(100, col2Doc.get("$gt"));
-    }
-
-    @Test
-    public void testMakeQueryFromPlanWithEmptyPredicates()
-    {
-        Map<String, List<ColumnPredicate>> predicates = new HashMap<>();
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    public void testMakeQueryFromPlanWithNullPredicates()
-    {
-        Document result = QueryUtils.makeQueryFromPlan(null);
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    private static Stream<Arguments> multipleEqualPredicatesProvider()
-    {
-        return Stream.of(
-                // Single value (should use $eq)
-                Arguments.of(Arrays.asList(123), Arrays.asList(123)),
-                // Multiple values (should use $in)
-                Arguments.of(Arrays.asList(123, 456), Arrays.asList(123, 456)),
-                Arguments.of(Arrays.asList(123, 456, 789), Arrays.asList(123, 456, 789)),
-                // String values
-                Arguments.of(Arrays.asList("a", "b"), Arrays.asList("a", "b"))
-        );
-    }
-
-    private static Stream<Arguments> mixedPredicatesProvider()
-    {
-        return Stream.of(
-                // Multiple EQUAL predicates (IN condition)
-                Arguments.of(
-                        Arrays.asList(
-                                new ColumnPredicate("colX", SubstraitOperator.EQUAL, 123, new ArrowType.Int(32, true)),
-                                new ColumnPredicate("colX", SubstraitOperator.EQUAL, 456, new ArrowType.Int(32, true))
-                        ),
-                        "$in",
-                        Arrays.asList(123, 456)
-                ),
-                // IN + GT (should use $and)
-                Arguments.of(
-                        Arrays.asList(
-                                new ColumnPredicate("colX", SubstraitOperator.EQUAL, 123, new ArrowType.Int(32, true)),
-                                new ColumnPredicate("colX", SubstraitOperator.EQUAL, 456, new ArrowType.Int(32, true)),
-                                new ColumnPredicate("colX", SubstraitOperator.GREATER_THAN, 100, new ArrowType.Int(32, true))
-                        ),
-                        "$and",
-                        Arrays.asList(
-                                new Document("colX", new Document("$in", Arrays.asList(123, 456))),
-                                new Document("colX", new Document("$gt", 100))
-                        )
-                ),
-                // Multiple non-EQUAL predicates (should use $or)
-                Arguments.of(
-                        Arrays.asList(
-                                new ColumnPredicate("colX", SubstraitOperator.GREATER_THAN, 100, new ArrowType.Int(32, true)),
-                                new ColumnPredicate("colX", SubstraitOperator.LESS_THAN, 200, new ArrowType.Int(32, true))
-                        ),
-                        "$or",
-                        Arrays.asList(
-                                new Document("colX", new Document("$gt", 100)),
-                                new Document("colX", new Document("$lt", 200))
-                        )
-                )
-        );
-    }
-
-    @Test
-    public void testMakeQueryFromPlanWithComplexNorOperator()
-    {
-        // NOR with different operators: NOR(col1 > 100, col2 < 50)
-        ColumnPredicate pred1 = new ColumnPredicate("col1", SubstraitOperator.GREATER_THAN, 100, new ArrowType.Int(32, true));
-        ColumnPredicate pred2 = new ColumnPredicate("col2", SubstraitOperator.LESS_THAN, 50, new ArrowType.Int(32, true));
-        List<ColumnPredicate> childPredicates = Arrays.asList(pred1, pred2);
-        
-        ColumnPredicate norPred = new ColumnPredicate(null, SubstraitOperator.NOR, childPredicates, null);
-        Map<String, List<ColumnPredicate>> predicates = Collections.singletonMap("combined", Collections.singletonList(norPred));
-        
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        
-        assertNotNull(result);
-        if (result.containsKey("$nor")) {
-            List<Document> norConditions = (List<Document>) result.get("$nor");
-            assertEquals(2, norConditions.size());
-            
-            // Verify first condition: col1 > 100
-            Document col1Condition = norConditions.get(0);
-            assertTrue(col1Condition.containsKey("col1"));
-            Document col1Doc = (Document) col1Condition.get("col1");
-            assertTrue(col1Doc.containsKey("$gt"));
-            assertEquals(100, col1Doc.get("$gt"));
-            
-            // Verify second condition: col2 < 50
-            Document col2Condition = norConditions.get(1);
-            assertTrue(col2Condition.containsKey("col2"));
-            Document col2Doc = (Document) col2Condition.get("col2");
-            assertTrue(col2Doc.containsKey("$lt"));
-            assertEquals(50, col2Doc.get("$lt"));
-        } else {
-            // NOR operation may generate different structure or not be fully supported
-            System.out.println("NOR test result did not contain expected $nor field: " + result.toJson());
-        }
-    }
-
     // Tests for makeQueryFromLogicalExpression method
     @Test
     void testMakeQueryFromLogicalExpressionWithLeafPredicate()
@@ -334,9 +139,9 @@ public class QueryUtilsTest
         // Test single leaf predicate: job_title = 'Engineer'
         ColumnPredicate predicate = new ColumnPredicate("job_title", SubstraitOperator.EQUAL, "Engineer", new ArrowType.Utf8());
         LogicalExpression leafExpr = new LogicalExpression(predicate);
-        
+
         Document result = QueryUtils.makeQueryFromLogicalExpression(leafExpr);
-        
+
         // Should return: {"job_title": {"$eq": "Engineer"}}
         assertTrue(result.containsKey("job_title"));
         Document jobTitleDoc = (Document) result.get("job_title");
@@ -349,13 +154,13 @@ public class QueryUtilsTest
         // Test AND operation: job_title = 'Engineer' AND department = 'IT'
         ColumnPredicate pred1 = new ColumnPredicate("job_title", SubstraitOperator.EQUAL, "Engineer", new ArrowType.Utf8());
         ColumnPredicate pred2 = new ColumnPredicate("department", SubstraitOperator.EQUAL, "IT", new ArrowType.Utf8());
-        
+
         LogicalExpression left = new LogicalExpression(pred1);
         LogicalExpression right = new LogicalExpression(pred2);
         LogicalExpression andExpr = new LogicalExpression(SubstraitOperator.AND, Arrays.asList(left, right));
-        
+
         Document result = QueryUtils.makeQueryFromLogicalExpression(andExpr);
-        
+
         assertTrue(result.containsKey("$and"));
         List<Document> andConditions = (List<Document>) result.get("$and");
         assertEquals(2, andConditions.size());
@@ -367,13 +172,13 @@ public class QueryUtilsTest
         // Test OR operation: job_title = 'Engineer' OR job_title = 'Manager'
         ColumnPredicate pred1 = new ColumnPredicate("job_title", SubstraitOperator.EQUAL, "Engineer", new ArrowType.Utf8());
         ColumnPredicate pred2 = new ColumnPredicate("job_title", SubstraitOperator.EQUAL, "Manager", new ArrowType.Utf8());
-        
+
         LogicalExpression left = new LogicalExpression(pred1);
         LogicalExpression right = new LogicalExpression(pred2);
         LogicalExpression orExpr = new LogicalExpression(SubstraitOperator.OR, Arrays.asList(left, right));
-        
+
         Document result = QueryUtils.makeQueryFromLogicalExpression(orExpr);
-        
+
         assertTrue(result.containsKey("$or"));
         List<Document> orConditions = (List<Document>) result.get("$or");
         assertEquals(2, orConditions.size());
@@ -384,7 +189,7 @@ public class QueryUtilsTest
     {
         // Test null expression
         Document result = QueryUtils.makeQueryFromLogicalExpression(null);
-        
+
         assertTrue(result.isEmpty());
     }
 
@@ -395,175 +200,368 @@ public class QueryUtilsTest
         ColumnPredicate predicate = new ColumnPredicate("job_title", SubstraitOperator.EQUAL, "Engineer", new ArrowType.Utf8());
         LogicalExpression leafExpr = new LogicalExpression(predicate);
         LogicalExpression singleChildExpr = new LogicalExpression(SubstraitOperator.OR, Arrays.asList(leafExpr));
-        
+
         Document result = QueryUtils.makeQueryFromLogicalExpression(singleChildExpr);
-        
+
         // Should return the child directly: {"job_title": {"$eq": "Engineer"}}
         assertTrue(result.containsKey("job_title"));
         Document jobTitleDoc = (Document) result.get("job_title");
         assertEquals("Engineer", jobTitleDoc.get("$eq"));
     }
 
-    // Tests for makeEnhancedQueryFromPlan method
     @Test
     void testMakeEnhancedQueryFromPlanWithNullPlan()
     {
-        // Test null plan
         Document result = QueryUtils.makeEnhancedQueryFromPlan(null);
-        
         assertTrue(result.isEmpty());
     }
 
-    // Tests for NOT_EQUAL null exclusion in convertColumnPredicatesToDoc (tested via makeQueryFromPlan)
     @Test
-    void testMakeQueryFromPlanWithSingleNotEqual()
+    void testMakeEnhancedQueryFromPlan_SingleEqual()
     {
-        // Test single NOT_EQUAL predicate with null exclusion
-        ColumnPredicate notEqualPred = new ColumnPredicate("job_title", SubstraitOperator.NOT_EQUAL, "Manager", new ArrowType.Utf8());
-        Map<String, List<ColumnPredicate>> predicates = new HashMap<>();
-        predicates.put("job_title", Arrays.asList(notEqualPred));
-        
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        
-        // Should generate: {"$and": [{"job_title": {"$ne": null}}, {"job_title": {"$ne": "Manager"}}]}
-        assertTrue(result.containsKey("$and"));
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE employee_name = 'John Doe'
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSExoRCAEaDWVxdWFsOmFueV9hbnkazwYSzAYKlgU6kwUKGBIWChQUFRYXGBkaGxwdHh8gISIjJCUmJxKIAxKFAwoCCgAS1gIK0wIKAgoAErACCgNfaWQKAmlkCglpc19hY3RpdmUKDWVtcGxveWVlX25hbWUKCWpvYl90aXRsZQoHYWRkcmVzcwoJam9pbl9kYXRlCg10aW1lc3RhbXBfY29sCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoJY291bnRfY29sCgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USewoEYgIQAQoEKgIQAQoECgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoFigICGAEKBGICEAEKBGICEAEKBFoCEAEKBDoCEAEKBDoCEAEKBCoCEAEKBGICEAEKBDoCEAEKBGICEAEKBDoCEAEKBGICEAEKBDoCEAEYAjoaChhtb25nb2RiX2Jhc2ljX2NvbGxlY3Rpb24aJhokGgQKAhABIgwaChIICgQSAggDIgAiDhoMCgpiCEpvaG4gRG9lGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKEggKBBICCAMiABoKEggKBBICCAQiABoKEggKBBICCAUiABoKEggKBBICCAYiABoKEggKBBICCAciABoKEggKBBICCAgiABoKEggKBBICCAkiABoKEggKBBICCAoiABoKEggKBBICCAsiABoKEggKBBICCAwiABoKEggKBBICCA0iABoKEggKBBICCA4iABoKEggKBBICCA8iABoKEggKBBICCBAiABoKEggKBBICCBEiABoKEggKBBICCBIiABoKEggKBBICCBMiABIDX2lkEgJpZBIJaXNfYWN0aXZlEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSB2FkZHJlc3MSCWpvaW5fZGF0ZRINdGltZXN0YW1wX2NvbBIIZHVyYXRpb24SBnNhbGFyeRIFYm9udXMSBWhhc2gxEgVoYXNoMhIEY29kZRIFZGViaXQSCWNvdW50X2NvbBIGYW1vdW50EgdiYWxhbmNlEgRyYXRlEgpkaWZmZXJlbmNl";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("employee_name"));
+        Document employeeDoc = (Document) result.get("employee_name");
+        assertEquals("John Doe", employeeDoc.get("$eq"));
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_SingleNotEqual()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE job_title != 'Manager'
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFxoVCAEaEW5vdF9lcXVhbDphbnlfYW55Gs4GEssGCpUFOpIFChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicShwMShAMKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGiUaIxoECgIQASIMGgoSCAoEEgIIAyIAIg0aCwoJYgdNYW5hZ2VyGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKEggKBBICCAMiABoKEggKBBICCAQiABoKEggKBBICCAUiABoKEggKBBICCAYiABoKEggKBBICCAciABoKEggKBBICCAgiABoKEggKBBICCAkiABoKEggKBBICCAoiABoKEggKBBICCAsiABoKEggKBBICCAwiABoKEggKBBICCA0iABoKEggKBBICCA4iABoKEggKBBICCA8iABoKEggKBBICCBAiABoKEggKBBICCBEiABoKEggKBBICCBIiABoKEggKBBICCBMiABIDX2lkEgJpZBIJaXNfYWN0aXZlEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSB2FkZHJlc3MSCWpvaW5fZGF0ZRINdGltZXN0YW1wX2NvbBIIZHVyYXRpb24SBnNhbGFyeRIFYm9udXMSBWhhc2gxEgVoYXNoMhIEY29kZRIFZGViaXQSCWNvdW50X2NvbBIGYW1vdW50EgdiYWxhbmNlEgRyYXRlEgpkaWZmZXJlbmNl";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        // Should include null exclusion for NOT_EQUAL
+        Assertions.assertTrue(result.containsKey("$and"));
         List<Document> andConditions = (List<Document>) result.get("$and");
         assertEquals(2, andConditions.size());
-        
-        // Check null exclusion
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_GreaterThan()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE id > 100
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEBoOCAEaCmd0OmFueV9hbnkaxwYSxAYKjgU6iwUKGBIWChQUFRYXGBkaGxwdHh8gISIjJCUmJxKAAxL9AgoCCgAS1gIK0wIKAgoAErACCgNfaWQKAmlkCglpc19hY3RpdmUKDWVtcGxveWVlX25hbWUKCWpvYl90aXRsZQoHYWRkcmVzcwoJam9pbl9kYXRlCg10aW1lc3RhbXBfY29sCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoJY291bnRfY29sCgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USewoEYgIQAQoEKgIQAQoECgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoFigICGAEKBGICEAEKBGICEAEKBFoCEAEKBDoCEAEKBDoCEAEKBCoCEAEKBGICEAEKBDoCEAEKBGICEAEKBDoCEAEKBGICEAEKBDoCEAEYAjoaChhtb25nb2RiX2Jhc2ljX2NvbGxlY3Rpb24aHhocGgQKAhABIgwaChIICgQSAggBIgAiBhoECgIoZBoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgASA19pZBICaWQSCWlzX2FjdGl2ZRINZW1wbG95ZWVfbmFtZRIJam9iX3RpdGxlEgdhZGRyZXNzEglqb2luX2RhdGUSDXRpbWVzdGFtcF9jb2wSCGR1cmF0aW9uEgZzYWxhcnkSBWJvbnVzEgVoYXNoMRIFaGFzaDISBGNvZGUSBWRlYml0Egljb3VudF9jb2wSBmFtb3VudBIHYmFsYW5jZRIEcmF0ZRIKZGlmZmVyZW5jZQ==";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("id"));
+        Document idDoc = (Document) result.get("id");
+        assertEquals(100, idDoc.get("$gt"));
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_GreaterThanOrEqual()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE bonus >= 5000.0
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSERoPCAEaC2d0ZTphbnlfYW55GuoGEucGCrEFOq4FChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicSowMSoAMKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGkEaPxoECgIQASIMGgoSCAoEEgIICiIAIikaJ1olCgRaAhABEhsKGcIBFgoQUMMAAAAAAAAAAAAAAAAAABAFGAEYAhoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgASA19pZBICaWQSCWlzX2FjdGl2ZRINZW1wbG95ZWVfbmFtZRIJam9iX3RpdGxlEgdhZGRyZXNzEglqb2luX2RhdGUSDXRpbWVzdGFtcF9jb2wSCGR1cmF0aW9uEgZzYWxhcnkSBWJvbnVzEgVoYXNoMRIFaGFzaDISBGNvZGUSBWRlYml0Egljb3VudF9jb2wSBmFtb3VudBIHYmFsYW5jZRIEcmF0ZRIKZGlmZmVyZW5jZQ==";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("bonus"));
+        Document bonusDoc = (Document) result.get("bonus");
+        assertEquals(5000.0, bonusDoc.get("$gte"));
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_LessThan()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE code < 500
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEBoOCAEaCmx0OmFueV9hbnkayAYSxQYKjwU6jAUKGBIWChQUFRYXGBkaGxwdHh8gISIjJCUmJxKBAxL+AgoCCgAS1gIK0wIKAgoAErACCgNfaWQKAmlkCglpc19hY3RpdmUKDWVtcGxveWVlX25hbWUKCWpvYl90aXRsZQoHYWRkcmVzcwoJam9pbl9kYXRlCg10aW1lc3RhbXBfY29sCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoJY291bnRfY29sCgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USewoEYgIQAQoEKgIQAQoECgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoFigICGAEKBGICEAEKBGICEAEKBFoCEAEKBDoCEAEKBDoCEAEKBCoCEAEKBGICEAEKBDoCEAEKBGICEAEKBDoCEAEKBGICEAEKBDoCEAEYAjoaChhtb25nb2RiX2Jhc2ljX2NvbGxlY3Rpb24aHxodGgQKAhABIgwaChIICgQSAggNIgAiBxoFCgMo9AMaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAGgoSCAoEEgIIAyIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAGgoSCAoEEgIICCIAGgoSCAoEEgIICSIAGgoSCAoEEgIICiIAGgoSCAoEEgIICyIAGgoSCAoEEgIIDCIAGgoSCAoEEgIIDSIAGgoSCAoEEgIIDiIAGgoSCAoEEgIIDyIAGgoSCAoEEgIIECIAGgoSCAoEEgIIESIAGgoSCAoEEgIIEiIAGgoSCAoEEgIIEyIAEgNfaWQSAmlkEglpc19hY3RpdmUSDWVtcGxveWVlX25hbWUSCWpvYl90aXRsZRIHYWRkcmVzcxIJam9pbl9kYXRlEg10aW1lc3RhbXBfY29sEghkdXJhdGlvbhIGc2FsYXJ5EgVib251cxIFaGFzaDESBWhhc2gyEgRjb2RlEgVkZWJpdBIJY291bnRfY29sEgZhbW91bnQSB2JhbGFuY2USBHJhdGUSCmRpZmZlcmVuY2U=";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("code"));
+        Document codeDoc = (Document) result.get("code");
+        assertEquals(500, codeDoc.get("$lt"));
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_LessThanOrEqual()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE balance <= 10000
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSERoPCAEaC2x0ZTphbnlfYW55GtQGEtEGCpsFOpgFChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicSjQMSigMKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGisaKRoECgIQASIMGgoSCAoEEgIIESIAIhMaEVoPCgQ6AhABEgUKAyiQThgCGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKEggKBBICCAMiABoKEggKBBICCAQiABoKEggKBBICCAUiABoKEggKBBICCAYiABoKEggKBBICCAciABoKEggKBBICCAgiABoKEggKBBICCAkiABoKEggKBBICCAoiABoKEggKBBICCAsiABoKEggKBBICCAwiABoKEggKBBICCA0iABoKEggKBBICCA4iABoKEggKBBICCA8iABoKEggKBBICCBAiABoKEggKBBICCBEiABoKEggKBBICCBIiABoKEggKBBICCBMiABIDX2lkEgJpZBIJaXNfYWN0aXZlEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSB2FkZHJlc3MSCWpvaW5fZGF0ZRINdGltZXN0YW1wX2NvbBIIZHVyYXRpb24SBnNhbGFyeRIFYm9udXMSBWhhc2gxEgVoYXNoMhIEY29kZRIFZGViaXQSCWNvdW50X2NvbBIGYW1vdW50EgdiYWxhbmNlEgRyYXRlEgpkaWZmZXJlbmNl";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("balance"));
+        Document balanceDoc = (Document) result.get("balance");
+        assertEquals(10000, balanceDoc.get("$lte"));
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_IsNull()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE address IS NULL
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSERoPCAEaC2lzX251bGw6YW55Gr8GErwGCoYFOoMFChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicS+AIS9QIKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGhYaFBoECgIQAiIMGgoSCAoEEgIIBSIAGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKEggKBBICCAMiABoKEggKBBICCAQiABoKEggKBBICCAUiABoKEggKBBICCAYiABoKEggKBBICCAciABoKEggKBBICCAgiABoKEggKBBICCAkiABoKEggKBBICCAoiABoKEggKBBICCAsiABoKEggKBBICCAwiABoKEggKBBICCA0iABoKEggKBBICCA4iABoKEggKBBICCA8iABoKEggKBBICCBAiABoKEggKBBICCBEiABoKEggKBBICCBIiABoKEggKBBICCBMiABIDX2lkEgJpZBIJaXNfYWN0aXZlEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSB2FkZHJlc3MSCWpvaW5fZGF0ZRINdGltZXN0YW1wX2NvbBIIZHVyYXRpb24SBnNhbGFyeRIFYm9udXMSBWhhc2gxEgVoYXNoMhIEY29kZRIFZGViaXQSCWNvdW50X2NvbBIGYW1vdW50EgdiYWxhbmNlEgRyYXRlEgpkaWZmZXJlbmNl";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("address"));
+        Document addressDoc = (Document) result.get("address");
+        Assertions.assertTrue(addressDoc.containsKey("$eq"));
+        assertNull(addressDoc.get("$eq"));
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_IsNotNull()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE salary IS NOT NULL
+        String substraitPlanString = "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEaD2lzX25vdF9udWxsOmFueRq/BhK8BgqGBTqDBQoYEhYKFBQVFhcYGRobHB0eHyAhIiMkJSYnEvgCEvUCCgIKABLWAgrTAgoCCgASsAIKA19pZAoCaWQKCWlzX2FjdGl2ZQoNZW1wbG95ZWVfbmFtZQoJam9iX3RpdGxlCgdhZGRyZXNzCglqb2luX2RhdGUKDXRpbWVzdGFtcF9jb2wKCGR1cmF0aW9uCgZzYWxhcnkKBWJvbnVzCgVoYXNoMQoFaGFzaDIKBGNvZGUKBWRlYml0Cgljb3VudF9jb2wKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRJ7CgRiAhABCgQqAhABCgQKAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEWgIQAQoEOgIQAQoEOgIQAQoEKgIQAQoEYgIQAQoEOgIQAQoEYgIQAQoEOgIQAQoEYgIQAQoEOgIQARgCOhoKGG1vbmdvZGJfYmFzaWNfY29sbGVjdGlvbhoWGhQaBAoCEAIiDBoKEggKBBICCAkiABoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgASA19pZBICaWQSCWlzX2FjdGl2ZRINZW1wbG95ZWVfbmFtZRIJam9iX3RpdGxlEgdhZGRyZXNzEglqb2luX2RhdGUSDXRpbWVzdGFtcF9jb2wSCGR1cmF0aW9uEgZzYWxhcnkSBWJvbnVzEgVoYXNoMRIFaGFzaDISBGNvZGUSBWRlYml0Egljb3VudF9jb2wSBmFtb3VudBIHYmFsYW5jZRIEcmF0ZRIKZGlmZmVyZW5jZQ==";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("salary"));
+        Document salaryDoc = (Document) result.get("salary");
+        Assertions.assertTrue(salaryDoc.containsKey("$ne"));
+        assertNull(salaryDoc.get("$ne"));
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_MultipleEqualValues()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE job_title IN ('Engineer', 'Manager', 'Analyst')
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBINGgsIARoHb3I6Ym9vbBIVGhMIAhABGg1lcXVhbDphbnlfYW55GtwHEtkHCqMGOqAGChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicSlQQSkgQKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGrIBGq8BGgQKAhABIjcaNRozCAEaBAoCEAEiDBoKEggKBBICCAQiACIbGhlaFwoEYgIQARINCguqAQhFbmdpbmVlchgCIjYaNBoyCAEaBAoCEAEiDBoKEggKBBICCAQiACIaGhhaFgoEYgIQARIMCgqqAQdNYW5hZ2VyGAIiNho0GjIIARoECgIQASIMGgoSCAoEEgIIBCIAIhoaGFoWCgRiAhABEgwKCqoBB0FuYWx5c3QYAhoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgASA19pZBICaWQSCWlzX2FjdGl2ZRINZW1wbG95ZWVfbmFtZRIJam9iX3RpdGxlEgdhZGRyZXNzEglqb2luX2RhdGUSDXRpbWVzdGFtcF9jb2wSCGR1cmF0aW9uEgZzYWxhcnkSBWJvbnVzEgVoYXNoMRIFaGFzaDISBGNvZGUSBWRlYml0Egljb3VudF9jb2wSBmFtb3VudBIHYmFsYW5jZRIEcmF0ZRIKZGlmZmVyZW5jZQ==";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("$or"));
+        List<Document> orConditions = (List<Document>) result.get("$or");
+        assertEquals(3, orConditions.size());
+
+        // Verify each OR condition contains job_title with different values
+        boolean hasEngineer = orConditions.stream().anyMatch(doc ->
+                doc.containsKey("job_title") &&
+                        ((Document) doc.get("job_title")).get("$eq").equals("Engineer"));
+        boolean hasManager = orConditions.stream().anyMatch(doc ->
+                doc.containsKey("job_title") &&
+                        ((Document) doc.get("job_title")).get("$eq").equals("Manager"));
+        boolean hasAnalyst = orConditions.stream().anyMatch(doc ->
+                doc.containsKey("job_title") &&
+                        ((Document) doc.get("job_title")).get("$eq").equals("Analyst"));
+
+        Assertions.assertTrue(hasEngineer);
+        Assertions.assertTrue(hasManager);
+        Assertions.assertTrue(hasAnalyst);
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_EqualAndGreaterThan()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE (id = 100 OR id = 200) AND id > 50
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSDxoNCAEQARoHb3I6Ym9vbBIVGhMIAhACGg1lcXVhbDphbnlfYW55EhIaEAgCEAMaCmd0OmFueV9hbnkargcSqwcK9QU68gUKGBIWChQUFRYXGBkaGxwdHh8gISIjJCUmJxLnAxLkAwoCCgAS1gIK0wIKAgoAErACCgNfaWQKAmlkCglpc19hY3RpdmUKDWVtcGxveWVlX25hbWUKCWpvYl90aXRsZQoHYWRkcmVzcwoJam9pbl9kYXRlCg10aW1lc3RhbXBfY29sCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoJY291bnRfY29sCgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USewoEYgIQAQoEKgIQAQoECgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoFigICGAEKBGICEAEKBGICEAEKBFoCEAEKBDoCEAEKBDoCEAEKBCoCEAEKBGICEAEKBDoCEAEKBGICEAEKBDoCEAEKBGICEAEKBDoCEAEYAjoaChhtb25nb2RiX2Jhc2ljX2NvbGxlY3Rpb24ahAEagQEaBAoCEAEiVRpTGlEIARoECgIQASIiGiAaHggCGgQKAhABIgwaChIICgQSAggBIgAiBhoECgIoZCIjGiEaHwgCGgQKAhABIgwaChIICgQSAggBIgAiBxoFCgMoyAEiIhogGh4IAxoECgIQASIMGgoSCAoEEgIIASIAIgYaBAoCKDIaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAGgoSCAoEEgIIAyIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAGgoSCAoEEgIICCIAGgoSCAoEEgIICSIAGgoSCAoEEgIICiIAGgoSCAoEEgIICyIAGgoSCAoEEgIIDCIAGgoSCAoEEgIIDSIAGgoSCAoEEgIIDiIAGgoSCAoEEgIIDyIAGgoSCAoEEgIIECIAGgoSCAoEEgIIESIAGgoSCAoEEgIIEiIAGgoSCAoEEgIIEyIAEgNfaWQSAmlkEglpc19hY3RpdmUSDWVtcGxveWVlX25hbWUSCWpvYl90aXRsZRIHYWRkcmVzcxIJam9pbl9kYXRlEg10aW1lc3RhbXBfY29sEghkdXJhdGlvbhIGc2FsYXJ5EgVib251cxIFaGFzaDESBWhhc2gyEgRjb2RlEgVkZWJpdBIJY291bnRfY29sEgZhbW91bnQSB2JhbGFuY2USBHJhdGUSCmRpZmZlcmVuY2U=";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("$and"));
+        List<Document> andConditions = (List<Document>) result.get("$and");
+        assertEquals(2, andConditions.size());
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_CrossColumnAnd()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE employee_name = 'John' AND job_title = 'Engineer'
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSFRoTCAIQARoNZXF1YWw6YW55X2FueRqFBxKCBwrMBTrJBQoYEhYKFBQVFhcYGRobHB0eHyAhIiMkJSYnEr4DErsDCgIKABLWAgrTAgoCCgASsAIKA19pZAoCaWQKCWlzX2FjdGl2ZQoNZW1wbG95ZWVfbmFtZQoJam9iX3RpdGxlCgdhZGRyZXNzCglqb2luX2RhdGUKDXRpbWVzdGFtcF9jb2wKCGR1cmF0aW9uCgZzYWxhcnkKBWJvbnVzCgVoYXNoMQoFaGFzaDIKBGNvZGUKBWRlYml0Cgljb3VudF9jb2wKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRJ7CgRiAhABCgQqAhABCgQKAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEWgIQAQoEOgIQAQoEOgIQAQoEKgIQAQoEYgIQAQoEOgIQAQoEYgIQAQoEOgIQAQoEYgIQAQoEOgIQARgCOhoKGG1vbmdvZGJfYmFzaWNfY29sbGVjdGlvbhpcGloaBAoCEAEiJhokGiIIARoECgIQASIMGgoSCAoEEgIIAyIAIgoaCAoGYgRKb2huIioaKBomCAEaBAoCEAEiDBoKEggKBBICCAQiACIOGgwKCmIIRW5naW5lZXIaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAGgoSCAoEEgIIAyIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAGgoSCAoEEgIICCIAGgoSCAoEEgIICSIAGgoSCAoEEgIICiIAGgoSCAoEEgIICyIAGgoSCAoEEgIIDCIAGgoSCAoEEgIIDSIAGgoSCAoEEgIIDiIAGgoSCAoEEgIIDyIAGgoSCAoEEgIIECIAGgoSCAoEEgIIESIAGgoSCAoEEgIIEiIAGgoSCAoEEgIIEyIAEgNfaWQSAmlkEglpc19hY3RpdmUSDWVtcGxveWVlX25hbWUSCWpvYl90aXRsZRIHYWRkcmVzcxIJam9pbl9kYXRlEg10aW1lc3RhbXBfY29sEghkdXJhdGlvbhIGc2FsYXJ5EgVib251cxIFaGFzaDESBWhhc2gyEgRjb2RlEgVkZWJpdBIJY291bnRfY29sEgZhbW91bnQSB2JhbGFuY2USBHJhdGUSCmRpZmZlcmVuY2U=";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("$and"));
+        List<Document> andConditions = (List<Document>) result.get("$and");
+        assertEquals(2, andConditions.size());
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_CrossColumnOr()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE employee_name = 'John' OR job_title = 'Manager'
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBINGgsIARoHb3I6Ym9vbBIVGhMIAhABGg1lcXVhbDphbnlfYW55GoUHEoIHCswFOskFChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicSvgMSuwMKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGlwaWhoECgIQASImGiQaIggBGgQKAhABIgwaChIICgQSAggDIgAiChoICgZiBEpvaG4iKhooGiYIARoECgIQASIMGgoSCAoEEgIIBCIAIg4aDAoKYghFbmdpbmVlchoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgASA19pZBICaWQSCWlzX2FjdGl2ZRINZW1wbG95ZWVfbmFtZRIJam9iX3RpdGxlEgdhZGRyZXNzEglqb2luX2RhdGUSDXRpbWVzdGFtcF9jb2wSCGR1cmF0aW9uEgZzYWxhcnkSBWJvbnVzEgVoYXNoMRIFaGFzaDISBGNvZGUSBWRlYml0Egljb3VudF9jb2wSBmFtb3VudBIHYmFsYW5jZRIEcmF0ZRIKZGlmZmVyZW5jZQ==";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("$or"));
+        List<Document> orConditions = (List<Document>) result.get("$or");
+        assertEquals(2, orConditions.size());
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_NestedAndOr()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE (employee_name = 'John' OR employee_name = 'Jane') AND (job_title = 'Engineer' OR job_title = 'Manager')
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIYW5kOmJvb2wSDxoNCAEQARoHb3I6Ym9vbBIVGhMIAhACGg1lcXVhbDphbnlfYW55GvYHEvMHCr0GOroGChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicSrwQSrAQKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGswBGskBGgQKAhABIlwaWhpYCAEaBAoCEAEiJhokGiIIAhoECgIQASIMGgoSCAoEEgIIAyIAIgoaCAoGYgRKb2huIiYaJBoiCAIaBAoCEAEiDBoKEggKBBICCAMiACIKGggKBmIESmFuZSJjGmEaXwgBGgQKAhABIioaKBomCAIaBAoCEAEiDBoKEggKBBICCAQiACIOGgwKCmIIRW5naW5lZXIiKRonGiUIAhoECgIQASIMGgoSCAoEEgIIBCIAIg0aCwoJYgdNYW5hZ2VyGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKEggKBBICCAMiABoKEggKBBICCAQiABoKEggKBBICCAUiABoKEggKBBICCAYiABoKEggKBBICCAciABoKEggKBBICCAgiABoKEggKBBICCAkiABoKEggKBBICCAoiABoKEggKBBICCAsiABoKEggKBBICCAwiABoKEggKBBICCA0iABoKEggKBBICCA4iABoKEggKBBICCA8iABoKEggKBBICCBAiABoKEggKBBICCBEiABoKEggKBBICCBIiABoKEggKBBICCBMiABIDX2lkEgJpZBIJaXNfYWN0aXZlEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSB2FkZHJlc3MSCWpvaW5fZGF0ZRINdGltZXN0YW1wX2NvbBIIZHVyYXRpb24SBnNhbGFyeRIFYm9udXMSBWhhc2gxEgVoYXNoMhIEY29kZRIFZGViaXQSCWNvdW50X2NvbBIGYW1vdW50EgdiYWxhbmNlEgRyYXRlEgpkaWZmZXJlbmNl";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("$and"));
+        List<Document> andConditions = (List<Document>) result.get("$and");
+        assertEquals(2, andConditions.size());
+
+        // Each AND condition should be an OR
+        for (Document condition : andConditions) {
+            Assertions.assertTrue(condition.containsKey("$or"));
+        }
+    }
+
+    @Test
+    void testMakeEnhancedQueryFromPlan_NotIn()
+    {
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE job_title NOT IN ('Intern', 'Contractor')
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIbm90OmJvb2wSDxoNCAEQARoHb3I6Ym9vbBIVGhMIAhACGg1lcXVhbDphbnlfYW55GrMHErAHCvoFOvcFChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicS7AMS6QMKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGokBGoYBGgQKAhABIn4afBp6CAEaBAoCEAEiNRozGjEIAhoECgIQASIMGgoSCAoEEgIIBCIAIhkaF1oVCgRiAhABEgsKCaoBBkludGVybhgCIjkaNxo1CAIaBAoCEAEiDBoKEggKBBICCAQiACIdGhtaGQoEYgIQARIPCg2qAQpDb250cmFjdG9yGAIaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAGgoSCAoEEgIIAyIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAGgoSCAoEEgIICCIAGgoSCAoEEgIICSIAGgoSCAoEEgIICiIAGgoSCAoEEgIICyIAGgoSCAoEEgIIDCIAGgoSCAoEEgIIDSIAGgoSCAoEEgIIDiIAGgoSCAoEEgIIDyIAGgoSCAoEEgIIECIAGgoSCAoEEgIIESIAGgoSCAoEEgIIEiIAGgoSCAoEEgIIEyIAEgNfaWQSAmlkEglpc19hY3RpdmUSDWVtcGxveWVlX25hbWUSCWpvYl90aXRsZRIHYWRkcmVzcxIJam9pbl9kYXRlEg10aW1lc3RhbXBfY29sEghkdXJhdGlvbhIGc2FsYXJ5EgVib251cxIFaGFzaDESBWhhc2gyEgRjb2RlEgVkZWJpdBIJY291bnRfY29sEgZhbW91bnQSB2JhbGFuY2USBHJhdGUSCmRpZmZlcmVuY2U=";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("$and"));
+        List<Document> andConditions = (List<Document>) result.get("$and");
+        assertEquals(2, andConditions.size());
+
         Document nullExclusion = andConditions.get(0);
-        assertTrue(nullExclusion.containsKey("job_title"));
+        Assertions.assertTrue(nullExclusion.containsKey("job_title"));
         Document nullCheck = (Document) nullExclusion.get("job_title");
-        assertTrue(nullCheck.containsKey("$ne"));
-        assertEquals(null, nullCheck.get("$ne"));
-        
-        // Check NOT_EQUAL condition
-        Document notEqualCondition = andConditions.get(1);
-        assertTrue(notEqualCondition.containsKey("job_title"));
-        Document notEqualCheck = (Document) notEqualCondition.get("job_title");
-        assertTrue(notEqualCheck.containsKey("$ne"));
-        assertEquals("Manager", notEqualCheck.get("$ne"));
+        Assertions.assertTrue(nullCheck.containsKey("$ne"));
+        assertNull(nullCheck.get("$ne"));
+
+        Document norCondition = andConditions.get(1);
+        Assertions.assertTrue(norCondition.containsKey("$nor"));
+        List<Document> norValues = (List<Document>) norCondition.get("$nor");
+        assertEquals(2, norValues.size());
+
+        boolean hasIntern = norValues.stream().anyMatch(doc ->
+                doc.containsKey("job_title") &&
+                        ((Document) doc.get("job_title")).get("$eq").equals("Intern"));
+        boolean hasContractor = norValues.stream().anyMatch(doc ->
+                doc.containsKey("job_title") &&
+                        ((Document) doc.get("job_title")).get("$eq").equals("Contractor"));
+
+        Assertions.assertTrue(hasIntern);
+        Assertions.assertTrue(hasContractor);
     }
 
     @Test
-    void testMakeQueryFromPlanWithMultiplePredicatesIncludingNotEqual()
+    void testMakeEnhancedQueryFromPlan_NotAnd()
     {
-        // Test multiple predicates with NOT_EQUAL - should add null exclusion only for NOT_EQUAL
-        ColumnPredicate notEqualPred = new ColumnPredicate("job_title", SubstraitOperator.NOT_EQUAL, "Manager", new ArrowType.Utf8());
-        ColumnPredicate greaterPred = new ColumnPredicate("job_title", SubstraitOperator.GREATER_THAN, "Engineer", new ArrowType.Utf8());
-        Map<String, List<ColumnPredicate>> predicates = new HashMap<>();
-        predicates.put("job_title", Arrays.asList(notEqualPred, greaterPred));
-        
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        
-        // Should generate OR with null exclusion only for NOT_EQUAL
-        assertTrue(result.containsKey("$or"));
-        List<Document> orConditions = (List<Document>) result.get("$or");
-        assertEquals(2, orConditions.size());
-        
-        // One condition should be wrapped with $and (NOT_EQUAL with null exclusion)
-        // Other condition should be simple (GREATER_THAN without null exclusion)
-        boolean hasAndCondition = orConditions.stream().anyMatch(doc -> doc.containsKey("$and"));
-        boolean hasSimpleCondition = orConditions.stream().anyMatch(doc -> doc.containsKey("job_title") && !doc.containsKey("$and"));
-        
-        assertTrue(hasAndCondition);
-        assertTrue(hasSimpleCondition);
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE NOT (employee_name = 'John' AND job_title = 'Manager')
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIbm90OmJvb2wSEBoOCAEQARoIYW5kOmJvb2wSFRoTCAIQAhoNZXF1YWw6YW55X2FueRqSBxKPBwrZBTrWBQoYEhYKFBQVFhcYGRobHB0eHyAhIiMkJSYnEssDEsgDCgIKABLWAgrTAgoCCgASsAIKA19pZAoCaWQKCWlzX2FjdGl2ZQoNZW1wbG95ZWVfbmFtZQoJam9iX3RpdGxlCgdhZGRyZXNzCglqb2luX2RhdGUKDXRpbWVzdGFtcF9jb2wKCGR1cmF0aW9uCgZzYWxhcnkKBWJvbnVzCgVoYXNoMQoFaGFzaDIKBGNvZGUKBWRlYml0Cgljb3VudF9jb2wKBmFtb3VudAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRJ7CgRiAhABCgQqAhABCgQKAhABCgRiAhABCgRiAhABCgRiAhABCgRiAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEWgIQAQoEOgIQAQoEOgIQAQoEKgIQAQoEYgIQAQoEOgIQAQoEYgIQAQoEOgIQAQoEYgIQAQoEOgIQARgCOhoKGG1vbmdvZGJfYmFzaWNfY29sbGVjdGlvbhppGmcaBAoCEAEiXxpdGlsIARoECgIQASImGiQaIggCGgQKAhABIgwaChIICgQSAggDIgAiChoICgZiBEpvaG4iKRonGiUIAhoECgIQASIMGgoSCAoEEgIIBCIAIg0aCwoJYgdNYW5hZ2VyGggSBgoCEgAiABoKEggKBBICCAEiABoKEggKBBICCAIiABoKEggKBBICCAMiABoKEggKBBICCAQiABoKEggKBBICCAUiABoKEggKBBICCAYiABoKEggKBBICCAciABoKEggKBBICCAgiABoKEggKBBICCAkiABoKEggKBBICCAoiABoKEggKBBICCAsiABoKEggKBBICCAwiABoKEggKBBICCA0iABoKEggKBBICCA4iABoKEggKBBICCA8iABoKEggKBBICCBAiABoKEggKBBICCBEiABoKEggKBBICCBIiABoKEggKBBICCBMiABIDX2lkEgJpZBIJaXNfYWN0aXZlEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSB2FkZHJlc3MSCWpvaW5fZGF0ZRINdGltZXN0YW1wX2NvbBIIZHVyYXRpb24SBnNhbGFyeRIFYm9udXMSBWhhc2gxEgVoYXNoMhIEY29kZRIFZGViaXQSCWNvdW50X2NvbBIGYW1vdW50EgdiYWxhbmNlEgRyYXRlEgpkaWZmZXJlbmNl";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("$and"));
+        List<Document> andConditions = (List<Document>) result.get("$and");
+        // Should include null exclusions + NOR condition
+        Assertions.assertTrue(andConditions.size() >= 2);
+
+        // Should contain $nor condition
+        boolean hasNor = andConditions.stream().anyMatch(doc -> doc.containsKey("$nor"));
+        Assertions.assertTrue(hasNor);
     }
 
     @Test
-    void testMakeQueryFromPlanWithNonNotEqualPredicates()
+    void testMakeEnhancedQueryFromPlan_NotOr()
     {
-        // Test predicates without NOT_EQUAL - should not add null exclusion
-        ColumnPredicate greaterPred = new ColumnPredicate("salary", SubstraitOperator.GREATER_THAN, 50000, new ArrowType.Int(32, true));
-        ColumnPredicate lessPred = new ColumnPredicate("salary", SubstraitOperator.LESS_THAN, 100000, new ArrowType.Int(32, true));
-        Map<String, List<ColumnPredicate>> predicates = new HashMap<>();
-        predicates.put("salary", Arrays.asList(greaterPred, lessPred));
-        
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        
-        // Should generate simple OR without null exclusion
-        assertTrue(result.containsKey("$or"));
-        List<Document> orConditions = (List<Document>) result.get("$or");
-        assertEquals(2, orConditions.size());
-        
-        // No conditions should be wrapped with $and
-        boolean hasAndCondition = orConditions.stream().anyMatch(doc -> doc.containsKey("$and"));
-        assertEquals(false, hasAndCondition);
-    }
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE NOT (employee_name = 'John' OR job_title = 'Manager')
+        String substraitPlanString = "ChsIARIXL2Z1bmN0aW9uc19ib29sZWFuLnlhbWwKHggCEhovZnVuY3Rpb25zX2NvbXBhcmlzb24ueWFtbBIOGgwIARoIbm90OmJvb2wSDxoNCAEQARoHb3I6Ym9vbBIVGhMIAhACGg1lcXVhbDphbnlfYW55GpIHEo8HCtkFOtYFChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicSywMSyAMKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGmkaZxoECgIQASJfGl0aWwgBGgQKAhABIiYaJBoiCAIaBAoCEAEiDBoKEggKBBICCAMiACIKGggKBmIESm9obiIpGicaJQgCGgQKAhABIgwaChIICgQSAggEIgAiDRoLCgliB01hbmFnZXIaCBIGCgISACIAGgoSCAoEEgIIASIAGgoSCAoEEgIIAiIAGgoSCAoEEgIIAyIAGgoSCAoEEgIIBCIAGgoSCAoEEgIIBSIAGgoSCAoEEgIIBiIAGgoSCAoEEgIIByIAGgoSCAoEEgIICCIAGgoSCAoEEgIICSIAGgoSCAoEEgIICiIAGgoSCAoEEgIICyIAGgoSCAoEEgIIDCIAGgoSCAoEEgIIDSIAGgoSCAoEEgIIDiIAGgoSCAoEEgIIDyIAGgoSCAoEEgIIECIAGgoSCAoEEgIIESIAGgoSCAoEEgIIEiIAGgoSCAoEEgIIEyIAEgNfaWQSAmlkEglpc19hY3RpdmUSDWVtcGxveWVlX25hbWUSCWpvYl90aXRsZRIHYWRkcmVzcxIJam9pbl9kYXRlEg10aW1lc3RhbXBfY29sEghkdXJhdGlvbhIGc2FsYXJ5EgVib251cxIFaGFzaDESBWhhc2gyEgRjb2RlEgVkZWJpdBIJY291bnRfY29sEgZhbW91bnQSB2JhbGFuY2USBHJhdGUSCmRpZmZlcmVuY2U=";
 
-    // Tests for NOR/NAND null exclusion (tested via makeQueryFromPlan)
-    @Test
-    void testMakeQueryFromPlanWithNandOperator()
-    {
-        // Test simple NAND operation - this test verifies the null exclusion logic exists
-        // The actual NAND functionality is complex and tested elsewhere
-        ColumnPredicate simplePred = new ColumnPredicate("test_col", SubstraitOperator.EQUAL, "test_value", new ArrowType.Utf8());
-        Map<String, List<ColumnPredicate>> predicates = new HashMap<>();
-        predicates.put("test_col", Arrays.asList(simplePred));
-        
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        
-        // Should generate a valid MongoDB query
-        assertTrue(!result.isEmpty());
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("$and"));
+        List<Document> andConditions = (List<Document>) result.get("$and");
+        // Should include null exclusions + NOR condition
+        Assertions.assertTrue(andConditions.size() >= 2);
+
+        // Should contain $nor condition
+        boolean hasNor = andConditions.stream().anyMatch(doc -> doc.containsKey("$nor"));
+        Assertions.assertTrue(hasNor);
     }
 
     @Test
-    void testMakeQueryFromPlanWithNorOperator()
+    void testMakeEnhancedQueryFromPlan_TimestampColumn()
     {
-        // Test simple NOR operation - this test verifies the null exclusion logic exists
-        // The actual NOR functionality is complex and tested elsewhere
-        ColumnPredicate simplePred = new ColumnPredicate("test_col", SubstraitOperator.EQUAL, "test_value", new ArrowType.Utf8());
-        Map<String, List<ColumnPredicate>> predicates = new HashMap<>();
-        predicates.put("test_col", Arrays.asList(simplePred));
-        
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-        
-        // Should generate a valid MongoDB query
-        assertTrue(!result.isEmpty());
+        // SQL: SELECT * FROM mongodb_basic_collection WHERE timestamp_col > TIMESTAMP '2023-01-01 00:00:00'
+        String substraitPlanString = "ChwIARIYL2Z1bmN0aW9uc19kYXRldGltZS55YW1sEhAaDggBGgpndDpwdHNfcHRzGtsGEtgGCqIFOp8FChgSFgoUFBUWFxgZGhscHR4fICEiIyQlJicSlAMSkQMKAgoAEtYCCtMCCgIKABKwAgoDX2lkCgJpZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoNdGltZXN0YW1wX2NvbAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKCWNvdW50X2NvbAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEnsKBGICEAEKBCoCEAEKBAoCEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBYoCAhgBCgRiAhABCgRiAhABCgRaAhABCgQ6AhABCgQ6AhABCgQqAhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABCgRiAhABCgQ6AhABGAI6GgoYbW9uZ29kYl9iYXNpY19jb2xsZWN0aW9uGjIaMBoECgIQASIMGgoSCAoEEgIIByIAIhoaGFoWCgWKAgIYAhILCglwgIC1oIil/AIYAhoIEgYKAhIAIgAaChIICgQSAggBIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggEIgAaChIICgQSAggFIgAaChIICgQSAggGIgAaChIICgQSAggHIgAaChIICgQSAggIIgAaChIICgQSAggJIgAaChIICgQSAggKIgAaChIICgQSAggLIgAaChIICgQSAggMIgAaChIICgQSAggNIgAaChIICgQSAggOIgAaChIICgQSAggPIgAaChIICgQSAggQIgAaChIICgQSAggRIgAaChIICgQSAggSIgAaChIICgQSAggTIgASA19pZBICaWQSCWlzX2FjdGl2ZRINZW1wbG95ZWVfbmFtZRIJam9iX3RpdGxlEgdhZGRyZXNzEglqb2luX2RhdGUSDXRpbWVzdGFtcF9jb2wSCGR1cmF0aW9uEgZzYWxhcnkSBWJvbnVzEgVoYXNoMRIFaGFzaDISBGNvZGUSBWRlYml0Egljb3VudF9jb2wSBmFtb3VudBIHYmFsYW5jZRIEcmF0ZRIKZGlmZmVyZW5jZQ==";
+
+        final QueryPlan queryPlan = createQueryPlan(substraitPlanString);
+        Plan plan = SubstraitRelUtils.deserializeSubstraitPlan(queryPlan.getSubstraitPlan());
+
+        Document result = QueryUtils.makeEnhancedQueryFromPlan(plan);
+
+        assertNotNull(result);
+        Assertions.assertTrue(result.containsKey("timestamp_col"));
+        Document timestampDoc = (Document) result.get("timestamp_col");
+        Assertions.assertTrue(timestampDoc.containsKey("$gt"));
     }
 
-    @Test
-    public void testConvertColumnPredicatesToDocWithDateTimeField()
+    private QueryPlan createQueryPlan(String substraitPlanString)
     {
-        Long microsecondEpoch = 1378069315000000L;
-
-        ColumnPredicate predicate = new ColumnPredicate(
-                "timestamp_field",
-                SubstraitOperator.EQUAL,
-                microsecondEpoch,
-                new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, null)
-        );
-
-        Map<String, List<ColumnPredicate>> predicates = new HashMap<>();
-        predicates.put("timestamp_field", Collections.singletonList(predicate));
-
-        Document result = QueryUtils.makeQueryFromPlan(predicates);
-
-        assertTrue("Result should contain timestamp_field", result.containsKey("timestamp_field"));
-        Object timestampValue = result.get("timestamp_field");
-        assertTrue("Timestamp value should be a Document", timestampValue instanceof Document);
-
-        Document timestampDoc = (Document) timestampValue;
-        assertTrue("Should contain $eq operator", timestampDoc.containsKey("$eq"));
-
-        Object eqValue = timestampDoc.get("$eq");
-        assertTrue("Converted value should be a Date", eqValue instanceof Date);
-    }
-
-    private static Stream<Arguments> inputTestMakeQueryFromPlanPredicateProvider()
-    {
-        return Stream.of(
-                Arguments.of(SubstraitOperator.EQUAL, 42, "$eq", new ArrowType.Int(32, true)),
-                Arguments.of(SubstraitOperator.NOT_EQUAL, 100, "$ne", new ArrowType.Int(32, true)),
-                Arguments.of(SubstraitOperator.GREATER_THAN, 50, "$gt", new ArrowType.Int(32, true)),
-                Arguments.of(SubstraitOperator.GREATER_THAN_OR_EQUAL_TO, 75, "$gte", new ArrowType.Int(32, true)),
-                Arguments.of(SubstraitOperator.LESS_THAN, 25, "$lt", new ArrowType.Int(32, true)),
-                Arguments.of(SubstraitOperator.LESS_THAN_OR_EQUAL_TO, 30, "$lte",
-                        new ArrowType.Int(32, true)),
-                Arguments.of(SubstraitOperator.EQUAL, "testString", "$eq", new ArrowType.Utf8()),
-                Arguments.of(SubstraitOperator.IS_NULL, null, "$eq", new ArrowType.Utf8()),      // isNullPredicate
-                Arguments.of(SubstraitOperator.IS_NOT_NULL, null, "$ne", new ArrowType.Utf8())   // isNotNullPredicate
-        );
+        return new QueryPlan("0.44.0", substraitPlanString);
     }
 }
 

@@ -14,13 +14,6 @@
             <artifactId>aws-athena-federation-sdk</artifactId>
             <version>2022.47.1</version>
             <classifier>withdep</classifier>
-            <exclusions>
-                <!-- replaced with jcl-over-slf4j -->
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>

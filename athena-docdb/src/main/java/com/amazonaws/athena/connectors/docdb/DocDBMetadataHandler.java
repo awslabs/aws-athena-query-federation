@@ -44,7 +44,9 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOp
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.docdb.qpt.DocDBQueryPassthrough;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -63,13 +65,11 @@ import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
@@ -90,6 +90,8 @@ public class DocDBMetadataHandler
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "documentdb";
+    private static final String CONNECTION_STRING_TEMPLATE = "mongodb://%s:%s@%s:%s/%s";
+    private static final String ENFORCE_SSL_JDBC_PARAM = "ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem";
     //Field name used to store the connection string as a property on Split objects.
     protected static final String DOCDB_CONN_STR = "connStr";
     //The Env variable name used to store the default DocDB connection string if no catalog specific
@@ -152,6 +154,13 @@ public class DocDBMetadataHandler
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
                     request.getCatalogName(), DEFAULT_DOCDB);
             conStr = configOptions.get(DEFAULT_DOCDB);
+        }
+        logger.info("getConnStr: isRequestFederated: {}", isRequestFederated(request));
+        if (isRequestFederated(request)) {
+            logger.info("Using federated reguest to frame connection string");
+            Map<String, String> configOptionsFromFederatedIdentity = request.getIdentity().getConfigOptions();
+            logger.info("configOptions: {}", configOptionsFromFederatedIdentity);
+            conStr = getConfigOptionsFromFederatedIdentity(configOptionsFromFederatedIdentity);
         }
         return conStr;
     }
@@ -392,5 +401,49 @@ public class DocDBMetadataHandler
     protected Field convertField(String name, String glueType)
     {
         return GlueFieldLexer.lex(name, glueType);
+    }
+
+    private String getConfigOptionsFromFederatedIdentity(Map<String, String> configOptions) {
+        String host = configOptions.get("HOST");
+        String port = configOptions.get("PORT");
+
+        final String secretName = getSecretNameFromArn(configOptions.get("secret_arn"));
+        String credentials = getSecret(secretName, getRequestOverrideConfig(configOptions));
+        logger.info("Credentials: " + credentials);
+        String[] parts = credentials.split(":", 2);
+        String username = parts.length > 0 ? parts[0] : "";
+        String password = parts.length > 1 ? parts[1] : "";
+
+        String jdbcParams = configOptions.get("JDBC_PARAMS");
+        String enforceSsl = configOptions.get("ENFORCE_SSL");
+        String authDb = configOptions.getOrDefault("AUTHENTICATION_DATABASE", "");
+
+        if (Boolean.parseBoolean(enforceSsl)) {
+            if (jdbcParams == null) {
+                jdbcParams = ENFORCE_SSL_JDBC_PARAM;
+            } else if (!jdbcParams.contains(ENFORCE_SSL_JDBC_PARAM)) {
+                jdbcParams = ENFORCE_SSL_JDBC_PARAM + "&" + jdbcParams;
+            }
+        }
+
+        String connStr = String.format(CONNECTION_STRING_TEMPLATE, username, password, host, port, authDb);
+        if (jdbcParams != null) {
+            connStr += "?" + jdbcParams;
+        }
+        logger.info("Connection string in Athena connector: " + connStr);
+        return connStr;
+    }
+
+    private static String getSecretNameFromArn(String secretArn) {
+        final String[] parts = secretArn.split(":");
+        final String nameWithSuffix = parts[6];
+        return nameWithSuffix.substring(0, nameWithSuffix.lastIndexOf('-'));
+    }
+
+    private boolean isRequestFederated(FederationRequest req)
+    {
+        FederatedIdentity federatedIdentity = req.getIdentity();
+        Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
+        return (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null);
     }
 }
