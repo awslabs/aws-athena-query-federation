@@ -65,7 +65,11 @@ import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -155,11 +159,9 @@ public class DocDBMetadataHandler
                     request.getCatalogName(), DEFAULT_DOCDB);
             conStr = configOptions.get(DEFAULT_DOCDB);
         }
-        logger.info("getConnStr: isRequestFederated: {}", isRequestFederated(request));
         if (isRequestFederated(request)) {
             logger.info("Using federated reguest to frame connection string");
             Map<String, String> configOptionsFromFederatedIdentity = request.getIdentity().getConfigOptions();
-            logger.info("configOptions: {}", configOptionsFromFederatedIdentity);
             conStr = getConfigOptionsFromFederatedIdentity(configOptionsFromFederatedIdentity);
         }
         return conStr;
@@ -403,7 +405,8 @@ public class DocDBMetadataHandler
         return GlueFieldLexer.lex(name, glueType);
     }
 
-    private String getConfigOptionsFromFederatedIdentity(Map<String, String> configOptions) {
+    private String getConfigOptionsFromFederatedIdentity(Map<String, String> configOptions)
+    {
         String host = configOptions.get("HOST");
         String port = configOptions.get("PORT");
 
@@ -421,7 +424,8 @@ public class DocDBMetadataHandler
         if (Boolean.parseBoolean(enforceSsl)) {
             if (jdbcParams == null) {
                 jdbcParams = ENFORCE_SSL_JDBC_PARAM;
-            } else if (!jdbcParams.contains(ENFORCE_SSL_JDBC_PARAM)) {
+            }
+            else if (!jdbcParams.contains(ENFORCE_SSL_JDBC_PARAM)) {
                 jdbcParams = ENFORCE_SSL_JDBC_PARAM + "&" + jdbcParams;
             }
         }
@@ -434,7 +438,8 @@ public class DocDBMetadataHandler
         return connStr;
     }
 
-    private static String getSecretNameFromArn(String secretArn) {
+    private static String getSecretNameFromArn(String secretArn)
+    {
         final String[] parts = secretArn.split(":");
         final String nameWithSuffix = parts[6];
         return nameWithSuffix.substring(0, nameWithSuffix.lastIndexOf('-'));

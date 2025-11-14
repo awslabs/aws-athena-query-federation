@@ -67,7 +67,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -331,9 +330,6 @@ public final class QueryUtils
         return new Document();
     }
 
-    /**
-     * Converts Substrait column predicates to MongoDB filter Document
-     */
     /**
      * Converts a LogicalExpression tree to MongoDB filter Document while preserving logical structure
      * Example: OR(EQUAL(job_title, 'A'), EQUAL(job_title, 'B')) → {"$or": [{"job_title": {"$eq": "A"}}, {"job_title": {"$eq": "B"}}]}
