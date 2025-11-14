@@ -60,6 +60,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
 import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_VERSION;
@@ -133,6 +134,11 @@ public abstract class RecordHandler
     protected String getSecret(String secretName)
     {
         return secretsManager.getSecret(secretName);
+    }
+
+    protected String getSecret(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return secretsManager.getSecret(secretName, requestOverrideConfiguration);
     }
 
     /**
@@ -232,6 +238,19 @@ public abstract class RecordHandler
                         spillConfig.getEncryptionKey());
             }
         }
+    }
+
+    public AwsRequestOverrideConfiguration getRequestOverrideConfig(RecordRequest request)
+    {
+        if (isRequestFederated(request)) {
+            FederatedIdentity federatedIdentity = request.getIdentity();
+            Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
+
+            if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
+                return getRequestOverrideConfig(connectorRequestOptions);
+            }
+        }
+        return null;
     }
 
     public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)

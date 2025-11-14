@@ -66,6 +66,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
@@ -75,12 +76,13 @@ import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.utils.StringUtils;
+import software.amazon.awssdk.utils.CollectionUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -218,6 +220,11 @@ public abstract class MetadataHandler
         return secretsManager.getSecret(secretName);
     }
 
+    protected String getSecret(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    {
+        return secretsManager.getSecret(secretName, requestOverrideConfiguration);
+    }
+
     /**
      * Gets the CachableSecretsManager instance used by this handler.
      * This is used by credential providers to reuse the same secrets manager instance.
@@ -243,6 +250,10 @@ public abstract class MetadataHandler
     {
         FederatedIdentity federatedIdentity = request.getIdentity();
         Map<String, String> configOptions = federatedIdentity.getConfigOptions();
+        if (CollectionUtils.isNullOrEmpty(configOptions)) {
+            logger.debug("configOptions is empty from federation. Use default configOptions.");
+            configOptions = new HashMap<>(this.configOptions);
+        }
         String queryId = request.getQueryId();
         String prefix = StringUtils.isBlank(configOptions.get(SPILL_PREFIX_ENV))
                 ? spillPrefix : configOptions.get(SPILL_PREFIX_ENV);
@@ -568,6 +579,19 @@ public abstract class MetadataHandler
     public void onPing(PingRequest request)
     {
         //NoOp
+    }
+
+    public AwsRequestOverrideConfiguration getRequestOverrideConfig(MetadataRequest request)
+    {
+        if (isRequestFederated(request)) {
+            FederatedIdentity federatedIdentity = request.getIdentity();
+            Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
+
+            if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
+                return getRequestOverrideConfig(connectorRequestOptions);
+            }
+        }
+        return null;
     }
 
     public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)
