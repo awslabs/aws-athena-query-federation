@@ -561,7 +561,7 @@ public class QueryUtilsTest
 
     private QueryPlan createQueryPlan(String substraitPlanString)
     {
-        return new QueryPlan("0.44.0", substraitPlanString);
+        return new QueryPlan("1.0", substraitPlanString);
     }
 }
 
