@@ -203,9 +203,7 @@ public class DocDBRecordHandler
             table = db.getCollection(tableName);
             final Map<String, List<ColumnPredicate>> columnPredicateMap = QueryUtils.buildFilterPredicatesFromPlan(plan);
             if (!columnPredicateMap.isEmpty()) {
-                // Use enhanced query generation that preserves AND/OR logical structure from SQL
-                // This handles cases like "job_title IN ('A', 'B') OR job_title < 'C'" correctly as OR operations
-                // instead of flattening them into AND operations like the legacy approach
+                // Use enhanced query generation that preserves AND/OR logical structure from SQL via the Query Plan
                 query = QueryUtils.makeEnhancedQueryFromPlan(plan);
             }
             else {
@@ -213,7 +211,6 @@ public class DocDBRecordHandler
             }
         }
 
-        // ---------------------- Projection and casing configuration ----------------------
         final String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
         final boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
         logger.info("Projection and casing configuration - environment value: {}, resolved: {}",
@@ -243,7 +240,6 @@ public class DocDBRecordHandler
 
         final MongoCursor<Document> iterable = findIterable.batchSize(MONGO_QUERY_BATCH_SIZE).iterator();
 
-        // ---------------------- Process results ----------------------
         long numRows = 0;
         final AtomicLong numResultRows = new AtomicLong(0);
         while (iterable.hasNext() && queryStatusChecker.isQueryRunning()) {

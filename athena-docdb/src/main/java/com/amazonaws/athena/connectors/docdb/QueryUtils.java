@@ -292,7 +292,7 @@ public final class QueryUtils
     }
 
     /**
-     * Enhanced query builder that tries tree-based approach first, then falls back to flattened approach if it fails
+     * Enhanced query builder that tries tree-based approach, else returns all documents if query generation fails
      * Example: "job_title IN ('A', 'B') OR job_title < 'C'" → {"$or": [{"job_title": {"$in": ["A", "B"]}}, {"job_title": {"$lt": "C"}}]}
      */
     public static Document makeEnhancedQueryFromPlan(Plan plan)
@@ -311,7 +311,6 @@ public final class QueryUtils
         final List<SimpleExtensionDeclaration> extensionDeclarations = plan.getExtensionsList();
         final List<String> tableColumns = SubstraitMetadataParser.getTableColumns(substraitRelModel);
 
-        // Try tree-based approach first to preserve AND/OR logical structure
         // This handles cases like "A OR B OR C" correctly as OR operations
         try {
             final LogicalExpression logicalExpr = SubstraitFunctionParser.parseLogicalExpression(
