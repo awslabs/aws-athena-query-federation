@@ -77,7 +77,6 @@ import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.ENFORCE_SSL;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.FAS_TOKEN;
-import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.HOST;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.JDBC_PARAMS;
 import static com.amazonaws.athena.connector.lambda.connection.EnvironmentConstants.PORT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
@@ -123,6 +122,7 @@ public class DocDBMetadataHandler
     // JSON credential field names
     private static final String USERNAME_FIELD = "username";
     private static final String PASSWORD_FIELD = "password";
+    public static final String HOST = "host";
 
     private final GlueClient glue;
     private final DocDBConnectionFactory connectionFactory;
