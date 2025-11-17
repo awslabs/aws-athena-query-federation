@@ -196,43 +196,22 @@ public abstract class MetadataHandler
     }
 
     /**
-     * Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
-     * by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
-     * the function throws.
-     *
-     * @param rawString The string in which you'd like to replace SecretsManager placeholders.
-     * (e.g. ThisIsA${Secret}Here - The ${Secret} would be replaced with the contents of an SecretsManager
-     * secret called Secret. If no such secret is found, the function throws. If no ${} are found in
-     * the input string, nothing is replaced and the original string is returned.
-     */
-    protected String resolveSecrets(String rawString)
-    {
-        return secretsManager.resolveSecrets(rawString);
-    }
-
-    protected String resolveWithDefaultCredentials(String rawString)
-    {
-        return secretsManager.resolveWithDefaultCredentials(rawString);
-    }
-
-    protected String getSecret(String secretName)
-    {
-        return secretsManager.getSecret(secretName);
-    }
-
-    protected String getSecret(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
-    {
-        return secretsManager.getSecret(secretName, requestOverrideConfiguration);
-    }
-
-    /**
      * Gets the CachableSecretsManager instance used by this handler.
      * This is used by credential providers to reuse the same secrets manager instance.
      * @return The CachableSecretsManager instance
      */
-    protected CachableSecretsManager getCachableSecretsManager()
+    public CachableSecretsManager getCachableSecretsManager()
     {
         return secretsManager;
+    }
+
+    /**
+     * Gets the KmsEncryptionProvider instance used by this handler.
+     * @return The KmsEncryptionProvider instance
+     */
+    public KmsEncryptionProvider getKmsEncryptionProvider()
+    {
+        return kmsEncryptionProvider;
     }
 
     protected EncryptionKey makeEncryptionKey()
@@ -243,7 +222,7 @@ public abstract class MetadataHandler
     /**
      * Used to make a spill location for a split. Each split should have a unique spill location, so be sure
      * to call this method once per split!
-     * @param request 
+     * @param request
      * @return A unique spill location.
      */
     protected SpillLocation makeSpillLocation(MetadataRequest request)
@@ -579,24 +558,6 @@ public abstract class MetadataHandler
     public void onPing(PingRequest request)
     {
         //NoOp
-    }
-
-    public AwsRequestOverrideConfiguration getRequestOverrideConfig(MetadataRequest request)
-    {
-        if (isRequestFederated(request)) {
-            FederatedIdentity federatedIdentity = request.getIdentity();
-            Map<String, String> connectorRequestOptions = federatedIdentity != null ? federatedIdentity.getConfigOptions() : null;
-
-            if (connectorRequestOptions != null && connectorRequestOptions.get(FAS_TOKEN) != null) {
-                return getRequestOverrideConfig(connectorRequestOptions);
-            }
-        }
-        return null;
-    }
-
-    public AwsRequestOverrideConfiguration getRequestOverrideConfig(Map<String, String> configOptions)
-    {
-        return getRequestOverrideConfig(configOptions, kmsEncryptionProvider);
     }
 
     /**

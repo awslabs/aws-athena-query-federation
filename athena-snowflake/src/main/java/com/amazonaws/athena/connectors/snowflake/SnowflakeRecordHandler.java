@@ -82,7 +82,6 @@ import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.utils.StringUtils;
 import software.amazon.awssdk.utils.Validate;
 
 import java.math.BigDecimal;
@@ -450,19 +449,8 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     }
 
     @Override
-    protected CredentialsProvider getCredentialProvider()
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
-        return getCredentialProvider(null);
-    }
-
-    @Override
-    protected CredentialsProvider getCredentialProvider(AwsRequestOverrideConfiguration requestOverrideConfiguration)
-    {
-        final String secretName = getDatabaseConnectionConfig().getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
-        }
-
-        return null;
+        return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
     }
 }

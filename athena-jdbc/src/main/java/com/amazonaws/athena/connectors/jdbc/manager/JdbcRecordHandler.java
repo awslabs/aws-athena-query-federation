@@ -70,7 +70,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +90,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Abstracts JDBC record handler and provides common reusable split records handling.
@@ -138,19 +138,20 @@ public abstract class JdbcRecordHandler
         return databaseConnectionConfig;
     }
 
-    protected CredentialsProvider getCredentialProvider()
+    @Override
+    public String getDatabaseConnectionSecret()
     {
-        return getCredentialProvider(null);
+        DatabaseConnectionConfig databaseConnectionConfig = getDatabaseConnectionConfig();
+        if (Objects.nonNull(databaseConnectionConfig)) {
+            return databaseConnectionConfig.getSecret();
+        }
+        return null;
     }
 
-    protected CredentialsProvider getCredentialProvider(AwsRequestOverrideConfiguration requestOverrideConfiguration)
+    @Override
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
-        final String secretName = this.databaseConnectionConfig.getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            return new DefaultCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
-        }
-
-        return null;
+        return new DefaultCredentialsProvider(getSecret(secretName, requestOverrideConfiguration));
     }
 
     @Override
