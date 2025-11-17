@@ -202,18 +202,6 @@ public interface FederationRequestHandler extends RequestStreamHandler
     }
 
     /**
-     * Gets a credentials provider for database connections without request override configuration.
-     * Subclasses that need database credentials should implement getDatabaseConnectionSecret()
-     * to provide the secret name.
-     *
-     * @return CredentialsProvider instance or null if no secret is configured
-     */
-    default CredentialsProvider getCredentialProvider()
-    {
-        return getCredentialProvider(null);
-    }
-
-    /**
      * Gets a credentials provider for database connections with optional request override configuration.
      * This method checks if a secret name is configured and creates a credentials provider if available.
      * Subclasses can override createCredentialsProvider() to provide custom credential provider implementations.
