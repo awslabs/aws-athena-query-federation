@@ -42,7 +42,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -282,7 +284,10 @@ public class SnowflakeQueryStringBuilder
                 else {
                     long days = Long.parseLong(dateStr);
                     long milliseconds = TimeUnit.DAYS.toMillis(days);
-                    return new SimpleDateFormat("yyyy-MM-dd").format(new Date(milliseconds));
+                    // convert date using UTC to avoid timezone conversion.
+                    return Instant.ofEpochMilli(milliseconds)
+                            .atOffset(ZoneOffset.UTC)
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                 }
             case Timestamp:
             case Time:

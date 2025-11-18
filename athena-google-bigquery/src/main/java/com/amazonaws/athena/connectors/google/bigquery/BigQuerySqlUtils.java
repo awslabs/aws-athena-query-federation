@@ -38,10 +38,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
@@ -253,7 +254,13 @@ public class BigQuerySqlUtils
                     // date search: date parameter used in where clause will come as days so it will be converted to date
                     long days = Long.parseLong(val);
                     long milliseconds = TimeUnit.DAYS.toMillis(days);
-                    return QueryParameterValue.date(new SimpleDateFormat("yyyy-MM-dd").format(new Date(milliseconds)));
+
+                    // convert date using UTC to avoid timezone conversion.
+                    String dateString = Instant.ofEpochMilli(milliseconds)
+                            .atOffset(ZoneOffset.UTC)
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+                    return QueryParameterValue.date(dateString);
                 }
             case Time:
             case Timestamp:
