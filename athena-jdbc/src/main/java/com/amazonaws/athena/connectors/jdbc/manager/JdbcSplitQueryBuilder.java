@@ -407,7 +407,7 @@ public abstract class JdbcSplitQueryBuilder
             List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
 
             String base64EncodedPlan = constraints.getQueryPlan().getSubstraitPlan();
-            LOGGER.debug("substrait plan: {}", base64EncodedPlan);
+            LOGGER.debug("CalciteSql substrait plan: {}", base64EncodedPlan);
 
             SqlNode sqlNode = SubstraitSqlUtils.getSqlNodeFromSubstraitPlan(base64EncodedPlan, sqlDialect);
             if (!(sqlNode instanceof SqlSelect)) {
@@ -422,6 +422,7 @@ public abstract class JdbcSplitQueryBuilder
             PreparedStatement statement = jdbcConnection.prepareStatement(root.toSqlString(sqlDialect).getSql());
 
             handleDataTypesForPreparedStatement(statement, accumulator, tableSchema);
+            LOGGER.debug("CalciteSql prepared statement: {}", statement);
 
             return statement;
         }
