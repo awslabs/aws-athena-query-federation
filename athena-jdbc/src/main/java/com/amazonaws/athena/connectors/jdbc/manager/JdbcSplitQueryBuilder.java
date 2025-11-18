@@ -500,6 +500,25 @@ public abstract class JdbcSplitQueryBuilder
                                         .build());
                     }
                     break;
+                case TIMESTAMP:
+                    if (typeAndValue.getValue() instanceof TimestampString) {
+                        statement.setTimestamp(i + 1,
+                                Timestamp.valueOf(typeAndValue.getValue().toString()));
+                    }
+                    else if (typeAndValue.getValue() instanceof Number) {
+                        long millis = ((Number) typeAndValue.getValue()).longValue();
+                        statement.setTimestamp(i + 1, new Timestamp(millis));
+                    }
+                    else {
+                        throw new AthenaConnectorException(
+                                String.format("Can't handle timestamp format: %s, value class: %s",
+                                        typeAndValue.getType(), typeAndValue.getValue().getClass().getName()),
+                                ErrorDetails.builder().errorCode(
+                                        FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION
+                                                .toString())
+                                        .build());
+                    }
+                    break;
                 default:
                     throw new AthenaConnectorException(
                             String.format("Can't handle type: %s, %s", typeAndValue.getType(),

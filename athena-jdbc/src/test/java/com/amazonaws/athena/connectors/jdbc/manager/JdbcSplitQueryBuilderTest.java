@@ -68,6 +68,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -797,5 +798,224 @@ public class JdbcSplitQueryBuilderTest
         when(valueSet.isNullAllowed()).thenReturn(false);
         when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
+    }
+
+    @Test
+    public void testHandleTimestampWithTimestampString() throws Exception
+    {
+        // Test TIMESTAMP type handling with TimestampString value
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        org.apache.calcite.util.TimestampString timestampString = new org.apache.calcite.util.TimestampString("2025-01-10 10:10:10");
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            timestampString,
+            "EVENT_TIMESTAMP"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create a simple schema with a timestamp field
+        Field timestampField = new Field("EVENT_TIMESTAMP",
+            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
+            null);
+        Schema schema = new Schema(Collections.singletonList(timestampField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setTimestamp was called with the correct timestamp
+        verify(mockPreparedStatement).setTimestamp(eq(1), any(java.sql.Timestamp.class));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleTimestampWithNumericValue() throws Exception
+    {
+        // Test TIMESTAMP type handling with numeric millisecond value
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        long expectedMillis = 1704880210000L; // 2025-01-10 10:10:10 in milliseconds
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            expectedMillis,
+            "EVENT_TIMESTAMP"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with timestamp field
+        Field timestampField = new Field("EVENT_TIMESTAMP",
+            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
+            null);
+        Schema schema = new Schema(Collections.singletonList(timestampField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setTimestamp was called with correct timestamp
+        verify(mockPreparedStatement).setTimestamp(eq(1), eq(new java.sql.Timestamp(expectedMillis)));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleTimestampWithUnsupportedFormat() throws Exception
+    {
+        // Test TIMESTAMP type handling with unsupported value format
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+
+        // Use an unsupported type like String directly (not TimestampString)
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            "2025-01-10",  // Plain string instead of TimestampString or Number
+            "EVENT_TIMESTAMP"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        Field timestampField = new Field("EVENT_TIMESTAMP",
+            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
+            null);
+        Schema schema = new Schema(Collections.singletonList(timestampField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method and expect AthenaConnectorException
+        java.lang.reflect.InvocationTargetException ex = assertThrows(
+            java.lang.reflect.InvocationTargetException.class,
+            () -> method.invoke(builder, mockPreparedStatement, accumulator, schema)
+        );
+
+        // Verify the cause is AthenaConnectorException
+        Throwable cause = ex.getCause();
+        assertTrue(cause instanceof AthenaConnectorException);
+        assertTrue(cause.getMessage().contains("Can't handle timestamp format"));
+        assertTrue(cause.getMessage().contains("String"));
+    }
+
+    @Test
+    public void testHandleMultipleTimestamps() throws Exception
+    {
+        // Test handling multiple TIMESTAMP values in a single prepared statement
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+
+        org.apache.calcite.util.TimestampString ts1 = new org.apache.calcite.util.TimestampString("2025-01-10 10:10:10");
+        long ts2Millis = 1704880210000L;
+
+        SubstraitTypeAndValue typeAndValue1 = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            ts1,
+            "EVENT_TIMESTAMP1"
+        );
+
+        SubstraitTypeAndValue typeAndValue2 = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            ts2Millis,
+            "EVENT_TIMESTAMP2"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = List.of(typeAndValue1, typeAndValue2);
+
+        Field timestampField1 = new Field("EVENT_TIMESTAMP1",
+            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
+            null);
+        Field timestampField2 = new Field("EVENT_TIMESTAMP2",
+            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
+            null);
+        Schema schema = new Schema(List.of(timestampField1, timestampField2));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setTimestamp was called twice with correct indexes
+        verify(mockPreparedStatement).setTimestamp(eq(1), any(java.sql.Timestamp.class));
+        verify(mockPreparedStatement).setTimestamp(eq(2), eq(new java.sql.Timestamp(ts2Millis)));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleTimestampWithMixedTypes() throws Exception
+    {
+        // Test TIMESTAMP handling mixed with other types (VARCHAR, INTEGER, etc.)
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+
+        SubstraitTypeAndValue varchar = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.VARCHAR,
+            "test_value",
+            "COL_VARCHAR"
+        );
+
+        SubstraitTypeAndValue timestamp = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP,
+            new org.apache.calcite.util.TimestampString("2025-01-10 10:10:10"),
+            "EVENT_TIMESTAMP"
+        );
+
+        SubstraitTypeAndValue integer = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.INTEGER,
+            12345,
+            "COL_INT"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = List.of(varchar, timestamp, integer);
+
+        Field varcharField = new Field("COL_VARCHAR", FieldType.nullable(VARCHAR.getType()), null);
+        Field timestampField = new Field("EVENT_TIMESTAMP",
+            FieldType.nullable(new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC")),
+            null);
+        Field intField = new Field("COL_INT", FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(varcharField, timestampField, intField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify all types were set correctly
+        verify(mockPreparedStatement).setString(eq(1), eq("test_value"));
+        verify(mockPreparedStatement).setTimestamp(eq(2), any(java.sql.Timestamp.class));
+        verify(mockPreparedStatement).setInt(eq(3), eq(12345));
+        assertEquals(mockPreparedStatement, result);
     }
 }
