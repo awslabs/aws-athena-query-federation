@@ -62,6 +62,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -284,7 +285,7 @@ public class OracleMetadataHandler
         capabilities.put(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
                 TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
-        
+
         jdbcQueryPassthrough.addQueryPassthroughCapabilityIfEnabled(capabilities, configOptions);
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
@@ -312,7 +313,7 @@ public class OracleMetadataHandler
      * @throws Exception
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();

@@ -406,12 +406,33 @@ public abstract class JdbcMetadataHandler
                 configOptions);
     }
 
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    /**
+     * Gets the schema for a table. This method delegates to the 4-parameter version with null for requestOverrideConfiguration.
+     * Subclasses should override the 4-parameter version instead of this method.
+     *
+     * @param jdbcConnection the JDBC connection
+     * @param tableName the table name
+     * @param partitionSchema the partition schema
+     * @return the schema
+     * @throws Exception if an error occurs
+     */
+    protected final Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws Exception
     {
         return getSchema(jdbcConnection, tableName, partitionSchema, null);
     }
 
+    /**
+     * Gets the schema for a table with optional request override configuration.
+     * This is the main implementation method that subclasses should override if they need to customize schema retrieval.
+     *
+     * @param jdbcConnection the JDBC connection
+     * @param tableName the table name
+     * @param partitionSchema the partition schema
+     * @param requestOverrideConfiguration optional AWS request override configuration for credential federation
+     * @return the schema
+     * @throws Exception if an error occurs
+     */
     protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
