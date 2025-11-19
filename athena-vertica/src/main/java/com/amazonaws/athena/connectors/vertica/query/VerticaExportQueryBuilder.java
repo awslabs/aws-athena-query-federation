@@ -123,14 +123,7 @@ public class VerticaExportQueryBuilder {
     // get the column names from user issued query in Athena
     public VerticaExportQueryBuilder withColumns(ResultSet definition, Schema tableSchema) throws SQLException {
         //get column name and type from the Schema in a hashmap for future use
-        HashMap<String, String> mapOfNamesAndTypes = new HashMap<>();
-
-        while(definition.next())
-        {
-            String colName = definition.getString("COLUMN_NAME").toLowerCase();
-            String colType = definition.getString("TYPE_NAME").toLowerCase();
-            mapOfNamesAndTypes.put(colName, colType);
-        }
+        HashMap<String, String> mapOfNamesAndTypes = getMapOfNamesAndTypes(definition);
 
         // get the column names from the table schema
         StringBuilder colN = new StringBuilder();
@@ -268,11 +261,13 @@ public class VerticaExportQueryBuilder {
 
     public VerticaExportQueryBuilder withQueryPlan(QueryPlan queryPlan, SqlDialect sqlDialect,
                                                    final String schema,
-                                                   final String table, final Schema tableSchema) {
+                                                   final String table, final Schema tableSchema,
+                                                   final ResultSet definition) {
         try {
             String base64EncodedPlan = queryPlan.getSubstraitPlan();
             SqlNode sqlNode = SubstraitSqlUtils.deserializeSubstraitPlan(base64EncodedPlan, sqlDialect, schema, table, tableSchema);
             List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
+            HashMap<String, String> mapOfNamesAndTypes = getMapOfNamesAndTypes(definition);
 
             SqlSelect select;
 
@@ -318,6 +313,10 @@ public class VerticaExportQueryBuilder {
                 }
                 
                 if (columnExpression != null) {
+                    String col_type = mapOfNamesAndTypes.get(columnExpression.toLowerCase());
+                    if(col_type != null && (col_type.equals("timestamp") || col_type.equals("timestamptz"))) {
+                        columnExpression = castTimestamp(columnExpression);
+                    }
                     projectedColumns.add(columnExpression);
                 }
             }
@@ -446,5 +445,17 @@ public class VerticaExportQueryBuilder {
             return String.format(" OFFSET %s LIMIT %s", offset, limit);
         }
         return String.format(" LIMIT %s", limit);
+    }
+
+    private static HashMap<String, String> getMapOfNamesAndTypes(ResultSet definition) throws SQLException {
+        HashMap<String, String> mapOfNamesAndTypes = new HashMap<>();
+
+        while(definition.next())
+        {
+            String colName = definition.getString("COLUMN_NAME").toLowerCase();
+            String colType = definition.getString("TYPE_NAME").toLowerCase();
+            mapOfNamesAndTypes.put(colName, colType);
+        }
+        return mapOfNamesAndTypes;
     }
 }

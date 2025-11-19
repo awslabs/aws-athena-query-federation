@@ -291,17 +291,16 @@ public class VerticaMetadataHandler
             String preparedSQLStmt;
 
             if (!request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
+                DatabaseMetaData dbMetadata = connection.getMetaData();
+                ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
                 if (constraints.getQueryPlan() != null) {
                     queryBuilder = queryFactory.createSubstraitVerticaExportQueryBuilder();
                     preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
                             .withQueryID(queryID)
-                            .withQueryPlan(constraints.getQueryPlan(), VerticaSqlDialect.DEFAULT, tableName.getSchemaName(), tableName.getTableName(), schemaName)
+                            .withQueryPlan(constraints.getQueryPlan(), VerticaSqlDialect.DEFAULT, tableName.getSchemaName(), tableName.getTableName(), schemaName, definition)
                             .build();
                 }
                 else {
-                    DatabaseMetaData dbMetadata = connection.getMetaData();
-                    ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
-
                     preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
                             .withQueryID(queryID)
                             .withColumns(definition, schemaName)
