@@ -132,6 +132,23 @@ Athena DataCatalog name will be as follow: `athena_integ_<source_type>`
 
 If you are running with FGAC test, your catalog will be migrate over to GDC/LF and your Glue datacatalog will follow this format `athena_glue_integ_<source_type>`
 
+### Catalog Migration
+
+#### Migrate Athena Catalog to Glue Catalog
+```
+python infra_main.py --action migrate_to_glue_catalog --resources <source_type>
+```
+This migrates an Athena catalog to Glue with LakeFormation integration.
+
+#### Migrate Glue Catalog to Athena Catalog
+```
+python infra_main.py --action migrate_to_athena_catalog --resources <source_type>
+```
+This will:
+1. Deregister the Glue connection from LakeFormation
+2. Delete the Glue catalog
+3. Create an Athena catalog with Type='LAMBDA' using the same Lambda function
+
 -----
 ## Testing
 Testing can be done against different type of catalogs 1. Athena DataCatalog, 2. Glue DataCatalog
@@ -192,7 +209,7 @@ python infra_main.py --action generate_tpcds;
 
 General
 ```
-python infra_main.py --action ["generate_tpcds","create_infra","destroy_infra","load_data","delete_resource","create_connector","update_connector","migrate_glue_catalog"] [--resources ["dynamodb","mysql","documentdb","postgresql","redshift","sqlserver","elasticsearch","bigquery","snowflake"]]
+python infra_main.py --action ["generate_tpcds","create_infra","destroy_infra","load_data","delete_resource","create_connector","update_connector","migrate_to_glue_catalog","migrate_to_athena_catalog"] --resources ["dynamodb","mysql","documentdb","postgresql","redshift","sqlserver","elasticsearch","bigquery","snowflake"]
 ```
 
 Create Infra for all connectors

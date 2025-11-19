@@ -283,6 +283,42 @@ class Federated_Source(ABC):
 
         logging.info(f'✅ Glue Federated catalog created. catalog_name:{glue_catalog_name}')
 
+    def migrate_glue_catalog_to_athena_catalog(self) -> None:
+        glue_catalog_name = config_helper.get_glue_catalog_name(self.get_connection_type_name())
+        athena_catalog_name = config_helper.get_athena_catalog_name(self.get_connection_type_name())
+        # Check if check glue catalog exist
+        try:
+            glue_catalog = self.glue_client.get_catalog(CatalogId=glue_catalog_name)
+        except botocore.exceptions.ClientError as error:
+            if error.response['Error']['Code'] == 'EntityNotFoundException':
+                raise ValueError(f"Glue Catalog:{glue_catalog_name} does NOT exists. Nothing to migrate")
+
+        # Check if Athena Catalog exists
+        try:
+            athena_catalog_response = self.athena_client.get_data_catalog(Name=athena_catalog_name)
+            if athena_catalog_response['DataCatalog']['Status'] != 'DELETE_COMPLETE':
+                msg = f'❌ Athena catalog exists and not in DELETE_COMPLETE status ... name:{athena_catalog_name} status: {athena_catalog_response["DataCatalog"]["Status"]}'
+                logging.error(msg)
+                raise RuntimeError(msg)
+        except botocore.exceptions.ClientError as error:
+            if error.response['Error']['Code'] != 'InvalidRequestException' or 'not found' not in error.response['Error']['Message']:
+                raise error
+            logging.info(f'ℹ️ Athena catalog {athena_catalog_name} does not exist, proceeding with migration.')
+
+        connection_name = glue_catalog['Catalog']['FederatedCatalog']['ConnectionName']
+        glue_connection = self.glue_client.get_connection(Name=connection_name)
+        lambda_arn = glue_connection['Connection']['AthenaProperties']['lambda_function_arn']
+        glue_connection_arn = self.glue_connection_arn_template.format(config_helper.get_region(), common_infra.get_account_id(), connection_name)
+
+        lakeformation_client.deregister_resource(glue_connection_arn)
+        logging.info(f'✅ LakeFormation deregistered resource... resource_arn:{glue_connection_arn}')
+        
+        self.glue_client.delete_catalog(CatalogId=glue_catalog_name)
+        logging.info(f'✅ Glue catalog deleted... name:{glue_catalog_name}')
+        
+        self.athena_client.create_data_catalog(Name=athena_catalog_name, Type='LAMBDA', Parameters={'function': lambda_arn})
+        logging.info(f'✅ Athena catalog created... name:{athena_catalog_name} lambda_arn:{lambda_arn}')
+
     def delete_resources(self) -> None:
         athena_catalog_name = config_helper.get_athena_catalog_name(self.get_connection_type_name())
         glue_catalog_name = config_helper.get_glue_catalog_name(self.get_connection_type_name())

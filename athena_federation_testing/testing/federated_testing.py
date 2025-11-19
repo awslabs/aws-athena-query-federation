@@ -342,8 +342,11 @@ class Federated_Testing(ABC):
 
     def _is_athena_catalog_exists(self, catalog_name:str)-> bool:
         get_catalog_response = self.athena_client.get_data_catalog(Name=catalog_name)
+        
+        if get_catalog_response['DataCatalog']['Type'] == 'LAMBDA':
+            return True
+        
         catalog_status = get_catalog_response['DataCatalog']['Status']
-
         if catalog_status != 'CREATE_COMPLETE':
             raise RuntimeError(f"Catalog {catalog_name} does not exist in Athena Catalog.")
 

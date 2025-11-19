@@ -27,7 +27,8 @@ ALLOWED_ACTIONS = [
     "delete_resource",
     "create_connector",
     "update_connector",
-    "migrate_glue_catalog"
+    "migrate_to_glue_catalog",
+    "migrate_to_athena_catalog"
 ]
 
 def handle_action(action, resources):
@@ -62,9 +63,12 @@ def handle_action(action, resources):
         case "update_connector":
             logging.info("Updating connector...")
             federated_source.update_connector_with_local_repo()
-        case "migrate_glue_catalog":
-            logging.info("Migrating Glue catalog...")
+        case "migrate_to_glue_catalog":
+            logging.info("Migrating Athena catalog to Glue catalog...")
             federated_source.migrate_athena_catalog_to_glue_catalog_with_lake_formation()
+        case "migrate_to_athena_catalog":
+            logging.info("Migrating Glue catalog to Athena catalog...")
+            federated_source.migrate_glue_catalog_to_athena_catalog()
         case _:
             logging.error(f"Unknown action. action={action}")
             sys.exit(1)
