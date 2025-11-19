@@ -492,14 +492,29 @@ public abstract class JdbcSplitQueryBuilder
                         statement.setTimestamp(i + 1,
                                 Timestamp.valueOf(typeAndValue.getValue().toString()));
                     }
+                    else if (typeAndValue.getValue() instanceof Date) {
+                        statement.setDate(i + 1, (Date) typeAndValue.getValue());
+                    }
+                    else if (typeAndValue.getValue() instanceof java.util.Date) {
+                        statement.setDate(i + 1, new Date(((java.util.Date) typeAndValue.getValue()).getTime()));
+                    }
                     else {
-                        throw new AthenaConnectorException(
-                                String.format("Can't handle date format: %s",
-                                        typeAndValue.getType()),
-                                ErrorDetails.builder().errorCode(
-                                        FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION
-                                                .toString())
-                                        .build());
+                        // Try to parse as string as a fallback
+                        try {
+                            String dateStr = typeAndValue.getValue().toString();
+                            statement.setDate(i + 1, Date.valueOf(dateStr));
+                        }
+                        catch (Exception e) {
+                            throw new AthenaConnectorException(
+                                    String.format("Can't handle date format: %s, value type: %s, value: %s",
+                                            typeAndValue.getType(),
+                                            typeAndValue.getValue().getClass().getName(),
+                                            typeAndValue.getValue()),
+                                    ErrorDetails.builder().errorCode(
+                                            FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION
+                                                    .toString())
+                                            .build());
+                        }
                     }
                     break;
                 case TIMESTAMP:

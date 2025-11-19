@@ -1018,4 +1018,366 @@ public class JdbcSplitQueryBuilderTest
         verify(mockPreparedStatement).setInt(eq(3), eq(12345));
         assertEquals(mockPreparedStatement, result);
     }
+
+    @Test
+    public void testHandleDateWithDateStringValue() throws Exception
+    {
+        // Test DATE type handling with DateString value
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        org.apache.calcite.util.DateString dateString = new org.apache.calcite.util.DateString("2025-01-10");
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            dateString,
+            "EVENT_DATE"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with date field (DAY unit)
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
+            null);
+        Schema schema = new Schema(Collections.singletonList(dateField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setDate was called with correct date
+        verify(mockPreparedStatement).setDate(eq(1), any(java.sql.Date.class));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleDateWithSqlDateValue() throws Exception
+    {
+        // Test DATE type handling with java.sql.Date value
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        java.sql.Date sqlDate = java.sql.Date.valueOf("2025-01-10");
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            sqlDate,
+            "EVENT_DATE"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with date field
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
+            null);
+        Schema schema = new Schema(Collections.singletonList(dateField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setDate was called with the same date object
+        verify(mockPreparedStatement).setDate(eq(1), eq(sqlDate));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleDateWithUtilDateValue() throws Exception
+    {
+        // Test DATE type handling with java.util.Date value
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        java.util.Date utilDate = new java.util.Date(1704844800000L); // 2025-01-10
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            utilDate,
+            "EVENT_DATE"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with date field
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
+            null);
+        Schema schema = new Schema(Collections.singletonList(dateField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setDate was called with converted sql.Date
+        verify(mockPreparedStatement).setDate(eq(1), any(java.sql.Date.class));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleDateWithStringValue() throws Exception
+    {
+        // Test DATE type handling with string value (fallback parsing)
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        String dateString = "2025-01-10";
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            dateString,
+            "EVENT_DATE"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with date field
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
+            null);
+        Schema schema = new Schema(Collections.singletonList(dateField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setDate was called with parsed date
+        verify(mockPreparedStatement).setDate(eq(1), eq(java.sql.Date.valueOf(dateString)));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleDateWithNumericDayValue() throws Exception
+    {
+        // Test DATE type handling with numeric value (days since epoch)
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        long daysValue = 19000; // Days since epoch (approximately 2022-01-01)
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            daysValue,
+            "EVENT_DATE"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with date field (DAY unit)
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
+            null);
+        Schema schema = new Schema(Collections.singletonList(dateField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setDate was called
+        verify(mockPreparedStatement).setDate(eq(1), any(java.sql.Date.class));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleDateWithNumericMillisecondValue() throws Exception
+    {
+        // Test DATE type handling with numeric millisecond value
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        long millisValue = 1704844800000L; // Milliseconds since epoch
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            millisValue,
+            "EVENT_DATE"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with date field (MILLISECOND unit)
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.MILLISECOND)),
+            null);
+        Schema schema = new Schema(Collections.singletonList(dateField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setDate was called
+        verify(mockPreparedStatement).setDate(eq(1), any(java.sql.Date.class));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleDateWithTimestampStringValue() throws Exception
+    {
+        // Test DATE type handling with TimestampString value (should convert to timestamp)
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        org.apache.calcite.util.TimestampString timestampString = new org.apache.calcite.util.TimestampString("2025-01-10 10:10:10");
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            timestampString,
+            "EVENT_DATE"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with date field
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
+            null);
+        Schema schema = new Schema(Collections.singletonList(dateField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify setTimestamp was called (DATE with TimestampString converts to timestamp)
+        verify(mockPreparedStatement).setTimestamp(eq(1), any(java.sql.Timestamp.class));
+        assertEquals(mockPreparedStatement, result);
+    }
+
+    @Test
+    public void testHandleDateWithInvalidStringValue() throws Exception
+    {
+        // Test DATE type handling with invalid string format
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        String invalidDateString = "invalid-date-format";
+
+        SubstraitTypeAndValue typeAndValue = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            invalidDateString,
+            "EVENT_DATE"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = Collections.singletonList(typeAndValue);
+
+        // Create schema with date field
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
+            null);
+        Schema schema = new Schema(Collections.singletonList(dateField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method and expect AthenaConnectorException
+        java.lang.reflect.InvocationTargetException ex = assertThrows(
+            java.lang.reflect.InvocationTargetException.class,
+            () -> method.invoke(builder, mockPreparedStatement, accumulator, schema)
+        );
+
+        // Verify the cause is AthenaConnectorException with appropriate error message
+        Throwable cause = ex.getCause();
+        assertTrue(cause instanceof AthenaConnectorException);
+        assertTrue(cause.getMessage().contains("Can't handle date format"));
+        assertTrue(cause.getMessage().contains("value type"));
+        assertTrue(cause.getMessage().contains(invalidDateString));
+    }
+
+    @Test
+    public void testHandleDateWithMixedTypes() throws Exception
+    {
+        // Test DATE handling mixed with other types
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+
+        SubstraitTypeAndValue varchar = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.VARCHAR,
+            "test_value",
+            "COL_VARCHAR"
+        );
+
+        SubstraitTypeAndValue date = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.DATE,
+            new org.apache.calcite.util.DateString("2025-01-10"),
+            "EVENT_DATE"
+        );
+
+        SubstraitTypeAndValue integer = new SubstraitTypeAndValue(
+            org.apache.calcite.sql.type.SqlTypeName.INTEGER,
+            12345,
+            "COL_INT"
+        );
+
+        List<SubstraitTypeAndValue> accumulator = List.of(varchar, date, integer);
+
+        Field varcharField = new Field("COL_VARCHAR", FieldType.nullable(VARCHAR.getType()), null);
+        Field dateField = new Field("EVENT_DATE",
+            FieldType.nullable(new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY)),
+            null);
+        Field intField = new Field("COL_INT", FieldType.nullable(INT.getType()), null);
+        Schema schema = new Schema(List.of(varcharField, dateField, intField));
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = JdbcSplitQueryBuilder.class.getDeclaredMethod(
+            "handleDataTypesForPreparedStatement",
+            PreparedStatement.class,
+            List.class,
+            Schema.class
+        );
+        method.setAccessible(true);
+
+        // Execute the method
+        PreparedStatement result = (PreparedStatement) method.invoke(builder, mockPreparedStatement, accumulator, schema);
+
+        // Verify all types were set correctly
+        verify(mockPreparedStatement).setString(eq(1), eq("test_value"));
+        verify(mockPreparedStatement).setDate(eq(2), any(java.sql.Date.class));
+        verify(mockPreparedStatement).setInt(eq(3), eq(12345));
+        assertEquals(mockPreparedStatement, result);
+    }
 }
