@@ -153,7 +153,7 @@ This will:
 ## Testing
 Testing can be done against different type of catalogs 1. Athena DataCatalog, 2. Glue DataCatalog
 
-Test results can be optionally saved to a CSV file using the `--output_file` parameter.
+Test results can be optionally saved to CSV files using the `--output_file_prefix` parameter. Each resource will generate a separate file: `<prefix>_<resource>.csv`
 
 Contains 3 type of testing 
 
@@ -249,10 +249,10 @@ python testing_main.py --action test_glue
 Test Everything
 python testing_main.py --action release_test
 
-Save test results to CSV file
-python testing_main.py --action test_athena --output_file results.csv
-python testing_main.py --action test_glue --output_file results.csv
-python testing_main.py --action release_test --output_file results.csv
+Save test results to CSV files (one per resource)
+python testing_main.py --action test_athena --output_file_prefix results
+python testing_main.py --action test_glue --output_file_prefix results
+python testing_main.py --action release_test --output_file_prefix results
 
 Test specific resources
 python testing_main.py --action test_athena --resources dynamodb,mysql

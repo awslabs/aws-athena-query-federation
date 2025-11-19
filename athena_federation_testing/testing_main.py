@@ -27,7 +27,7 @@ ALLOWED_ACTIONS = [
 pd.set_option('display.max_columns', 50)
 pd.set_option('display.width', 20000)
 
-def handle_action(action, resources, verbose=False, output_location=""):
+def handle_action(action, resources, verbose=False, output_prefix=""):
     """
     Main logic for handling different actions.
     You can expand this function with actual implementation.
@@ -37,20 +37,19 @@ def handle_action(action, resources, verbose=False, output_location=""):
     match action:
         case "test_athena":
             logging.info("running query with Athena Catalog...")
-            _run_individual_test(resources, True, output_location)
+            _run_individual_test(resources, True, output_prefix)
         case "test_glue":
             logging.info("running query with Glue Catalog...")
-            _run_individual_test(resources, False, output_location)
+            _run_individual_test(resources, False, output_prefix)
         case "release_test":
             logging.info("running connector release test...")
-            run_release_test(resources, verbose, output_location)
+            run_release_test(resources, verbose, output_prefix)
         case _:
             logging.error(f"Unknown action. action={action}")
             sys.exit(1)
 
-def run_release_test(resources, verbose, output_location=""):
+def run_release_test(resources, verbose, output_prefix=""):
     total_failed_df = pd.DataFrame()
-    all_test_results = pd.DataFrame() if output_location else None
     
     for resource in resources:
         test = Federated_Testing.create_federated_source(resource)
@@ -70,17 +69,14 @@ def run_release_test(resources, verbose, output_location=""):
             logging.info("---------Test result---------")
             logging.info(resource_df)
 
-        if output_location:
-            resource_df["type"] = resource
-            all_test_results = pd.concat([all_test_results, resource_df], ignore_index=True)
+        if output_prefix:
+            output_file = f"{output_prefix}_{resource}.csv"
+            resource_df.to_csv(output_file, index=False)
+            logging.info(f"Test results for {resource} saved to {output_file}")
 
         failed_df = resource_df[resource_df["State"] == "FAILED"]
         failed_df["type"] = resource
         total_failed_df = pd.concat([total_failed_df, failed_df], ignore_index=True)
-
-    if output_location:
-        all_test_results.to_csv(output_location, index=False)
-        logging.info(f"Test results saved to {output_location}")
 
     if not total_failed_df.empty:
         logging.error("---------Failed Test---------")
@@ -88,11 +84,8 @@ def run_release_test(resources, verbose, output_location=""):
         logging.error("Test failed exit with non-zero")
         sys.exit(1)
 
-def _run_individual_test(resources, is_athena, output_location):
-    all_test_results = pd.DataFrame() if output_location else None
-    
+def _run_individual_test(resources, is_athena, output_prefix):
     for resource in resources:
-
         test = Federated_Testing.create_federated_source(resource)
         
         if is_athena:
@@ -103,10 +96,11 @@ def _run_individual_test(resources, is_athena, output_location):
             predicate_df = test.execute_athena_predicate_select_test()
             print(predicate_df)
 
-            if output_location:
+            if output_prefix:
                 resource_df = pd.concat([metadata_df, simple_df, predicate_df], ignore_index=True)
-                resource_df['type'] = resource
-                all_test_results = pd.concat([all_test_results, resource_df], ignore_index=True)
+                output_file = f"{output_prefix}_{resource}.csv"
+                resource_df.to_csv(output_file, index=False)
+                logging.info(f"Test results for {resource} saved to {output_file}")
         else:
             test.grant_permission_on_glue_catalog()
             metadata_df = test.execute_glue_federation_metadata_test()
@@ -116,14 +110,11 @@ def _run_individual_test(resources, is_athena, output_location):
             predicate_df = test.execute_glue_federation_predicate_select_test()
             print(predicate_df)
 
-            if output_location:
+            if output_prefix:
                 resource_df = pd.concat([metadata_df, simple_df, predicate_df], ignore_index=True)
-                resource_df['type'] = resource
-                all_test_results = pd.concat([all_test_results, resource_df], ignore_index=True)
-    
-    if output_location:
-        all_test_results.to_csv(output_location, index=False)
-        logging.info(f"Test results saved to {output_location}")
+                output_file = f"{output_prefix}_{resource}.csv"
+                resource_df.to_csv(output_file, index=False)
+                logging.info(f"Test results for {resource} saved to {output_file}")
 
 def main():
     parser = argparse.ArgumentParser(description="Infra and data management script")
@@ -149,10 +140,10 @@ def main():
     )
 
     parser.add_argument(
-        "--output_file",
+        "--output_file_prefix",
         required=False,
         default= "",
-        help="test result output location"
+        help="Prefix for output files. Each resource will generate a separate file: <prefix>_<resource>.csv"
     )
 
     args = parser.parse_args()
@@ -165,7 +156,7 @@ def main():
             logging.error(f"Resource {resource} is not a valid resource")
             sys.exit(1)
 
-    handle_action(args.action, resources, verbose=args.verbose, output_location=args.output_file)
+    handle_action(args.action, resources, verbose=args.verbose, output_prefix=args.output_file_prefix)
 
 
 if __name__ == "__main__":
