@@ -192,7 +192,7 @@ python infra_main.py --action generate_tpcds;
 
 General
 ```
-python infra_main.py --action ["generate_tpcds","create_infra","destroy_infra","load_data","delete_resource","create_connector","update_connector","migrate_glue_catalog"] [--resources ["dynamodb", "mysql", "documentdb","postgresql", "redshift", "sqlserver", "elasticsearch", "bigquery", "snowflake"]]
+python infra_main.py --action ["generate_tpcds","create_infra","destroy_infra","load_data","delete_resource","create_connector","update_connector","migrate_glue_catalog"] [--resources ["dynamodb","mysql","documentdb","postgresql","redshift","sqlserver","elasticsearch","bigquery","snowflake"]]
 ```
 
 Create Infra for all connectors
