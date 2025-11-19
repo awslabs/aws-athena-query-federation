@@ -54,9 +54,9 @@ class Federated_Testing(ABC):
         actual_name_set = {table["Name"] for table in table_list["TableMetadataList"]}
         contains_all_tables= set(self.get_tables_name()).issubset(actual_name_set)
 
-        rows.append({"Test": "Athena:ListDatabase",
+        rows.append({"Test": "Athena:ListTables",
                      "State": "SUCCEEDED" if contains_all_tables else "FAILED",
-                     "Description": "List tables verifyied all table exists"})
+                     "Description": "List tables verify all table exists"})
 
         table_name = next(iter(actual_name_set), None)
         response = self.athena_client.get_table_metadata(
@@ -83,7 +83,7 @@ class Federated_Testing(ABC):
         rows = []
         rows.append({"Test": "Glue:GetDataCatalog",
                      "State": "SUCCEEDED" if self._is_glue_catalog_exists(config_helper.get_glue_catalog_name(self.get_connection_type_name())) else "FAILED",
-                     "Description": "Get Athena Datacatalog, check if status = completed"
+                     "Description": "Get Glue Datacatalog"
                      })
 
         glue_database_response = self.glue_client.get_databases(CatalogId = glue_catalog_name)
@@ -97,9 +97,9 @@ class Federated_Testing(ABC):
         actual_name_set = {table["Name"] for table in glue_tables_response["TableList"]}
         contains_all_tables= set(self.get_tables_name()).issubset(actual_name_set)
 
-        rows.append({"Test": "Athena:ListDatabase",
+        rows.append({"Test": "Glue:getTables",
                      "State": "SUCCEEDED" if contains_all_tables else "FAILED",
-                     "Description": "List tables verifyied all table exists"})
+                     "Description": "List tables verify all table exists"})
 
         logging.info(f"execute_glue_federation_metadata_test completed for {glue_catalog_name}")
         return pd.DataFrame(rows)
@@ -156,27 +156,27 @@ class Federated_Testing(ABC):
 
         # Baseline with simple select
         base_tuple = self._get_predicate_base_query(use_athena_catalog=use_athena_catalog)
-        df = pd.concat([df, self._execute_predicate_query(base_tuple)])
+        df = pd.concat([df, self._execute_predicate_query(base_tuple, use_athena_catalog)])
 
         # select with primary key where clause
         simple_predicate = self._get_predicate_select_query(use_athena_catalog=use_athena_catalog)
-        df = pd.concat([df, self._execute_predicate_query(simple_predicate)], ignore_index=True)
+        df = pd.concat([df, self._execute_predicate_query(simple_predicate, use_athena_catalog)], ignore_index=True)
 
         limit_queries = self._get_limit_pushdown_select_query(use_athena_catalog=use_athena_catalog)
-        df = pd.concat([df, self._execute_predicate_query(limit_queries)], ignore_index=True)
+        df = pd.concat([df, self._execute_predicate_query(limit_queries, use_athena_catalog)], ignore_index=True)
 
         complex_predicate = self._get_complex_pushdown_select_query(use_athena_catalog=use_athena_catalog)
-        df = pd.concat([df, self._execute_predicate_query(complex_predicate)], ignore_index=True)
+        df = pd.concat([df, self._execute_predicate_query(complex_predicate, use_athena_catalog)], ignore_index=True)
 
         select_count = self._get_select_count_query(use_athena_catalog=use_athena_catalog)
-        df = pd.concat([df, self._execute_predicate_query(select_count)], ignore_index=True)
+        df = pd.concat([df, self._execute_predicate_query(select_count, use_athena_catalog)], ignore_index=True)
         # #
         dynamic_filter_query = self._get_dynamic_filter_query(use_athena_catalog=use_athena_catalog)
-        df = pd.concat([df, self._execute_predicate_query(dynamic_filter_query)], ignore_index=True)
+        df = pd.concat([df, self._execute_predicate_query(dynamic_filter_query, use_athena_catalog)], ignore_index=True)
 
         return df
 
-    def _execute_predicate_query(self, queries_input: list[dict]):
+    def _execute_predicate_query(self, queries_input: list[dict], use_athena_catalog):
         rows = []
         for i, query_input in enumerate(queries_input):
             try:
@@ -187,6 +187,7 @@ class Federated_Testing(ABC):
                                "State":query_response["QueryExecution"]["Status"]["State"],
                                "Query":query_response["QueryExecution"]["Query"],
                                "TableName":query_input["TableName"],
+                               "IsAthenaCatalog": use_athena_catalog,
                                "EngineExecutionTimeInMillis":query_response["QueryExecution"]["Statistics"]["EngineExecutionTimeInMillis"],
                                "QueryPlanningTimeInMillis": query_response.get("QueryExecution", {}).get("Statistics", {}).get("QueryPlanningTimeInMillis", ""), #not sure why this somtimes empty
                                "DataScannedInBytes":query_response["QueryExecution"]["Statistics"]["DataScannedInBytes"]
@@ -197,6 +198,7 @@ class Federated_Testing(ABC):
                                  "State": query_response["QueryExecution"]["Status"]["State"],
                                  "Query": query_response["QueryExecution"]["Query"],
                                  "TableName": query_input["TableName"],
+                                 "IsAthenaCatalog": use_athena_catalog,
                                  "ErrorMessage": query_response["QueryExecution"]["Status"]["AthenaError"]["ErrorMessage"]
                                  })
             except Exception as e:
@@ -206,6 +208,7 @@ class Federated_Testing(ABC):
                              "State": "FAILED",
                              "Query": query_input["Query"],
                              "TableName": query_input["TableName"],
+                             "IsAthenaCatalog": use_athena_catalog,
                              "ErrorMessage": f'{e.response["AthenaErrorCode"]}, {e.response["Error"]["Message"]}'
                              })
 

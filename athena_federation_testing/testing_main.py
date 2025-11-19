@@ -16,7 +16,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info("Main started")
 
-complete_resource_list = ["dynamodb", "mysql", "documentdb","postgresql", "redshift", "sqlserver", "elasticsearch", "bigquery", "snowflake"]
+full_resource_list = ["dynamodb", "mysql", "documentdb","postgresql", "redshift", "sqlserver", "elasticsearch", "bigquery", "snowflake", "oracle"]
+default_test_resource_list = ["dynamodb", "mysql", "documentdb","postgresql", "redshift", "sqlserver", "elasticsearch", "bigquery", "snowflake"]
 
 ALLOWED_ACTIONS = [
     "test_athena",
@@ -26,7 +27,7 @@ ALLOWED_ACTIONS = [
 pd.set_option('display.max_columns', 50)
 pd.set_option('display.width', 20000)
 
-def handle_action(action, resources, verbose=False):
+def handle_action(action, resources, verbose=False, output_location=""):
     """
     Main logic for handling different actions.
     You can expand this function with actual implementation.
@@ -36,19 +37,21 @@ def handle_action(action, resources, verbose=False):
     match action:
         case "test_athena":
             logging.info("running query with Athena Catalog...")
-            _run_individual_test(resources, True)
+            _run_individual_test(resources, True, output_location)
         case "test_glue":
             logging.info("running query with Glue Catalog...")
-            _run_individual_test(resources, False)
+            _run_individual_test(resources, False, output_location)
         case "release_test":
             logging.info("running connector release test...")
-            run_release_test(resources, verbose)
+            run_release_test(resources, verbose, output_location)
         case _:
             logging.error(f"Unknown action. action={action}")
             sys.exit(1)
 
-def run_release_test(resources, verbose):
+def run_release_test(resources, verbose, output_location=""):
     total_failed_df = pd.DataFrame()
+    all_test_results = pd.DataFrame() if output_location else None
+    
     for resource in resources:
         test = Federated_Testing.create_federated_source(resource)
         resource_df = pd.DataFrame()
@@ -62,13 +65,22 @@ def run_release_test(resources, verbose):
         resource_df = pd.concat([resource_df, test.execute_glue_federation_metadata_test()], ignore_index=True)
         resource_df = pd.concat([resource_df, test.execute_glue_federation_simple_select_test()], ignore_index=True)
         resource_df = pd.concat([resource_df, test.execute_glue_federation_predicate_select_test()], ignore_index=True)
+        
         if verbose:
             logging.info("---------Test result---------")
             logging.info(resource_df)
 
+        if output_location:
+            resource_df["type"] = resource
+            all_test_results = pd.concat([all_test_results, resource_df], ignore_index=True)
+
         failed_df = resource_df[resource_df["State"] == "FAILED"]
         failed_df["type"] = resource
         total_failed_df = pd.concat([total_failed_df, failed_df], ignore_index=True)
+
+    if output_location:
+        all_test_results.to_csv(output_location, index=False)
+        logging.info(f"Test results saved to {output_location}")
 
     if not total_failed_df.empty:
         logging.error("---------Failed Test---------")
@@ -76,23 +88,42 @@ def run_release_test(resources, verbose):
         logging.error("Test failed exit with non-zero")
         sys.exit(1)
 
-def _run_individual_test(resources, is_athena):
+def _run_individual_test(resources, is_athena, output_location):
+    all_test_results = pd.DataFrame() if output_location else None
+    
     for resource in resources:
-        if resource not in complete_resource_list:
-            logging.error(f"Resource {resource} is not a valid resource")
-            continue
 
         test = Federated_Testing.create_federated_source(resource)
+        
         if is_athena:
-            print(test.execute_athena_metadata_test())
-            print(test.execute_athena_simple_select_test())
-            print(test.execute_athena_predicate_select_test())
+            metadata_df = test.execute_athena_metadata_test()
+            print(metadata_df)
+            simple_df = test.execute_athena_simple_select_test()
+            print(simple_df)
+            predicate_df = test.execute_athena_predicate_select_test()
+            print(predicate_df)
+
+            if output_location:
+                resource_df = pd.concat([metadata_df, simple_df, predicate_df], ignore_index=True)
+                resource_df['type'] = resource
+                all_test_results = pd.concat([all_test_results, resource_df], ignore_index=True)
         else:
-            test = Federated_Testing.create_federated_source(resource)
             test.grant_permission_on_glue_catalog()
-            print(test.execute_glue_federation_metadata_test())
-            print(test.execute_glue_federation_simple_select_test())
-            print(test.execute_glue_federation_predicate_select_test())
+            metadata_df = test.execute_glue_federation_metadata_test()
+            print(metadata_df)
+            simple_df = test.execute_glue_federation_simple_select_test()
+            print(simple_df)
+            predicate_df = test.execute_glue_federation_predicate_select_test()
+            print(predicate_df)
+
+            if output_location:
+                resource_df = pd.concat([metadata_df, simple_df, predicate_df], ignore_index=True)
+                resource_df['type'] = resource
+                all_test_results = pd.concat([all_test_results, resource_df], ignore_index=True)
+    
+    if output_location:
+        all_test_results.to_csv(output_location, index=False)
+        logging.info(f"Test results saved to {output_location}")
 
 def main():
     parser = argparse.ArgumentParser(description="Infra and data management script")
@@ -107,7 +138,7 @@ def main():
     parser.add_argument(
         "--resources",
         required=False,
-        default= ",".join(complete_resource_list),
+        default= ",".join(default_test_resource_list),
         help="Comma-separated list of resources. Example: snowflake,dynamodb"
     )
 
@@ -117,17 +148,24 @@ def main():
         help="Enable verbose output"
     )
 
+    parser.add_argument(
+        "--output_file",
+        required=False,
+        default= "",
+        help="test result output location"
+    )
+
     args = parser.parse_args()
 
     # Split resources by comma and strip spaces
     resources = [r.strip() for r in args.resources.split(",") if r.strip()]
 
     for resource in resources:
-        if resource not in complete_resource_list:
+        if resource not in full_resource_list:
             logging.error(f"Resource {resource} is not a valid resource")
             sys.exit(1)
 
-    handle_action(args.action, resources, verbose=args.verbose)
+    handle_action(args.action, resources, verbose=args.verbose, output_location=args.output_file)
 
 
 if __name__ == "__main__":

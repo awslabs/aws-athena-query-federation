@@ -15,7 +15,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info("Main started")
 
-complete_resource_list = ["dynamodb", "mysql", "documentdb","postgresql", "redshift", "sqlserver", "elasticsearch", "bigquery", "snowflake"]
+
+full_resource_list = ["dynamodb", "mysql", "documentdb","postgresql", "redshift", "sqlserver", "elasticsearch", "bigquery", "snowflake", "oracle"]
+default_test_resource_list = ["dynamodb", "mysql", "documentdb","postgresql", "redshift", "sqlserver", "elasticsearch", "bigquery", "snowflake"]
 
 ALLOWED_ACTIONS = [
     "generate_tpcds",
@@ -81,7 +83,7 @@ def main():
     parser.add_argument(
         "--resources",
         required=False,
-        default= ",".join(complete_resource_list),
+        default= ",".join(default_test_resource_list),
         help="Comma-separated list of resources. Example: snowflake,dynamodb"
     )
 
@@ -91,7 +93,7 @@ def main():
     resources = [r.strip() for r in args.resources.split(",") if r.strip()]
 
     for resource in resources:
-        if resource not in complete_resource_list:
+        if resource not in full_resource_list:
             logging.error(f"Resource {resource} is not a valid resource")
             sys.exit(1)
         handle_action(args.action, resource)

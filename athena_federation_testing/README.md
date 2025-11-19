@@ -134,7 +134,9 @@ If you are running with FGAC test, your catalog will be migrate over to GDC/LF a
 
 -----
 ## Testing
-Testing can be down against different type of catalogs 1. Athena DataCatalog, 2. Glue DataCatalog
+Testing can be done against different type of catalogs 1. Athena DataCatalog, 2. Glue DataCatalog
+
+Test results can be optionally saved to a CSV file using the `--output_file` parameter.
 
 Contains 3 type of testing 
 
@@ -229,4 +231,12 @@ python testing_main.py --action test_glue
 
 Test Everything
 python testing_main.py --action release_test
+
+Save test results to CSV file
+python testing_main.py --action test_athena --output_file results.csv
+python testing_main.py --action test_glue --output_file results.csv
+python testing_main.py --action release_test --output_file results.csv
+
+Test specific resources
+python testing_main.py --action test_athena --resources dynamodb,mysql
 ```

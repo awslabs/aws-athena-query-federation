@@ -349,6 +349,7 @@ class Federated_Source(ABC):
             "mvn",
             "clean",
             "install",
+            "-q",
             "-pl", f"athena-{self.get_athena_federation_sdk_folder_name()}",
             "-am",
             "-DskipTests",
