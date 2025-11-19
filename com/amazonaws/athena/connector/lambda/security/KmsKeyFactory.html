@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10};
+var data = {"i0":10,"i1":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -191,6 +191,11 @@ implements <a href="EncryptionKeyFactory.html" title="interface in com.amazonaws
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#create()">create</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code><a href="EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#create(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">create</a></span>&#8203;(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -238,7 +243,7 @@ implements <a href="EncryptionKeyFactory.html" title="interface in com.amazonaws
 <a id="create()">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>create</h4>
 <pre class="methodSignature">public&nbsp;<a href="EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a>&nbsp;create()</pre>
@@ -247,6 +252,19 @@ implements <a href="EncryptionKeyFactory.html" title="interface in com.amazonaws
 <dd><code><a href="EncryptionKeyFactory.html#create()">create</a></code>&nbsp;in interface&nbsp;<code><a href="EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a></code></dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>A key that satisfies the specification defined in BlockCrypto</dd>
+</dl>
+</li>
+</ul>
+<a id="create(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>create</h4>
+<pre class="methodSignature">public&nbsp;<a href="EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a>&nbsp;create&#8203;(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration&nbsp;awsRequestOverrideConfiguration)</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="EncryptionKeyFactory.html#create(software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration)">create</a></code>&nbsp;in interface&nbsp;<code><a href="EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a></code></dd>
 </dl>
 </li>
 </ul>
