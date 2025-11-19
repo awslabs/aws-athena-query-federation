@@ -54,31 +54,44 @@ def handle_action(action, resources, verbose=False, output_prefix=""):
 def _run_test_for_resource(resource, test_athena, test_glue, verbose, output_prefix):
     test = Federated_Testing.create_federated_source(resource)
     resource_df = pd.DataFrame()
+    failed_method = None
     
-    if test_athena:
-        metadata_df = test.execute_athena_metadata_test()
-        print(metadata_df)
-        resource_df = pd.concat([resource_df, metadata_df], ignore_index=True)
-        simple_df = test.execute_athena_simple_select_test()
-        print(simple_df)
-        resource_df = pd.concat([resource_df, simple_df], ignore_index=True)
-        predicate_df = test.execute_athena_predicate_select_test()
-        print(predicate_df)
-        resource_df = pd.concat([resource_df, predicate_df], ignore_index=True)
-    
-    if test_glue:
-        federated_source = Federated_Source.create_federated_source(resource)
-        federated_source.migrate_athena_catalog_to_glue_catalog_with_lake_formation()
-        test.grant_permission_on_glue_catalog()
-        metadata_df = test.execute_glue_federation_metadata_test()
-        print(metadata_df)
-        resource_df = pd.concat([resource_df, metadata_df], ignore_index=True)
-        simple_df = test.execute_glue_federation_simple_select_test()
-        print(simple_df)
-        resource_df = pd.concat([resource_df, simple_df], ignore_index=True)
-        predicate_df = test.execute_glue_federation_predicate_select_test()
-        print(predicate_df)
-        resource_df = pd.concat([resource_df, predicate_df], ignore_index=True)
+    try:
+        if test_athena:
+            # metadata test
+            metadata_df = test.execute_athena_metadata_test()
+            print(metadata_df)
+            resource_df = pd.concat([resource_df, metadata_df], ignore_index=True)
+            # simple test
+            simple_df = test.execute_athena_simple_select_test()
+            print(simple_df)
+            resource_df = pd.concat([resource_df, simple_df], ignore_index=True)
+            # predicate test
+            predicate_df = test.execute_athena_predicate_select_test()
+            print(predicate_df)
+            resource_df = pd.concat([resource_df, predicate_df], ignore_index=True)
+        
+        if test_glue:
+            federated_source = Federated_Source.create_federated_source(resource)
+            federated_source.migrate_athena_catalog_to_glue_catalog_with_lake_formation()
+            test.grant_permission_on_glue_catalog()
+            # metadata test
+            metadata_df = test.execute_glue_federation_metadata_test()
+            print(metadata_df)
+            resource_df = pd.concat([resource_df, metadata_df], ignore_index=True)
+            # simple test
+            simple_df = test.execute_glue_federation_simple_select_test()
+            print(simple_df)
+            resource_df = pd.concat([resource_df, simple_df], ignore_index=True)
+            # predicate test
+            predicate_df = test.execute_glue_federation_predicate_select_test()
+            print(predicate_df)
+            resource_df = pd.concat([resource_df, predicate_df], ignore_index=True)
+
+    except Exception as e:
+        failed_method = str(e)
+        if resource_df.empty:
+            resource_df = pd.DataFrame([{"Test": "Test Failed", "State": "FAILED", "Description": f"Exception: {failed_method}"}])
     
     if verbose:
         logging.info("---------Test result---------")
@@ -91,6 +104,8 @@ def _run_test_for_resource(resource, test_athena, test_glue, verbose, output_pre
     
     failed_df = resource_df[resource_df["State"] == "FAILED"]
     failed_df["type"] = resource
+    if failed_method:
+        raise Exception(f"Test failed for {resource}: {failed_method}")
     return failed_df
 
 def _run_tests_parallel(resources, test_athena, test_glue, verbose, output_prefix):
