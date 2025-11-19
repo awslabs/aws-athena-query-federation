@@ -1,0 +1,24 @@
+{
+  "@type" : "GetTableStatisticsResponse",
+  "catalogName" : "testCatalog",
+  "tableName" : {
+    "schemaName" : "db",
+    "tableName" : "table"
+  },
+  "rowsCount" : 123456.0,
+  "tableSize" : 987654.0,
+  "columnsStatistics" : {
+    "col2" : {
+      "min" : 9.0E-4,
+      "max" : null,
+      "columnSize" : 20.0,
+      "nullProbability" : null
+    },
+    "col1" : {
+      "min" : 1.0,
+      "max" : 100.0,
+      "columnSize" : 20.0,
+      "nullProbability" : null
+    }
+  }
+}

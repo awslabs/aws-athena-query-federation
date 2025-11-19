@@ -1,0 +1,17 @@
+{
+  "@type" : "GetTableStatisticsRequest",
+  "identity" : {
+    "id" : "UNKNOWN",
+    "principal" : "UNKNOWN",
+    "account" : "0123456789",
+    "arn" : "testArn",
+    "tags" : { },
+    "groups" : [ ]
+  },
+  "queryId" : "FAKE_QUERY_ID",
+  "catalogName" : "testCatalog",
+  "tableName" : {
+    "schemaName" : "db",
+    "tableName" : "table"
+  }
+}

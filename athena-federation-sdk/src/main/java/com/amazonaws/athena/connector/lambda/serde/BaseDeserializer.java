@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.amazonaws.athena.connector.lambda.serde.BaseSerializer.TYPE_FIELD;
 
@@ -156,6 +157,43 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements 
         //move to the value token
         jparser.nextToken();
         return jparser.getValueAsLong();
+    }
+
+    /**
+     * Helper used to extract named long fields from the json parser in a streaming fashion.
+     *
+     * @param jparser The parser to use for extraction.
+     * @param expectedFieldName The expected name of the next field in the stream.
+     * @return The integer representation of the requested field.
+     * @throws IOException If there is an error parsing the field.
+     */
+    protected double getNextDoubleField(JsonParser jparser, String expectedFieldName)
+            throws IOException
+    {
+        assertFieldName(jparser, expectedFieldName);
+
+        //move to the value token
+        jparser.nextToken();
+        return jparser.getValueAsDouble();
+    }
+
+    /**
+     * Helper used to extract named long fields from the json parser in a streaming fashion.
+     *
+     * @param jparser The parser to use for extraction.
+     * @param expectedFieldName The expected name of the next field in the stream.
+     * @return The integer representation of the requested field.
+     * @throws IOException If there is an error parsing the field.
+     */
+    protected Optional<Double> getNextDoubleOptionalField(JsonParser jparser, String expectedFieldName)
+            throws IOException
+    {
+        assertFieldName(jparser, expectedFieldName);
+
+        //move to the value token
+        jparser.nextToken();
+        String value = jparser.getValueAsString();
+        return Optional.ofNullable(value).map(Double::valueOf);
     }
 
     /**

@@ -43,6 +43,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableStatisticsRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableStatisticsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
@@ -78,6 +80,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Optional;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
@@ -307,6 +311,13 @@ public abstract class MetadataHandler
                     objectMapper.writeValue(outputStream, response);
                 }
                 return;
+            case GET_TABLE_STATISTICS:
+                try (GetTableStatisticsResponse response = doGetTableStatics(allocator, (GetTableStatisticsRequest) req)) {
+                    logger.info("doHandleRequest: response[{}]", response);
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+                return;
             default:
                 throw new AthenaConnectorException("Unknown request type " + type, ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
         }
@@ -501,6 +512,15 @@ public abstract class MetadataHandler
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), Collections.emptyMap());
     }
 
+    public GetTableStatisticsResponse doGetTableStatics(BlockAllocator allocator, GetTableStatisticsRequest request)
+    {
+        return new GetTableStatisticsResponse(
+                request.getCatalogName(),
+                request.getTableName(),
+                Optional.empty(),
+                Optional.empty(),
+                new HashMap<>(0));
+    }
     /**
      * Used to warm up your function as well as to discovery its capabilities (e.g. SDK capabilities)
      *

@@ -53,5 +53,10 @@ public enum MetadataRequestType
     /**
      * For fetching a list of supported connector capabilities
      */
-    GET_DATASOURCE_CAPABILITIES;
+    GET_DATASOURCE_CAPABILITIES,
+
+    /**
+     * For fetching table statistics
+     */
+    GET_TABLE_STATISTICS;
 }

@@ -23,7 +23,8 @@ public enum HintsSubtype
     implements PushdownSubTypes
 {
     //This indicates that the connector does not support the same default collate setting of Athena
-    NON_DEFAULT_COLLATE("non_default_collate");
+    NON_DEFAULT_COLLATE("non_default_collate"),
+    SUPPORT_TABLE_STATISTICS("support_table_statistics");
 
     private String subType;
 
