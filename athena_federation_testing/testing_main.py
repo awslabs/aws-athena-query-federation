@@ -1,5 +1,6 @@
 import os,sys, logging,argparse
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from athena_federation_testing.testing.federated_testing import Federated_Testing
@@ -27,6 +28,8 @@ ALLOWED_ACTIONS = [
 pd.set_option('display.max_columns', 50)
 pd.set_option('display.width', 20000)
 
+MAX_WORKERS = 3
+
 def handle_action(action, resources, verbose=False, output_prefix=""):
     """
     Main logic for handling different actions.
@@ -48,73 +51,72 @@ def handle_action(action, resources, verbose=False, output_prefix=""):
             logging.error(f"Unknown action. action={action}")
             sys.exit(1)
 
-def run_release_test(resources, verbose, output_prefix=""):
-    total_failed_df = pd.DataFrame()
+def _run_test_for_resource(resource, test_athena, test_glue, verbose, output_prefix):
+    test = Federated_Testing.create_federated_source(resource)
+    resource_df = pd.DataFrame()
     
-    for resource in resources:
-        test = Federated_Testing.create_federated_source(resource)
-        resource_df = pd.DataFrame()
-        resource_df = pd.concat([resource_df, test.execute_athena_metadata_test()], ignore_index=True)
-        resource_df = pd.concat([resource_df, test.execute_athena_simple_select_test()], ignore_index=True)
-        resource_df = pd.concat([resource_df, test.execute_athena_predicate_select_test()], ignore_index=True)
-
+    if test_athena:
+        metadata_df = test.execute_athena_metadata_test()
+        print(metadata_df)
+        resource_df = pd.concat([resource_df, metadata_df], ignore_index=True)
+        simple_df = test.execute_athena_simple_select_test()
+        print(simple_df)
+        resource_df = pd.concat([resource_df, simple_df], ignore_index=True)
+        predicate_df = test.execute_athena_predicate_select_test()
+        print(predicate_df)
+        resource_df = pd.concat([resource_df, predicate_df], ignore_index=True)
+    
+    if test_glue:
         federated_source = Federated_Source.create_federated_source(resource)
         federated_source.migrate_athena_catalog_to_glue_catalog_with_lake_formation()
         test.grant_permission_on_glue_catalog()
-        resource_df = pd.concat([resource_df, test.execute_glue_federation_metadata_test()], ignore_index=True)
-        resource_df = pd.concat([resource_df, test.execute_glue_federation_simple_select_test()], ignore_index=True)
-        resource_df = pd.concat([resource_df, test.execute_glue_federation_predicate_select_test()], ignore_index=True)
-        
-        if verbose:
-            logging.info("---------Test result---------")
-            logging.info(resource_df)
+        metadata_df = test.execute_glue_federation_metadata_test()
+        print(metadata_df)
+        resource_df = pd.concat([resource_df, metadata_df], ignore_index=True)
+        simple_df = test.execute_glue_federation_simple_select_test()
+        print(simple_df)
+        resource_df = pd.concat([resource_df, simple_df], ignore_index=True)
+        predicate_df = test.execute_glue_federation_predicate_select_test()
+        print(predicate_df)
+        resource_df = pd.concat([resource_df, predicate_df], ignore_index=True)
+    
+    if verbose:
+        logging.info("---------Test result---------")
+        logging.info(resource_df)
+    
+    if output_prefix:
+        output_file = f"{output_prefix}_{resource}.csv"
+        resource_df.to_csv(output_file, index=False)
+        logging.info(f"Test results for {resource} saved to {output_file}")
+    
+    failed_df = resource_df[resource_df["State"] == "FAILED"]
+    failed_df["type"] = resource
+    return failed_df
 
-        if output_prefix:
-            output_file = f"{output_prefix}_{resource}.csv"
-            resource_df.to_csv(output_file, index=False)
-            logging.info(f"Test results for {resource} saved to {output_file}")
-
-        failed_df = resource_df[resource_df["State"] == "FAILED"]
-        failed_df["type"] = resource
-        total_failed_df = pd.concat([total_failed_df, failed_df], ignore_index=True)
-
+def _run_tests_parallel(resources, test_athena, test_glue, verbose, output_prefix):
+    total_failed_df = pd.DataFrame()
+    
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {executor.submit(_run_test_for_resource, resource, test_athena, test_glue, verbose, output_prefix): resource for resource in resources}
+        for future in as_completed(futures):
+            resource = futures[future]
+            try:
+                failed_df = future.result()
+                total_failed_df = pd.concat([total_failed_df, failed_df], ignore_index=True)
+            except Exception as e:
+                logging.error(f"Test failed for {resource}: {e}")
+    
     if not total_failed_df.empty:
         logging.error("---------Failed Test---------")
         logging.error(total_failed_df)
         logging.error("Test failed exit with non-zero")
         sys.exit(1)
 
+def run_release_test(resources, verbose, output_prefix=""):
+    _run_tests_parallel(resources, test_athena=True, test_glue=True, verbose=verbose, output_prefix=output_prefix)
+
 def _run_individual_test(resources, is_athena, output_prefix):
-    for resource in resources:
-        test = Federated_Testing.create_federated_source(resource)
-        
-        if is_athena:
-            metadata_df = test.execute_athena_metadata_test()
-            print(metadata_df)
-            simple_df = test.execute_athena_simple_select_test()
-            print(simple_df)
-            predicate_df = test.execute_athena_predicate_select_test()
-            print(predicate_df)
-
-            if output_prefix:
-                resource_df = pd.concat([metadata_df, simple_df, predicate_df], ignore_index=True)
-                output_file = f"{output_prefix}_{resource}.csv"
-                resource_df.to_csv(output_file, index=False)
-                logging.info(f"Test results for {resource} saved to {output_file}")
-        else:
-            test.grant_permission_on_glue_catalog()
-            metadata_df = test.execute_glue_federation_metadata_test()
-            print(metadata_df)
-            simple_df = test.execute_glue_federation_simple_select_test()
-            print(simple_df)
-            predicate_df = test.execute_glue_federation_predicate_select_test()
-            print(predicate_df)
-
-            if output_prefix:
-                resource_df = pd.concat([metadata_df, simple_df, predicate_df], ignore_index=True)
-                output_file = f"{output_prefix}_{resource}.csv"
-                resource_df.to_csv(output_file, index=False)
-                logging.info(f"Test results for {resource} saved to {output_file}")
+    _run_tests_parallel(resources, test_athena=is_athena, test_glue=not is_athena, verbose=False, output_prefix=output_prefix)
 
 def main():
     parser = argparse.ArgumentParser(description="Infra and data management script")
