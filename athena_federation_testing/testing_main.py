@@ -28,7 +28,7 @@ ALLOWED_ACTIONS = [
 pd.set_option('display.max_columns', 50)
 pd.set_option('display.width', 20000)
 
-MAX_WORKERS = 3
+MAX_WORKERS = 4
 
 def handle_action(action, resources, verbose=False, output_prefix=""):
     """
@@ -90,6 +90,7 @@ def _run_test_for_resource(resource, test_athena, test_glue, verbose, output_pre
 
     except Exception as e:
         failed_method = str(e)
+        print(e)
         if resource_df.empty:
             resource_df = pd.DataFrame([{"Test": "Test Failed", "State": "FAILED", "Description": f"Exception: {failed_method}"}])
     

@@ -237,6 +237,7 @@ class Federated_Source(ABC):
         common_infra.construct_s3_spill_bucket_if_not_exist()
 
     def migrate_athena_catalog_to_glue_catalog_with_lake_formation(self) -> None:
+        logging.info(f"migrate_athena_catalog_to_glue_catalog_with_lake_formation")
         glue_catalog_name = config_helper.get_glue_catalog_name(self.get_connection_type_name())
         athena_catalog_name = config_helper.get_athena_catalog_name(self.get_connection_type_name())
         # Check if check glue catalog exist
@@ -253,14 +254,19 @@ class Federated_Source(ABC):
         # Check if Athena Catalog exists=
         get_catalog_response = self.athena_client.get_data_catalog(Name=athena_catalog_name)
 
-        if get_catalog_response['DataCatalog']['Status'] != 'CREATE_COMPLETE':
-            msg = f'❌ Athena catalog not ready to migrate ... name:{athena_catalog_name} status: {get_catalog_response["DataCatalog"]["Status"]}';
+        if get_catalog_response['DataCatalog']['Type'] == 'FEDERATED' and get_catalog_response['DataCatalog']['Status'] != 'CREATE_COMPLETE':
+            msg = f'❌ Athena catalog not ready to migrate ... name:{athena_catalog_name} status: {get_catalog_response["DataCatalog"]["Status"]}'
             logging.error(msg)
             raise RuntimeError(msg)
 
-        glue_connection_arn = get_catalog_response['DataCatalog']['Parameters']['connection-arn']
-        self.athena_client.delete_data_catalog(Name=athena_catalog_name, DeleteCatalogOnly=True)
-        logging.info(f'✅ Athena Catalog delete catalog only deleted... name:{athena_catalog_name}')
+        if get_catalog_response['DataCatalog']['Type'] == 'FEDERATED':
+            glue_connection_arn = get_catalog_response['DataCatalog']['Parameters']['connection-arn']
+        elif get_catalog_response['DataCatalog']['Type'] == 'LAMBDA':
+            catalog_arn = f"arn:aws:athena:{config_helper.get_region()}:{common_infra.get_account_id()}:datacatalog/{athena_catalog_name}"
+            tags_response = self.athena_client.list_tags_for_resource(ResourceARN=catalog_arn)
+            glue_connection_arn = next((tag['Value'] for tag in tags_response['Tags'] if tag['Key'] == 'connection-arn'), None)
+            if not glue_connection_arn:
+                raise ValueError(f"Tag 'connection-arn' not found for LAMBDA catalog {athena_catalog_name}")
 
 
         lakeformation_client.register_glue_connection(glue_connection_arn,config_helper.get_lake_formation_admin_role_arn())
@@ -281,9 +287,12 @@ class Federated_Source(ABC):
             CatalogInput=catalog_parameter
         )
 
+        self.athena_client.delete_data_catalog(Name=athena_catalog_name, DeleteCatalogOnly=True)
+        logging.info(f'✅ Athena Catalog delete catalog only deleted... name:{athena_catalog_name}')
         logging.info(f'✅ Glue Federated catalog created. catalog_name:{glue_catalog_name}')
 
     def migrate_glue_catalog_to_athena_catalog(self) -> None:
+        logging.info(f"migrate_glue_catalog_to_athena_catalog")
         glue_catalog_name = config_helper.get_glue_catalog_name(self.get_connection_type_name())
         athena_catalog_name = config_helper.get_athena_catalog_name(self.get_connection_type_name())
         # Check if check glue catalog exist
@@ -316,7 +325,7 @@ class Federated_Source(ABC):
         self.glue_client.delete_catalog(CatalogId=glue_catalog_name)
         logging.info(f'✅ Glue catalog deleted... name:{glue_catalog_name}')
         
-        self.athena_client.create_data_catalog(Name=athena_catalog_name, Type='LAMBDA', Parameters={'function': lambda_arn})
+        self.athena_client.create_data_catalog(Name=athena_catalog_name, Type='LAMBDA', Parameters={'function': lambda_arn}, Tags=[{'Key': 'connection-arn', 'Value': glue_connection_arn}])
         logging.info(f'✅ Athena catalog created... name:{athena_catalog_name} lambda_arn:{lambda_arn}')
 
     def delete_resources(self) -> None:
