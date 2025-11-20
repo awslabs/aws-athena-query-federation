@@ -31,12 +31,16 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.util.NlsString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
 
 public class SubstraitAccumulatorVisitor extends SqlShuttle
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubstraitAccumulatorVisitor.class);
+
     private List<SubstraitTypeAndValue> accumulator;
     private Map<String, String> splitProperties;
     private final Schema schema;
@@ -62,7 +66,9 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
     public SqlNode visit(SqlLiteral literal)
     {
         if (currentColumn == null) {
-            throw new RuntimeException("Cannot determine column for literal: " + literal);
+            // such as LIMIT
+            LOGGER.info("literal value {} doesn't have an associated column. skipping", literal.toValue());
+            return literal;
         }
         Field arrowField = schema.findField(currentColumn);
         if (arrowField == null) {
