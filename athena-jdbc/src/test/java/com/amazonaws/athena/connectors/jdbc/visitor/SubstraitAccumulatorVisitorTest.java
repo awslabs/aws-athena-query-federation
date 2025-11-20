@@ -350,15 +350,10 @@ public class SubstraitAccumulatorVisitorTest
     }
 
     @Test
-    public void testVisitSqlLiteralWithoutCurrentColumn()
+    public void testVisitSqlLiteralWithoutCurrentColumnShouldIgnore()
     {
         SqlLiteral literal = SqlLiteral.createCharString("test", SqlParserPos.ZERO);
-
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            visitor.visit(literal);
-        });
-
-        assertTrue(exception.getMessage().contains("Cannot determine column for literal"));
+        visitor.visit(literal);
     }
 
     @Test
