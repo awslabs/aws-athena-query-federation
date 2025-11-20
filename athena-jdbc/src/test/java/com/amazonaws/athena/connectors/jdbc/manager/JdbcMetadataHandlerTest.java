@@ -56,7 +56,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -199,7 +198,7 @@ public class JdbcMetadataHandlerTest
 
         TableName[] expected = {new TableName("testSchema", "testTable"), new TableName("testSchema", "testTable2"), new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4"), new TableName("testSchema", "testTable5")};
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        Assert.assertNull(listTablesResponse.getNextToken());
     }
 
     @Test
@@ -219,7 +218,7 @@ public class JdbcMetadataHandlerTest
 
         TableName[] expected = {new TableName("testSchema", "testTable2"), new TableName("testSchema", "testTable3"), new TableName("testSchema", "testTable4"), new TableName("testSchema", "testTable5")};
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
-        Assert.assertEquals(null, listTablesResponse.getNextToken());
+        Assert.assertNull(listTablesResponse.getNextToken());
     }
 
     @Test(expected = AthenaConnectorException.class)
@@ -334,7 +333,6 @@ public class JdbcMetadataHandlerTest
     {
         String query = "select testCol1 from testTable";
 
-        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "TYPE_NAME"};
         Object[][] values = {
                 {Types.INTEGER, 12, "testCol1", 0, 0, "_int4"}
         };
@@ -377,9 +375,8 @@ public class JdbcMetadataHandlerTest
             throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
-        Object[][] values1 = {{"testSchema", "testTable"}, {"testSchema", "testTable2"}};
 
-        setupMocksDoGetTableCaseInsensitive(inputTableName, values1, "testTable");
+        setupMocksDoGetTableCaseInsensitive(inputTableName);
 
         GetTableResponse getTableResponse = this.jdbcMetadataHandler.doGetTable(this.blockAllocator,
                 new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName, Collections.emptyMap()));
@@ -427,8 +424,7 @@ public class JdbcMetadataHandlerTest
                 "testQueryId", "testCatalog", "testSchema", null, UNLIMITED_PAGE_SIZE_VALUE));
     }
 
-    private void setupMocksDoGetTableCaseInsensitive(TableName inputTableName, Object[][] resultSetRows,
-                                                     String expectedTableName) throws Exception
+    private void setupMocksDoGetTableCaseInsensitive(TableName inputTableName) throws Exception
     {
         // mock first call to getSchema() to simulate no table found for original lowercase table name
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
@@ -437,7 +433,7 @@ public class JdbcMetadataHandlerTest
         // mock second call to getSchema()
         ResultSet resultSet = mockResultSet(schema, values, new AtomicInteger(-1));
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(),
-                        expectedTableName, null))
+                        "testTable", null))
                 .thenReturn(resultSet);
     }
 }

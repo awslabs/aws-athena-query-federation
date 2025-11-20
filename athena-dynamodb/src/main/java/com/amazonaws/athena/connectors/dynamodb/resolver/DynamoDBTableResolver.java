@@ -151,7 +151,7 @@ public class DynamoDBTableResolver
                 return DDBTableUtils.getTable(caseInsensitiveMatch.get(), invoker, ddbClient, awsRequestOverrideConfiguration);
             }
             else {
-                throw e;
+                throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
             }
         }
     }

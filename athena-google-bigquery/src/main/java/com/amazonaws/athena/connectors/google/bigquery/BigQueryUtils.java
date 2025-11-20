@@ -72,6 +72,8 @@ import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 public class BigQueryUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryUtils.class);
+    private static final String BIGQUERY_SCOPE = "https://www.googleapis.com/auth/bigquery";
+    private static final String DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 
     private BigQueryUtils()
     {
@@ -84,9 +86,14 @@ public class BigQueryUtils
         GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder().secretId(getEnvBigQueryCredsSmId(configOptions)).build();
         GetSecretValueResponse response = secretsManager.getSecretValue(getSecretValueRequest);
         return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.secretString().getBytes())).createScoped(
-                ImmutableSet.of(
-                        "https://www.googleapis.com/auth/bigquery",
-                        "https://www.googleapis.com/auth/drive"));
+                ImmutableSet.of(BIGQUERY_SCOPE, DRIVE_SCOPE));
+    }
+
+    public static Credentials getCredentialsFromSecret(String secret)
+            throws IOException
+    {
+        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(secret.getBytes())).createScoped(
+                ImmutableSet.of(BIGQUERY_SCOPE, DRIVE_SCOPE));
     }
 
     public static BigQuery getBigQueryClient(java.util.Map<String, String> configOptions) throws IOException
@@ -98,6 +105,18 @@ public class BigQueryUtils
         }
         bigqueryBuilder.setProjectId(configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase());
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager(configOptions));
+        return bigqueryBuilder.build().getService();
+    }
+
+    public static BigQuery getBigQueryClient(java.util.Map<String, String> configOptions, String secret) throws IOException
+    {
+        BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
+        String endpoint = configOptions.get(BigQueryConstants.BIG_QUERY_ENDPOINT);
+        if (StringUtils.isNotEmpty(endpoint)) {
+            bigqueryBuilder.setHost(endpoint);
+        }
+        bigqueryBuilder.setProjectId(configOptions.get(BigQueryConstants.GCP_PROJECT_ID).toLowerCase());
+        bigqueryBuilder.setCredentials(getCredentialsFromSecret(secret));
         return bigqueryBuilder.build().getService();
     }
 

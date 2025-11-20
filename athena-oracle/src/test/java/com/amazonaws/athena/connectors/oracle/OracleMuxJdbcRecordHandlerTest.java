@@ -28,8 +28,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
-import com.amazonaws.athena.connectors.oracle.OracleMuxRecordHandler;
-import com.amazonaws.athena.connectors.oracle.OracleRecordHandler;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
 import org.junit.Test;
@@ -70,7 +68,7 @@ public class OracleMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint()
+    public void readWithConstraint_delegatesToOracleRecordHandler()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -81,7 +79,7 @@ public class OracleMuxJdbcRecordHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void readWithConstraintWithUnsupportedCatalog()
+    public void readWithConstraint_withUnsupportedCatalog_throwsRuntimeException()
             throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
@@ -91,7 +89,7 @@ public class OracleMuxJdbcRecordHandlerTest
     }
 
     @Test
-    public void buildSplitSql()
+    public void buildSplitSql_delegatesToOracleRecordHandler()
             throws SQLException
     {
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
