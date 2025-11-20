@@ -21,6 +21,9 @@ package com.amazonaws.athena.connector.lambda.security;
  */
 
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -39,6 +42,7 @@ import software.amazon.awssdk.services.kms.model.NotFoundException;
 public class KmsKeyFactory
         implements EncryptionKeyFactory
 {
+    private static final Logger logger = LoggerFactory.getLogger(KmsKeyFactory.class);
     private final KmsClient kmsClient;
     private final String masterKeyId;
 
@@ -53,21 +57,30 @@ public class KmsKeyFactory
      */
     public EncryptionKey create()
     {
+        return create(null);
+    }
+
+    @Override
+    public EncryptionKey create(AwsRequestOverrideConfiguration awsRequestOverrideConfiguration)
+    {
+        GenerateDataKeyRequest.Builder dataKeyBuilder = GenerateDataKeyRequest.builder()
+                .keyId(masterKeyId)
+                .keySpec(DataKeySpec.AES_128);
+        if (awsRequestOverrideConfiguration != null) {
+            logger.info("Using AWS KMS Request Override Configuration:");
+            dataKeyBuilder.overrideConfiguration(awsRequestOverrideConfiguration);
+        }
+
         GenerateDataKeyResponse dataKeyResponse;
         try {
-            dataKeyResponse = kmsClient.generateDataKey(
-                            GenerateDataKeyRequest.builder()
-                                    .keyId(masterKeyId)
-                                    .keySpec(DataKeySpec.AES_128)
-                                    .build());
+            dataKeyResponse = kmsClient.generateDataKey(dataKeyBuilder.build());
         }
         catch (NotFoundException e) {
             throw new AthenaConnectorException(e.getMessage(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
         }
 
         GenerateRandomRequest randomRequest = GenerateRandomRequest.builder()
-                .numberOfBytes(AesGcmBlockCrypto.NONCE_BYTES)
-                .build();
+                .numberOfBytes(AesGcmBlockCrypto.NONCE_BYTES).build();
         GenerateRandomResponse randomResponse = kmsClient.generateRandom(randomRequest);
 
         return new EncryptionKey(dataKeyResponse.plaintext().asByteArray(), randomResponse.plaintext().asByteArray());
