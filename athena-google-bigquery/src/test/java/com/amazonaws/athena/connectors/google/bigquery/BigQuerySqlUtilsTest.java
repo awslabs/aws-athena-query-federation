@@ -410,8 +410,8 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.date(dateValue)                  // Epoch GTE
         );
         String expectedSql = "SELECT `dateStringLteCol`,`dateStringGteCol`,`dateEpochLteCol`,`dateEpochGteCol` from `schema`.`table` " +
-                "WHERE ((`dateStringLteCol` <= ?)) AND ((`dateStringGteCol` >= ?)) AND " +
-                "((`dateEpochLteCol` <= ?)) AND ((`dateEpochGteCol` >= ?))";
+                "WHERE `dateStringLteCol` <= ? AND `dateStringGteCol` >= ? AND " +
+                "`dateEpochLteCol` <= ? AND `dateEpochGteCol` >= ?";
         Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
         executeAndVerify(constraints, schema, expectedParams, expectedSql);
     }
