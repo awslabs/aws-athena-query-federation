@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -59,6 +60,8 @@ import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
+import software.amazon.awssdk.services.glue.model.ErrorDetails;
+import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
@@ -432,7 +435,10 @@ public class VerticaMetadataHandler
                 return new GetSplitsResponse(catalogName,split);
             }
         }  catch (Exception e) {
-            throw new RuntimeException("connection failed ", e);
+            throw new AthenaConnectorException("Connection failed ", ErrorDetails.builder()
+                    .errorCode(String.valueOf(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION))
+                    .errorMessage("Connection failed ")
+                    .build());
         }
     }
 

@@ -32,6 +32,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -537,7 +538,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         assertFalse(response.getSplits().isEmpty());
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expected = AthenaConnectorException.class)
     public void doGetSplits_NullRequest_ShouldThrowException() {
         verticaMetadataHandlerMocked.doGetSplits(allocator, null);
     }
