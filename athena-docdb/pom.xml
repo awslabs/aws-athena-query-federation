@@ -14,13 +14,6 @@
             <artifactId>aws-athena-federation-sdk</artifactId>
             <version>2022.47.1</version>
             <classifier>withdep</classifier>
-            <exclusions>
-                <!-- replaced with jcl-over-slf4j -->
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -34,6 +27,12 @@
             <artifactId>docdb</artifactId>
             <version>${aws-sdk-v2.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/docdb -->
         <dependency>
@@ -85,6 +84,12 @@
             <artifactId>log4j-api</artifactId>
             <version>${log4j2Version}</version>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>5.13.3</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>
