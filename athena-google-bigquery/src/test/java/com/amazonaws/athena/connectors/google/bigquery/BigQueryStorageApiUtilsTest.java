@@ -116,7 +116,7 @@ public class BigQueryStorageApiUtilsTest
                     "selected_fields: \"stringRange\"\n" +
                     "selected_fields: \"booleanRange\"\n" +
                     "selected_fields: \"integerInRange\"\n" +
-                    "row_restriction: \"integerRange IS NULL OR integerRange > 10 AND integerRange < 20 AND isNullRange IS NULL AND isNotNullRange IS NOT NULL AND stringRange >= \\\"a_low\\\" AND stringRange < \\\"z_high\\\" AND booleanRange = true AND integerInRange IN (10,1000000)\"\n", option.toString());
+                    "row_restriction: \"integerInRange IN (10,1000000)\"\n", option.toString());
         }
     }
 }

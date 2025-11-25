@@ -125,13 +125,13 @@ public class BigQueryMetadataHandlerTest
     public void setUp() {
         System.setProperty("aws.region", "us-east-1");
         MockitoAnnotations.openMocks(this);
-        
+
         // Mock the SecretsManager response
         GetSecretValueResponse secretResponse = GetSecretValueResponse.builder()
                 .secretString("dummy-secret-value")
                 .build();
         when(secretsManagerClient.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretResponse);
-        
+
         bigQueryMetadataHandler = new BigQueryMetadataHandler(new LocalKeyFactory(), secretsManagerClient, null, "BigQuery", "spill-bucket", "spill-prefix", configOptions);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
@@ -297,9 +297,9 @@ public class BigQueryMetadataHandlerTest
     @Test
     public void testDoGetDataSourceCapabilities()
     {
-        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest request = 
+        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest request =
             new com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest(federatedIdentity, QUERY_ID, CATALOG);
-        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse response = 
+        com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse response =
             bigQueryMetadataHandler.doGetDataSourceCapabilities(blockAllocator, request);
         assertNotNull(response);
         assertNotNull(response.getCapabilities());
