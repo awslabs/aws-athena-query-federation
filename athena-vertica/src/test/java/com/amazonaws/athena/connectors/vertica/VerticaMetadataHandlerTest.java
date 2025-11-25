@@ -25,10 +25,12 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -58,6 +60,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -280,22 +283,36 @@ public class VerticaMetadataHandlerTest extends TestBase
     }
 
     @Test
+    public void testGetPartitionsWithQueryPlan() throws Exception {
+        Schema tableSchema = createTestSchema();
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add("preparedStmt");
+        partitionCols.add("queryId");
+        partitionCols.add("awsRegionSql");
+        String queryId = "queryId" + UUID.randomUUID().toString().replace("-", "");
+        String s3ExportBucket = "s3://testS3Bucket";
+
+        Mockito.when(connection.getMetaData().getColumns(null, "schema1", "table1", null)).thenReturn(Mockito.mock(ResultSet.class));
+        Mockito.lenient().when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn(s3ExportBucket);
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSExoRCAEaDWVxdWFsOmFueV9hbnkaqAMSpQMKlQM6kgMKBRIDCgETEv4CEvsCCgIKABLQAgrNAgoCCgASrgIKC2VtcGxveWVlX2lkCglpc19hY3RpdmUKDWVtcGxveWVlX25hbWUKCWpvYl90aXRsZQoHYWRkcmVzcwoJam9pbl9kYXRlCgl0aW1lc3RhbXAKCGR1cmF0aW9uCgZzYWxhcnkKBWJvbnVzCgVoYXNoMQoFaGFzaDIKBGNvZGUKBWRlYml0CgVjb3VudAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlEn0KBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBGICEAEKBCoCEAEKBCoCEAEKBCoCEAEKB8IBBBATIAEKBCoCEAEKB8IBBBATIAEKBCoCEAEKB8IBBBATIAEKBCoCEAEYAjoWChRiYXNpY193cml0ZV9ub25leGlzdBoiGiAaBAoCEAEiChoIEgYKAhIAIgAiDBoKCghiBkVNUDAwMRoIEgYKAhIAIgASC0VNUExPWUVFX0lE");
+
+        try (GetTableLayoutRequest req = new GetTableLayoutRequest(federatedIdentity, queryId, "default",
+                new TableName("public", "basic_write_nonexist"),
+                new Constraints(Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT, Collections.emptyMap(), queryPlan),
+                tableSchema, partitionCols);
+             GetTableLayoutResponse res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req)) {
+            Block partitions = res.getPartitions();
+
+            String actualExportSql = partitions.getFieldReader("preparedStmt").readText().toString();
+            Assertions.assertTrue(actualExportSql.contains("SELECT preparedStmt FROM \"public\".\"basic_write_nonexist\" WHERE \"employee_id\" = 'EMP001'"));
+        }
+    }
+
+    @Test
     public void getPartitions() throws Exception {
 
-        Schema tableSchema = SchemaBuilder.newBuilder()
-                .addField("bit_col", new ArrowType.Bool()) // BIT
-                .addField("tinyint_col", new ArrowType.Int(8, true)) // TINYINT
-                .addField("smallint_col", new ArrowType.Int(16, true)) // SMALLINT
-                .addIntField("int_col") // INT
-                .addField("bigint_col", new ArrowType.Int(64, true)) // BIGINT
-                .addField("float_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE)) // FLOAT4
-                .addField("double_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE)) // FLOAT8
-                .addField("decimal_col", new ArrowType.Decimal(10, 2, 128)) // DECIMAL
-                .addStringField("varchar_col") // VARCHAR
-                .addStringField("preparedStmt")
-                .addStringField("queryId")
-                .addStringField("awsRegionSql")
-                .build();
+        Schema tableSchema = getSchema();
 
         Set<String> partitionCols = new HashSet<>();
         partitionCols.add("preparedStmt");
@@ -390,6 +407,24 @@ public class VerticaMetadataHandlerTest extends TestBase
             assertTrue(partitions.getRowCount() > 0);
             logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
         }
+    }
+
+    private static Schema getSchema() {
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addField("bit_col", new ArrowType.Bool()) // BIT
+                .addField("tinyint_col", new ArrowType.Int(8, true)) // TINYINT
+                .addField("smallint_col", new ArrowType.Int(16, true)) // SMALLINT
+                .addIntField("int_col") // INT
+                .addField("bigint_col", new ArrowType.Int(64, true)) // BIGINT
+                .addField("float_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE)) // FLOAT4
+                .addField("double_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE)) // FLOAT8
+                .addField("decimal_col", new ArrowType.Decimal(10, 2, 128)) // DECIMAL
+                .addStringField("varchar_col") // VARCHAR
+                .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField("awsRegionSql")
+                .build();
+        return tableSchema;
     }
 
     @Test
@@ -637,4 +672,31 @@ public class VerticaMetadataHandlerTest extends TestBase
             assertTrue(e.getMessage().contains("No Query passed through"));
         }
         }
+
+    private Schema createTestSchema() {
+        return SchemaBuilder.newBuilder()
+                .addField(FieldBuilder.newBuilder("employee_id", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("is_active", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("employee_name", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("job_title", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("address", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("join_date", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("timestamp", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("duration", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("salary", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("bonus", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build())
+                .addField(FieldBuilder.newBuilder("hash1", new ArrowType.Int(32, false)).build())
+                .addField(FieldBuilder.newBuilder("hash2", new ArrowType.Int(32, false)).build())
+                .addField(FieldBuilder.newBuilder("code", new ArrowType.Int(32, false)).build())
+                .addField(FieldBuilder.newBuilder("debit", new ArrowType.Decimal(19, 0, 128)).build())
+                .addField(FieldBuilder.newBuilder("count", new ArrowType.Int(32, false)).build())
+                .addField(FieldBuilder.newBuilder("amount", new ArrowType.Decimal(19, 0, 128)).build())
+                .addField(FieldBuilder.newBuilder("balance", new ArrowType.Int(32, false)).build())
+                .addField(FieldBuilder.newBuilder("rate", new ArrowType.Decimal(19, 0, 128)).build())
+                .addField(FieldBuilder.newBuilder("difference", new ArrowType.Int(32, false)).build())
+                .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField("awsRegionSql")
+                .build();
+    }
 }

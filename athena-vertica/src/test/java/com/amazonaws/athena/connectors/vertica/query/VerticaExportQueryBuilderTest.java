@@ -338,6 +338,17 @@ public class VerticaExportQueryBuilderTest {
         String expectedQuery = "SELECT employee_id FROM \"public\".\"basic_write_nonexist\" WHERE \"employee_id\" = 'EMP001'";
         assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
     }
+
+    @Test
+    public void withQueryPlan_ComplexExpression() {
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "CiUIARIhL2Z1bmN0aW9uc19hZ2dyZWdhdGVfZ2VuZXJpYy55YW1sEgwaCggBGgZjb3VudDoa+gIS9wIK7AIi6QIKAgoAEtICCs8CCgIKABKwAgoLZW1wbG95ZWVfaWQKCWlzX2FjdGl2ZQoNZW1wbG95ZWVfbmFtZQoJam9iX3RpdGxlCgdhZGRyZXNzCglqb2luX2RhdGUKCXRpbWVzdGFtcAoIZHVyYXRpb24KBnNhbGFyeQoFYm9udXMKBWhhc2gxCgVoYXNoMgoEY29kZQoFZGViaXQKBWNvdW50CgZhbW91bnQKB2JhbGFuY2UKBHJhdGUKCmRpZmZlcmVuY2USfwoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoEKgIQAQoEKgIQAQoEKgIQAQoJwgEGCAIQCiABCgQqAhABCgfCAQQQEyABCgQqAhABCgfCAQQQEyABCgQqAhABGAI6FgoUYmFzaWNfd3JpdGVfbm9uZXhpc3QaACIMCgogAyoEOgIQAjABEgZFWFBSJDA=");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", createTestSchema(), resultSet);
+
+        String expectedQuery = "SELECT COUNT(*) AS \"$f0\" FROM \"public\".\"basic_write_nonexist\"";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
     /**
      * Utility method for mocking ResultSet behavior.
      */

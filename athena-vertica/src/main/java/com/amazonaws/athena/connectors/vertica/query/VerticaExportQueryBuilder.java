@@ -303,7 +303,6 @@ public class VerticaExportQueryBuilder {
                         columnExpression = sourceId.getSimple();
                     } else {
                         // Complex expression with alias SELECT COUNT(*) from table_name - keep as is
-                        //
                         columnExpression = selectItem.toSqlString(sqlDialect).getSql();
                     }
                 }
@@ -424,8 +423,11 @@ public class VerticaExportQueryBuilder {
             return this;
         }
         catch (Exception e) {
-            LOGGER.error("withQueryPlan failed", e);
-            throw new RuntimeException("withQueryPlan Error", e);
+            LOGGER.error("An error occurred while creating a query from the query plan.", e);
+            throw new AthenaConnectorException("An error occurred while creating a query from the query plan.", ErrorDetails.builder()
+                    .errorMessage("An error occurred while creating a query from the query plan.")
+                    .errorCode(FederationSourceErrorCode.UNKNOWN_TO_SDK_VERSION.toString())
+                    .build());
         }
     }
 

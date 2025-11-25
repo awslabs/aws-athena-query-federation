@@ -283,7 +283,6 @@ public class VerticaMetadataHandler
 
         String randomStr = UUID.randomUUID().toString();
         String queryID = request.getQueryId().replace("-","").concat(randomStr);
-        System.out.println("queryId " + queryID);
         //Build the SQL query
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
 
@@ -296,6 +295,7 @@ public class VerticaMetadataHandler
             if (!request.getTableName().getQualifiedTableName().equalsIgnoreCase(queryPassthrough.getFunctionSignature())) {
                 DatabaseMetaData dbMetadata = connection.getMetaData();
                 ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
+                // Use Substrait query plan if available
                 if (constraints.getQueryPlan() != null) {
                     queryBuilder = queryFactory.createSubstraitVerticaExportQueryBuilder();
                     preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
@@ -374,7 +374,6 @@ public class VerticaMetadataHandler
             else {
                 testAccess(connection, request.getTableName());
                 sqlStatement = fieldReaderPS.readText().toString();
-                logger.info("Vertica Export Statement: {}", sqlStatement);
             }
             String catalogName = request.getCatalogName();
 
@@ -396,13 +395,11 @@ public class VerticaMetadataHandler
             String prefix = remainingPath + queryId;
 
             List<S3Object> s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
-            logger.info("s3ObjectsList ", s3ObjectsList);
             if (s3ObjectsList.isEmpty()) {
                 // Execute queries on Vertica if S3 export bucket does not contain objects for given queryId
                 executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
                 // Retrieve the S3 objects list for given queryId
                 s3ObjectsList = getlistExportedObjects(s3ExportBucketName, prefix);
-                logger.info("s3ObjectsList ", s3ObjectsList);
             }
 
             Split split;
@@ -435,9 +432,10 @@ public class VerticaMetadataHandler
                 return new GetSplitsResponse(catalogName,split);
             }
         }  catch (Exception e) {
-            throw new AthenaConnectorException("Connection failed ", ErrorDetails.builder()
-                    .errorCode(String.valueOf(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION))
-                    .errorMessage("Connection failed ")
+            logger.error("An error occurred in doGetSplits method.", e);
+            throw new AthenaConnectorException("An error occurred in doGetSplits method.", ErrorDetails.builder()
+                    .errorCode(String.valueOf(FederationSourceErrorCode.UNKNOWN_TO_SDK_VERSION))
+                    .errorMessage("An error occurred in doGetSplits method.")
                     .build());
         }
     }
@@ -450,8 +448,6 @@ public class VerticaMetadataHandler
     {
         try (PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
              PreparedStatement exportSQL = connection.prepareStatement(sqlStatement)) {
-            System.out.println("sql statement " + sqlStatement);
-            logger.info("export sql ", exportSQL);
             //execute the query to set region
             setAwsRegion.execute();
 
