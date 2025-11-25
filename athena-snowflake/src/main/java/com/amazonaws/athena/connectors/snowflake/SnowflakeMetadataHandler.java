@@ -52,13 +52,12 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcArrowTypeConverter;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.athena.connectors.jdbc.qpt.JdbcQueryPassthrough;
 import com.amazonaws.athena.connectors.snowflake.connection.SnowflakeConnectionFactory;
 import com.amazonaws.athena.connectors.snowflake.resolver.SnowflakeJDBCCaseResolver;
-import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.athena.connectors.snowflake.utils.SnowflakeArrowTypeConverter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -76,15 +75,15 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
 import software.amazon.awssdk.services.glue.model.FederationSourceErrorCode;
-import software.amazon.awssdk.services.lambda.LambdaClient;
-import software.amazon.awssdk.services.lambda.model.GetFunctionRequest;
-import software.amazon.awssdk.services.lambda.model.GetFunctionResponse;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Uri;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -116,13 +115,18 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWF
  */
 public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 {
-    static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA", "CLIENT_RESULT_COLUMN_CASE_INSENSITIVE", "true");
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeMetadataHandler.class);
     private static final String COLUMN_NAME = "COLUMN_NAME";
     private static final String EMPTY_STRING = StringUtils.EMPTY;
-    public static final String SEPARATOR = "/";
-    static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
+    private static final String STORAGE_INTEGRATION_CONFIG_KEY = "snowflake_storage_integration_name";
+    private static final String DESCRIBE_STORAGE_INTEGRATION_TEMPLATE = "DESC STORAGE INTEGRATION %s";
+    private static final String STORAGE_INTEGRATION_PROPERTY_KEY = "property";
+    private static final String STORAGE_INTEGRATION_PROPERTY_VALUE_KEY = "property_value";
+    private static final String STORAGE_INTEGRATION_BUCKET_KEY = "STORAGE_ALLOWED_LOCATIONS";
+    private static final String STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY = "STORAGE_PROVIDER";
+    static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA", "CLIENT_RESULT_COLUMN_CASE_INSENSITIVE", "true");
+    static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
     static final String LIST_PAGINATED_TABLES_QUERY =
             "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" " +
                     "FROM information_schema.tables " +
@@ -138,6 +142,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             "AND table_schema= ?\n" +
             "AND TABLE_NAME = ? ";
     static final String SHOW_PRIMARY_KEYS_QUERY = "SHOW PRIMARY KEYS IN ";
+    static final String COPY_INTO_QUERY_TEMPLATE = "COPY INTO '%s' FROM (%s) STORAGE_INTEGRATION = %s " +
+            "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 52428800";
     static final String PRIMARY_KEY_COLUMN_NAME = "column_name";
     static final String COUNTS_COLUMN_NAME = "COUNTS";
     /**
@@ -145,21 +151,20 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      */
     static final String VIEW_CHECK_QUERY = "SELECT * FROM information_schema.views WHERE table_schema = ? AND table_name = ?";
     static final String ALL_PARTITIONS = "*";
-    public static final String QUERY_ID = "queryId";
-    public static final String PREPARED_STMT = "preparedStmt";
-    private S3Client amazonS3;
-    SnowflakeQueryStringBuilder snowflakeQueryStringBuilder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
     static final Map<String, ArrowType> STRING_ARROW_TYPE_MAP = com.google.common.collect.ImmutableMap.of(
-            "INTEGER", (ArrowType) Types.MinorType.INT.getType(),
             "DATE", (ArrowType) Types.MinorType.DATEDAY.getType(),
             "TIMESTAMP", (ArrowType) Types.MinorType.DATEMILLI.getType(),
             "TIMESTAMP_LTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-            "TIMESTAMP_NTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
             "TIMESTAMP_TZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
             "TIMESTAMPLTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-            "TIMESTAMPNTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
             "TIMESTAMPTZ", (ArrowType) Types.MinorType.DATEMILLI.getType()
     );
+    public static final String SEPARATOR = "/";
+    public static final String S3_PATH_PREFIX = "s3_path";
+    public static final String PREPARED_STMT = "preparedStmt";
+
+    private S3Client amazonS3;
+    SnowflakeQueryStringBuilder snowflakeQueryStringBuilder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
     /**
      * Instantiates handler to be used by Lambda function directly.
      * <p>
@@ -239,8 +244,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         if (partitionSchemaBuilder.getField(BLOCK_PARTITION_COLUMN_NAME) == null) {
             partitionSchemaBuilder.addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
         }
-        partitionSchemaBuilder.addField(QUERY_ID, new ArrowType.Utf8());
-        partitionSchemaBuilder.addField(PREPARED_STMT, new ArrowType.Utf8());
     }
 
     /**
@@ -254,28 +257,24 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws Exception
     {
-        Schema schemaName = request.getSchema();
         TableName tableName = request.getTableName();
-        Constraints constraints = request.getConstraints();
         String queryID = request.getQueryId();
-        String catalog = request.getCatalogName();
-
-        // Check if S3 export is enabled
-        SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
-
-        if (envProperties.isS3ExportEnabled()) {
-            handleS3ExportPartitions(blockWriter, request, schemaName, tableName, constraints, queryID, catalog);
-        }
-        else {
-            handleDirectQueryPartitions(blockWriter, request, schemaName, tableName, constraints, queryID);
-        }
+        this.handleSnowflakePartitions(blockWriter, tableName, queryID);
     }
 
-    private void handleDirectQueryPartitions(BlockWriter blockWriter, GetTableLayoutRequest request,
-            Schema schemaName, TableName tableName, Constraints constraints, String queryID) throws Exception
+    private void handleSnowflakePartitions(BlockWriter blockWriter, TableName tableName, String queryID) throws Exception
     {
         LOGGER.debug("getPartitions: {}: Schema {}, table {}", queryID, tableName.getSchemaName(),
                 tableName.getTableName());
+
+        // if we are using export method, we don't need to calculate partition
+        if (SnowflakeConstants.isS3ExportEnabled(configOptions)) {
+            blockWriter.writeRows((Block block, int rowNum) -> {
+                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, ALL_PARTITIONS);
+                return 1;
+            });
+            return;
+        }
 
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             /**
@@ -334,132 +333,17 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         }
     }
 
-    private void handleS3ExportPartitions(BlockWriter blockWriter, GetTableLayoutRequest request,
-            Schema schemaName, TableName tableName, Constraints constraints, String queryID, String catalog) throws Exception
-    {
-        String s3ExportBucket = getS3ExportBucket();
-        String randomStr = UUID.randomUUID().toString();
-        // Sanitize and validate integration name to follow Snowflake naming rules
-        String integrationName = catalog.concat(s3ExportBucket)
-                .concat("_integration")
-                .replaceAll("[^A-Za-z0-9_]", "_") // Replace any non-alphanumeric characters with underscore
-                .replaceAll("_+", "_") // Replace multiple underscores with a single one
-                .toUpperCase(); // Snowflake identifiers are case-insensitive and stored as uppercase
-
-        // Validate integration name length and format
-        if (integrationName.length() > 255) { // Snowflake's maximum identifier length
-            throw new IllegalArgumentException("Integration name exceeds maximum length of 255 characters: " + integrationName);
-        }
-        if (!integrationName.matches("^[A-Z][A-Z0-9_]*$")) { // Must start with a letter
-            throw new IllegalArgumentException("Invalid integration name format. Must start with a letter and contain only letters, numbers, and underscores: " + integrationName);
-        }
-        LOGGER.debug("Integration Name {}", integrationName);
-
-        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-
-        // Check and create S3 integration if needed
-        if (!checkIntegration(connection, integrationName)) {
-            // Build the integration creation query with proper quoting and escaping
-            String roleArn = getRoleArn(request.getContext());
-            if (roleArn == null || roleArn.trim().isEmpty()) {
-                throw new IllegalArgumentException("Role ARN cannot be null or empty");
-            }
-
-            String createIntegrationQuery = String.format(
-                    "CREATE STORAGE INTEGRATION %s " +
-                    "TYPE = EXTERNAL_STAGE " +
-                    "STORAGE_PROVIDER = 'S3' " +
-                    "ENABLED = TRUE " +
-                    "STORAGE_AWS_ROLE_ARN = %s " +
-                    "STORAGE_ALLOWED_LOCATIONS = (%s);",
-                    snowflakeQueryStringBuilder.quote(integrationName),
-                    snowflakeQueryStringBuilder.singleQuote(roleArn),
-                    snowflakeQueryStringBuilder.singleQuote("s3://" + s3ExportBucket.replace("'", "''") + "/"));
-
-            try (Statement stmt = connection.createStatement()) {
-                LOGGER.debug("Create Integration query: {}", createIntegrationQuery);
-                stmt.execute(createIntegrationQuery);
-            }
-            catch (SQLException e) {
-                LOGGER.error("Failed to execute integration creation query: {}", createIntegrationQuery, e);
-                throw new RuntimeException("Error creating integration: " + e.getMessage(), e);
-            }
-        }
-
-        String generatedSql;
-        if (constraints.isQueryPassThrough()) {
-            generatedSql = buildQueryPassthroughSql(constraints);
-        }
-        else {
-            generatedSql = snowflakeQueryStringBuilder.buildSqlString(connection, catalog, tableName.getSchemaName(),
-                    tableName.getTableName(), schemaName, constraints, null);
-        }
-
-        // Escape special characters in path components
-        String escapedBucket = s3ExportBucket.replace("'", "''");
-        String escapedQueryID = queryID.replace("'", "''");
-        String escapedRandomStr = randomStr.replace("'", "''");
-        String escapedIntegration = integrationName.replace("\"", "\"\"");
-
-        // Build the COPY INTO query with proper escaping and quoting
-        String s3Path = String.format("s3://%s/%s/%s/",
-                escapedBucket.replace("'", "''"),
-                escapedQueryID.replace("'", "''"),
-                escapedRandomStr.replace("'", "''"));
-
-        String snowflakeExportQuery = String.format("COPY INTO '%s' FROM (%s) STORAGE_INTEGRATION = %s " +
-                "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 16777216",
-                s3Path,
-                generatedSql,
-                snowflakeQueryStringBuilder.quote(escapedIntegration));
-
-        LOGGER.info("Snowflake Copy Statement: {} for queryId: {}", snowflakeExportQuery, queryID);
-
-        blockWriter.writeRows((Block block, int rowNum) -> {
-            boolean matched;
-            matched = block.setValue(QUERY_ID, rowNum, queryID);
-            matched &= block.setValue(PREPARED_STMT, rowNum, snowflakeExportQuery);
-            return matched ? 1 : 0;
-        });
-    }
-
     private String buildQueryPassthroughSql(Constraints constraints)
     {
         jdbcQueryPassthrough.verify(constraints.getQueryPassthroughArguments());
-        return  constraints.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
-    }
-
-    static boolean checkIntegration(Connection connection, String integrationName) throws SQLException
-    {
-        String checkIntegrationQuery = "SHOW INTEGRATIONS";
-        ResultSet rs;
-        try (Statement stmt = connection.createStatement()) {
-            rs = stmt.executeQuery(checkIntegrationQuery);
-            while (rs.next()) {
-                String existingIntegration = rs.getString("name");
-                if (existingIntegration != null) {
-                    LOGGER.debug("Found integration: {}", existingIntegration);
-                    // Normalize both names to uppercase for comparison
-                    if (existingIntegration.trim().equalsIgnoreCase(integrationName.trim())) {
-                        return true;
-                    }
-                }
-            }
-            LOGGER.debug("Integration {} not found", integrationName);
-            return false;
-        }
-        catch (SQLException e) {
-            LOGGER.error("Error checking for integration {}: {}", integrationName, e.getMessage());
-            throw new SQLException("Failed to check for integration existence: " + e.getMessage(), e);
-        }
+        return constraints.getQueryPassthroughArguments().get(JdbcQueryPassthrough.QUERY);
     }
 
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
-        SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
 
-        if (envProperties.isS3ExportEnabled()) {
+        if (SnowflakeConstants.isS3ExportEnabled(configOptions)) {
             return handleS3ExportSplits(request);
         }
         else {
@@ -510,58 +394,75 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
     private GetSplitsResponse handleS3ExportSplits(GetSplitsRequest request)
     {
-        Set<Split> splits = new HashSet<>();
-        String exportBucket = getS3ExportBucket();
         String queryId = request.getQueryId();
+        // Sanitize and validate integration name to follow Snowflake naming rules
+        Set<Split> splits = new HashSet<>();
+        Optional<S3Uri> s3Uri = Optional.empty();
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            String sfIntegrationName = this.getStorageIntegrationName();
+            String sfS3ExportPathPrefix = this.getStorageIntegrationS3PathFromSnowFlake(connection, sfIntegrationName);
+            String snowflakeExportSQL = this.getSnowFlakeBaseSQL(request);
 
-        // Get the SQL statement which was created in getPartitions
-        FieldReader fieldReaderQid = request.getPartitions().getFieldReader(QUERY_ID);
-        String queryID = fieldReaderQid.readText().toString();
+            // Build S3 path and COPY INTO query
+            String s3Path = String.format("%s/%s/%s/", sfS3ExportPathPrefix, queryId, UUID.randomUUID().toString());
+            String snowflakeExportQuery = String.format(COPY_INTO_QUERY_TEMPLATE,
+                    s3Path, snowflakeExportSQL, snowflakeQueryStringBuilder.quote(sfIntegrationName));
+            LOGGER.info("Snowflake Copy Statement: {} for queryId: {}", snowflakeExportQuery, queryId);
 
-        FieldReader fieldReaderPreparedStmt = request.getPartitions().getFieldReader(PREPARED_STMT);
-        String preparedStmt = fieldReaderPreparedStmt.readText().toString();
-
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-             PreparedStatement preparedStatement = new PreparedStatementBuilder()
-                     .withConnection(connection)
-                     .withQuery(preparedStmt)
-                     .withParameters(List.of(request.getTableName().getSchemaName() + "." +
-                             request.getTableName().getTableName()))
-                     .build()) {
-            String prefix = queryId + SEPARATOR;
-            List<S3Object> s3ObjectSummaries = getlistExportedObjects(exportBucket, prefix);
-            LOGGER.debug("{} s3ObjectSummaries returned for queryId {}", (long) s3ObjectSummaries.size(), queryId);
-
-            if (s3ObjectSummaries.isEmpty()) {
-                preparedStatement.execute();
-                s3ObjectSummaries = getlistExportedObjects(exportBucket, prefix);
-                LOGGER.debug("{} s3ObjectSummaries returned after executing on SnowFlake for queryId {}",
-                        (long) s3ObjectSummaries.size(), queryId);
-            }
-
-            if (!s3ObjectSummaries.isEmpty()) {
-                for (S3Object objectSummary : s3ObjectSummaries) {
-                    Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                            .add(SNOWFLAKE_SPLIT_QUERY_ID, queryID)
-                            .add(SNOWFLAKE_SPLIT_EXPORT_BUCKET, exportBucket)
-                            .add(SNOWFLAKE_SPLIT_OBJECT_KEY, objectSummary.key())
-                            .build();
-                    splits.add(split);
-                }
-                return new GetSplitsResponse(request.getCatalogName(), splits);
-            }
-            else {
-                Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                        .add(SNOWFLAKE_SPLIT_QUERY_ID, queryID)
-                        .add(SNOWFLAKE_SPLIT_EXPORT_BUCKET, exportBucket)
-                        .add(SNOWFLAKE_SPLIT_OBJECT_KEY, EMPTY_STRING)
-                        .build();
-                splits.add(split);
-                return new GetSplitsResponse(request.getCatalogName(), split);
+            // Get the SQL statement which was created in getPartitions
+            LOGGER.debug("doGetSplits: qQryId: {},  Catalog {}, table {}, s3ExportBucketPath:{}, snowflakeExportQuery:{}", queryId,
+                    request.getTableName().getSchemaName(),
+                    request.getTableName().getTableName(),
+                    sfS3ExportPathPrefix,
+                    snowflakeExportQuery);
+            URI uri = URI.create(s3Path);
+            s3Uri = Optional.ofNullable(amazonS3.utilities().parseUri(uri));
+            connection.prepareStatement(snowflakeExportQuery).execute();
+        }
+        catch (SnowflakeSQLException snowflakeSQLException) {
+            // handle race condition on another splits already start the copy into statement
+            if (!snowflakeSQLException.getMessage().contains("Files already existing")) {
+                throw new AthenaConnectorException("Exception in execution export statement " + snowflakeSQLException.getMessage(), snowflakeSQLException,
+                        ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
             }
         }
-        catch (Exception throwables) {
-            throw new RuntimeException("Exception in execution export statement " + throwables.getMessage(), throwables);
+        catch (Exception e) {
+            throw new AthenaConnectorException("Exception in execution export statement :" + e.getMessage(), e,
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INTERNAL_SERVICE_EXCEPTION.toString()).build());
+        }
+
+        if (s3Uri.isEmpty()) {
+            throw new AthenaConnectorException("S3 URI should not be empty for Snowflake S3 Export",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+
+        List<S3Object> s3ObjectSummaries = getlistExportedObjects(s3Uri.get().bucket().orElseThrow(), s3Uri.get().key().orElseThrow());
+        LOGGER.debug("{} s3ObjectSummaries returned after executing on SnowFlake for queryId {}",
+                (long) s3ObjectSummaries.size(), queryId);
+
+        if (!s3ObjectSummaries.isEmpty()) {
+            LOGGER.debug("{} s3ObjectSummaries returned after executing on SnowFlake for queryId {}",
+                    (long) s3ObjectSummaries.size(), queryId);
+            for (S3Object objectSummary : s3ObjectSummaries) {
+                Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+                        .add(SNOWFLAKE_SPLIT_QUERY_ID, queryId)
+                        .add(SNOWFLAKE_SPLIT_EXPORT_BUCKET, s3Uri.get().bucket().orElseThrow())
+                        .add(SNOWFLAKE_SPLIT_OBJECT_KEY, objectSummary.key())
+                        .build();
+                splits.add(split);
+            }
+            return new GetSplitsResponse(request.getCatalogName(), splits);
+        }
+        else {
+            // Case when there is no data for copy into.
+            LOGGER.debug("s3ObjectSummaries returned empty on SnowFlake for queryId {}", queryId);
+            Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+                    .add(SNOWFLAKE_SPLIT_QUERY_ID, queryId)
+                    .add(SNOWFLAKE_SPLIT_EXPORT_BUCKET, s3Uri.get().bucket().orElseThrow())
+                    .add(SNOWFLAKE_SPLIT_OBJECT_KEY, EMPTY_STRING)
+                    .build();
+            splits.add(split);
+            return new GetSplitsResponse(request.getCatalogName(), split);
         }
     }
 
@@ -601,17 +502,18 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     /*
      * Get the list of all the exported S3 objects
      */
-    private List<S3Object> getlistExportedObjects(String s3ExportBucket, String queryId)
+    @VisibleForTesting
+    List<S3Object> getlistExportedObjects(String s3ExportBucketName, String prefix)
     {
         ListObjectsResponse listObjectsResponse;
         try {
             listObjectsResponse = amazonS3.listObjects(ListObjectsRequest.builder()
-                    .bucket(s3ExportBucket)
-                    .prefix(queryId)
+                    .bucket(s3ExportBucketName)
+                    .prefix(prefix)
                     .build());
         }
-        catch (SdkClientException e) {
-            String errorMsg = String.format("Failed to list objects in bucket %s with prefix %s", s3ExportBucket, queryId);
+        catch (SdkClientException | S3Exception e) {
+            String errorMsg = String.format("Failed to list objects in bucket %s with prefix %s", s3ExportBucketName, prefix);
             LOGGER.error("{}: {}", errorMsg, e.getMessage());
             throw new RuntimeException(errorMsg, e);
         }
@@ -654,20 +556,23 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 name = dataTypeResultSet.getString(COLUMN_NAME);
                 hashMap.put(name.trim(), type.trim());
             }
-            if (hashMap.isEmpty() == true) {
+            if (hashMap.isEmpty()) {
                 LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
             }
             boolean found = false;
             while (resultSet.next()) {
-                Optional<ArrowType> columnType = JdbcArrowTypeConverter.toArrowType(
+                Optional<ArrowType> columnType = SnowflakeArrowTypeConverter.toArrowType(
+                        resultSet.getString(COLUMN_NAME),
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
                         configOptions);
+
                 String columnName = resultSet.getString(COLUMN_NAME);
                 String dataType = hashMap.get(columnName);
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
+
                 if (dataType != null && STRING_ARROW_TYPE_MAP.containsKey(dataType.toUpperCase())) {
                     columnType = Optional.of(STRING_ARROW_TYPE_MAP.get(dataType.toUpperCase()));
                 }
@@ -799,26 +704,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         return viewFlag;
     }
 
-    public String getS3ExportBucket()
+    public Optional<String> getSFStorageIntegrationNameFromConfig()
     {
-        return configOptions.get(SPILL_BUCKET_ENV);
-    }
-
-    public String getRoleArn(Context context)
-    {
-        String functionName = context.getFunctionName(); // Get the Lambda function name dynamically
-
-        try (LambdaClient lambdaClient = LambdaClient.create()) {
-            GetFunctionRequest request = GetFunctionRequest.builder()
-                    .functionName(functionName)
-                    .build();
-
-            GetFunctionResponse response = lambdaClient.getFunction(request);
-            return response.configuration().role();
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Error fetching IAM role ARN: " + e.getMessage(), e);
-        }
+        return Optional.ofNullable(configOptions.get(STORAGE_INTEGRATION_CONFIG_KEY));
     }
 
     @Override
@@ -830,5 +718,105 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         }
 
         return null;
+    }
+
+    @VisibleForTesting
+    Map<String, String> getStorageIntegrationProperties(Connection connection, String integrationName) throws SQLException
+    {
+        String checkIntegrationQuery = String.format(DESCRIBE_STORAGE_INTEGRATION_TEMPLATE, integrationName.toUpperCase());
+        Map<String, String> storageIntegrationRow = new HashMap<>();
+        try (Statement stmt = connection.createStatement();
+             ResultSet resultSet = stmt.executeQuery(checkIntegrationQuery)) {
+            while (resultSet.next()) {
+                storageIntegrationRow.put(resultSet.getString(STORAGE_INTEGRATION_PROPERTY_KEY),
+                        resultSet.getString(STORAGE_INTEGRATION_PROPERTY_VALUE_KEY));
+            }
+        }
+        catch (SQLException e) {
+            LOGGER.error("Error checking for integration {}: exception:{}, message: {}", integrationName, e.getClass().getSimpleName(), e.getMessage());
+            if (e.getMessage().contains("does not exist or not authorized")) {
+                return new HashMap<>();
+            }
+            throw e;
+        }
+        return storageIntegrationRow;
+    }
+
+    private boolean isSFStorageIntegrationExistAndValid(Connection connection, String integrationName) throws SQLException
+    {
+        Map<String, String> properties = getStorageIntegrationProperties(connection, integrationName);
+        if (properties.isEmpty()) {
+            return false;
+        }
+
+        String s3ExportPath = Optional.ofNullable(properties.get(STORAGE_INTEGRATION_BUCKET_KEY))
+                .orElseThrow(() -> new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s cannot be null", STORAGE_INTEGRATION_BUCKET_KEY)));
+
+        String provider = Optional.ofNullable(properties.get(STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY))
+                .orElseThrow(() -> new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s cannot be null", STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY)));
+
+        if (!"S3".equalsIgnoreCase(provider)) {
+            throw new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s must be S3", STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY));
+        }
+
+        if (s3ExportPath.split(", ").length != 1) {
+            throw new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s must be a single S3 path", STORAGE_INTEGRATION_BUCKET_KEY));
+        }
+
+        return true;
+    }
+
+    @VisibleForTesting
+    String getStorageIntegrationS3PathFromSnowFlake(Connection connection, String integrationName) throws SQLException
+    {
+        if (!isSFStorageIntegrationExistAndValid(connection, integrationName)) {
+            throw new AthenaConnectorException(String.format("Snowflake storage integration, integration name:'%s' invalid", integrationName), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        }
+
+        Map<String, String> properties = this.getStorageIntegrationProperties(connection, integrationName);
+        if (properties.isEmpty()) {
+            throw new IllegalArgumentException(String.format("Snowflake Storage Integration: name:%s not found", integrationName));
+        }
+
+        String bucketPath = Optional.ofNullable(properties.get(STORAGE_INTEGRATION_BUCKET_KEY))
+                .orElseThrow(() -> new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s cannot be null", STORAGE_INTEGRATION_BUCKET_KEY)));
+        
+        // Validate it's an S3 path and clean it
+        if (!bucketPath.startsWith("s3://")) {
+            throw new IllegalArgumentException(String.format("Storage integration bucket path must be an S3 path: %s", bucketPath));
+        }
+
+        if (bucketPath.endsWith("/")) {
+            bucketPath = bucketPath.substring(0, bucketPath.length() - 1);
+        }
+
+        return bucketPath;
+    }
+
+    /**
+     * Get Snowflake storage integration name from config
+     * @return
+     */
+    private String getStorageIntegrationName()
+    {
+        // Check if integration name is provided in the config.
+        return this.getSFStorageIntegrationNameFromConfig().orElseThrow(() -> {
+            return new AthenaConnectorException("Snowflake storage integration name is missing from properties",
+                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
+        });
+    }
+
+    private String getSnowFlakeBaseSQL(GetSplitsRequest request) throws SQLException
+    {
+        String generatedSql;
+        if (request.getConstraints().isQueryPassThrough()) {
+            generatedSql = this.buildQueryPassthroughSql(request.getConstraints());
+        }
+        else {
+            generatedSql = snowflakeQueryStringBuilder.getBaseExportSQLString(request.getCatalogName(), request.getTableName().getSchemaName(), request.getTableName().getTableName(),
+                    request.getSchema(),
+                    request.getConstraints());
+        }
+        return generatedSql;
     }
 }

@@ -20,6 +20,8 @@
 
 package com.amazonaws.athena.connectors.snowflake;
 
+import java.util.Map;
+
 public final class SnowflakeConstants
 {
     public static final String SNOWFLAKE_NAME = "snowflake";
@@ -75,5 +77,12 @@ public final class SnowflakeConstants
     public static final String PASSWORD = "password";
     public static final String USER = "user";
 
+    public static final String SNOWFLAKE_ENABLE_S3_EXPORT = "SNOWFLAKE_ENABLE_S3_EXPORT";
+
     private SnowflakeConstants() {}
+
+    public static boolean isS3ExportEnabled(Map<String, String> configOptions)
+    {
+        return Boolean.parseBoolean(configOptions.getOrDefault(SNOWFLAKE_ENABLE_S3_EXPORT, "false"));
+    }
 }
