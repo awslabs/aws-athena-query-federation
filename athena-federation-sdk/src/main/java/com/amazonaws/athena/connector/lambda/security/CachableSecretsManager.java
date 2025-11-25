@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.credentials.DefaultCredentialsProvider;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -140,6 +141,31 @@ public class CachableSecretsManager
             logger.info("getSecret: Resolving secret[{}].", secretName);
             GetSecretValueResponse secretValueResult = secretsManager.getSecretValue(GetSecretValueRequest.builder()
                     .secretId(secretName)
+                    .build());
+            cacheEntry = new CacheEntry(secretName, secretValueResult.secretString());
+            evictCache(cache.size() >= MAX_CACHE_SIZE);
+            cache.put(secretName, cacheEntry);
+        }
+
+        return cacheEntry.getValue();
+    }
+
+    /**
+     * Retrieves a secret from SecretsManager, first checking the cache. Newly fetched secrets are added to the cache.
+     *
+     * @param secretName The name of the secret to retrieve.
+     * @param overrideConfiguration override configuration for the aws request. Most commonly, for FAS_TOKEN AwsCredentials override for federation requests.
+     * @return The value of the secret, throws if no such secret is found.
+     */
+    public String getSecret(String secretName, AwsRequestOverrideConfiguration overrideConfiguration)
+    {
+        CacheEntry cacheEntry = cache.get(secretName);
+
+        if (cacheEntry == null || cacheEntry.getAge() > MAX_CACHE_AGE_MS) {
+            logger.info("getSecret: Resolving secret[{}].", secretName);
+            GetSecretValueResponse secretValueResult = secretsManager.getSecretValue(GetSecretValueRequest.builder()
+                    .secretId(secretName)
+                    .overrideConfiguration(overrideConfiguration)
                     .build());
             cacheEntry = new CacheEntry(secretName, secretValueResult.secretString());
             evictCache(cache.size() >= MAX_CACHE_SIZE);
