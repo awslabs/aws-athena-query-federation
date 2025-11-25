@@ -35,15 +35,15 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.AND_BOOL;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.EQUAL_ANY_ANY;
-import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_ANY_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GTE_ANY_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GTE_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_ANY_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.GT_PTS_PTS;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.IS_NOT_NULL_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.IS_NULL_ANY;
-import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_ANY_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LTE_ANY_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LTE_PTS_PTS;
+import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_ANY_ANY;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.LT_PTS_PTS;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.NOT_BOOL;
 import static com.amazonaws.athena.connector.substrait.model.SubstraitFunctionNames.NOT_EQUAL_ANY_ANY;
