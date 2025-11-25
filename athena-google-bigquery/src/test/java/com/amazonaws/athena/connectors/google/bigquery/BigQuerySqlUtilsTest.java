@@ -59,7 +59,7 @@ public class BigQuerySqlUtilsTest
     private static final String TABLE_NAME = "table";
     static final TableName tableName = new TableName(SCHEMA_NAME, TABLE_NAME);
     private static final String TEST_DATE = "2023-01-01";
-    private static final String TEST_TIME = "10:30:00";
+    private static final String TEST_TIME = "00:30:00";
     private static final String TEST_DATETIME = TEST_DATE + "T" + TEST_TIME;
     private static final String TEST_DATETIME_MICROS = TEST_DATETIME + ".123";
     private static final String TEST_DATETIME_PADDED = TEST_DATE + " " + TEST_TIME + ".000000";
@@ -300,18 +300,17 @@ public class BigQuerySqlUtilsTest
     public void testSqlWithDateRangePredicates()
     {
         Map<String, ValueSet> constraintMap = new LinkedHashMap<>();
-        String dateValue = "2023-01-01T10:30:00";
         // Test date with <= predicate using string format (contains "-")
         ValueSet dateStringLteSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
                 .add(new Range(Marker.lowerUnbounded(allocator, STRING_TYPE),
-                             Marker.exactly(allocator, STRING_TYPE, dateValue)))
+                             Marker.exactly(allocator, STRING_TYPE, TEST_DATETIME)))
                 .build();
         String dateStringLteCol = "dateStringLteCol";
         constraintMap.put(dateStringLteCol, dateStringLteSet);
 
         // Test date with >= predicate using string format
         ValueSet dateStringGteSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
-                .add(new Range(Marker.exactly(allocator, STRING_TYPE, dateValue),
+                .add(new Range(Marker.exactly(allocator, STRING_TYPE, TEST_DATETIME),
                              Marker.upperUnbounded(allocator, STRING_TYPE)))
                 .build();
         String dateStringGteCol = "dateStringGteCol";
@@ -348,6 +347,67 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.dateTime(TEST_DATETIME_PADDED),  // String GTE
                 QueryParameterValue.date(TEST_DATE),                 // Epoch LTE
                 QueryParameterValue.date(TEST_DATE)                  // Epoch GTE
+        );
+        String expectedSql = "SELECT `dateStringLteCol`,`dateStringGteCol`,`dateEpochLteCol`,`dateEpochGteCol` from `schema`.`table` " +
+                "WHERE ((`dateStringLteCol` <= ?)) AND ((`dateStringGteCol` >= ?)) AND " +
+                "((`dateEpochLteCol` <= ?)) AND ((`dateEpochGteCol` >= ?))";
+        Constraints constraints = getConstraints(constraintMap, Collections.emptyList(), DEFAULT_NO_LIMIT);
+        executeAndVerify(constraints, schema, expectedParams, expectedSql);
+    }
+
+    @Test
+    public void testSqlWithDateRangePredicatesWithEndOfDateTest()
+    {
+        Map<String, ValueSet> constraintMap = new LinkedHashMap<>();
+        String dateTimeValue = "2023-12-31T23:59:59";
+        String dateValue = "2023-12-31";
+        // Test date with <= predicate using string format (contains "-")
+        ValueSet dateStringLteSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
+                .add(new Range(Marker.lowerUnbounded(allocator, STRING_TYPE),
+                        Marker.exactly(allocator, STRING_TYPE, dateTimeValue)))
+                .build();
+        String dateStringLteCol = "dateStringLteCol";
+        constraintMap.put(dateStringLteCol, dateStringLteSet);
+
+        // Test date with >= predicate using string format
+        ValueSet dateStringGteSet = SortedRangeSet.newBuilder(STRING_TYPE, false)
+                .add(new Range(Marker.exactly(allocator, STRING_TYPE, dateTimeValue),
+                        Marker.upperUnbounded(allocator, STRING_TYPE)))
+                .build();
+        String dateStringGteCol = "dateStringGteCol";
+        constraintMap.put(dateStringGteCol, dateStringGteSet);
+
+        // Test date with <= predicate using epoch days
+        long epochDays = java.time.LocalDate.of(2023, 12, 31).toEpochDay();
+        ValueSet dateEpochLteSet = SortedRangeSet.newBuilder(DATE_TYPE, false)
+                .add(new Range(Marker.lowerUnbounded(allocator, DATE_TYPE),
+                        Marker.exactly(allocator, DATE_TYPE, epochDays)))
+                .build();
+        String dateEpochLteCol = "dateEpochLteCol";
+        constraintMap.put(dateEpochLteCol, dateEpochLteSet);
+
+        // Test date with >= predicate using epoch days
+        ValueSet dateEpochGteSet = SortedRangeSet.newBuilder(DATE_TYPE, false)
+                .add(new Range(Marker.exactly(allocator, DATE_TYPE, epochDays),
+                        Marker.upperUnbounded(allocator, DATE_TYPE)))
+                .build();
+        String dateEpochGteCol = "dateEpochGteCol";
+        constraintMap.put(dateEpochGteCol, dateEpochGteSet);
+
+        // Create schema that maps string values to DATE_TYPE to trigger the if block
+        List<Field> fields = new ArrayList<>();
+        fields.add(Field.nullable(dateStringLteCol, DATE_TYPE));    // Map string to DATE_TYPE
+        fields.add(Field.nullable(dateStringGteCol, DATE_TYPE));    // Map string to DATE_TYPE
+        fields.add(Field.nullable(dateEpochLteCol, DATE_TYPE));     // Keep as DATE_TYPE
+        fields.add(Field.nullable(dateEpochGteCol, DATE_TYPE));     // Keep as DATE_TYPE
+        Schema schema = new Schema(fields);
+        // For string dates, we expect datetime parameters with microseconds
+        // For epoch days, we expect date parameters
+        List<QueryParameterValue> expectedParams = ImmutableList.of(
+                QueryParameterValue.dateTime(dateTimeValue.replace("T", " ") + ".000000"),  // String LTE
+                QueryParameterValue.dateTime(dateTimeValue.replace("T", " ") + ".000000"),  // String GTE
+                QueryParameterValue.date(dateValue),                 // Epoch LTE
+                QueryParameterValue.date(dateValue)                  // Epoch GTE
         );
         String expectedSql = "SELECT `dateStringLteCol`,`dateStringGteCol`,`dateEpochLteCol`,`dateEpochGteCol` from `schema`.`table` " +
                 "WHERE ((`dateStringLteCol` <= ?)) AND ((`dateStringGteCol` >= ?)) AND " +

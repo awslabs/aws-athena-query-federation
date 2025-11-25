@@ -32,6 +32,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
@@ -94,5 +95,52 @@ public class KmsKeyFactoryTest {
         assertThrows(AthenaConnectorException.class, () -> {
             kmsKeyFactory.create();
         });
+    }
+
+    @Test
+    public void testCreateWithOverrideConfiguration() {
+        byte[] testPlaintextKey = new byte[] { 1, 2, 3, 4, 5 };
+        byte[] testNonce = new byte[] { 9, 8, 7 };
+        AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder().build();
+
+        GenerateDataKeyResponse dataKeyResponse = GenerateDataKeyResponse.builder()
+                .plaintext(SdkBytes.fromByteArray(testPlaintextKey))
+                .build();
+
+        GenerateRandomResponse randomResponse = GenerateRandomResponse.builder()
+                .plaintext(SdkBytes.fromByteArray(testNonce))
+                .build();
+
+        when(mockKmsClient.generateDataKey((GenerateDataKeyRequest) any())).thenReturn(dataKeyResponse);
+        when(mockKmsClient.generateRandom((GenerateRandomRequest) any())).thenReturn(randomResponse);
+
+        EncryptionKey result = kmsKeyFactory.create(overrideConfig);
+
+        assertArrayEquals(testPlaintextKey, result.getKey());
+        assertArrayEquals(testNonce, result.getNonce());
+        verify(mockKmsClient).generateDataKey((GenerateDataKeyRequest) any());
+        verify(mockKmsClient).generateRandom((GenerateRandomRequest) any());
+    }
+
+    @Test
+    public void testCreateWithNullOverrideConfiguration() {
+        byte[] testPlaintextKey = new byte[] { 1, 2, 3, 4, 5 };
+        byte[] testNonce = new byte[] { 9, 8, 7 };
+
+        GenerateDataKeyResponse dataKeyResponse = GenerateDataKeyResponse.builder()
+                .plaintext(SdkBytes.fromByteArray(testPlaintextKey))
+                .build();
+
+        GenerateRandomResponse randomResponse = GenerateRandomResponse.builder()
+                .plaintext(SdkBytes.fromByteArray(testNonce))
+                .build();
+
+        when(mockKmsClient.generateDataKey((GenerateDataKeyRequest) any())).thenReturn(dataKeyResponse);
+        when(mockKmsClient.generateRandom((GenerateRandomRequest) any())).thenReturn(randomResponse);
+
+        EncryptionKey result = kmsKeyFactory.create(null);
+
+        assertArrayEquals(testPlaintextKey, result.getKey());
+        assertArrayEquals(testNonce, result.getNonce());
     }
 }
