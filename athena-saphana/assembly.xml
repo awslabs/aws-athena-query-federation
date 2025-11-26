@@ -24,6 +24,9 @@
             <outputDirectory>lib</outputDirectory>
             <excludes>
                 <exclude>${project.groupId}:${project.artifactId}:jar:*</exclude>
+                <!-- CRITICAL FIX for CVE-2025-48924: Exclude vulnerable commons-lang artifacts -->
+                <!-- Exclude old commons-lang (not commons-lang3) which has CVE-2025-48924 -->
+                <exclude>commons-lang:commons-lang</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>
