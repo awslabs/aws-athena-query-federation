@@ -22,6 +22,9 @@ package com.amazonaws.athena.connectors.vertica.query;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
+import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -29,6 +32,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.calcite.sql.dialect.VerticaSqlDialect;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -347,6 +351,104 @@ public class VerticaExportQueryBuilderTest {
 
         String expectedQuery = "SELECT COUNT(*) AS \"$f0\" FROM \"public\".\"basic_write_nonexist\"";
         assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_DoubleFilter() {
+        Schema schema = new SchemaBuilder()
+                .addField(FieldBuilder.newBuilder("price", Types.MinorType.FLOAT8.getType()).build())
+                .build();
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSERoPCAEaC2d0ZTphbnlfYW55Gp0BEpoBCpABOo0BCgUSAwoBARJ6EngKAgoAEjEKLwoCCgASEQoFcHJpY2USCAoEWgIQARgCOhYKFGJhc2ljX3dyaXRlX25vbmV4aXN0Gj8aPRoECgIQASIKGggSBgoCEgAiACIpGidaJQoEWgIQAhIbChnCARYKEA8nAAAAAAAAAAAAAAAAAAAQBBgCGAIaCBIGCgISACIAEgVQUklDRQ==");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", schema, resultSet);
+
+        String expectedQuery = "SELECT price FROM \"public\".\"basic_write_nonexist\" WHERE \"price\" >= 9.999E1";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_FloatFilter() {
+        Schema schema = new SchemaBuilder()
+                .addField(FieldBuilder.newBuilder("float_value", Types.MinorType.FLOAT4.getType()).build())
+                .build();
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEBoOCAEaCmx0OmFueV9hbnkaqgESpwEKlwE6lAEKBRIDCgEBEoABEn4KAgoAEjcKNQoCCgASFwoLZmxvYXRfdmFsdWUSCAoEWgIQARgCOhYKFGJhc2ljX3dyaXRlX25vbmV4aXN0Gj8aPRoECgIQASIKGggSBgoCEgAiACIpGidaJQoEWgIQAhIbChnCARYKEPkBAAAAAAAAAAAAAAAAAAAQAxgBGAIaCBIGCgISACIAEgtGTE9BVF9WQUxVRQ==");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", schema, resultSet);
+
+        String expectedQuery = "SELECT float_value FROM \"public\".\"basic_write_nonexist\" WHERE \"float_value\" < 5.05E1";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_DecimalFilter() {
+        Schema schema = new SchemaBuilder()
+                .addField(FieldBuilder.newBuilder("debit", new ArrowType.Decimal(19, 0, 128)).build())
+                .build();
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSEBoOCAEaCmd0OmFueV9hbnkapwESpAEKmgE6lwEKBRIDCgEBEoMBEoABCgIKABI0CjIKAgoAEhQKBWRlYml0EgsKB8IBBBATIAEYAjoWChRiYXNpY193cml0ZV9ub25leGlzdBpEGkIaBAoCEAEiGxoZWhcKCcIBBggCEBUgARIIEgYKAhIAIgAYAiIdGhsKGcIBFgoQQicAAAAAAAAAAAAAAAAAABAVGAIaCBIGCgISACIAEgVERUJJVA==");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", schema, resultSet);
+
+        String expectedQuery = "SELECT debit FROM \"public\".\"basic_write_nonexist\" WHERE CAST(\"debit\" AS DECIMAL(19, 2)) > 100.50";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_DateDayFilter() {
+        Schema schema = new SchemaBuilder()
+                .addField(FieldBuilder.newBuilder("date", new ArrowType.Date(DateUnit.DAY)).build())
+                .build();
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSExoRCAEaDWVxdWFsOmFueV9hbnkaeRJ3Cm86bQoFEgMKAQESWhJYCgIKABIxCi8KAgoAEhEKBGRhdGUSCQoFggECEAEYAjoWChRiYXNpY193cml0ZV9ub25leGlzdBofGh0aBAoCEAEiChoIEgYKAhIAIgAiCRoHCgWAAZ6XARoIEgYKAhIAIgASBGRhdGU=");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", schema, resultSet);
+
+        String expectedQuery = "SELECT date FROM \"public\".\"basic_write_nonexist\" WHERE \"date\" = DATE '2023-01-01'";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_DateMillisecondFilter() {
+        Schema schema = new SchemaBuilder()
+                .addField(FieldBuilder.newBuilder("date_millis", new ArrowType.Date(DateUnit.MILLISECOND)).build())
+                .build();
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSExoRCAEaDWVxdWFsOmFueV9hbnkaqAESpQEKlQE6kgEKBRIDCgEBEn8SfQoCCgASOAo2CgIKABIYCgtkYXRlX21pbGxpcxIJCgWCAQIQARgCOhYKFGJhc2ljX3dyaXRlX25vbmV4aXN0Gj0aOxoECgIQASIXGhVaEwoFigICGAESCBIGCgISACIAGAIiGhoYWhYKBYoCAhgBEgsKCXCA4OOXqab8AhgCGggSBgoCEgAiABILREFURV9NSUxMSVM=");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", schema, resultSet);
+
+        String expectedQuery = "SELECT date_millis FROM \"public\".\"basic_write_nonexist\" WHERE CAST(\"date_millis\" AS TIMESTAMP(0)) = TIMESTAMP '2023-01-01 12:00:00'";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_TimestampFilter() {
+        Schema schema = new SchemaBuilder()
+                .addField(FieldBuilder.newBuilder("date_millis", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")).build())
+                .build();
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSExoRCAEaDWVxdWFsOmFueV9hbnkaowESoAEKjAE6iQEKBRIDCgEBEnYSdAoCCgASPAo6CgIKABIcCg9kYXRldGltZV9taWxsaXMSCQoFigICGAEYAjoWChRiYXNpY193cml0ZV9ub25leGlzdBowGi4aBAoCEAEiChoIEgYKAhIAIgAiGhoYWhYKBYoCAhgBEgsKCXCA4OOXqab8AhgCGggSBgoCEgAiABIPREFURVRJTUVfTUlMTElT");
+        VerticaExportQueryBuilder queryBuilder = builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", schema, resultSet);
+
+        String expectedQuery = "SELECT date_millis FROM \"public\".\"basic_write_nonexist\" WHERE \"date_millis\" = TIMESTAMP '2023-01-01 12:00:00'";
+        assertEquals(expectedQuery, queryBuilder.getQueryFromPlan());
+    }
+
+    @Test
+    public void withQueryPlan_DateFilter_UnSupported() {
+        Schema schema = new SchemaBuilder()
+                .addField(FieldBuilder.newBuilder("datetime_millis", new ArrowType.Date(DateUnit.MILLISECOND)).build())
+                .build();
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSExoRCAEaDWVxdWFsOmFueV9hbnkasgESrwEKmwE6mAEKBRIDCgEBEoQBEoEBCgIKABI8CjoKAgoAEhwKD2RhdGV0aW1lX21pbGxpcxIJCgWCAQIQARgCOhYKFGJhc2ljX3dyaXRlX25vbmV4aXN0Gj0aOxoECgIQASIKGggSBgoCEgAiACInGiVaIwoFggECEAISGAoWqgETMjAyMy0xMy00NSAyNTo5OTo5ORgCGggSBgoCEgAiABIPREFURVRJTUVfTUlMTElT");
+        Assertions.assertThrows(AthenaConnectorException.class, () -> builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", schema, resultSet));
+    }
+
+    @Test
+    public void withQueryPlan_TimestampFilter_UnSupported() {
+        Schema schema = new SchemaBuilder()
+                .addField(FieldBuilder.newBuilder("datetime_millis", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")).build())
+                .build();
+        VerticaExportQueryBuilder builder = new VerticaExportQueryBuilder(createValidTemplate());
+        QueryPlan queryPlan = new QueryPlan("1.0", "Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSExoRCAEaDWVxdWFsOmFueV9hbnkasgESrwEKmwE6mAEKBRIDCgEBEoQBEoEBCgIKABI8CjoKAgoAEhwKD2RhdGV0aW1lX21pbGxpcxIJCgWKAgIYARgCOhYKFGJhc2ljX3dyaXRlX25vbmV4aXN0Gj0aOxoECgIQASIKGggSBgoCEgAiACInGiVaIwoFigICGAISGAoWqgETMjAyMy0xMy00NSAyNTo5OTo5ORgCGggSBgoCEgAiABIPREFURVRJTUVfTUlMTElT");
+        Assertions.assertThrows(AthenaConnectorException.class, () -> builder.withQueryPlan(queryPlan, VerticaSqlDialect.DEFAULT, "public", "basic_write_nonexist", schema, resultSet));
     }
 
     /**

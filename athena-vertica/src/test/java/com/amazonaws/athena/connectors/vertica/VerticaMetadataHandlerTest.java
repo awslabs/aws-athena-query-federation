@@ -311,9 +311,20 @@ public class VerticaMetadataHandlerTest extends TestBase
 
     @Test
     public void getPartitions() throws Exception {
-
-        Schema tableSchema = getSchema();
-
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addField("bit_col", new ArrowType.Bool()) // BIT
+                .addField("tinyint_col", new ArrowType.Int(8, true)) // TINYINT
+                .addField("smallint_col", new ArrowType.Int(16, true)) // SMALLINT
+                .addIntField("int_col") // INT
+                .addField("bigint_col", new ArrowType.Int(64, true)) // BIGINT
+                .addField("float_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE)) // FLOAT4
+                .addField("double_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE)) // FLOAT8
+                .addField("decimal_col", new ArrowType.Decimal(10, 2, 128)) // DECIMAL
+                .addStringField("varchar_col") // VARCHAR
+                .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField("awsRegionSql")
+                .build();
         Set<String> partitionCols = new HashSet<>();
         partitionCols.add("preparedStmt");
         partitionCols.add("queryId");
@@ -407,24 +418,6 @@ public class VerticaMetadataHandlerTest extends TestBase
             assertTrue(partitions.getRowCount() > 0);
             logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
         }
-    }
-
-    private static Schema getSchema() {
-        Schema tableSchema = SchemaBuilder.newBuilder()
-                .addField("bit_col", new ArrowType.Bool()) // BIT
-                .addField("tinyint_col", new ArrowType.Int(8, true)) // TINYINT
-                .addField("smallint_col", new ArrowType.Int(16, true)) // SMALLINT
-                .addIntField("int_col") // INT
-                .addField("bigint_col", new ArrowType.Int(64, true)) // BIGINT
-                .addField("float_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE)) // FLOAT4
-                .addField("double_col", new ArrowType.FloatingPoint(org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE)) // FLOAT8
-                .addField("decimal_col", new ArrowType.Decimal(10, 2, 128)) // DECIMAL
-                .addStringField("varchar_col") // VARCHAR
-                .addStringField("preparedStmt")
-                .addStringField("queryId")
-                .addStringField("awsRegionSql")
-                .build();
-        return tableSchema;
     }
 
     @Test
@@ -573,7 +566,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         assertFalse(response.getSplits().isEmpty());
     }
 
-    @Test(expected = AthenaConnectorException.class)
+    @Test(expected = RuntimeException.class)
     public void doGetSplits_NullRequest_ShouldThrowException() {
         verticaMetadataHandlerMocked.doGetSplits(allocator, null);
     }

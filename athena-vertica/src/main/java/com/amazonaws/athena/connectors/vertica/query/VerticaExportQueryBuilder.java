@@ -52,6 +52,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -103,7 +104,7 @@ public class VerticaExportQueryBuilder {
 
     public VerticaExportQueryBuilder fromTable(String schemaName, String tableName)
     {
-        this.table = getFromClauseWithSplit(schemaName, tableName);
+        this.table = PredicateBuilder.getFromClauseWithSplit(schemaName, tableName);
         return this;
     }
 
@@ -263,172 +264,173 @@ public class VerticaExportQueryBuilder {
                                                    final String schema,
                                                    final String table, final Schema tableSchema,
                                                    final ResultSet definition) {
-        try {
-            String base64EncodedPlan = queryPlan.getSubstraitPlan();
-            SqlNode sqlNode = SubstraitSqlUtils.deserializeSubstraitPlan(base64EncodedPlan, sqlDialect, schema, table, tableSchema);
-            List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
-            HashMap<String, String> mapOfNamesAndTypes = getMapOfNamesAndTypes(definition);
+        String base64EncodedPlan = queryPlan.getSubstraitPlan();
+        SqlNode sqlNode = SubstraitSqlUtils.deserializeSubstraitPlan(base64EncodedPlan, sqlDialect, schema, table, tableSchema);
+        List<SubstraitTypeAndValue> accumulator = new ArrayList<>();
+        HashMap<String, String> mapOfNamesAndTypes = getMapOfNamesAndTypes(definition);
 
-            SqlSelect select;
+        SqlSelect select;
 
-            if (!(sqlNode instanceof SqlSelect)) {
-                throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
-            }
+        if (!(sqlNode instanceof SqlSelect)) {
+            throw new RuntimeException("Unsupported Query Type. Only SELECT Query is supported.");
+        }
 
-            select = (SqlSelect) sqlNode;
+        select = (SqlSelect) sqlNode;
 
-            StringBuilder sql = new StringBuilder();
-            sql.append("SELECT ");
-            
-            // Parse select list to handle aliases properly
-            SqlNodeList selectList = select.getSelectList();
-            List<String> projectedColumns = new ArrayList<>();
-            
-            for (SqlNode selectItem : selectList) {
-                String columnExpression = null;
-                
-                if (selectItem instanceof SqlIdentifier) {
-                    // Simple column reference: SELECT name FROM users
-                    SqlIdentifier identifier = (SqlIdentifier) selectItem;
-                    columnExpression = identifier.getSimple();
-                }
-                else if (selectItem instanceof SqlBasicCall &&
-                        ((SqlBasicCall) selectItem).getOperator().getKind() == SqlKind.AS) {
-                    // Handle aliased expressions: SELECT name AS name0 FROM table_name
-                    SqlBasicCall asCall = (SqlBasicCall) selectItem;
-                    SqlNode sourceExpr = asCall.operand(0);
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ");
 
-                    if (sourceExpr instanceof SqlIdentifier) {
-                        SqlIdentifier sourceId = (SqlIdentifier) sourceExpr;
-                        columnExpression = sourceId.getSimple();
-                    } else {
-                        // Complex expression with alias SELECT COUNT(*) from table_name - keep as is
-                        columnExpression = selectItem.toSqlString(sqlDialect).getSql();
-                    }
-                }
-                else {
-                    // Handle other complex expressions
+        // Parse select list to handle aliases properly
+        SqlNodeList selectList = select.getSelectList();
+        List<String> projectedColumns = new ArrayList<>();
+
+        for (SqlNode selectItem : selectList) {
+            String columnExpression = null;
+
+            if (selectItem instanceof SqlIdentifier) {
+                // Simple column reference: SELECT name FROM users
+                SqlIdentifier identifier = (SqlIdentifier) selectItem;
+                columnExpression = identifier.getSimple();
+            } else if (selectItem instanceof SqlBasicCall &&
+                    ((SqlBasicCall) selectItem).getOperator().getKind() == SqlKind.AS) {
+                // Handle aliased expressions: SELECT name AS name0 FROM table_name
+                SqlBasicCall asCall = (SqlBasicCall) selectItem;
+                SqlNode sourceExpr = asCall.operand(0);
+
+                if (sourceExpr instanceof SqlIdentifier) {
+                    SqlIdentifier sourceId = (SqlIdentifier) sourceExpr;
+                    columnExpression = sourceId.getSimple();
+                } else {
+                    // Complex expression with alias SELECT COUNT(*) from table_name - keep as is
                     columnExpression = selectItem.toSqlString(sqlDialect).getSql();
                 }
-                
-                if (columnExpression != null) {
-                    String col_type = mapOfNamesAndTypes.get(columnExpression.toLowerCase());
-                    if(col_type != null && (col_type.equals("timestamp") || col_type.equals("timestamptz"))) {
-                        columnExpression = castTimestamp(columnExpression);
-                    }
-                    projectedColumns.add(columnExpression);
-                }
-            }
-            
-            sql.append(String.join(",", projectedColumns));
-
-            if (projectedColumns.isEmpty()) {
-                sql.append("null");
-            }
-            sql.append(" FROM ");
-            sql.append(getFromClauseWithSplit(schema, table));
-
-            SqlNode whereClause = select.getWhere();
-            List<String> clauses = new ArrayList<>();
-            if (whereClause != null) {
-                whereClause.accept(new SubstraitAccumulatorVisitor(accumulator, Collections.emptyMap(), tableSchema));
-                clauses.add(whereClause.toSqlString(sqlDialect).getSql());
-            }
-
-            if (!clauses.isEmpty()) {
-                String completeWhereClause = " WHERE " + String.join(" AND ", clauses);
-                sql.append(completeWhereClause);
-                LOGGER.info("Complete WHERE clause: {}", completeWhereClause);
             } else {
-                LOGGER.info("No WHERE clauses generated");
+                // Handle other complex expressions
+                columnExpression = selectItem.toSqlString(sqlDialect).getSql();
             }
-            // ORDER BY clause is not handled in Constraints, it is currently handled by Data Pane
-            if (select.getOrderList() != null) {
-                List<String> orderParts = new ArrayList<>();
-                for (SqlNode orderExpr : select.getOrderList()) {
-                    String part = orderExpr.toSqlString(sqlDialect).getSql();
-                    orderParts.add(part);
+
+            if (columnExpression != null) {
+                String col_type = mapOfNamesAndTypes.get(columnExpression.toLowerCase());
+                if (col_type != null && (col_type.equals("timestamp") || col_type.equals("timestamptz"))) {
+                    columnExpression = castTimestamp(columnExpression);
                 }
-                String orderByClause = " ORDER BY " + String.join(", ", orderParts);
-                sql.append(orderByClause);
+                projectedColumns.add(columnExpression);
             }
-
-            // LIMIT and offset is not handled in Constraints, it is currently handled by Data Pane
-            String limit = select.getFetch() == null ? null : select.getFetch().toSqlString(sqlDialect).getSql();
-            String offset = select.getOffset() == null ? null : select.getOffset().toSqlString(sqlDialect).getSql();
-
-            if (limit != null) {
-                sql.append(appendLimitOffsetWithValue(limit, offset));
-            }
-
-            /**
-             * Uses custom delimiters in StringTemplate to avoid conflicts with SQL operators like `<` and `>`.
-             * Fixes rendering issues by replacing default `< >` delimiters with `{ }`.
-             */
-            ST sqlTemplate = new ST(sql.toString(), '{', '}');
-            for (int i = 0; i < accumulator.size(); i++) {
-                SubstraitTypeAndValue typeAndValue = accumulator.get(i);
-                SqlTypeName sqlTypeName = typeAndValue.getType();
-                String colName = typeAndValue.getColumnName();
-                switch (sqlTypeName)
-                {
-                    case TINYINT:
-                        sqlTemplate.add(colName, Byte.parseByte(typeAndValue.getValue().toString()));
-                        break;
-                    case SMALLINT:
-                        sqlTemplate.add(colName, Short.parseShort(typeAndValue.getValue().toString()));
-                        break;
-                    case INTEGER:
-                        sqlTemplate.add(colName, Integer.parseInt(typeAndValue.getValue().toString()));
-                        break;
-                    case BIGINT:
-                        sqlTemplate.add(colName,Long.parseLong(typeAndValue.getValue().toString()));
-                        break;
-                    case FLOAT:
-                        sqlTemplate.add(colName,Float.parseFloat(typeAndValue.getValue().toString()));
-                        break;
-                    case DOUBLE:
-                        sqlTemplate.add(colName,Double.parseDouble(typeAndValue.getValue().toString()));
-                        break;
-                    case DECIMAL:
-                        sqlTemplate.add(colName, new BigDecimal(typeAndValue.getValue().toString()));
-                        break;
-                    case DATE:
-                        if (typeAndValue.getValue() instanceof DateString) {
-                            sqlTemplate.add(colName, (int) LocalDate.parse(typeAndValue.getValue().toString()).toEpochDay());
-                        }
-                        else if (typeAndValue.getValue() instanceof TimestampString) {
-                            sqlTemplate.add(colName, LocalDateTime.parse(typeAndValue.getValue().toString()).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
-                        }
-                        else {
-                            throw new AthenaConnectorException(
-                                    String.format("Can't handle date format: %s", typeAndValue.getType()),
-                                    ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
-                        }
-                        break;
-
-                    case VARCHAR:
-                        String val = "'" + typeAndValue.getValue() + "'";
-                        sqlTemplate.add(colName, val);
-                        break;
-                    case VARBINARY:
-                        sqlTemplate.add(colName, typeAndValue.toString().getBytes());
-                        break;
-
-                    default:
-                        throw new AthenaConnectorException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), typeAndValue.getType()),
-                                ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());                }
-            }
-            this.queryFromPlan = sqlTemplate.render();
-            return this;
         }
-        catch (Exception e) {
-            LOGGER.error("An error occurred while creating a query from the query plan.", e);
-            throw new AthenaConnectorException("An error occurred while creating a query from the query plan.", ErrorDetails.builder()
-                    .errorMessage("An error occurred while creating a query from the query plan.")
-                    .errorCode(FederationSourceErrorCode.UNKNOWN_TO_SDK_VERSION.toString())
-                    .build());
+
+        sql.append(String.join(",", projectedColumns));
+
+        if (projectedColumns.isEmpty()) {
+            sql.append("null");
         }
+        sql.append(" FROM ");
+        sql.append(getFromClauseWithSplit(schema, table));
+
+        SqlNode whereClause = select.getWhere();
+        List<String> clauses = new ArrayList<>();
+        if (whereClause != null) {
+            whereClause.accept(new SubstraitAccumulatorVisitor(accumulator, Collections.emptyMap(), tableSchema));
+            clauses.add(whereClause.toSqlString(sqlDialect).getSql());
+        }
+
+        if (!clauses.isEmpty()) {
+            String completeWhereClause = " WHERE " + String.join(" AND ", clauses);
+            sql.append(completeWhereClause);
+            LOGGER.info("Complete WHERE clause: {}", completeWhereClause);
+        } else {
+            LOGGER.info("No WHERE clauses generated");
+        }
+        // ORDER BY clause is not handled in Constraints, it is currently handled by Data Plane
+        if (select.getOrderList() != null) {
+            List<String> orderParts = new ArrayList<>();
+            for (SqlNode orderExpr : select.getOrderList()) {
+                String part = orderExpr.toSqlString(sqlDialect).getSql();
+                orderParts.add(part);
+            }
+            String orderByClause = " ORDER BY " + String.join(", ", orderParts);
+            sql.append(orderByClause);
+        }
+
+        // LIMIT and offset is not handled in Constraints, it is currently handled by Data Plane
+        String limit = select.getFetch() == null ? null : select.getFetch().toSqlString(sqlDialect).getSql();
+        String offset = select.getOffset() == null ? null : select.getOffset().toSqlString(sqlDialect).getSql();
+
+        if (limit != null) {
+            sql.append(appendLimitOffsetWithValue(limit, offset));
+        }
+
+        /**
+         * Uses custom delimiters in StringTemplate to avoid conflicts with SQL operators like `<` and `>`.
+         * Fixes rendering issues by replacing default `< >` delimiters with `{ }`.
+         */
+        ST sqlTemplate = new ST(sql.toString(), '{', '}');
+        for (int i = 0; i < accumulator.size(); i++) {
+            SubstraitTypeAndValue typeAndValue = accumulator.get(i);
+            SqlTypeName sqlTypeName = typeAndValue.getType();
+            String colName = typeAndValue.getColumnName();
+            switch (sqlTypeName) {
+                case TINYINT:
+                    sqlTemplate.add(colName, Byte.parseByte(typeAndValue.getValue().toString()));
+                    break;
+                case SMALLINT:
+                    sqlTemplate.add(colName, Short.parseShort(typeAndValue.getValue().toString()));
+                    break;
+                case INTEGER:
+                    sqlTemplate.add(colName, Integer.parseInt(typeAndValue.getValue().toString()));
+                    break;
+                case BIGINT:
+                    sqlTemplate.add(colName, Long.parseLong(typeAndValue.getValue().toString()));
+                    break;
+                case FLOAT:
+                    sqlTemplate.add(colName, Float.parseFloat(typeAndValue.getValue().toString()));
+                    break;
+                case DOUBLE:
+                    sqlTemplate.add(colName, Double.parseDouble(typeAndValue.getValue().toString()));
+                    break;
+                case DECIMAL:
+                    sqlTemplate.add(colName, new BigDecimal(typeAndValue.getValue().toString()));
+                    break;
+                case DATE:
+                    if (typeAndValue.getValue() instanceof DateString) {
+                        sqlTemplate.add(colName, (int) LocalDate.parse(typeAndValue.getValue().toString()).toEpochDay());
+                    } else if (typeAndValue.getValue() instanceof TimestampString) {
+                        String timestampStr = typeAndValue.getValue().toString();
+                        DateTimeFormatter formatter = timestampStr.contains("T") ? DateTimeFormatter.ISO_LOCAL_DATE_TIME : DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]");
+                        sqlTemplate.add(colName, LocalDateTime.parse(timestampStr, formatter).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
+                    } else {
+                        throw new AthenaConnectorException(String.format("Can't handle date format: %s, value class: %s", typeAndValue.getType(), typeAndValue.getValue().getClass().getName()),
+                                ErrorDetails.builder()
+                                        .errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString())
+                                        .build());
+                    }
+                    break;
+                case TIMESTAMP:
+                    if (typeAndValue.getValue() instanceof TimestampString) {
+                        String timestampStr = typeAndValue.getValue().toString();
+                        DateTimeFormatter formatter = timestampStr.contains("T") ? DateTimeFormatter.ISO_LOCAL_DATE_TIME : DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]");
+                        sqlTemplate.add(colName, LocalDateTime.parse(timestampStr, formatter).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
+                    } else {
+                        throw new AthenaConnectorException(String.format("Can't handle timestamp format: %s, value class: %s", typeAndValue.getType(), typeAndValue.getValue().getClass().getName()),
+                                ErrorDetails.builder()
+                                        .errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString())
+                                        .build());
+                    }
+                    break;
+                case VARCHAR:
+                    String val = "'" + typeAndValue.getValue() + "'";
+                    sqlTemplate.add(colName, val);
+                    break;
+                case VARBINARY:
+                    sqlTemplate.add(colName, typeAndValue.toString().getBytes());
+                    break;
+
+                default:
+                    throw new AthenaConnectorException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), typeAndValue.getType()),
+                            ErrorDetails.builder().errorCode(FederationSourceErrorCode.OPERATION_NOT_SUPPORTED_EXCEPTION.toString()).build());
+            }
+        }
+        this.queryFromPlan = sqlTemplate.render();
+        return this;
     }
 
     public String build()
@@ -449,14 +451,20 @@ public class VerticaExportQueryBuilder {
         return String.format(" LIMIT %s", limit);
     }
 
-    private static HashMap<String, String> getMapOfNamesAndTypes(ResultSet definition) throws SQLException {
+    private static HashMap<String, String> getMapOfNamesAndTypes(ResultSet definition) {
         HashMap<String, String> mapOfNamesAndTypes = new HashMap<>();
 
-        while(definition.next())
-        {
-            String colName = definition.getString("COLUMN_NAME").toLowerCase();
-            String colType = definition.getString("TYPE_NAME").toLowerCase();
-            mapOfNamesAndTypes.put(colName, colType);
+        while(true) {
+            try {
+                if (!definition.next()) break;
+
+                String colName = definition.getString("COLUMN_NAME").toLowerCase();
+                String colType = definition.getString("TYPE_NAME").toLowerCase();
+                mapOfNamesAndTypes.put(colName, colType);
+            } catch (SQLException e) {
+                LOGGER.error("Error occurred in getMapOfNamesAndTypes method ", e);
+                throw new RuntimeException("Error occurred in getMapOfNamesAndTypes method ", e);
+            }
         }
         return mapOfNamesAndTypes;
     }

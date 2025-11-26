@@ -433,10 +433,7 @@ public class VerticaMetadataHandler
             }
         }  catch (Exception e) {
             logger.error("An error occurred in doGetSplits method.", e);
-            throw new AthenaConnectorException("An error occurred in doGetSplits method.", ErrorDetails.builder()
-                    .errorCode(String.valueOf(FederationSourceErrorCode.UNKNOWN_TO_SDK_VERSION))
-                    .errorMessage("An error occurred in doGetSplits method.")
-                    .build());
+            throw new RuntimeException("An error occurred in doGetSplits method.", e);
         }
     }
 
