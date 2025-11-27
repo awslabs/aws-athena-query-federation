@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -347,18 +348,18 @@ public class S3BlockSpiller
     /**
      * Creates an AwsRequestOverrideConfiguration with custom headers from the environment
      */
-    private AwsRequestOverrideConfiguration createRequestOverrideConfig()
+    private Optional<AwsRequestOverrideConfiguration> createRequestOverrideConfig()
     {
         Map<String, String> headers = getRequestHeadersFromEnv();
         if (headers.isEmpty()) {
-            return null;
+            return Optional.empty();
         }
 
         AwsRequestOverrideConfiguration.Builder overrideConfigBuilder = AwsRequestOverrideConfiguration.builder();
         for (Map.Entry<String, String> header : headers.entrySet()) {
             overrideConfigBuilder.putHeader(header.getKey(), header.getValue());
         }
-        return overrideConfigBuilder.build();
+        return Optional.of(overrideConfigBuilder.build());
     }
 
     /**
@@ -385,10 +386,7 @@ public class S3BlockSpiller
                     .contentLength((long) bytes.length);
 
             // Set request headers via overrideConfiguration instead of metadata
-            AwsRequestOverrideConfiguration overrideConfig = createRequestOverrideConfig();
-            if (overrideConfig != null) {
-                requestBuilder.overrideConfiguration(overrideConfig);
-            }
+            createRequestOverrideConfig().ifPresent(requestBuilder::overrideConfiguration);
 
             PutObjectRequest request = requestBuilder.build();
             amazonS3.putObject(request, RequestBody.fromBytes(bytes));
