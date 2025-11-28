@@ -28,9 +28,10 @@
             <version>${aws-sdk-v2.version}</version>
             <scope>test</scope>
             <exclusions>
+                <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>netty-nio-client</artifactId>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
