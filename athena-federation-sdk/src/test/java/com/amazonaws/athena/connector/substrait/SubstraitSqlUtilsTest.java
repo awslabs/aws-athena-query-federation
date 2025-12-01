@@ -41,10 +41,12 @@ import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import java.util.Arrays;
@@ -68,6 +70,56 @@ public class SubstraitSqlUtilsTest {
         String sqlStr = sql.toSqlString(SnowflakeSqlDialect.DEFAULT).getSql();
         Assertions.assertEquals(expectedSql, sqlStr);
     }
+
+    @Test
+    void generatePlan() throws SqlParseException {
+        // Add your test inputs for <inputTable, inputSql, inputSchema, inputGetRowType>
+        final String inputTable = "ORACLE_BASIC_DBTABLE_GAMMA_EU_WEST_1_INTEG";
+        final String inputSql = "SELECT * FROM \"ORACLE_BASIC_DBTABLE_GAMMA_EU_WEST_1_INTEG\" LIMIT 10;";
+        final String inputSchema = "ORACLE_BASIC_DBTABLE_SCHEMA_GAMMA_EU_WEST_1_INTEG";
+        final Function<RelDataTypeFactory, RelDataType> inputGetRowType = (factory) -> factory.createStructType(Arrays.asList(
+                Pair.of("employee_id", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.BINARY), true)),
+                Pair.of("is_active", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.BIGINT), true)),
+                Pair.of("employee_name", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.VARCHAR), true)),
+                Pair.of("job_title", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.VARCHAR), true)),
+                Pair.of("address", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.VARCHAR), true)),
+                Pair.of("join_date", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.DATE), true)),
+                Pair.of("timestamp", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.TIMESTAMP), true)),
+                Pair.of("duration", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.VARCHAR), true)),
+                Pair.of("salary", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.DECIMAL, 19, 4), true)),
+                Pair.of("bonus", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.DECIMAL, 19, 4), true)),
+                Pair.of("hash1", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.BIGINT), true)),
+                Pair.of("hash2", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.BIGINT), true)),
+                Pair.of("code", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.BIGINT), true)),
+                Pair.of("debit", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.DECIMAL, 19, 3), true)),
+                Pair.of("count", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.BIGINT), true)),
+                Pair.of("amount", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.DECIMAL, 19, 3), true)),
+                Pair.of("balance", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.BIGINT), true)),
+                Pair.of("rate", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.DECIMAL, 19, 3), true)),
+                Pair.of("difference", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.BIGINT), true)),
+                Pair.of("partition_name", factory.createTypeWithNullability(factory.createSqlType(SqlTypeName.VARCHAR), true))));
+
+        // No need to modify below
+        final PlanProtoConverter planProtoConverter = new PlanProtoConverter();
+        final SqlToSubstrait sqlToSubstrait = new SqlToSubstrait();
+        final Table table = new AbstractTable() {
+            @Override
+            public RelDataType getRowType(final RelDataTypeFactory factory) {
+                return inputGetRowType.apply(factory);
+            }
+        };
+        final Schema schema = new SubstraitSchema(Map.of(inputTable, table));
+        final CalciteCatalogReader catalog = schemaToCatalog(inputSchema, schema);
+        final Plan plan = planProtoConverter.toProto(sqlToSubstrait.convert(inputSql, catalog));
+        final byte[] planBytes = plan.toByteArray();
+        final String encodedPlan = Base64.getEncoder().encodeToString(planBytes);
+
+        System.out.println(encodedPlan);
+        System.out.println(SubstraitRelUtils.deserializeSubstraitPlan(encodedPlan));
+
+        Assertions.assertNotNull(encodedPlan);
+    }
+
 
     private static Stream<Arguments> provideSqlTestCases() {
         return Stream.of(
@@ -160,65 +212,30 @@ public class SubstraitSqlUtilsTest {
         final List<String> defaultSchema = List.of(schemaName);
         return new CalciteCatalogReader(rootSchema, defaultSchema,
                 new SqlTypeFactoryImpl(DIALECT.getTypeSystem()), CalciteConnectionConfig.DEFAULT
-                        .set(CalciteConnectionProperty.CASE_SENSITIVE, Boolean.FALSE.toString()));
+                .set(CalciteConnectionProperty.CASE_SENSITIVE, Boolean.FALSE.toString()));
     }
 
     private Schema createTableSchema() {
         final Table table = new AbstractTable() {
             @Override
             public RelDataType getRowType(final RelDataTypeFactory factory) {
-                final TypeHelper helper = new TypeHelper(factory);
-                return factory.createStructType(Arrays.asList(Pair.of("column1", helper.string()),
-                        Pair.of("column2", helper.i32()), Pair.of("column3", helper.string()),
-                        Pair.of("numeric_column", helper.i32()),
-                        Pair.of("date_column", helper.date()),
-                        Pair.of("string_column", helper.string()),
-                        Pair.of("array_column", helper.list(helper.string())),
-                        Pair.of("id", helper.i32()), Pair.of("foreign_id", helper.i32()),
-                        Pair.of("status", helper.string()),
-                        Pair.of("created_date", helper.date())));
+                return factory.createStructType(Arrays.asList(
+                        Pair.of("column1", factory.createSqlType(SqlTypeName.VARCHAR)),
+                        Pair.of("column2", factory.createSqlType(SqlTypeName.INTEGER)),
+                        Pair.of("column3", factory.createSqlType(SqlTypeName.VARCHAR)),
+                        Pair.of("numeric_column", factory.createSqlType(SqlTypeName.INTEGER)),
+                        Pair.of("date_column", factory.createSqlType(SqlTypeName.DATE)),
+                        Pair.of("string_column", factory.createSqlType(SqlTypeName.VARCHAR)),
+                        Pair.of("array_column", factory.createArrayType(factory.createSqlType(SqlTypeName.VARCHAR), -1)),
+                        Pair.of("id", factory.createSqlType(SqlTypeName.INTEGER)),
+                        Pair.of("foreign_id", factory.createSqlType(SqlTypeName.INTEGER)),
+                        Pair.of("status", factory.createSqlType(SqlTypeName.VARCHAR)),
+                        Pair.of("created_date", factory.createSqlType(SqlTypeName.DATE))));
             }
         };
 
-        final Schema schema = new SubstraitSchema(Map.of(CALCITE_TEST_TABLE_NAME, table));
-        return schema;
+        return new SubstraitSchema(Map.of(CALCITE_TEST_TABLE_NAME, table));
     }
 
-    private class TypeHelper {
-        private final RelDataTypeFactory factory;
 
-        public TypeHelper(final RelDataTypeFactory factory) {
-            this.factory = factory;
-        }
-
-        RelDataType struct(final String field, final RelDataType value) {
-            return factory.createStructType(Arrays.asList(Pair.of(field, value)));
-        }
-
-        RelDataType struct2(final String field1, final RelDataType value1, final String field2,
-                final RelDataType value2) {
-            return factory.createStructType(
-                    Arrays.asList(Pair.of(field1, value1), Pair.of(field2, value2)));
-        }
-
-        RelDataType i32() {
-            return factory.createSqlType(SqlTypeName.INTEGER);
-        }
-
-        RelDataType string() {
-            return factory.createSqlType(SqlTypeName.VARCHAR);
-        }
-
-        RelDataType date() {
-            return factory.createSqlType(SqlTypeName.DATE);
-        }
-
-        RelDataType list(final RelDataType elementType) {
-            return factory.createArrayType(elementType, -1);
-        }
-
-        RelDataType map(final RelDataType key, final RelDataType value) {
-            return factory.createMapType(key, value);
-        }
-    }
 }
