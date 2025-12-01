@@ -13,6 +13,16 @@
         <gremlinDriverVersion>3.8.0</gremlinDriverVersion>
         <neptune.sigv4.signer.version>3.1.0</neptune.sigv4.signer.version>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Fix for CVE-2025-48734: Override commons-beanutils version from Gremlin transitive dependencies -->
+            <dependency>
+                <groupId>commons-beanutils</groupId>
+                <artifactId>commons-beanutils</artifactId>
+                <version>1.11.0</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -176,6 +186,9 @@
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>
+                                <!-- Fix for CVE-2025-48924: Exclude old commons-lang3 metadata from commons-configuration2 -->
+                                <exclude>META-INF/maven/org.apache.commons/commons-configuration2/pom.xml</exclude>
+                                <exclude>META-INF/maven/org.apache.commons/commons-configuration2/pom.properties</exclude>
                             </excludes>
                         </filter>
                     </filters>
