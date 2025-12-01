@@ -12,7 +12,7 @@ DATA_TABLES = ["customer", "call_center", "catalog_sales", "date_dim", "item"]
 # DATA_TABLES = ["catalog_sales"]
 # DATA_TABLES = ["call_center", "catalog_sales", "date_dim", "item"]
 
-TEST_SELECT_TABLES = ["customer", "call_center"]
+TEST_SELECT_TABLES = ["customer", "call_center", "catalog_sales"]
 
 
 def load_tpcds_data_parquet_from_resources(table_name: str) -> pd.DataFrame:

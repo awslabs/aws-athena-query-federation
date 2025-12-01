@@ -398,6 +398,7 @@ class Federated_Source(ABC):
             "-pl", f"athena-{self.get_athena_federation_sdk_folder_name()}",
             "-am",
             "-DskipTests",
+            "-Dcheckstyle.skip=true",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=WARN",
             "--no-transfer-progress"
         ]

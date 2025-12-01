@@ -18,6 +18,7 @@ class Federated_Testing(ABC):
     sts_client = aws_client_factory.get_aws_client("sts")
     glue_client = aws_client_factory.get_aws_client("glue")
     lakeformation_client = aws_client_factory.get_aws_client("lakeformation")
+    s3_client = aws_client_factory.get_aws_client("s3")
 
     timeout_seconds = 1800 # 30 min default query timeout
     polling_interval = 10
@@ -53,7 +54,6 @@ class Federated_Testing(ABC):
         table_list=self.athena_client.list_table_metadata(CatalogName=catalog_name, DatabaseName=self.get_database_name())
         actual_name_set = {table["Name"] for table in table_list["TableMetadataList"]}
         contains_all_tables= set(self.get_tables_name()).issubset(actual_name_set)
-
         rows.append({"Test": "Athena:ListTables",
                      "State": "SUCCEEDED" if contains_all_tables else "FAILED",
                      "Description": "List tables verify all table exists"})
@@ -130,7 +130,8 @@ class Federated_Testing(ABC):
                              "QueryPlanningTimeInMillis": query_response.get("QueryExecution", {}).get("Statistics",
                                                                                                        {}).get(
                                  "QueryPlanningTimeInMillis", ""),  # not sure why this somtimes empty
-                             "DataScannedInBytes": query_response["QueryExecution"]["Statistics"]["DataScannedInBytes"]
+                             "DataScannedInBytes": query_response["QueryExecution"]["Statistics"]["DataScannedInBytes"],
+                             "ResultOutputBytes": self._get_result_output_bytes(query_response)
                              })
             else:
                 rows.append({"QueryExecutionId": query_response["QueryExecution"]["QueryExecutionId"],
@@ -170,6 +171,10 @@ class Federated_Testing(ABC):
 
         select_count = self._get_select_count_query(use_athena_catalog=use_athena_catalog)
         df = pd.concat([df, self._execute_predicate_query(select_count, use_athena_catalog)], ignore_index=True)
+
+        column_project = self._get_column_project_query(use_athena_catalog=use_athena_catalog)
+        df = pd.concat([df, self._execute_predicate_query(column_project, use_athena_catalog)], ignore_index=True)
+
         # #
         dynamic_filter_query = self._get_dynamic_filter_query(use_athena_catalog=use_athena_catalog)
         df = pd.concat([df, self._execute_predicate_query(dynamic_filter_query, use_athena_catalog)], ignore_index=True)
@@ -190,7 +195,8 @@ class Federated_Testing(ABC):
                                "IsAthenaCatalog": use_athena_catalog,
                                "EngineExecutionTimeInMillis":query_response["QueryExecution"]["Statistics"]["EngineExecutionTimeInMillis"],
                                "QueryPlanningTimeInMillis": query_response.get("QueryExecution", {}).get("Statistics", {}).get("QueryPlanningTimeInMillis", ""), #not sure why this somtimes empty
-                               "DataScannedInBytes":query_response["QueryExecution"]["Statistics"]["DataScannedInBytes"]
+                               "DataScannedInBytes":query_response["QueryExecution"]["Statistics"]["DataScannedInBytes"],
+                               "ResultOutputBytes": self._get_result_output_bytes(query_response)
                                })
                 else:
                     rows.append({"QueryExecutionId": query_response["QueryExecution"]["QueryExecutionId"],
@@ -340,6 +346,19 @@ class Federated_Testing(ABC):
 
         return queries
 
+    def _get_column_project_query(self, use_athena_catalog:bool) -> list[dict]:
+        catalog_name = config_helper.get_athena_catalog_name(
+            self.get_connection_type_name()) if use_athena_catalog is True else config_helper.get_glue_catalog_name(
+            self.get_connection_type_name())
+        queries = []
+
+        queries.append({
+            "Query":f'SELECT c_customer_sk FROM {catalog_name}.{self.get_database_name()}.customer',
+            "TableName":"customer",
+            "Description":"Column projection",
+        })
+        return queries
+
     def _is_athena_catalog_exists(self, catalog_name:str)-> bool:
         get_catalog_response = self.athena_client.get_data_catalog(Name=catalog_name)
         
@@ -395,6 +414,21 @@ class Federated_Testing(ABC):
             time.sleep(self.polling_interval)
         return response
         #TODO consider adding failure here document
+
+    def _get_result_output_bytes(self, query_response):
+        try:
+            output_location = query_response.get('QueryExecution', {}).get('ResultConfiguration', {}).get('OutputLocation', '')
+            if not output_location:
+                return 0
+            
+            bucket = output_location.split('/')[2]
+            key = '/'.join(output_location.split('/')[3:])
+            
+            response = self.s3_client.head_object(Bucket=bucket, Key=key)
+            return response.get('ContentLength', 0)
+        except Exception as e:
+            logging.warning(f"Failed to get result output bytes: {e}")
+            return 0
 
 
 
