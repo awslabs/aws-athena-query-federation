@@ -80,11 +80,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.BLOCK_PARTITION_COLUMN_NAME;
+
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -955,9 +957,10 @@ public class SnowflakeMetadataHandlerTest
         when(connection.createStatement()).thenReturn(stmt);
         when(stmt.executeQuery("DESC STORAGE INTEGRATION TEST_INTEGRATION")).thenReturn(resultSet);
         
-        Map<String, String> properties = snowflakeMetadataHandler.getStorageIntegrationProperties(connection, integrationName);
+        Optional<Map<String, String>> propertiesOpt = snowflakeMetadataHandler.getStorageIntegrationProperties(connection, integrationName);
         
-        assertNotNull(properties);
+        assertTrue(propertiesOpt.isPresent());
+        Map<String, String> properties = propertiesOpt.get();
         assertEquals(3, properties.size());
         assertEquals("s3://test-bucket/path/", properties.get("STORAGE_ALLOWED_LOCATIONS"));
         assertEquals("S3", properties.get("STORAGE_PROVIDER"));
@@ -973,10 +976,9 @@ public class SnowflakeMetadataHandlerTest
         when(stmt.executeQuery("DESC STORAGE INTEGRATION NONEXISTENT_INTEGRATION"))
             .thenThrow(new SQLException("Integration does not exist or not authorized"));
         
-        Map<String, String> properties = snowflakeMetadataHandler.getStorageIntegrationProperties(connection, integrationName);
+        Optional<Map<String, String>> propertiesOpt = snowflakeMetadataHandler.getStorageIntegrationProperties(connection, integrationName);
         
-        assertNotNull(properties);
-        assertTrue(properties.isEmpty());
+        assertTrue(propertiesOpt.isEmpty());
     }
 
     @Test(expected = SQLException.class)

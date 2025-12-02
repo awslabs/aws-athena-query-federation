@@ -52,7 +52,6 @@ public enum SupportedTypes
     VARCHAR(Types.MinorType.VARCHAR),
     STRUCT(Types.MinorType.STRUCT),
     LIST(Types.MinorType.LIST),
-    TIMESTAMPNTZ(Types.MinorType.TIMESTAMPMILLI),
     MAP(Types.MinorType.MAP);
 
     private Types.MinorType arrowMinorType;

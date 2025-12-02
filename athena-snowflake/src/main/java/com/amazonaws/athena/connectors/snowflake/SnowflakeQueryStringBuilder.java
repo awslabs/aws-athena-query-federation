@@ -41,6 +41,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_QUOTE_CHAR;
+
 /**
  * Extends {@link JdbcSplitQueryBuilder} and implements MySql specific SQL clauses for split.
  *
@@ -50,8 +53,7 @@ public class SnowflakeQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeQueryStringBuilder.class);
-    private static final String quoteCharacters = "\"";
-    private static final String singleQuoteCharacters = "\'";
+
     private static final String PARTITION_COLUMN_KEY = "partition";
 
     public SnowflakeQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
@@ -106,7 +108,7 @@ public class SnowflakeQueryStringBuilder
     @VisibleForTesting
     String expandSql(String sql, List<TypeAndValue> accumulator)
     {
-        if (sql == null) {
+        if (Strings.isNullOrEmpty(sql)) {
             return null;
         }
         
@@ -160,13 +162,13 @@ public class SnowflakeQueryStringBuilder
 
     protected String quote(String name)
     {
-        name = name.replace(quoteCharacters, quoteCharacters + quoteCharacters);
-        return quoteCharacters + name + quoteCharacters;
+        name = name.replace(DOUBLE_QUOTE_CHAR, DOUBLE_QUOTE_CHAR + DOUBLE_QUOTE_CHAR);
+        return DOUBLE_QUOTE_CHAR + name + DOUBLE_QUOTE_CHAR;
     }
 
     protected String singleQuote(String name)
     {
-        name = name.replace(singleQuoteCharacters, singleQuoteCharacters + singleQuoteCharacters);
-        return singleQuoteCharacters + name + singleQuoteCharacters;
+        name = name.replace(SINGLE_QUOTE_CHAR, SINGLE_QUOTE_CHAR + SINGLE_QUOTE_CHAR);
+        return SINGLE_QUOTE_CHAR + name + SINGLE_QUOTE_CHAR;
     }
 }

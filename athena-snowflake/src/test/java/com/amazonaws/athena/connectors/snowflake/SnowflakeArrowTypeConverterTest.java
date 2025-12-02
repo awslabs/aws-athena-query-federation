@@ -37,7 +37,7 @@ public class SnowflakeArrowTypeConverterTest
     public void testToArrowTypeInteger()
     {
         Map<String, String> configOptions = new HashMap<>();
-        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType("intCol", Types.INTEGER, 10, 0, configOptions);
+        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType(Types.INTEGER, 10, 0, configOptions);
         assertTrue(result.isPresent());
         assertTrue(result.get() instanceof ArrowType.Int);
     }
@@ -46,7 +46,7 @@ public class SnowflakeArrowTypeConverterTest
     public void testToArrowTypeVarchar()
     {
         Map<String, String> configOptions = new HashMap<>();
-        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType("varcharCol", Types.VARCHAR, 255, 0, configOptions);
+        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType(Types.VARCHAR, 255, 0, configOptions);
         assertTrue(result.isPresent());
         assertTrue(result.get() instanceof ArrowType.Utf8);
     }
@@ -56,7 +56,7 @@ public class SnowflakeArrowTypeConverterTest
     {
         Map<String, String> configOptions = new HashMap<>();
         int expectedPrecision = 19;
-        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType("bigintCol", Types.BIGINT, 19, 0, configOptions);
+        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType(Types.BIGINT, 19, 0, configOptions);
         assertTrue(result.isPresent());
         assertTrue(result.get() instanceof ArrowType.Decimal);
         ArrowType.Decimal decimal = (ArrowType.Decimal) result.get();
@@ -68,7 +68,7 @@ public class SnowflakeArrowTypeConverterTest
     {
         Map<String, String> configOptions = new HashMap<>();
         configOptions.put("default_scale", "2");
-        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType("numericCol", Types.NUMERIC, 0, 0, configOptions);
+        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType(Types.NUMERIC, 0, 0, configOptions);
         assertTrue(result.isPresent());
         assertTrue(result.get() instanceof ArrowType.Decimal);
         ArrowType.Decimal decimal = (ArrowType.Decimal) result.get();
@@ -80,7 +80,7 @@ public class SnowflakeArrowTypeConverterTest
     public void testToArrowTypeDecimalExceedingPrecision()
     {
         Map<String, String> configOptions = new HashMap<>();
-        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType("decimalCol", Types.DECIMAL, 50, 10, configOptions);
+        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType(Types.DECIMAL, 50, 10, configOptions);
         assertTrue(result.isPresent());
         assertTrue(result.get() instanceof ArrowType.Decimal);
         ArrowType.Decimal decimal = (ArrowType.Decimal) result.get();
@@ -91,7 +91,7 @@ public class SnowflakeArrowTypeConverterTest
     public void testToArrowTypeTimestampWithTimezone()
     {
         Map<String, String> configOptions = new HashMap<>();
-        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType("timestampCol", Types.TIMESTAMP_WITH_TIMEZONE, 0, 0, configOptions);
+        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType(Types.TIMESTAMP_WITH_TIMEZONE, 0, 0, configOptions);
         assertTrue(result.isPresent());
         assertTrue(result.get() instanceof ArrowType.Date);
     }
@@ -100,7 +100,7 @@ public class SnowflakeArrowTypeConverterTest
     public void testToArrowTypeArrayType()
     {
         Map<String, String> configOptions = new HashMap<>();
-        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType("arrayCol", Types.ARRAY, 0, 0, configOptions);
+        Optional<ArrowType> result = SnowflakeArrowTypeConverter.toArrowType(Types.ARRAY, 0, 0, configOptions);
         assertTrue(result.isPresent());
         assertTrue(result.get() instanceof ArrowType.List);
     }
@@ -109,7 +109,7 @@ public class SnowflakeArrowTypeConverterTest
     public void testToArrowTypeWithNullConfigOptions()
     {
         try {
-            SnowflakeArrowTypeConverter.toArrowType("intCol", Types.INTEGER, 10, 0, null);
+            SnowflakeArrowTypeConverter.toArrowType(Types.INTEGER, 10, 0, null);
             fail("null config map should failed");
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("configOptions is null"));
