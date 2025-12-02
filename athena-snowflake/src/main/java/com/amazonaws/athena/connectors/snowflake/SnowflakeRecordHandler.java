@@ -72,18 +72,19 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.JDBC_PROPERTIES;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeMetadataHandler.JDBC_PROPERTIES;
 
 public class SnowflakeRecordHandler extends JdbcRecordHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
+    private static final int EXPORT_READ_BATCH_SIZE_BYTE = 32768;
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    private static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -105,7 +106,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
     public SnowflakeRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, S3Client.create(), SecretsManagerClient.create(), AthenaClient.create(),
-                jdbcConnectionFactory, new SnowflakeQueryStringBuilder(SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER)), configOptions);
+                jdbcConnectionFactory, new SnowflakeQueryStringBuilder(SnowflakeConstants.DOUBLE_QUOTE_CHAR, new SnowflakeFederationExpressionParser(SnowflakeConstants.DOUBLE_QUOTE_CHAR)), configOptions);
     }
 
     @VisibleForTesting
@@ -153,6 +154,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         String s3ObjectKey = split.getProperty(SNOWFLAKE_SPLIT_OBJECT_KEY);
 
         if (s3ObjectKey.isEmpty()) {
+            LOGGER.info("S3 object key is empty from request, skip read from S3");
             return;
         }
 
@@ -208,7 +210,7 @@ public class SnowflakeRecordHandler extends JdbcRecordHandler
         Dataset dataset = datasetFactory.finish();
 
         // do a scan projection, only getting the column we want
-        ScanOptions options = new ScanOptions(/*batchSize*/ 32768,
+        ScanOptions options = new ScanOptions(/*batchSize*/ EXPORT_READ_BATCH_SIZE_BYTE,
                 Optional.of(schema.getFields().stream()
                         .map(Field::getName)
                         .filter(name -> !name.equalsIgnoreCase(BLOCK_PARTITION_COLUMN_NAME))

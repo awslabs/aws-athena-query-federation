@@ -51,7 +51,7 @@ public final class SnowflakeArrowTypeConverter
      * @param scale Decimal scale.
      * @return Arrow type. See {@link ArrowType}.
      */
-    public static Optional<ArrowType> toArrowType(String name, final int jdbcType, final int precision, final int scale, java.util.Map<String, String> configOptions)
+    public static Optional<ArrowType> toArrowType(final int jdbcType, final int precision, final int scale, java.util.Map<String, String> configOptions)
     {
         requireNonNull(configOptions, "configOptions is null");
         int defaultScale = Integer.parseInt(configOptions.getOrDefault("default_scale", "0"));

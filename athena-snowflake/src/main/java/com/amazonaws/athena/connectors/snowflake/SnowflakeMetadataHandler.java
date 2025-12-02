@@ -87,6 +87,7 @@ import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -101,13 +102,26 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.BLOCK_PARTITION_COLUMN_NAME;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COPY_INTO_QUERY_TEMPLATE;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.COUNT_RECORDS_QUERY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DESCRIBE_STORAGE_INTEGRATION_TEMPLATE;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.DOUBLE_QUOTE_CHAR;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.JDBC_PROPERTIES;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.LIST_PAGINATED_TABLES_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SHOW_PRIMARY_KEYS_QUERY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SINGLE_SPLIT_LIMIT_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_NAME;
-import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_QUOTE_CHARACTER;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_EXPORT_BUCKET;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_OBJECT_KEY;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWFLAKE_SPLIT_QUERY_ID;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_BUCKET_KEY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_CONFIG_KEY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_PROPERTY_KEY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_PROPERTY_VALUE_KEY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.VIEW_CHECK_QUERY;
 
 /**
  * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns` in
@@ -116,55 +130,16 @@ import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.SNOWF
 public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeMetadataHandler.class);
-    private static final String COLUMN_NAME = "COLUMN_NAME";
-    private static final String EMPTY_STRING = StringUtils.EMPTY;
+
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
-    private static final String STORAGE_INTEGRATION_CONFIG_KEY = "snowflake_storage_integration_name";
-    private static final String DESCRIBE_STORAGE_INTEGRATION_TEMPLATE = "DESC STORAGE INTEGRATION %s";
-    private static final String STORAGE_INTEGRATION_PROPERTY_KEY = "property";
-    private static final String STORAGE_INTEGRATION_PROPERTY_VALUE_KEY = "property_value";
-    private static final String STORAGE_INTEGRATION_BUCKET_KEY = "STORAGE_ALLOWED_LOCATIONS";
-    private static final String STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY = "STORAGE_PROVIDER";
-    static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA", "CLIENT_RESULT_COLUMN_CASE_INSENSITIVE", "true");
-    static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
-    static final String LIST_PAGINATED_TABLES_QUERY =
-            "SELECT table_name as \"TABLE_NAME\", table_schema as \"TABLE_SCHEM\" " +
-                    "FROM information_schema.tables " +
-                    "WHERE table_schema = ? " +
-                    "ORDER BY TABLE_NAME " +
-                    "LIMIT ? OFFSET ?";
-    /**
-     * fetching number of records in the table
-     */
-    static final String COUNT_RECORDS_QUERY = "SELECT row_count\n" +
-            "FROM   information_schema.tables\n" +
-            "WHERE  table_type = 'BASE TABLE'\n" +
-            "AND table_schema= ?\n" +
-            "AND TABLE_NAME = ? ";
-    static final String SHOW_PRIMARY_KEYS_QUERY = "SHOW PRIMARY KEYS IN ";
-    static final String COPY_INTO_QUERY_TEMPLATE = "COPY INTO '%s' FROM (%s) STORAGE_INTEGRATION = %s " +
-            "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 52428800";
-    static final String PRIMARY_KEY_COLUMN_NAME = "column_name";
-    static final String COUNTS_COLUMN_NAME = "COUNTS";
-    /**
-     * Query to check view
-     */
-    static final String VIEW_CHECK_QUERY = "SELECT * FROM information_schema.views WHERE table_schema = ? AND table_name = ?";
-    static final String ALL_PARTITIONS = "*";
-    static final Map<String, ArrowType> STRING_ARROW_TYPE_MAP = com.google.common.collect.ImmutableMap.of(
-            "DATE", (ArrowType) Types.MinorType.DATEDAY.getType(),
-            "TIMESTAMP", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-            "TIMESTAMP_LTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-            "TIMESTAMP_TZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-            "TIMESTAMPLTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
-            "TIMESTAMPTZ", (ArrowType) Types.MinorType.DATEMILLI.getType()
-    );
-    public static final String SEPARATOR = "/";
-    public static final String S3_PATH_PREFIX = "s3_path";
-    public static final String PREPARED_STMT = "preparedStmt";
+    private static final String COLUMN_NAME = "COLUMN_NAME";
+    private static final String COUNTS_COLUMN_NAME = "COUNTS";
+    private static final String PRIMARY_KEY_COLUMN_NAME = "column_name";
+    private static final String EMPTY_STRING = StringUtils.EMPTY;
+    private static final String ALL_PARTITIONS = "*";
 
     private S3Client amazonS3;
-    SnowflakeQueryStringBuilder snowflakeQueryStringBuilder = new SnowflakeQueryStringBuilder(SNOWFLAKE_QUOTE_CHARACTER, new SnowflakeFederationExpressionParser(SNOWFLAKE_QUOTE_CHARACTER));
+    private SnowflakeQueryStringBuilder snowflakeQueryStringBuilder = new SnowflakeQueryStringBuilder(DOUBLE_QUOTE_CHAR, new SnowflakeFederationExpressionParser(DOUBLE_QUOTE_CHAR));
     /**
      * Instantiates handler to be used by Lambda function directly.
      * <p>
@@ -260,6 +235,19 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         TableName tableName = request.getTableName();
         String queryID = request.getQueryId();
         this.handleSnowflakePartitions(blockWriter, tableName, queryID);
+    }
+
+    @Override
+    protected Optional<ArrowType> convertDatasourceTypeToArrow(int columnIndex, int precision, Map<String, String> configOptions, ResultSetMetaData metadata) throws SQLException
+    {
+        int scale = metadata.getScale(columnIndex);
+        int columnType = metadata.getColumnType(columnIndex);
+
+        return SnowflakeArrowTypeConverter.toArrowType(
+                columnType,
+                precision,
+                scale,
+                configOptions);
     }
 
     private void handleSnowflakePartitions(BlockWriter blockWriter, TableName tableName, String queryID) throws Exception
@@ -539,61 +527,32 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         String dataTypeQuery = "select COLUMN_NAME, DATA_TYPE from \"INFORMATION_SCHEMA\".\"COLUMNS\" WHERE TABLE_SCHEMA=? AND TABLE_NAME=?";
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
-        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-             PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
-            stmt.setString(1, tableName.getSchemaName());
-            stmt.setString(2, tableName.getTableName());
-
-            HashMap<String, String> hashMap = new HashMap<String, String>();
-            ResultSet dataTypeResultSet = stmt.executeQuery();
-
-            String type = "";
-            String name = "";
-
-            while (dataTypeResultSet.next()) {
-                type = dataTypeResultSet.getString("DATA_TYPE");
-                name = dataTypeResultSet.getString(COLUMN_NAME);
-                hashMap.put(name.trim(), type.trim());
-            }
-            if (hashMap.isEmpty()) {
-                LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
-            }
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
+            // snowflake JDBC doesn't support last() to check number or rows, and getColumns won't raise exception when table not found.
+            // need to safeguard when table not found.
             boolean found = false;
             while (resultSet.next()) {
+                found = true;
                 Optional<ArrowType> columnType = SnowflakeArrowTypeConverter.toArrowType(
-                        resultSet.getString(COLUMN_NAME),
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"),
                         configOptions);
 
                 String columnName = resultSet.getString(COLUMN_NAME);
-                String dataType = hashMap.get(columnName);
-                LOGGER.debug("columnName: " + columnName);
-                LOGGER.debug("dataType: " + dataType);
-
-                if (dataType != null && STRING_ARROW_TYPE_MAP.containsKey(dataType.toUpperCase())) {
-                    columnType = Optional.of(STRING_ARROW_TYPE_MAP.get(dataType.toUpperCase()));
-                }
                 /**
                  * converting into VARCHAR for not supported data types.
                  */
                 if (columnType.isEmpty()) {
                     columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
-                if (columnType.isPresent() && !SupportedTypes.isSupported(columnType.get())) {
+                else if (!SupportedTypes.isSupported(columnType.get())) {
+                    LOGGER.warn("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
                     columnType = Optional.of(Types.MinorType.VARCHAR.getType());
                 }
 
-                if (columnType.isPresent() && SupportedTypes.isSupported(columnType.get())) {
-                    LOGGER.debug(" AddField Schema Building...()  ");
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
-                    found = true;
-                }
-                else {
-                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
-                }
+                LOGGER.debug(" AddField Schema Building... name:{}, type:{} ", columnName, columnType.get());
+                schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType.get()).build());
             }
             if (!found) {
                 throw new AthenaConnectorException("Could not find table in " + tableName.getSchemaName(), ErrorDetails.builder().errorCode(FederationSourceErrorCode.ENTITY_NOT_FOUND_EXCEPTION.toString()).build());
@@ -721,7 +680,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
 
     @VisibleForTesting
-    Map<String, String> getStorageIntegrationProperties(Connection connection, String integrationName) throws SQLException
+    Optional<Map<String, String>> getStorageIntegrationProperties(Connection connection, String integrationName) throws SQLException
     {
         String checkIntegrationQuery = String.format(DESCRIBE_STORAGE_INTEGRATION_TEMPLATE, integrationName.toUpperCase());
         Map<String, String> storageIntegrationRow = new HashMap<>();
@@ -735,57 +694,46 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         catch (SQLException e) {
             LOGGER.error("Error checking for integration {}: exception:{}, message: {}", integrationName, e.getClass().getSimpleName(), e.getMessage());
             if (e.getMessage().contains("does not exist or not authorized")) {
-                return new HashMap<>();
+                return Optional.empty();
             }
             throw e;
         }
-        return storageIntegrationRow;
+        return Optional.ofNullable(storageIntegrationRow);
     }
 
-    private boolean isSFStorageIntegrationExistAndValid(Connection connection, String integrationName) throws SQLException
+    private void validateSFStorageIntegrationExistAndValid(Map<String, String> storageIntegrationMap) throws SQLException
     {
-        Map<String, String> properties = getStorageIntegrationProperties(connection, integrationName);
-        if (properties.isEmpty()) {
-            return false;
-        }
-
-        String s3ExportPath = Optional.ofNullable(properties.get(STORAGE_INTEGRATION_BUCKET_KEY))
+        String s3ExportPath = Optional.ofNullable(storageIntegrationMap.get(STORAGE_INTEGRATION_BUCKET_KEY))
                 .orElseThrow(() -> new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s cannot be null", STORAGE_INTEGRATION_BUCKET_KEY)));
 
-        String provider = Optional.ofNullable(properties.get(STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY))
+        String provider = Optional.ofNullable(storageIntegrationMap.get(STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY))
                 .orElseThrow(() -> new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s cannot be null", STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY)));
 
         if (!"S3".equalsIgnoreCase(provider)) {
             throw new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s must be S3", STORAGE_INTEGRATION_STORAGE_PROVIDER_KEY));
         }
 
+        // Validate it's an S3 path
+        if (!s3ExportPath.startsWith("s3://")) {
+            throw new IllegalArgumentException(String.format("Storage integration bucket path must be an S3 path: %s", s3ExportPath));
+        }
+
         if (s3ExportPath.split(", ").length != 1) {
             throw new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s must be a single S3 path", STORAGE_INTEGRATION_BUCKET_KEY));
         }
-
-        return true;
     }
 
     @VisibleForTesting
     String getStorageIntegrationS3PathFromSnowFlake(Connection connection, String integrationName) throws SQLException
     {
-        if (!isSFStorageIntegrationExistAndValid(connection, integrationName)) {
-            throw new AthenaConnectorException(String.format("Snowflake storage integration, integration name:'%s' invalid", integrationName), ErrorDetails.builder().errorCode(FederationSourceErrorCode.INVALID_INPUT_EXCEPTION.toString()).build());
-        }
-
-        Map<String, String> properties = this.getStorageIntegrationProperties(connection, integrationName);
-        if (properties.isEmpty()) {
+        Optional<Map<String, String>> storageIntegrationProperties = this.getStorageIntegrationProperties(connection, integrationName);
+        if (storageIntegrationProperties.isEmpty()) {
             throw new IllegalArgumentException(String.format("Snowflake Storage Integration: name:%s not found", integrationName));
         }
 
-        String bucketPath = Optional.ofNullable(properties.get(STORAGE_INTEGRATION_BUCKET_KEY))
-                .orElseThrow(() -> new IllegalArgumentException(String.format("Snowflake Storage Integration, field:%s cannot be null", STORAGE_INTEGRATION_BUCKET_KEY)));
-        
-        // Validate it's an S3 path and clean it
-        if (!bucketPath.startsWith("s3://")) {
-            throw new IllegalArgumentException(String.format("Storage integration bucket path must be an S3 path: %s", bucketPath));
-        }
-
+        validateSFStorageIntegrationExistAndValid(storageIntegrationProperties.get());
+        String bucketPath = storageIntegrationProperties.get().get(STORAGE_INTEGRATION_BUCKET_KEY);
+        // Normalize trailing slash
         if (bucketPath.endsWith("/")) {
             bucketPath = bucketPath.substring(0, bucketPath.length() - 1);
         }
