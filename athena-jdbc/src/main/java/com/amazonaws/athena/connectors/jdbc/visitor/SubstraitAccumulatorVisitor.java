@@ -70,10 +70,23 @@ public class SubstraitAccumulatorVisitor extends SqlShuttle
             LOGGER.info("literal value {} doesn't have an associated column. skipping", literal.toValue());
             return literal;
         }
-        Field arrowField = schema.findField(currentColumn);
-        if (arrowField == null) {
-            throw new RuntimeException("Column not found in schema: " + currentColumn);
+        Field arrowField = null;
+        try {
+            arrowField = schema.findField(currentColumn);
+        } catch (IllegalArgumentException e) {
+            LOGGER.warn("exact match for column {} not found. searching with prefixes", currentColumn);
+            for (Field field : schema.getFields()) {
+                if (field.getName().startsWith(currentColumn)) {
+                    arrowField = field;
+                    break;
+                }
+            }
         }
+
+        if (arrowField == null) {
+            throw new IllegalArgumentException("field " + currentColumn + " not found in " + schema.getFields());
+        }
+
         SqlTypeName typeName = mapArrowTypeToSqlTypeName(arrowField.getType());
         if (literal.getValue() instanceof NlsString) {
             accumulator.add(new SubstraitTypeAndValue(typeName, ((NlsString) literal.getValue()).getValue(), currentColumn));

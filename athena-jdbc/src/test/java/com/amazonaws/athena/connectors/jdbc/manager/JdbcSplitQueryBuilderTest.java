@@ -24,20 +24,30 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
+import com.amazonaws.athena.connector.lambda.domain.predicate.QueryPlan;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.exceptions.AthenaConnectorException;
+import com.amazonaws.athena.connector.substrait.SubstraitSqlUtils;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.SqlDialect;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.MockedStatic;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -49,6 +59,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
 import static org.apache.arrow.vector.types.Types.MinorType.BIT;
@@ -71,6 +82,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -118,7 +130,7 @@ public class JdbcSplitQueryBuilderTest
     private Schema schema;
     private FederationExpressionParser expressionParser;
 
-    @Before
+    @BeforeEach
     public void setup() throws SQLException
     {
         allocator = new BlockAllocatorImpl();
@@ -153,7 +165,7 @@ public class JdbcSplitQueryBuilderTest
         schema = new Schema(Collections.singletonList(field));
     }
 
-    @After
+    @AfterEach
     public void after() {
         allocator.close();
     }
@@ -1379,5 +1391,45 @@ public class JdbcSplitQueryBuilderTest
         verify(mockPreparedStatement).setDate(eq(2), any(java.sql.Date.class));
         verify(mockPreparedStatement).setInt(eq(3), eq(12345));
         assertEquals(mockPreparedStatement, result);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideSqlTestCases")
+    public void testPrepareStatementWithCalciteSql_Success(final String base64EncodedPlan) throws Exception {
+        QueryPlan queryPlan = mock(QueryPlan.class);
+        Constraints constraintsWithQueryPlan = mock(Constraints.class);
+
+        when(queryPlan.getSubstraitPlan()).thenReturn(base64EncodedPlan);
+        when(constraintsWithQueryPlan.getQueryPlan()).thenReturn(queryPlan);
+
+        PreparedStatement result = builder.prepareStatementWithCalciteSql(mockConnection, constraintsWithQueryPlan, AnsiSqlDialect.DEFAULT, split);
+        assertNotNull(result);
+    }
+
+    private static Stream<Arguments> provideSqlTestCases() {
+        return Stream.of(
+//                SELECT employee_id, employee_name, job_title, salary
+//                FROM "ADMIN"."ORACLE_BASIC_DBTABLE_GAMMA_EU_WEST_1_INTEG";
+                Arguments.of("GrgEErUECoMEOoAECggSBgoEFBUWFxLFAwrCAwoCCgAS2gIKC2VtcGxveWVlX2lkCglpc19hY3RpdmUKDWVtcGxveWVlX25hbW" +
+                        "UKCWpvYl90aXRsZQoHYWRkcmVzcwoJam9pbl9kYXRlCgl0aW1lc3RhbXAKCGR1cmF0aW9uCgZzYWxhcnkKBWJvbnVzCgVoYXNoMQo" +
+                        "FaGFzaDIKBGNvZGUKBWRlYml0CgVjb3VudAoGYW1vdW50CgdiYWxhbmNlCgRyYXRlCgpkaWZmZXJlbmNlCg5wYXJ0aXRpb25fbmFt" +
+                        "ZRKYAQoHugEECAEYAQoEOgIQAQoEYgIQAQoEYgIQAQoEYgIQAQoFggECEAEKBYoCAhgBCgRiAhABCgnCAQYIBBATIAEKCcIBBggEE" +
+                        "BMgAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAMQEyABCgQ6AhABCgnCAQYIAxATIAEKBDoCEAEKCcIBBggDEBMgAQoEOgIQAQoEYg" +
+                        "IQARgCOl8KMU9SQUNMRV9CQVNJQ19EQlRBQkxFX1NDSEVNQV9HQU1NQV9FVV9XRVNUXzFfSU5URUcKKk9SQUNMRV9CQVNJQ19EQlR" +
+                        "BQkxFX0dBTU1BX0VVX1dFU1RfMV9JTlRFRxoIEgYKAhIAIgAaChIICgQSAggCIgAaChIICgQSAggDIgAaChIICgQSAggIIgASC2Vt" +
+                        "cGxveWVlX2lkEg1lbXBsb3llZV9uYW1lEglqb2JfdGl0bGUSBnNhbGFyeTILEEoqB2lzdGhtdXM="),
+//                SELECT employee_id
+//                FROM basic_write_nonexist
+//                WHERE employee_id = 'EMP001'
+                Arguments.of("Ch4IARIaL2Z1bmN0aW9uc19jb21wYXJpc29uLnlhbWwSFRoTCAEQARoNZXF1YWw6YW55X2FueRrsAx" +
+                        "LpAwrZAzrWAwoFEgMKARYSwAMSvQMKAgoAEo4DCosDCgIKABLkAgoEZGF0ZQoLZmxvYXRfdmFsdWUKBXByaWNlCgtlbXBs" +
+                        "b3llZV9pZAoJaXNfYWN0aXZlCg1lbXBsb3llZV9uYW1lCglqb2JfdGl0bGUKB2FkZHJlc3MKCWpvaW5fZGF0ZQoJdGltZX" +
+                        "N0YW1wCghkdXJhdGlvbgoGc2FsYXJ5CgVib251cwoFaGFzaDEKBWhhc2gyCgRjb2RlCgVkZWJpdAoFY291bnQKBmFtb3Vu" +
+                        "dAoHYmFsYW5jZQoEcmF0ZQoKZGlmZmVyZW5jZRKYAQoFggECEAEKBFoCEAEKBFoCEAEKBGICEAEKBGICEAEKBGICEAEKBG" +
+                        "ICEAEKBGICEAEKBYIBAhABCgWKAgIYAQoEYgIQAQoEYgIQAQoEYgIQAQoEOgIQAQoEOgIQAQoEOgIQAQoJwgEGCAIQCiAB" +
+                        "CgQ6AhABCgnCAQYIAhAKIAEKBDoCEAEKCcIBBggCEAogAQoEOgIQARgCOh4KBnB1YmxpYwoUYmFzaWNfd3JpdGVfbm9uZX" +
+                        "hpc3QaJhokCAEaBAoCEAEiDBoKEggKBBICCAMiACIMGgoKCGIGRU1QMDAxGgoSCAoEEgIIAyIAEgtFTVBMT1lFRV9JRDIL" +
+                        "EEoqB2lzdGhtdXM=")
+        );
     }
 }
