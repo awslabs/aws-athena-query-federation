@@ -73,6 +73,8 @@ public final class SnowflakeConstants
      */
     public static final String USERNAME = "username";
     public static final String PASSWORD = "password";
+    public static final String USERNAME_UPPERCASE = "USERNAME";
+    public static final String PASSWORD_UPPERCASE = "PASSWORD";
     public static final String USER = "user";
 
     private SnowflakeConstants() {}

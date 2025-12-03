@@ -71,6 +71,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.glue.model.ErrorDetails;
@@ -178,7 +179,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
 
     @VisibleForTesting
-    protected SnowflakeMetadataHandler(
+    public SnowflakeMetadataHandler(
             DatabaseConnectionConfig databaseConnectionConfig,
             SecretsManagerClient secretsManager,
             AthenaClient athena,
@@ -261,7 +262,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
         // Check if S3 export is enabled
         SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
-        
+
         if (envProperties.isS3ExportEnabled()) {
             handleS3ExportPartitions(blockWriter, request, schemaName, tableName, constraints, queryID, catalog);
         }
@@ -270,19 +271,19 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         }
     }
 
-    private void handleDirectQueryPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, 
+    private void handleDirectQueryPartitions(BlockWriter blockWriter, GetTableLayoutRequest request,
             Schema schemaName, TableName tableName, Constraints constraints, String queryID) throws Exception
     {
         LOGGER.debug("getPartitions: {}: Schema {}, table {}", queryID, tableName.getSchemaName(),
                 tableName.getTableName());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             /**
              * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
              * this is to handle timeout issues because of huge partitions
              */
             LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
-            boolean viewFlag = checkForView(tableName);
+            boolean viewFlag = checkForView(tableName, request);
             //if the input table is a view , there will be single split
             if (viewFlag) {
                 blockWriter.writeRows((Block block, int rowNum) -> {
@@ -304,7 +305,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     totalRecordCount = rs.getLong(1);
                 }
                 if (totalRecordCount > 0) {
-                    Optional<String> primaryKey = getPrimaryKey(tableName);
+                    Optional<String> primaryKey = getPrimaryKey(tableName, request);
                     long recordsInPartition = (long) (Math.ceil(totalRecordCount / MAX_PARTITION_COUNT));
                     long partitionRecordCount = (totalRecordCount <= SINGLE_SPLIT_LIMIT_COUNT || !primaryKey.isPresent()) ? (long) totalRecordCount : recordsInPartition;
                     LOGGER.info(" Total Page Count: " + partitionRecordCount);
@@ -354,7 +355,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         }
         LOGGER.debug("Integration Name {}", integrationName);
 
-        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)));
 
         // Check and create S3 integration if needed
         if (!checkIntegration(connection, integrationName)) {
@@ -363,7 +364,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             if (roleArn == null || roleArn.trim().isEmpty()) {
                 throw new IllegalArgumentException("Role ARN cannot be null or empty");
             }
-            
+
             String createIntegrationQuery = String.format(
                     "CREATE STORAGE INTEGRATION %s " +
                     "TYPE = EXTERNAL_STAGE " +
@@ -374,7 +375,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     snowflakeQueryStringBuilder.quote(integrationName),
                     snowflakeQueryStringBuilder.singleQuote(roleArn),
                     snowflakeQueryStringBuilder.singleQuote("s3://" + s3ExportBucket.replace("'", "''") + "/"));
-            
+
             try (Statement stmt = connection.createStatement()) {
                 LOGGER.debug("Create Integration query: {}", createIntegrationQuery);
                 stmt.execute(createIntegrationQuery);
@@ -390,7 +391,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             generatedSql = buildQueryPassthroughSql(constraints);
         }
         else {
-            generatedSql = snowflakeQueryStringBuilder.buildSqlString(connection, catalog, tableName.getSchemaName(), 
+            generatedSql = snowflakeQueryStringBuilder.buildSqlString(connection, catalog, tableName.getSchemaName(),
                     tableName.getTableName(), schemaName, constraints, null);
         }
 
@@ -399,13 +400,13 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         String escapedQueryID = queryID.replace("'", "''");
         String escapedRandomStr = randomStr.replace("'", "''");
         String escapedIntegration = integrationName.replace("\"", "\"\"");
-        
+
         // Build the COPY INTO query with proper escaping and quoting
         String s3Path = String.format("s3://%s/%s/%s/",
                 escapedBucket.replace("'", "''"),
                 escapedQueryID.replace("'", "''"),
                 escapedRandomStr.replace("'", "''"));
-                
+
         String snowflakeExportQuery = String.format("COPY INTO '%s' FROM (%s) STORAGE_INTEGRATION = %s " +
                 "HEADER = TRUE FILE_FORMAT = (TYPE = 'PARQUET', COMPRESSION = 'SNAPPY') MAX_FILE_SIZE = 16777216",
                 s3Path,
@@ -457,7 +458,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
         SnowflakeEnvironmentProperties envProperties = new SnowflakeEnvironmentProperties(System.getenv());
-        
+
         if (envProperties.isS3ExportEnabled()) {
             return handleS3ExportSplits(request);
         }
@@ -520,7 +521,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         FieldReader fieldReaderPreparedStmt = request.getPartitions().getFieldReader(PREPARED_STMT);
         String preparedStmt = fieldReaderPreparedStmt.readText().toString();
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)));
              PreparedStatement preparedStatement = new PreparedStatementBuilder()
                      .withConnection(connection)
                      .withQuery(preparedStmt)
@@ -534,7 +535,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             if (s3ObjectSummaries.isEmpty()) {
                 preparedStatement.execute();
                 s3ObjectSummaries = getlistExportedObjects(exportBucket, prefix);
-                LOGGER.debug("{} s3ObjectSummaries returned after executing on SnowFlake for queryId {}", 
+                LOGGER.debug("{} s3ObjectSummaries returned after executing on SnowFlake for queryId {}",
                         (long) s3ObjectSummaries.size(), queryId);
             }
 
@@ -626,7 +627,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * @throws Exception
      */
     @Override
-    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema, AwsRequestOverrideConfiguration requestOverrideConfiguration)
             throws Exception
     {
         LOGGER.debug("getSchema start, tableName:" + tableName);
@@ -637,7 +638,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(requestOverrideConfiguration));
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
             stmt.setString(1, tableName.getSchemaName());
             stmt.setString(2, tableName.getTableName());
@@ -736,11 +737,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         return schemaBuilder.build();
     }
 
-    private Optional<String> getPrimaryKey(TableName tableName) throws Exception
+    private Optional<String> getPrimaryKey(TableName tableName, GetTableLayoutRequest request) throws Exception
     {
         LOGGER.debug("getPrimaryKey tableName: " + tableName);
         List<String> primaryKeys = new ArrayList<String>();
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(SHOW_PRIMARY_KEYS_QUERY + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
@@ -750,7 +751,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
 
             String primaryKeyString = primaryKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
-            if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString)) {
+            if (!Strings.isNullOrEmpty(primaryKeyString) && hasUniquePrimaryKey(tableName, primaryKeyString, request)) {
                 return Optional.of(primaryKeyString);
             }
         }
@@ -761,9 +762,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * Snowflake does not enforce primary key constraints, so we double-check user has unique primary key
      * before partitioning.
      */
-    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey) throws Exception
+    private boolean hasUniquePrimaryKey(TableName tableName, String primaryKey, GetTableLayoutRequest request) throws Exception
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT " + primaryKey +  ", count(*) as COUNTS FROM " + "\"" + tableName.getSchemaName() + "\".\"" + tableName.getTableName() + "\"" + " GROUP BY " + primaryKey + " ORDER BY COUNTS DESC");
                  ResultSet rs = preparedStatement.executeQuery()) {
                 if (rs.next()) {
@@ -782,11 +783,11 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     /*
      * Check if the input table is a view and returns viewflag accordingly
      */
-    private boolean checkForView(TableName tableName) throws Exception
+    private boolean checkForView(TableName tableName, GetTableLayoutRequest request) throws Exception
     {
         boolean viewFlag = false;
         List<String> viewparameters = Arrays.asList(tableName.getSchemaName(), tableName.getTableName());
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider(getRequestOverrideConfig(request)))) {
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(VIEW_CHECK_QUERY).withParameters(viewparameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -821,13 +822,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
 
     @Override
-    protected CredentialsProvider getCredentialProvider()
+    public CredentialsProvider createCredentialsProvider(String secretName, AwsRequestOverrideConfiguration requestOverrideConfiguration)
     {
-        final String secretName = getDatabaseConnectionConfig().getSecret();
-        if (StringUtils.isNotBlank(secretName)) {
-            return new SnowflakeCredentialsProvider(secretName);
-        }
-
-        return null;
+        return new SnowflakeCredentialsProvider(secretName, requestOverrideConfiguration);
     }
 }

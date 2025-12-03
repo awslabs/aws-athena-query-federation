@@ -34,6 +34,8 @@ import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.dialect.SnowflakeSqlDialect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -302,5 +304,47 @@ public class SnowflakeQueryStringBuilder
                 throw new IllegalArgumentException("Unknown type encountered during processing: " + columnName +
                         " Field Type: " + arrowType.getTypeID().name());
         }
+    }
+
+    @Override
+    protected String appendLimitOffset(Split split)
+    {
+        if (split == null) {
+            return "";
+        }
+        String primaryKey = "";
+        String xLimit = "";
+        String xOffset = "";
+        String partitionVal = split.getProperty(split.getProperties().keySet().iterator().next()); //p-primary-<PRIMARYKEY>-limit-3000-offset-0
+        if (!partitionVal.contains("-")) {
+            return "";
+        }
+        else {
+            String[] arr = partitionVal.split("-");
+            primaryKey = arr[2];
+            xLimit = arr[4];
+            xOffset = arr[6];
+        }
+
+        // if no primary key, single split only
+        if (primaryKey.equals("")) {
+            return "";
+        }
+        return "ORDER BY " + primaryKey + " " +  appendLimitOffsetWithValue(xLimit, xOffset);
+    }
+
+    @Override
+    protected SqlDialect getSqlDialect()
+    {
+       return SnowflakeSqlDialect.DEFAULT;
+    }
+
+    @Override
+    protected String appendLimitOffsetWithValue(String limit, String offset)
+    {
+        if (offset == null) {
+            return " limit " + limit;
+        }
+        return " limit " + limit + " offset " + offset;
     }
 }
