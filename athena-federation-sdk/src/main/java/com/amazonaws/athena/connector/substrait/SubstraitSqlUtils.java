@@ -172,6 +172,9 @@ public final class SubstraitSqlUtils
         if (type.hasStruct()) {
             return new ArrowType.Struct();
         }
+        if (type.hasPrecisionTimestamp()) {
+            return new ArrowType.Timestamp(TimeUnit.NANOSECOND, null);
+        }
 
         LOGGER.warn("Unsupported Substrait type: {}, defaulting to Utf8", type);
         return ArrowType.Utf8.INSTANCE;

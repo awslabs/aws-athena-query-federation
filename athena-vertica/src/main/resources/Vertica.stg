@@ -17,3 +17,6 @@ templateVerticaExportQPTQuery(builder) ::= <%
 EXPORT TO PARQUET(directory = 's3://<builder.s3ExportBucket>/<builder.queryID>', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) AS <builder.preparedStatementSQL>
 %>
 
+templateVerticaExportSubstraitQuery(builder) ::= <%
+EXPORT TO PARQUET(directory = 's3://<builder.s3ExportBucket>/<builder.queryID>', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) AS <builder.queryFromPlan>
+%>

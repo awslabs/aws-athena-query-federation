@@ -113,4 +113,9 @@ public class QueryFactory {
     {
         return new VerticaExportQueryBuilder(getQueryTemplate(VerticaExportQueryBuilder.getQptTemplateName()));
     }
+
+    public VerticaExportQueryBuilder createSubstraitVerticaExportQueryBuilder()
+    {
+        return new VerticaExportQueryBuilder(getQueryTemplate(VerticaExportQueryBuilder.getSubstraitTemplateName()));
+    }
 }
